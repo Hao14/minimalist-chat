@@ -10,9 +10,21 @@
     <div class="shape yellow-square"></div>
 
     <nav>
-        <a href="index.html">Home</a>
-        <a href="story.html" class="active">Story</a>
-        <a href="chat.html">Chat</a>
+        <div class="desktop-nav-links">
+            <a href="index.html">Home</a>
+            <a href="story.html">Story</a>
+            <a href="chat.html" class="active">Chat</a>
+        </div>
+
+        <div id="nav-actions" class="desktop-nav"></div> 
+
+        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
+        <div id="mobile-nav-links" class="mobile-only hidden">
+            <a href="index.html" class="mobile-link">HOME</a>
+            <a href="story.html" class="mobile-link">STORY</a>
+            <button class="action-btn mobile-link-btn" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn" id="open-settings-btn-mobile">SETTINGS</button>
+        </div>
     </nav>
     <div class="container fade-in-up">
         <h1>Just <span>Enough.</span></h1>
