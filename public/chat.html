@@ -10,7 +10,7 @@
     <div class="shape yellow-circle bottom-left"></div>
 
     <nav>
-        <div class="desktop-nav-links">
+        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; width: 100%;">
             <a href="index.html">Home</a>
             <a href="story.html">Story</a>
             <a href="chat.html" class="active">Chat</a>
@@ -54,9 +54,7 @@
 
     <div class="chat-container-full app-screen hidden" id="chat-wrapper">
         <div id="chat-interface" class="fade-in-up">
-            
             <div id="loading-history" class="hidden">Loading history...</div>
-            
             <ul id="messages"></ul>
             
             <div id="typing-status-container" class="hidden">
@@ -93,85 +91,93 @@
         <ul id="pm-messages"></ul>
         <form id="pm-form" action=""><input id="pm-input" autocomplete="off" placeholder="Message..." /><button type="submit">Send</button></form>
     </div>
-    
+
     <div class="modal-overlay hidden" id="modal-overlay"></div>
     
-    <div id="settings-modal" class="hidden discord-settings">
+    <div id="settings-modal" class="hidden brutalist-settings">
         <div class="settings-sidebar">
-            <div class="settings-sidebar-inner">
-                <div class="sidebar-header">USER SETTINGS</div>
-                <div class="settings-tab active" id="tab-btn-profile">My Account</div>
-                <div class="settings-tab" id="tab-btn-app">Appearance</div>
-                <div class="settings-divider"></div>
-                <div class="settings-tab danger" id="logout-btn">Log Out</div>
-            </div>
+            <h3 class="sidebar-header">USER SETTINGS</h3>
+            <div class="settings-tab active" id="tab-btn-profile">My Account</div>
+            <div class="settings-tab" id="tab-btn-billing">Billing</div>
+            <div class="settings-tab" id="tab-btn-app">Appearance</div>
+            <div class="settings-divider"></div>
+            <div class="settings-tab danger" id="logout-btn">Log Out</div>
         </div>
-        
+
         <div class="settings-content">
-            <div class="settings-content-inner">
-                
-                <div class="settings-close" id="close-settings-btn">
-                    <svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M18.4 4L12 10.4L5.6 4L4 5.6L10.4 12L4 18.4L5.6 20L12 13.6L18.4 20L20 18.4L13.6 12L20 5.6L18.4 4Z"></path></svg>
-                    <div class="close-text">ESC</div>
-                </div>
+            <button id="close-settings-btn" class="brutalist-close" title="Close">✖</button>
 
-                <div class="settings-pane active" id="pane-profile">
-                    <h2>My Account</h2>
-                    <div class="settings-card">
-                        
-                        <div class="settings-card-header">
-                            <img id="settings-photo-preview" src="">
-                            <div class="settings-card-title">
-                                <div class="title-name" id="settings-display-name-title">User</div>
-                            </div>
-                            <button class="discord-brand-btn" id="update-profile-btn">Save Changes</button>
+            <div class="settings-pane active" id="pane-profile">
+                <h2>My Account</h2>
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <img id="settings-photo-preview" src="">
+                        <div class="settings-card-title">
+                            <div class="title-name" id="settings-display-name-title">User</div>
                         </div>
-                        
-                        <div class="settings-card-body">
-                            <h3 class="card-section-title">Profile Info</h3>
-                            
-                            <div class="discord-input-row">
-                                <div class="discord-input-label">DISPLAY NAME</div>
-                                <input type="text" id="edit-display-name" class="discord-input">
-                            </div>
-                            
-                            <div class="discord-input-row">
-                                <div class="discord-input-label">PRONOUNS</div>
-                                <input type="text" id="edit-pronouns" class="discord-input">
-                            </div>
-                            
-                            <div class="discord-input-row">
-                                <div class="discord-input-label">AVATAR URL</div>
-                                <input type="url" id="edit-photo-url" class="discord-input">
-                            </div>
-                            
-                            <div class="discord-input-row">
-                                <div class="discord-input-label">ABOUT ME</div>
-                                <textarea id="edit-bio" class="discord-input"></textarea>
-                            </div>
-                            
-                            <div class="discord-input-row">
-                                <div class="discord-input-label">THEME COLOR</div>
-                                <input type="color" id="edit-theme-color" class="discord-input color-input">
-                            </div>
+                        <button id="update-profile-btn" style="width: auto; margin:0;">Save</button>
+                    </div>
+
+                    <div class="settings-card-body">
+                        <div class="input-group">
+                            <label>DISPLAY NAME</label>
+                            <input type="text" id="edit-display-name">
+                        </div>
+                        <div class="input-group">
+                            <label>PRONOUNS</label>
+                            <input type="text" id="edit-pronouns">
+                        </div>
+                        <div class="input-group">
+                            <label>AVATAR URL</label>
+                            <input type="url" id="edit-photo-url">
+                        </div>
+                        <div class="input-group">
+                            <label>ABOUT ME</label>
+                            <textarea id="edit-bio"></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label>THEME COLOR</label>
+                            <input type="color" id="edit-theme-color" class="color-input">
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-pane hidden" id="pane-app">
-                    <h2>Appearance</h2>
-                    <div class="settings-card">
-                        <div class="settings-card-body" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-weight: 500; font-size: 16px; color: #dbdee1;">Theme Mode</span>
-                            <button class="discord-gray-btn" id="theme-toggle-btn">Toggle Dark / Light</button>
-                        </div>
+                <div class="settings-card" style="margin-top: 2rem;">
+                    <div class="settings-card-body">
+                        <h3 style="font-size: 1.2rem; font-weight: 800; text-transform: uppercase;">Account Management</h3>
+                        <p style="font-weight: 600; color: #666;">Account deletion is permanent. Once you delete your account, there is no going back. Please be certain.</p>
+                        <button id="delete-account-btn" style="background: transparent; color: red; border-color: red; width: auto; padding: 0.8rem 1.5rem; margin-top: 0.5rem; box-shadow: 4px 4px 0px red;">Delete Account</button>
                     </div>
                 </div>
-                
+            </div>
+
+            <div class="settings-pane hidden" id="pane-billing">
+                <h2>Billing</h2>
+                <div class="settings-card">
+                    <div class="settings-card-header" style="background: var(--accent-color); color: var(--text-color);">
+                        <div class="settings-card-title">
+                            <div class="title-name">Minimalist Pro</div>
+                        </div>
+                        <span style="font-weight: 800; font-size: 1.2rem; border: 3px solid var(--text-color); padding: 5px 10px;">FREE</span>
+                    </div>
+                    <div class="settings-card-body">
+                        <p style="font-weight: 600; font-size: 1.1rem;">You are currently on the free plan.</p>
+                        <p style="color: #666; font-weight: 600; margin-bottom: 1rem;">No payment methods are attached to your account.</p>
+                        <button style="width: auto; filter: grayscale(100%); cursor: not-allowed; box-shadow: none;" disabled>Upgrade to Pro (Coming Soon)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-pane hidden" id="pane-app">
+                <h2>Appearance</h2>
+                <div class="settings-card" style="display: flex; justify-content: space-between; align-items: center; padding: 2rem;">
+                    <span style="font-weight: 700; font-size: 1.2rem;">Theme Mode</span>
+                    <button id="theme-toggle-btn" style="width: auto; margin: 0;">Dark / Light 🌓</button>
+                </div>
             </div>
         </div>
     </div>
-
+    
     <div id="user-profile-popup" class="hidden">
         <div class="profile-banner" id="up-banner">
             <div class="profile-popup-close" id="close-profile-btn">✖</div>

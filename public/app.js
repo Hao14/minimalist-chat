@@ -1,16 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // --- GLOBAL CRASH REPORTER ---
-// This stops silent failures. If the app breaks, it will alert you.
-window.addEventListener('error', (event) => {
-    alert("Script Crash: " + event.message);
-});
-window.addEventListener('unhandledrejection', (event) => {
-    alert("Database/Network Crash: " + (event.reason.message || event.reason));
-});
+window.addEventListener('error', (event) => { alert("Script Crash: " + event.message); });
+window.addEventListener('unhandledrejection', (event) => { alert("Database/Network Crash: " + (event.reason.message || event.reason)); });
 
 const firebaseConfig = {
     apiKey: "AIzaSyDAnwh1kYnomfGIMM71J9tCY3tuOV0ejnE",
@@ -48,25 +43,29 @@ let isFetchingHistory = false;
 
 // --- UI SCREEN MANAGER ---
 function showScreen(screenId) {
-    document.querySelectorAll('.app-screen').forEach(screen => {
-        screen.classList.add('hidden');
-    });
+    document.querySelectorAll('.app-screen').forEach(screen => { screen.classList.add('hidden'); });
     const target = document.getElementById(screenId);
     if(target) target.classList.remove('hidden');
 }
 
 // --- DARK MODE LOGIC ---
 if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
-document.getElementById('theme-toggle-btn').addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-    localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
-});
+const themeBtn = document.getElementById('theme-toggle-btn');
+if (themeBtn) {
+    themeBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+    });
+}
 
 // --- MOBILE MENU LOGIC ---
-document.getElementById('mobile-menu-btn').addEventListener('click', () => {
-    const menu = document.getElementById('mobile-nav-links');
-    menu.classList.toggle('hidden');
-});
+const mobileBtn = document.getElementById('mobile-menu-btn');
+if (mobileBtn) {
+    mobileBtn.addEventListener('click', () => {
+        const menu = document.getElementById('mobile-nav-links');
+        menu.classList.toggle('hidden');
+    });
+}
 
 function getAvatarUrl(name, url) {
     if (url && url.trim() !== '') return url;
@@ -177,54 +176,82 @@ document.getElementById('save-new-profile-btn').addEventListener('click', async 
     }
 });
 
-// --- SETTINGS ---
-// --- SETTINGS ---
+// --- BRUTALIST SETTINGS LOGIC ---
 const modal = document.getElementById('settings-modal');
 const overlay = document.getElementById('modal-overlay');
 
 function openSettings() {
     document.getElementById('edit-display-name').value = userProfileName;
-    document.getElementById('settings-display-name-title').textContent = userProfileName; // Updates title in card
+    document.getElementById('settings-display-name-title').textContent = userProfileName; 
     document.getElementById('edit-photo-url').value = userPhotoUrl.includes('ui-avatars.com') ? '' : userPhotoUrl;
     document.getElementById('edit-pronouns').value = userPronouns;
     document.getElementById('edit-bio').value = userBio;
     document.getElementById('edit-theme-color').value = userThemeColor;
     document.getElementById('settings-photo-preview').src = getAvatarUrl(userProfileName, userPhotoUrl);
     
-    // Always open to the Profile tab by default
     switchTab('pane-profile', 'tab-btn-profile');
     
     modal.classList.remove('hidden'); 
     overlay.classList.remove('hidden');
 }
 
-// Tab Switching Logic
 function switchTab(paneId, btnId) {
+    // Hide all panes
     document.getElementById('pane-profile').classList.add('hidden');
+    document.getElementById('pane-billing').classList.add('hidden');
     document.getElementById('pane-app').classList.add('hidden');
+    
+    // Remove active state from all tabs
     document.getElementById('tab-btn-profile').classList.remove('active');
+    document.getElementById('tab-btn-billing').classList.remove('active');
     document.getElementById('tab-btn-app').classList.remove('active');
     
+    // Activate requested pane and tab
     document.getElementById(paneId).classList.remove('hidden');
     document.getElementById(btnId).classList.add('active');
 }
 
-// Tab Event Listeners
 document.getElementById('tab-btn-profile').addEventListener('click', () => switchTab('pane-profile', 'tab-btn-profile'));
+document.getElementById('tab-btn-billing').addEventListener('click', () => switchTab('pane-billing', 'tab-btn-billing'));
 document.getElementById('tab-btn-app').addEventListener('click', () => switchTab('pane-app', 'tab-btn-app'));
-
-// Close Buttons
-document.getElementById('close-settings-btn').addEventListener('click', () => { modal.classList.add('hidden'); overlay.classList.add('hidden'); });
 document.getElementById('logout-btn').addEventListener('click', () => { modal.classList.add('hidden'); overlay.classList.add('hidden'); signOut(auth); });
-document.getElementById('open-settings-btn-mobile').addEventListener('click', () => {
-    document.getElementById('mobile-nav-links').classList.add('hidden');
-    openSettings(); 
-});
+document.getElementById('open-settings-btn-mobile').addEventListener('click', () => { document.getElementById('mobile-nav-links').classList.add('hidden'); openSettings(); });
 
-// Save Button
 document.getElementById('update-profile-btn').addEventListener('click', async () => {
     try {
-        const newName = document.getElementById('edit-display-name').value.trim();
+// --- DELETE ACCOUNT LOGIC ---
+const deleteAccountBtn = document.getElementById('delete-account-btn');
+if (deleteAccountBtn) {
+    deleteAccountBtn.addEventListener('click', async () => {
+        // Require manual typing for security
+        const confirmationText = prompt("WARNING: Account deletion is permanent and cannot be undone.\n\nPlease type exactly:\nI WANT DELETION\n\nto confirm.");
+        
+        // Check if the input matches exactly (case-sensitive)
+        if (confirmationText === "I WANT DELETION") {
+            try {
+                // 1. Wipe data from Realtime Database
+                await remove(ref(db, 'users/' + currentUser.uid));
+                
+                // 2. Delete Auth Profile
+                await deleteUser(currentUser);
+                
+                alert("Account deleted successfully.");
+                window.location.reload();
+            } catch (error) {
+                // Firebase requires a recent login to delete an account for security reasons
+                if (error.code === 'auth/requires-recent-login') {
+                    alert("For your security, Firebase requires you to log out and log back in right before deleting your account.");
+                } else {
+                    alert("Failed to delete account: " + error.message);
+                }
+            }
+        } else if (confirmationText !== null) {
+            // They typed something, but it was wrong
+            alert("Account deletion cancelled: You did not type 'I WANT DELETION' correctly.");
+        }
+    });
+}
+     const newName = document.getElementById('edit-display-name').value.trim();
         const newPhoto = document.getElementById('edit-photo-url').value.trim();
         
         if (newName) {
@@ -235,12 +262,9 @@ document.getElementById('update-profile-btn').addEventListener('click', async ()
             userThemeColor = document.getElementById('edit-theme-color').value;
 
             await set(ref(db, 'users/' + currentUser.uid), { 
-                displayName: userProfileName, 
-                photoUrl: userPhotoUrl,
-                pronouns: userPronouns,
-                bio: userBio,
-                themeColor: userThemeColor,
-                shortId: userShortId 
+                displayName: userProfileName, photoUrl: userPhotoUrl,
+                pronouns: userPronouns, bio: userBio,
+                themeColor: userThemeColor, shortId: userShortId 
             });
             
             modal.classList.add('hidden'); overlay.classList.add('hidden');
@@ -249,11 +273,11 @@ document.getElementById('update-profile-btn').addEventListener('click', async ()
         alert("Error updating profile: " + error.message);
     }
 });
+
 // --- MAIN ENTRY & INFINITE SCROLL ---
 function enterChat() {
     try {
         showScreen('chat-wrapper');
-        
         const desktopNavActions = document.getElementById('nav-actions');
         if(desktopNavActions) {
             desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
@@ -290,7 +314,6 @@ function initializeChatMemory() {
             try {
                 const oldScrollHeight = messagesList.scrollHeight;
                 const historyQuery = query(messagesRef, orderByKey(), endBefore(oldestMessageKey), limitToLast(20));
-                
                 const snapshot = await get(historyQuery);
                 document.getElementById('loading-history').classList.add('hidden');
                 
@@ -304,9 +327,7 @@ function initializeChatMemory() {
                     }
                     messagesList.scrollTop = messagesList.scrollHeight - oldScrollHeight;
                 }
-            } catch (err) {
-                console.error("Scroll error:", err);
-            }
+            } catch (err) { console.error("Scroll error:", err); }
             isFetchingHistory = false;
         }
     });
@@ -403,9 +424,7 @@ function displayMessage(messageId, msg, prepend = false) {
         <div class="msg-reactions" id="reactions-${messageId}"></div>
     `;
 
-    if (prepend) {
-        messagesList.prepend(item);
-    } else {
+    if (prepend) { messagesList.prepend(item); } else {
         messagesList.appendChild(item);
         setTimeout(() => { messagesList.scrollTo(0, messagesList.scrollHeight); }, 50);
     }
@@ -422,9 +441,8 @@ window.prepareReply = function(id, name, text) {
 };
 
 window.reactToMessage = async function(messageId, emoji) {
-    try {
-        await set(ref(db, `messages/${messageId}/reactions/${currentUser.uid}`), emoji);
-    } catch(err) { console.error("Reaction failed", err); }
+    try { await set(ref(db, `messages/${messageId}/reactions/${currentUser.uid}`), emoji); } 
+    catch(err) { console.error("Reaction failed", err); }
 };
 
 function updateMessageReactions(messageId, msg) {
@@ -439,13 +457,10 @@ function updateMessageReactions(messageId, msg) {
     }
 }
 
-// --- LOGIN BINDINGS (REVERTED TO POPUP FOR STABILITY) ---
+// --- LOGIN BINDINGS ---
 document.getElementById('google-login-btn').addEventListener('click', async () => { 
-    try { 
-        await signInWithPopup(auth, new GoogleAuthProvider()); 
-    } catch (error) {
-        alert("Google Auth Error: " + error.message);
-    } 
+    try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+    catch (error) { alert("Google Auth Error: " + error.message); } 
 });
 
 document.getElementById('send-code-btn').addEventListener('click', async () => {
@@ -454,17 +469,12 @@ document.getElementById('send-code-btn').addEventListener('click', async () => {
         window.confirmationResult = await signInWithPhoneNumber(auth, document.getElementById('phone-input').value, window.recaptchaVerifier); 
         document.getElementById('phone-step-1').classList.add('hidden'); 
         document.getElementById('phone-step-2').classList.remove('hidden'); 
-    } catch (error) {
-        alert("SMS Failed: " + error.message);
-    }
+    } catch (error) { alert("SMS Failed: " + error.message); }
 });
 
 document.getElementById('verify-code-btn').addEventListener('click', async () => { 
-    try { 
-        await window.confirmationResult.confirm(document.getElementById('code-input').value); 
-    } catch (error) {
-        alert("Verification Error: " + error.message);
-    } 
+    try { await window.confirmationResult.confirm(document.getElementById('code-input').value); } 
+    catch (error) { alert("Verification Error: " + error.message); } 
 });
 
 // --- FRIEND SYSTEM & CONTACTS ---
@@ -509,15 +519,11 @@ async function renderContactsUI() {
         const allUsers = usersSnap.val() || {};
         const myFriends = friendsSnap.val() || {};
 
-        let htmlRequests = '';
-        let htmlFriends = '';
-        let htmlOthers = '';
+        let htmlRequests = ''; let htmlFriends = ''; let htmlOthers = '';
 
         for (const uid in allUsers) {
             if (uid === currentUser.uid) continue;
-
-            const user = allUsers[uid];
-            const status = myFriends[uid];
+            const user = allUsers[uid]; const status = myFriends[uid];
             const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
 
             const baseItem = `
@@ -529,16 +535,10 @@ async function renderContactsUI() {
                     </div>
                     <div class="contact-actions">
             `;
-
-            if (status === 'accepted') {
-                htmlFriends += baseItem + `<button class="mini-btn danger" onclick="removeFriend('${uid}')" title="Remove Friend">✖</button></div></li>`;
-            } else if (status === 'pending_received') {
-                htmlRequests += baseItem + `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`;
-            } else if (status === 'pending_sent') {
-                htmlOthers += baseItem + `<span style="font-size:0.8rem; color:#888;">Requested</span></div></li>`;
-            } else {
-                htmlOthers += baseItem + `<button class="mini-btn outline" onclick="sendRequest('${uid}')">Add Friend</button></div></li>`;
-            }
+            if (status === 'accepted') { htmlFriends += baseItem + `<button class="mini-btn danger" onclick="removeFriend('${uid}')" title="Remove Friend">✖</button></div></li>`; } 
+            else if (status === 'pending_received') { htmlRequests += baseItem + `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`; } 
+            else if (status === 'pending_sent') { htmlOthers += baseItem + `<span style="font-size:0.8rem; color:#888;">Requested</span></div></li>`; } 
+            else { htmlOthers += baseItem + `<button class="mini-btn outline" onclick="sendRequest('${uid}')">Add</button></div></li>`; }
         }
 
         list.innerHTML = '';
@@ -556,24 +556,16 @@ async function renderContactsUI() {
                 });
             }
         }
-    } catch (err) {
-        console.error("Contacts render failed", err);
-    }
+    } catch (err) { console.error("Contacts render failed", err); }
 }
 
 // --- PRIVATE MESSAGING LOGIC ---
-function stopNotifications() {
-    clearInterval(blinkInterval);
-    document.title = originalTitle;
-}
-
+function stopNotifications() { clearInterval(blinkInterval); document.title = originalTitle; }
 function getPrivateRoomId(uid1, uid2) { return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`; }
 
 window.openPrivateChat = function(targetUid, targetName) {
     try {
-        currentPmTargetUid = targetUid;
-        stopNotifications();
-
+        currentPmTargetUid = targetUid; stopNotifications();
         const popup = document.getElementById('pm-popup');
         document.getElementById('pm-target-name').textContent = targetName;
         document.getElementById('pm-messages').innerHTML = '';
@@ -596,9 +588,7 @@ window.openPrivateChat = function(targetUid, targetName) {
         });
 
         popup.classList.remove('hidden');
-    } catch(err) {
-        alert("Private Message Error: " + err.message);
-    }
+    } catch(err) { alert("Private Message Error: " + err.message); }
 }
 
 document.getElementById('pm-close-btn').addEventListener('click', () => {
@@ -609,21 +599,13 @@ document.getElementById('pm-close-btn').addEventListener('click', () => {
 
 document.getElementById('pm-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const pmInput = document.getElementById('pm-input');
-    const text = pmInput.value.trim();
-
+    const pmInput = document.getElementById('pm-input'); const text = pmInput.value.trim();
     if (text && currentPmRoomId) {
         try {
-            await push(ref(db, `private_messages/${currentPmRoomId}`), {
-                uid: currentUser.uid, text: text, timestamp: serverTimestamp()
-            });
-            await set(ref(db, `inbox/${currentPmTargetUid}/${currentUser.uid}`), {
-                fromName: userProfileName, timestamp: Date.now(), read: false
-            });
+            await push(ref(db, `private_messages/${currentPmRoomId}`), { uid: currentUser.uid, text: text, timestamp: serverTimestamp() });
+            await set(ref(db, `inbox/${currentPmTargetUid}/${currentUser.uid}`), { fromName: userProfileName, timestamp: Date.now(), read: false });
             pmInput.value = '';
-        } catch(err) {
-            alert("Failed to send PM: " + err.message);
-        }
+        } catch(err) { alert("Failed to send PM: " + err.message); }
     }
 });
 
@@ -643,17 +625,11 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
         document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
         
+        // Setup message button inside profile popup
         const msgBtn = document.getElementById('up-message-btn');
         msgBtn.onclick = () => {
-            // Set up the Message Button
-    const msgBtn = document.getElementById('up-message-btn');
-    msgBtn.onclick = () => {
-        document.getElementById('user-profile-popup').classList.add('hidden');
-        document.getElementById('modal-overlay').classList.add('hidden'); // <--- ADD THIS LINE
-        document.getElementById('contacts-panel').classList.remove('open');
-        openPrivateChat(targetUid, user.displayName);
-    };
             document.getElementById('user-profile-popup').classList.add('hidden');
+            document.getElementById('modal-overlay').classList.add('hidden'); 
             document.getElementById('contacts-panel').classList.remove('open');
             openPrivateChat(targetUid, user.displayName);
         };
@@ -665,9 +641,21 @@ window.viewUserProfile = async function(targetUid) {
     }
 };
 
-document.getElementById('close-profile-btn').addEventListener('click', () => {
-    document.getElementById('user-profile-popup').classList.add('hidden');
-    if(document.getElementById('settings-modal').classList.contains('hidden')) {
-        document.getElementById('modal-overlay').classList.add('hidden');
-    }
-});
+// --- BULLETPROOF CLOSE BUTTONS ---
+const closeProfileBtn = document.getElementById('close-profile-btn');
+if (closeProfileBtn) {
+    closeProfileBtn.addEventListener('click', () => {
+        document.getElementById('user-profile-popup').classList.add('hidden');
+        if(document.getElementById('settings-modal').classList.contains('hidden')) {
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+    });
+}
+
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => { 
+        document.getElementById('settings-modal').classList.add('hidden'); 
+        document.getElementById('modal-overlay').classList.add('hidden'); 
+    });
+}
