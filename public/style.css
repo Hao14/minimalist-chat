@@ -222,7 +222,11 @@ button:hover {
 }
 
 .msg-name { font-weight: 700; color: var(--text-color); }
-.msg-time { color: #888; font-size: 0.75rem; }
+.msg-time {
+    color: #888;
+    font-size: 0.75rem;
+    margin-left: 8px; /* Forcefully pushes the time away from the name */
+}
 .msg-avatar {
     width: 35px; height: 35px; border-radius: 50%;
     object-fit: cover; border: 2px solid var(--text-color);
@@ -496,3 +500,121 @@ body.dark-mode .profile-bio { background: rgba(255,255,255,0.05); }
 
 .profile-actions { margin-top: 15px; display: flex; gap: 10px; }
 .profile-actions button { margin-bottom: 0; padding: 0.8rem; }
+
+/* =======================================================
+   EXACT DISCORD-STYLE SETTINGS MODAL
+========================================================== */
+/* 1. Base Modal Reset */
+#settings-modal.discord-settings {
+    position: fixed !important; top: 0 !important; left: 0 !important;
+    width: 100vw !important; height: 100vh !important; max-width: none !important;
+    background: #313338 !important; color: #dbdee1 !important;
+    display: flex !important; flex-direction: row !important;
+    z-index: 4000 !important; padding: 0 !important; margin: 0 !important;
+    border: none !important; box-shadow: none !important;
+    text-align: left !important; transform: none !important; border-radius: 0 !important;
+    font-family: 'gg sans', 'Helvetica Neue', Helvetica, Arial, sans-serif !important;
+}
+
+#settings-modal.discord-settings * {
+    box-sizing: border-box; text-transform: none; /* Kills forced uppercase */
+}
+
+/* 2. Left Sidebar */
+.settings-sidebar {
+    width: 30%; min-width: 250px; max-width: 350px; background: #2b2d31;
+    padding: 60px 10px 20px 20px; display: flex; justify-content: flex-end;
+}
+.settings-sidebar-inner {
+    width: 100%; max-width: 200px; display: flex; flex-direction: column; gap: 2px;
+}
+.sidebar-header {
+    font-size: 12px; font-weight: 800; color: #80848e; padding: 6px 10px; 
+    margin-bottom: 4px; text-transform: uppercase !important;
+}
+.settings-tab {
+    padding: 8px 10px; border-radius: 4px; cursor: pointer;
+    font-size: 16px; font-weight: 500; color: #b5bac1;
+    transition: background 0.15s, color 0.15s;
+}
+.settings-tab:hover { background: #35373c; color: #dbdee1; }
+.settings-tab.active { background: #404249; color: #ffffff; }
+.settings-divider { height: 1px; background: #3f4147; margin: 8px 10px; }
+
+/* 3. Main Content Area */
+.settings-content {
+    flex: 1; padding: 60px 40px; background: #313338;
+    position: relative; overflow-y: auto; display: flex; justify-content: center;
+}
+.settings-content-inner { width: 100%; max-width: 740px; }
+.settings-pane h2 { font-size: 20px; font-weight: 700; color: #ffffff; margin: 0 0 20px 0; text-align: left; }
+
+/* Close Button (ESC) */
+.settings-close {
+    position: absolute; top: 60px; right: 40px; display: flex; flex-direction: column; 
+    align-items: center; gap: 4px; cursor: pointer; color: #80848e; transition: color 0.2s;
+}
+.settings-close:hover { color: #dbdee1; }
+.settings-close svg { width: 18px; height: 18px; }
+.close-text { font-size: 13px; font-weight: 600; }
+
+/* 4. Cards (Account Info box) */
+.settings-card { background: #1e1f22; border-radius: 8px; margin-bottom: 24px; }
+.settings-card-header { padding: 16px; display: flex; align-items: center; gap: 16px; border-bottom: 1px solid #3f4147; }
+.settings-card-header img { 
+    width: 80px; height: 80px; border-radius: 50%; border: 6px solid #1e1f22; 
+    background: #000; margin: 0 !important; box-shadow: none !important;
+}
+.settings-card-title { flex: 1; display: flex; flex-direction: column; }
+.title-name { font-size: 20px; font-weight: 700; color: #fff; }
+.settings-card-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.card-section-title { font-size: 12px; font-weight: 700; color: #b5bac1; text-transform: uppercase !important; margin: 0; text-align: left; }
+
+/* 5. Inputs - FORCING OFF THE BRUTALIST THEME */
+.discord-input-row { display: flex; flex-direction: column; gap: 8px; text-align: left; }
+.discord-input-label { font-size: 12px; font-weight: 700; color: #b5bac1; text-transform: uppercase; }
+
+.discord-settings input.discord-input, 
+.discord-settings textarea.discord-input {
+    background: #313338 !important; /* Discord dark input bg */
+    color: #dbdee1 !important;
+    border: 1px solid transparent !important; 
+    border-radius: 4px !important;
+    padding: 10px !important;
+    font-size: 16px !important;
+    box-shadow: none !important; 
+    width: 100% !important;
+    margin: 0 !important;
+    transition: border-color 0.2s !important;
+}
+.discord-settings input.discord-input:focus, 
+.discord-settings textarea.discord-input:focus {
+    border-color: #00a8fc !important; /* Discord Blue Focus */
+    outline: none !important;
+}
+.discord-settings textarea.discord-input { min-height: 80px; resize: vertical; }
+.discord-settings input.color-input { height: 40px !important; padding: 2px !important; cursor: pointer; }
+
+/* 6. Buttons - FORCING OFF THE BRUTALIST THEME */
+.discord-settings button.discord-brand-btn, 
+.discord-settings button.discord-gray-btn {
+    border: none !important; box-shadow: none !important; border-radius: 3px !important; 
+    font-size: 14px !important; font-weight: 500 !important; padding: 8px 16px !important;
+    width: auto !important; margin: 0 !important; cursor: pointer !important; 
+    transition: background 0.17s !important; text-transform: none !important;
+    transform: none !important; 
+}
+.discord-brand-btn { background: #5865F2 !important; color: #fff !important; }
+.discord-brand-btn:hover { background: #4752C4 !important; }
+.discord-gray-btn { background: #4e5058 !important; color: #fff !important; }
+.discord-gray-btn:hover { background: #6d6f78 !important; }
+
+/* 7. Mobile View Adjustments */
+@media (max-width: 768px) {
+    #settings-modal.discord-settings { flex-direction: column !important; }
+    .settings-sidebar { width: 100%; max-width: 100%; padding: 20px; display: block; border-bottom: 1px solid #1e1f22; }
+    .settings-sidebar-inner { max-width: 100%; flex-direction: row; flex-wrap: wrap; gap: 10px; }
+    .settings-content { padding: 20px; }
+    .settings-close { top: 20px; right: 20px; }
+    .close-text { display: none; }
+}

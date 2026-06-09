@@ -93,27 +93,83 @@
         <ul id="pm-messages"></ul>
         <form id="pm-form" action=""><input id="pm-input" autocomplete="off" placeholder="Message..." /><button type="submit">Send</button></form>
     </div>
-
+    
     <div class="modal-overlay hidden" id="modal-overlay"></div>
-    <div class="modal-overlay hidden" id="modal-overlay"></div>
-    <div id="settings-modal" class="hidden">
-        <h2>Settings</h2>
-        <img id="settings-photo-preview" class="profile-preview" src="">
-        <input type="text" id="edit-display-name" placeholder="Display Name">
-        <input type="url" id="edit-photo-url" placeholder="Update Image URL">
-        
-        <input type="text" id="edit-pronouns" placeholder="Pronouns (e.g., He/Him)">
-        <textarea id="edit-bio" placeholder="Write a short bio..." style="width:100%; padding: 1rem; border: 4px solid var(--text-color); margin-bottom: 1rem; font-family: inherit; resize: vertical;"></textarea>
-        
-        <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; margin-bottom: 1.5rem;">
-            <label style="font-weight: 700;">Theme Color:</label>
-            <input type="color" id="edit-theme-color" style="padding: 0; width: 50px; height: 50px; border: 3px solid var(--text-color); cursor: pointer; background: transparent;">
+    
+    <div id="settings-modal" class="hidden discord-settings">
+        <div class="settings-sidebar">
+            <div class="settings-sidebar-inner">
+                <div class="sidebar-header">USER SETTINGS</div>
+                <div class="settings-tab active" id="tab-btn-profile">My Account</div>
+                <div class="settings-tab" id="tab-btn-app">Appearance</div>
+                <div class="settings-divider"></div>
+                <div class="settings-tab danger" id="logout-btn">Log Out</div>
+            </div>
         </div>
+        
+        <div class="settings-content">
+            <div class="settings-content-inner">
+                
+                <div class="settings-close" id="close-settings-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M18.4 4L12 10.4L5.6 4L4 5.6L10.4 12L4 18.4L5.6 20L12 13.6L18.4 20L20 18.4L13.6 12L20 5.6L18.4 4Z"></path></svg>
+                    <div class="close-text">ESC</div>
+                </div>
 
-        <button id="update-profile-btn">Save Changes</button>
-        <button class="google-btn" id="theme-toggle-btn">Toggle Dark Mode 🌓</button>
-        <button class="google-btn" id="logout-btn">Log Out</button>
-        <p class="cancel-text" id="close-settings-btn">Cancel</p>
+                <div class="settings-pane active" id="pane-profile">
+                    <h2>My Account</h2>
+                    <div class="settings-card">
+                        
+                        <div class="settings-card-header">
+                            <img id="settings-photo-preview" src="">
+                            <div class="settings-card-title">
+                                <div class="title-name" id="settings-display-name-title">User</div>
+                            </div>
+                            <button class="discord-brand-btn" id="update-profile-btn">Save Changes</button>
+                        </div>
+                        
+                        <div class="settings-card-body">
+                            <h3 class="card-section-title">Profile Info</h3>
+                            
+                            <div class="discord-input-row">
+                                <div class="discord-input-label">DISPLAY NAME</div>
+                                <input type="text" id="edit-display-name" class="discord-input">
+                            </div>
+                            
+                            <div class="discord-input-row">
+                                <div class="discord-input-label">PRONOUNS</div>
+                                <input type="text" id="edit-pronouns" class="discord-input">
+                            </div>
+                            
+                            <div class="discord-input-row">
+                                <div class="discord-input-label">AVATAR URL</div>
+                                <input type="url" id="edit-photo-url" class="discord-input">
+                            </div>
+                            
+                            <div class="discord-input-row">
+                                <div class="discord-input-label">ABOUT ME</div>
+                                <textarea id="edit-bio" class="discord-input"></textarea>
+                            </div>
+                            
+                            <div class="discord-input-row">
+                                <div class="discord-input-label">THEME COLOR</div>
+                                <input type="color" id="edit-theme-color" class="discord-input color-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-pane hidden" id="pane-app">
+                    <h2>Appearance</h2>
+                    <div class="settings-card">
+                        <div class="settings-card-body" style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 500; font-size: 16px; color: #dbdee1;">Theme Mode</span>
+                            <button class="discord-gray-btn" id="theme-toggle-btn">Toggle Dark / Light</button>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
     </div>
 
     <div id="user-profile-popup" class="hidden">
