@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // --- GLOBAL CRASH REPORTER ---
@@ -275,6 +275,22 @@ if (deleteAccountBtn) {
 });
 
 // --- MAIN ENTRY & INFINITE SCROLL ---
+// --- EMOJI PICKER LOGIC ---
+const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚", "😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓", "😎", "🤩", "🥳", "😏", "😒", "😞", "😔", "😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩", "🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯", "😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓", "🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🙄", "😯", "😦", "😧", "😮", "😲", "🥱", "😴", "🤤", "😪", "😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒", "🤕", "🤑", "🤠", "😈", "👿", "👹", "👺", "🤡", "💩", "👻", "💀", "☠️", "👽", "👾", "🤖", "🎃", "👍", "👎", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎"];
+
+function populateEmojiPicker() {
+    const picker = document.getElementById('emoji-picker');
+    picker.innerHTML = ''; // Clear existing
+    emojis.forEach(emoji => {
+        const span = document.createElement('span');
+        span.textContent = emoji;
+        span.onclick = () => addReaction(emoji);
+        picker.appendChild(span);
+    });
+}
+// Run this once when the app loads
+populateEmojiPicker();
+// --- MAIN ENTRY, PRESENCE, & INFINITE SCROLL ---
 function enterChat() {
     try {
         showScreen('chat-wrapper');
@@ -283,6 +299,30 @@ function enterChat() {
             desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
             document.getElementById('open-settings-btn').addEventListener('click', openSettings);
             document.getElementById('open-contacts-btn').addEventListener('click', toggleContacts);
+        }
+        
+        // --- NEW: FIREBASE PRESENCE ENGINE ---
+        const myStatusRef = ref(db, `presence/${currentUser.uid}`);
+        const connectedRef = ref(db, '.info/connected');
+        
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                // If I lose connection or close the tab, mark me offline
+                onDisconnect(myStatusRef).set({ state: 'offline', last_changed: serverTimestamp() }).then(() => {
+                    // Mark me online right now
+                    set(myStatusRef, { state: 'online', last_changed: serverTimestamp() });
+                });
+            }
+        });
+
+        // --- NEW: PREVIEW PROFILE BUTTON ---
+        const previewBtn = document.getElementById('preview-profile-btn');
+        if (previewBtn) {
+            previewBtn.addEventListener('click', () => {
+                // Add the class that forces it to the left side
+                document.getElementById('user-profile-popup').classList.add('preview-layout');
+                viewUserProfile(currentUser.uid); 
+            });
         }
         
         if (!chatInitialized) {
@@ -294,7 +334,6 @@ function enterChat() {
         alert("Error launching chat interface: " + error.message);
     }
 }
-
 function initializeChatMemory() {
     const messagesRef = ref(db, 'messages');
     const messagesList = document.getElementById('messages');
@@ -368,13 +407,19 @@ function initializeChatMemory() {
     }
 
     document.getElementById('chat-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const text = textInput.value.trim(); const file = document.getElementById('image-input').files[0];
-        if (!text && !file) return;
+    e.preventDefault();
+    const file = document.getElementById('image-input').files[0];
+    
+    // 1. Define limits (in bytes: 1MB = 1,048,576 bytes)
+    const LIMITS = { free: 1048576, advanced: 1073741824, pro: 8589934592 };
+    const userTier = 'free'; // You should fetch this from database for the current user!
 
-        const sendBtn = document.getElementById('send-message-btn');
-        sendBtn.textContent = '...'; sendBtn.disabled = true;
-        let uploadedImageUrl = null;
+    if (file && file.size > LIMITS[userTier]) {
+        alert(`File too large! Your current plan allows ${userTier.toUpperCase()} uploads.`);
+        return; // Stops the upload
+    }
+    
+    // ... rest of your upload logic ...
 
         try {
             if (file) {
@@ -414,11 +459,15 @@ function displayMessage(messageId, msg, prepend = false) {
         <div class="msg-actions">
             <span class="action-icon" onclick="reactToMessage('${messageId}', '👍')">👍</span>
             <span class="action-icon" onclick="reactToMessage('${messageId}', '❤️')">❤️</span>
+            <span class="action-icon more-icon" onclick="toggleEmojiPicker(event, '${messageId}')">⋯</span>
             <span class="action-icon" onclick="prepareReply('${messageId}', '${msg.name}', '${msg.text ? msg.text.replace(/'/g, "\\'") : 'Image'}')">↩️</span>
         </div>
         <div class="msg-header">
-            <img src="${avatarImg}" class="msg-avatar" alt="Avatar">
-            <div class="header-text"><span class="msg-name">${msg.name}</span><span class="msg-time">${timeString}</span></div>
+            <img src="${avatarImg}" class="msg-avatar" alt="Avatar" onclick="viewUserProfile('${msg.uid}')">
+            <div class="header-text">
+                <span class="msg-name" style="cursor: pointer;" onclick="viewUserProfile('${msg.uid}')">${msg.name}</span>
+                <span class="msg-time">${timeString}</span>
+            </div>
         </div>
         ${replyHTML}${attachedImgHTML}${textHTML}
         <div class="msg-reactions" id="reactions-${messageId}"></div>
@@ -515,9 +564,11 @@ async function renderContactsUI() {
 
         const usersSnap = await get(ref(db, 'users'));
         const friendsSnap = await get(ref(db, 'friends/' + currentUser.uid));
+        const presenceSnap = await get(ref(db, 'presence')); // Fetch online statuses
 
         const allUsers = usersSnap.val() || {};
         const myFriends = friendsSnap.val() || {};
+        const presenceData = presenceSnap.val() || {}; // Store statuses
 
         let htmlRequests = ''; let htmlFriends = ''; let htmlOthers = '';
 
@@ -525,11 +576,18 @@ async function renderContactsUI() {
             if (uid === currentUser.uid) continue;
             const user = allUsers[uid]; const status = myFriends[uid];
             const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
+            
+            // Determine if online
+            const isOnline = presenceData[uid] && presenceData[uid].state === 'online';
+            const statusClass = isOnline ? 'online' : 'offline';
 
             const baseItem = `
                 <li class="contact-item">
                     <div class="contact-info" onclick="viewUserProfile('${uid}')">
-                        <img src="${avatar}" class="contact-avatar">
+                        <div class="avatar-wrapper">
+                            <img src="${avatar}" class="contact-avatar">
+                            <div class="status-dot ${statusClass}"></div>
+                        </div>
                         <span style="font-weight:600;">${user.displayName}</span>
                         <span class="unread-indicator" id="dot-${uid}"></span>
                     </div>
@@ -558,7 +616,6 @@ async function renderContactsUI() {
         }
     } catch (err) { console.error("Contacts render failed", err); }
 }
-
 // --- PRIVATE MESSAGING LOGIC ---
 function stopNotifications() { clearInterval(blinkInterval); document.title = originalTitle; }
 function getPrivateRoomId(uid1, uid2) { return uid1 < uid2 ? `${uid1}_${uid2}` : `${uid2}_${uid1}`; }
@@ -642,16 +699,19 @@ window.viewUserProfile = async function(targetUid) {
 };
 
 // --- BULLETPROOF CLOSE BUTTONS ---
+// --- BULLETPROOF CLOSE BUTTONS ---
 const closeProfileBtn = document.getElementById('close-profile-btn');
 if (closeProfileBtn) {
     closeProfileBtn.addEventListener('click', () => {
-        document.getElementById('user-profile-popup').classList.add('hidden');
+        const popup = document.getElementById('user-profile-popup');
+        popup.classList.add('hidden');
+        popup.classList.remove('preview-layout'); // Remove left-offset so normal contacts center correctly
+        
         if(document.getElementById('settings-modal').classList.contains('hidden')) {
             document.getElementById('modal-overlay').classList.add('hidden');
         }
     });
 }
-
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => { 
@@ -659,3 +719,31 @@ if (closeSettingsBtn) {
         document.getElementById('modal-overlay').classList.add('hidden'); 
     });
 }
+
+// Global variable to track which message we are reacting to
+let activeMessageId = null;
+
+window.toggleEmojiPicker = function(event, messageId) {
+    activeMessageId = messageId;
+    const picker = document.getElementById('emoji-picker');
+    
+    // Position the picker exactly where the click happened
+    picker.style.top = (event.pageY + 10) + 'px';
+    picker.style.left = (event.pageX - 50) + 'px';
+    picker.classList.remove('hidden');
+    
+    // Auto-hide when clicking away
+    document.addEventListener('click', function hidePicker(e) {
+        if (!e.target.classList.contains('more-icon')) {
+            picker.classList.add('hidden');
+            document.removeEventListener('click', hidePicker);
+        }
+    }, { once: true });
+};
+
+window.addReaction = function(emoji) {
+    if (activeMessageId) {
+        reactToMessage(activeMessageId, emoji);
+        document.getElementById('emoji-picker').classList.add('hidden');
+    }
+};

@@ -123,7 +123,27 @@ button:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0px var(--acc
 .unread-ping { width: 12px; height: 12px; background-color: red; border-radius: 50%; display: inline-block; margin-left: auto; animation: pulse 1.5s infinite; }
 
 /* USER PROFILE POPUP */
-#user-profile-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 340px; background: var(--bg-color); border: 4px solid var(--text-color); box-shadow: 10px 10px 0px var(--text-color); z-index: 2500; display: flex; flex-direction: column; border-radius: 12px; animation: fadeInUp 0.2s ease forwards; }
+/* --- USER PROFILE POPUP (UPDATED Z-INDEX) --- */
+#user-profile-popup { 
+    position: fixed; top: 50%; left: 50%; 
+    transform: translate(-50%, -50%); width: 340px; 
+    background: var(--bg-color); border: 4px solid var(--text-color); 
+    box-shadow: 10px 10px 0px var(--text-color); 
+    z-index: 4500; /* FIXED: Now sits ABOVE the settings panel (4000) */
+    display: flex; flex-direction: column; border-radius: 12px; 
+    animation: fadeInUp 0.2s ease forwards; transition: all 0.3s ease;
+}
+/* NEW: Slides the profile card to the left when previewing */
+#user-profile-popup.preview-layout {
+    left: 5%;
+    transform: translate(0, -50%);
+}
+@media (max-width: 1200px) {
+    /* If the monitor is too small, snap it back to the center */
+    #user-profile-popup.preview-layout {
+        left: 50%; transform: translate(-50%, -50%);
+    }
+}
 .profile-banner { height: 100px; background-color: var(--accent-color); position: relative; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom: 4px solid var(--text-color); }
 .profile-popup-close { position: absolute; top: 10px; right: 15px; color: var(--bg-color); background: var(--text-color); border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: transform 0.2s; }
 .profile-popup-close:hover { transform: scale(1.1); }
@@ -165,19 +185,17 @@ body.dark-mode .settings-sidebar { background: #111; }
     margin: 0; /* Aligns it to the left next to the sidebar */
 }
 
+/* Cards & Inputs - SHRUNK DOWN */
 .settings-pane h2 { 
-    font-size: 2.5rem; 
+    font-size: 1.8rem; /* Was 2.5rem */
     margin-bottom: 1.5rem; 
-    border-bottom: 4px solid var(--text-color); 
+    border-bottom: 3px solid var(--text-color); 
     padding-bottom: 0.5rem; 
 }
 
-/* NEW: Tighter spacing inside the cards */
 .settings-card-body { 
-    padding: 1.5rem 2rem; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 1rem; 
+    padding: 1.5rem; /* Less empty space */
+    display: flex; flex-direction: column; gap: 1rem; /* Tighter gaps */
 }
 
 .input-group input, .input-group textarea {
@@ -185,17 +203,44 @@ body.dark-mode .settings-sidebar { background: #111; }
 }
 .brutalist-close { position: absolute; top: 1.5rem; right: 1.5rem; background-color: #ff3333; color: white; border: 4px solid var(--text-color); border-radius: 12px; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; cursor: pointer; padding: 0; margin: 0; box-shadow: 4px 4px 0px var(--text-color); transition: all 0.2s; z-index: 10; }
 .brutalist-close:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--text-color); background-color: #e60000; }
-.settings-card { border: 4px solid var(--text-color); background: var(--bg-color); box-shadow: 8px 8px 0px var(--text-color); margin-bottom: 2rem; }
-.settings-card-header { display: flex; align-items: center; gap: 1.5rem; padding: 1.5rem; border-bottom: 4px solid var(--text-color); background: #fafafa; }
+.settings-card {
+    border: 3px solid var(--text-color); /* Slimmer borders */
+    background: var(--bg-color);
+    box-shadow: 6px 6px 0px var(--text-color); 
+    margin-bottom: 1.5rem; 
+}
+.settings-card-header {
+    display: flex; align-items: center; gap: 1rem; 
+    padding: 1rem 1.5rem; 
+    border-bottom: 3px solid var(--text-color); 
+    background: #fafafa;
+}
 body.dark-mode .settings-card-header { background: #111; }
-.settings-card-header img { width: 80px; height: 80px; border-radius: 50%; border: 4px solid var(--text-color); background: var(--bg-color); object-fit: cover; }
-.settings-card-title { flex: 1; }
-.title-name { font-size: 1.8rem; font-weight: 800; }
+body.dark-mode .input-group label { color: #aaa; }
 
-.input-group label { font-size: 1rem; font-weight: 800; display: block; margin-bottom: 0.5rem; }
-.input-group input, .input-group textarea { width: 100%; border: 4px solid var(--text-color); padding: 1rem; font-size: 1.1rem; background: var(--bg-color); color: var(--text-color); font-family: 'Space Grotesk', sans-serif; box-shadow: none; margin-bottom: 0; }
-.input-group textarea { resize: vertical; min-height: 100px; }
-.color-input { height: 50px; padding: 2px !important; cursor: pointer; }
+.settings-card-header img {
+    width: 60px; height: 60px; /* Was 80px */
+    border-radius: 50%; border: 3px solid var(--text-color); 
+    background: var(--bg-color); object-fit: cover;
+}
+.settings-card-title { flex: 1; }
+.title-name { font-size: 1.3rem; font-weight: 800; } /* Was 1.8rem */
+
+.input-group label { 
+    font-size: 0.85rem; /* Smaller labels */
+    color: #666; /* Grey text for sleeker look */
+    font-weight: 800; display: block; margin-bottom: 0.3rem; 
+}
+.input-group input, .input-group textarea {
+    width: 100%; 
+    border: 3px solid var(--text-color); /* Slimmer borders */
+    padding: 0.6rem 0.8rem; /* Shorter text boxes */
+    font-size: 0.95rem; /* Standard readable text size */
+    background: var(--bg-color); color: var(--text-color); 
+    font-family: 'Space Grotesk', sans-serif; box-shadow: none; margin-bottom: 0;
+}
+.input-group textarea { resize: vertical; min-height: 80px; }
+.color-input { height: 35px; padding: 2px !important; cursor: pointer; }
 
 /* Dark Mode Overrides */
 body.dark-mode { --bg-color: #000000; --text-color: #ffffff; }
@@ -234,4 +279,58 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
     
     #contacts-panel { width: 100%; right: -100%; }
     #pm-popup { width: 100%; height: 100vh; bottom: 0; right: 0; border: none; border-top: 4px solid var(--text-color); box-shadow: none; border-radius: 0; }
+}
+/* --- ONLINE/OFFLINE STATUS INDICATORS --- */
+.avatar-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 40px; 
+    height: 40px;
+}
+
+.status-dot {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 3px solid var(--bg-color);
+    background-color: #80848e; /* Default Grey/Offline */
+    transition: background-color 0.3s;
+}
+
+/* Discord Green */
+.status-dot.online {
+    background-color: #23a559; 
+}
+/* --- FIXED SIZE & SCROLLABLE EMOJI GRID --- */
+#emoji-picker {
+    position: absolute;
+    width: 250px;     /* Keeps the grid width consistent */
+    height: 200px;    /* Forces a fixed vertical size */
+    overflow-y: auto; /* Enables the scrollbar when content exceeds 200px */
+    background: var(--bg-color);
+    border: 3px solid var(--text-color);
+    padding: 10px;
+    display: flex;
+    flex-wrap: wrap;  /* Keeps emojis flowing in a grid */
+    justify-content: flex-start; /* Aligns emojis to the left */
+    align-content: flex-start;   /* Keeps them at the top of the container */
+    gap: 5px;
+    box-shadow: 6px 6px 0px var(--accent-color);
+    z-index: 5000;
+}
+
+#emoji-picker span {
+    cursor: pointer;
+    font-size: 1.4rem;
+    padding: 2px;
+    transition: transform 0.2s;
+    width: 35px;
+    text-align: center;
+}
+
+#emoji-picker span:hover {
+    transform: scale(1.3);
 }
