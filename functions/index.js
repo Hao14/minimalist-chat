@@ -6,17 +6,21 @@ admin.initializeApp();
 
 // 1. Generate Checkout Link
 exports.createCheckoutSession = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in.');
+    // Nuclear Fix: Check standard auth context, fallback to manual token payload
+    let uid = context.auth?.uid;
+    if (!uid && data.token) {
+        const decodedToken = await admin.auth().verifyIdToken(data.token);
+        uid = decodedToken.uid;
+    }
+    if (!uid) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in.');
 
     const session = await stripe.checkout.sessions.create({
-        // FIX: Stripe automatically handles Apple/Google pay inside 'card'.
-        // Requesting them explicitly causes a fatal server crash!
-        payment_method_types: ['card'], 
+        payment_method_types: ['card'],
         mode: 'subscription',
         line_items: [{ price: data.priceId, quantity: 1 }],
         success_url: 'https://chat-app-356c1.web.app/chat.html?success=true',
         cancel_url: 'https://chat-app-356c1.web.app/chat.html?canceled=true',
-        client_reference_id: context.auth.uid, 
+        client_reference_id: uid, 
     });
 
     return { url: session.url };
@@ -24,9 +28,14 @@ exports.createCheckoutSession = functions.https.onCall(async (data, context) => 
 
 // 2. Generate Manage Portal Link
 exports.createPortalLink = functions.https.onCall(async (data, context) => {
-    if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in.');
+    let uid = context.auth?.uid;
+    if (!uid && data.token) {
+        const decodedToken = await admin.auth().verifyIdToken(data.token);
+        uid = decodedToken.uid;
+    }
+    if (!uid) throw new functions.https.HttpsError('unauthenticated', 'Must be logged in.');
 
-    const userSnap = await admin.database().ref(`users/${context.auth.uid}`).once('value');
+    const userSnap = await admin.database().ref(`users/${uid}`).once('value');
     const stripeCustomerId = userSnap.val()?.stripeCustomerId;
 
     if (!stripeCustomerId) throw new functions.https.HttpsError('failed-precondition', 'No active subscription found.');

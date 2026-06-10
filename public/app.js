@@ -749,7 +749,7 @@ window.addReaction = function(emoji) {
         document.getElementById('emoji-picker').classList.add('hidden');
     }
 };
-// --- BULLETPROOF BILLING LOGIC (UPGRADED) ---
+// --- BULLETPROOF BILLING LOGIC (NUCLEAR FIX) ---
 document.addEventListener('click', async (event) => {
     
     // 1. UPGRADE TO ADVANCED
@@ -759,8 +759,14 @@ document.addEventListener('click', async (event) => {
             advancedBtn.textContent = "Loading...";
             advancedBtn.disabled = true;
             
+            // Grab a fresh security token and pack it in the payload
+            const token = await auth.currentUser.getIdToken(true);
             const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
-            const response = await createCheckoutSession({ priceId: 'price_1TgW8pK2lNxMjmQ4JbPdu46Z' });
+            const response = await createCheckoutSession({ 
+                priceId: 'price_1TgW8pK2lNxMjmQ4JbPdu46Z',
+                token: token 
+            });
+            
             window.location.assign(response.data.url);
         } catch (error) {
             alert("Backend Error: " + error.message);
@@ -776,8 +782,13 @@ document.addEventListener('click', async (event) => {
             proBtn.textContent = "Loading...";
             proBtn.disabled = true;
             
+            const token = await auth.currentUser.getIdToken(true);
             const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
-            const response = await createCheckoutSession({ priceId: 'price_1TgWAhK2lNxMjmQ4fGT5TANb' });
+            const response = await createCheckoutSession({ 
+                priceId: 'price_1TgWAhK2lNxMjmQ4fGT5TANb',
+                token: token
+            });
+            
             window.location.assign(response.data.url);
         } catch (error) {
             alert("Backend Error: " + error.message);
@@ -792,8 +803,10 @@ document.addEventListener('click', async (event) => {
         try {
             manageBtn.textContent = "Loading...";
             
+            const token = await auth.currentUser.getIdToken(true);
             const createPortalLink = httpsCallable(functions, 'createPortalLink');
-            const response = await createPortalLink();
+            const response = await createPortalLink({ token: token });
+            
             window.location.assign(response.data.url);
         } catch (error) {
             alert("Could not load billing portal. Are you on a free plan? \n" + error.message);
