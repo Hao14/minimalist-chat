@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
 
 // --- GLOBAL CRASH REPORTER ---
 window.addEventListener('error', (event) => { alert("Script Crash: " + event.message); });
@@ -22,6 +23,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getDatabase(app);
 const storage = getStorage(app);
+const functions = getFunctions(app);
 
 let currentUser = null;
 let userProfileName = "Anonymous";
@@ -747,3 +749,55 @@ window.addReaction = function(emoji) {
         document.getElementById('emoji-picker').classList.add('hidden');
     }
 };
+// --- BULLETPROOF BILLING LOGIC (UPGRADED) ---
+document.addEventListener('click', async (event) => {
+    
+    // 1. UPGRADE TO ADVANCED
+    const advancedBtn = event.target.closest('#upgrade-advanced-btn');
+    if (advancedBtn) {
+        try {
+            advancedBtn.textContent = "Loading...";
+            advancedBtn.disabled = true;
+            
+            const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
+            const response = await createCheckoutSession({ priceId: 'price_1TgW8pK2lNxMjmQ4JbPdu46Z' });
+            window.location.assign(response.data.url);
+        } catch (error) {
+            alert("Backend Error: " + error.message);
+            advancedBtn.textContent = "Upgrade";
+            advancedBtn.disabled = false;
+        }
+    }
+
+    // 2. UPGRADE TO PRO
+    const proBtn = event.target.closest('#upgrade-pro-btn');
+    if (proBtn) {
+        try {
+            proBtn.textContent = "Loading...";
+            proBtn.disabled = true;
+            
+            const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
+            const response = await createCheckoutSession({ priceId: 'price_1TgWAhK2lNxMjmQ4fGT5TANb' });
+            window.location.assign(response.data.url);
+        } catch (error) {
+            alert("Backend Error: " + error.message);
+            proBtn.textContent = "Upgrade";
+            proBtn.disabled = false;
+        }
+    }
+
+    // 3. MANAGE BILLING
+    const manageBtn = event.target.closest('#manage-billing-btn');
+    if (manageBtn) {
+        try {
+            manageBtn.textContent = "Loading...";
+            
+            const createPortalLink = httpsCallable(functions, 'createPortalLink');
+            const response = await createPortalLink();
+            window.location.assign(response.data.url);
+        } catch (error) {
+            alert("Could not load billing portal. Are you on a free plan? \n" + error.message);
+            manageBtn.textContent = "Manage";
+        }
+    }
+});

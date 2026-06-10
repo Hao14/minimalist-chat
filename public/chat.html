@@ -171,8 +171,7 @@
                 <span style="font-size: 1.8rem; font-weight: 800; line-height: 1;">Minimalist Base</span>
             </div>
             
-            <button style="width: auto; margin: 0; padding: 0.6rem 1.5rem; background: var(--bg-color); color: var(--text-color); box-shadow: 4px 4px 0px var(--text-color); font-size: 1rem;">Manage</button>
-            
+<button id="manage-billing-btn" style="width: auto; margin: 0; padding: 0.6rem 1.5rem; background: var(--bg-color); color: var(--text-color); box-shadow: 4px 4px 0px var(--text-color); font-size: 1rem;">Manage</button>            
         </div>
     </div>
 
@@ -186,7 +185,7 @@
                     <li>✓ Verified Badge</li>
                     <li>✓ 5 Custom Themes</li>
                 </ul>
-                <button class="discord-brand-btn">Upgrade</button>
+            <button id="upgrade-advanced-btn" class="discord-brand-btn">Upgrade</button>
             </div>
         </div>
         <div class="settings-card">
@@ -198,7 +197,7 @@
                     <li>✓ Offline Viewing</li>
                     <li>✓ Pro Badge & Custom Emojis</li>
                 </ul>
-                <button class="discord-brand-btn">Upgrade</button>
+            <button id="upgrade-pro-btn" class="discord-brand-btn">Upgrade</button>
             </div>
         </div>
     </div>
@@ -242,13 +241,7 @@
     </footer>
 
     <script type="module" src="app.js"></script>
-    <div id="emoji-picker" class="hidden">
-    <span onclick="addReaction('👍')">👍</span>
-    <span onclick="addReaction('❤️')">❤️</span>
-    <span onclick="addReaction('😂')">😂</span>
-    <span onclick="addReaction('😮')">😮</span>
-    <span onclick="addReaction('😢')">😢</span>
-    <span onclick="addReaction('😡')">😡</span>
+    <div id="emoji-picker" class="hidden"></div>
 </div>
 </body>
 </html>
