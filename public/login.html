@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minimalist | Enter</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0;">
+    
+    <div class="shape yellow-circle bottom-left"></div>
+    
+    <div class="shape" style="position: absolute; width: 120px; height: 120px; border: 8px solid var(--text-color); top: 12%; right: 8%; animation: float 7s infinite ease-in-out;"></div>
+    
+    <div class="shape" style="position: absolute; width: 45px; height: 45px; background-color: var(--text-color); border-radius: 50%; bottom: 25%; right: 18%; animation: float 5s infinite reverse;"></div>
+    
+    <div class="shape" style="position: absolute; width: 300px; height: 300px; background-color: transparent; border: 4px dashed #ccc; border-radius: 50%; top: 35%; left: -80px; z-index: -2; animation: float 12s infinite linear;"></div>
+
+    <div class="container fade-in-up" style="width: 100%;">
+        <div id="auth-box" class="brutalist-auth-card">
+            
+            <div class="auth-toggle">
+                <button id="show-login-btn" class="toggle-btn active">Log In</button>
+                <button id="show-signup-btn" class="toggle-btn">Sign Up</button>
+            </div>
+
+            <form id="email-login-form" class="auth-form active">
+                <h1>Welcome <span>Back</span></h1>
+                
+                <div id="login-step-1">
+                    <div class="input-group mt-1">
+                        <label>EMAIL ADDRESS</label>
+                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                    <button type="button" class="auth-submit-btn" id="login-next-btn">Next</button>
+                </div>
+
+                <div id="login-step-2" class="hidden">
+                    <div class="input-group mt-1">
+                        <label>PASSWORD</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="auth-submit-btn">Sign In</button>
+                    <button type="button" class="action-btn mt-1" id="login-back-btn" style="width: 100%; margin-top: 0.5rem;">Back</button>
+                    <a href="#" id="forgot-password-link" class="text-link">Forgot Password?</a>
+                </div>
+                
+                <div class="auth-divider"><span>OR</span></div>
+                <button type="button" class="google-btn" id="google-login-btn">Sign In with Google</button>
+            </form>
+
+            <form id="email-signup-form" class="auth-form hidden">
+                <h1>Create <span>Account</span></h1>
+                
+                <div id="signup-step-1">
+                    <div class="input-group mt-1">
+                        <label>EMAIL ADDRESS</label>
+                        <input type="email" id="signup-email" placeholder="you@example.com" required>
+                    </div>
+                    <button type="button" class="auth-submit-btn" id="signup-next-1-btn">Next</button>
+                </div>
+
+                <div id="signup-step-2" class="hidden">
+                    <div class="input-group mt-1">
+                        <label>USERNAME</label>
+                        <input type="text" id="signup-username" placeholder="ChatName" required>
+                    </div>
+                    <div class="input-group">
+                        <label>PHONE NUMBER</label>
+                        <input type="tel" id="signup-phone" placeholder="+1... (Optional)">
+                    </div>
+                    <button type="button" class="auth-submit-btn" id="signup-next-2-btn">Next</button>
+                    <button type="button" class="action-btn mt-1" id="signup-back-1-btn" style="width: 100%; margin-top: 0.5rem;">Back</button>
+                </div>
+
+                <div id="signup-step-3" class="hidden">
+                    <div class="input-group mt-1">
+                        <label>PASSWORD</label>
+                        <input type="password" id="signup-password" placeholder="Min. 6 characters" required>
+                    </div>
+                    <button type="submit" class="auth-submit-btn">Create Account</button>
+                    <button type="button" class="action-btn mt-1" id="signup-back-2-btn" style="width: 100%; margin-top: 0.5rem;">Back</button>
+                </div>
+                
+                <div class="auth-divider"><span>OR</span></div>
+                <button type="button" class="google-btn" id="google-signup-btn">Sign Up with Google</button>
+            </form>
+            
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+
+</html>

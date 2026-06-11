@@ -1,13 +1,17 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
 
 // --- GLOBAL CRASH REPORTER ---
 window.addEventListener('error', (event) => { alert("Script Crash: " + event.message); });
-window.addEventListener('unhandledrejection', (event) => { alert("Database/Network Crash: " + (event.reason.message || event.reason)); });
-
+window.addEventListener('unhandledrejection', (event) => { 
+    const msg = event.reason.message || event.reason;
+    // Ignore third-party browser extensions like MetaMask
+    if (typeof msg === 'string' && msg.includes('MetaMask')) return;
+    alert("Database/Network Crash: " + msg); 
+});
 const firebaseConfig = {
     apiKey: "AIzaSyDAnwh1kYnomfGIMM71J9tCY3tuOV0ejnE",
     authDomain: "chat-app-356c1.firebaseapp.com",
@@ -120,27 +124,19 @@ function listenForNotifications() {
 function generateShortId() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
 
 // --- THE SECURITY BOUNCER ---
+// --- THE SECURITY BOUNCER ---
 onAuthStateChanged(auth, async (user) => {
-    // Check which page the browser is currently looking at
     const currentPage = window.location.pathname;
     const isLoginPage = currentPage.includes('login.html');
 
     if (user) {
-        // SCENARIO 1: Logged in, but sitting on the login page.
-        // Action: Teleport them to the secure chat vault.
         if (isLoginPage) {
             window.location.replace('chat.html');
             return; 
         }
-        
-        // SCENARIO 2: Logged in, and safely on the chat page.
-        // Action: Load their profile data and boot up the chat.
         currentUser = user;
         checkUserProfile(user.uid);
-        
     } else {
-        // SCENARIO 3: Not logged in, but trying to view the chat page.
-        // Action: Kick them instantly to the login page.
         if (!isLoginPage) {
             window.location.replace('login.html');
         }
@@ -173,28 +169,31 @@ async function checkUserProfile(uid) {
     }
 }
 
-document.getElementById('save-new-profile-btn').addEventListener('click', async () => {
-    try {
-        const name = document.getElementById('new-display-name').value.trim();
-        const rawPhoto = document.getElementById('new-photo-url').value.trim();
-        if (name) {
-            const finalPhotoUrl = getAvatarUrl(name, rawPhoto);
-            userShortId = generateShortId();
-            
-            await set(ref(db, 'users/' + currentUser.uid), { 
-                displayName: name, photoUrl: finalPhotoUrl,
-                shortId: userShortId, themeColor: "#FFD700",
-                bio: "I'm new here!", pronouns: ""
-            });
-            
-            userProfileName = name; userPhotoUrl = finalPhotoUrl;
-            userThemeColor = "#FFD700"; userBio = "I'm new here!"; userPronouns = "";
-            enterChat();
+const saveProfileBtn = document.getElementById('save-new-profile-btn');
+if (saveProfileBtn) {
+    saveProfileBtn.addEventListener('click', async () => {
+        try {
+            const name = document.getElementById('new-display-name').value.trim();
+            const rawPhoto = document.getElementById('new-photo-url').value.trim();
+            if (name) {
+                const finalPhotoUrl = getAvatarUrl(name, rawPhoto);
+                userShortId = generateShortId();
+                
+                await set(ref(db, 'users/' + currentUser.uid), { 
+                    displayName: name, photoUrl: finalPhotoUrl,
+                    shortId: userShortId, themeColor: "#FFD700",
+                    bio: "I'm new here!", pronouns: ""
+                });
+                
+                userProfileName = name; userPhotoUrl = finalPhotoUrl;
+                userThemeColor = "#FFD700"; userBio = "I'm new here!"; userPronouns = "";
+                enterChat();
+            }
+        } catch (error) {
+            alert("Error saving profile: " + error.message);
         }
-    } catch (error) {
-        alert("Error saving profile: " + error.message);
-    }
-});
+    });
+}
 
 // --- BRUTALIST SETTINGS LOGIC ---
 const modal = document.getElementById('settings-modal');
@@ -231,15 +230,50 @@ function switchTab(paneId, btnId) {
     document.getElementById(btnId).classList.add('active');
 }
 
-document.getElementById('tab-btn-profile').addEventListener('click', () => switchTab('pane-profile', 'tab-btn-profile'));
-document.getElementById('tab-btn-billing').addEventListener('click', () => switchTab('pane-billing', 'tab-btn-billing'));
-document.getElementById('tab-btn-app').addEventListener('click', () => switchTab('pane-app', 'tab-btn-app'));
-document.getElementById('logout-btn').addEventListener('click', () => { modal.classList.add('hidden'); overlay.classList.add('hidden'); signOut(auth); });
-document.getElementById('open-settings-btn-mobile').addEventListener('click', () => { document.getElementById('mobile-nav-links').classList.add('hidden'); openSettings(); });
+const tabProfileBtn = document.getElementById('tab-btn-profile');
+if (tabProfileBtn) {
+    tabProfileBtn.addEventListener('click', () => switchTab('pane-profile', 'tab-btn-profile'));
+    document.getElementById('tab-btn-billing').addEventListener('click', () => switchTab('pane-billing', 'tab-btn-billing'));
+    document.getElementById('tab-btn-app').addEventListener('click', () => switchTab('pane-app', 'tab-btn-app'));
+    document.getElementById('logout-btn').addEventListener('click', () => { modal.classList.add('hidden'); overlay.classList.add('hidden'); signOut(auth); });
+    document.getElementById('open-settings-btn-mobile').addEventListener('click', () => { document.getElementById('mobile-nav-links').classList.add('hidden'); openSettings(); });
+}
 
-document.getElementById('update-profile-btn').addEventListener('click', async () => {
-    try {
-// --- DELETE ACCOUNT LOGIC ---
+// --- 1. UPDATE PROFILE LOGIC ---
+const updateProfileBtn = document.getElementById('update-profile-btn');
+if (updateProfileBtn) {
+    updateProfileBtn.addEventListener('click', async () => {
+        try {
+            const newName = document.getElementById('edit-display-name').value.trim();
+            const newPhoto = document.getElementById('edit-photo-url').value.trim();
+            
+            if (newName) {
+                const finalPhotoUrl = getAvatarUrl(newName, newPhoto);
+                userProfileName = newName; 
+                userPhotoUrl = finalPhotoUrl;
+                userPronouns = document.getElementById('edit-pronouns').value.trim();
+                userBio = document.getElementById('edit-bio').value.trim();
+                userThemeColor = document.getElementById('edit-theme-color').value;
+
+                await set(ref(db, 'users/' + currentUser.uid), { 
+                    displayName: userProfileName, 
+                    photoUrl: userPhotoUrl,
+                    pronouns: userPronouns, 
+                    bio: userBio,
+                    themeColor: userThemeColor, 
+                    shortId: userShortId 
+                });
+                
+                modal.classList.add('hidden'); 
+                overlay.classList.add('hidden');
+            }
+        } catch (error) {
+            alert("Error updating profile: " + error.message);
+        }
+    });
+}
+
+// --- 2. DELETE ACCOUNT LOGIC ---
 const deleteAccountBtn = document.getElementById('delete-account-btn');
 if (deleteAccountBtn) {
     deleteAccountBtn.addEventListener('click', async () => {
@@ -271,28 +305,6 @@ if (deleteAccountBtn) {
         }
     });
 }
-     const newName = document.getElementById('edit-display-name').value.trim();
-        const newPhoto = document.getElementById('edit-photo-url').value.trim();
-        
-        if (newName) {
-            const finalPhotoUrl = getAvatarUrl(newName, newPhoto);
-            userProfileName = newName; userPhotoUrl = finalPhotoUrl;
-            userPronouns = document.getElementById('edit-pronouns').value.trim();
-            userBio = document.getElementById('edit-bio').value.trim();
-            userThemeColor = document.getElementById('edit-theme-color').value;
-
-            await set(ref(db, 'users/' + currentUser.uid), { 
-                displayName: userProfileName, photoUrl: userPhotoUrl,
-                pronouns: userPronouns, bio: userBio,
-                themeColor: userThemeColor, shortId: userShortId 
-            });
-            
-            modal.classList.add('hidden'); overlay.classList.add('hidden');
-        }
-    } catch (error) {
-        alert("Error updating profile: " + error.message);
-    }
-});
 
 // --- MAIN ENTRY & INFINITE SCROLL ---
 // --- EMOJI PICKER LOGIC ---
@@ -300,6 +312,10 @@ const emojis = ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", 
 
 function populateEmojiPicker() {
     const picker = document.getElementById('emoji-picker');
+    
+    // CRITICAL FIX: If the picker doesn't exist, stop running!
+    if (!picker) return; 
+
     picker.innerHTML = ''; // Clear existing
     emojis.forEach(emoji => {
         const span = document.createElement('span');
@@ -307,7 +323,7 @@ function populateEmojiPicker() {
         span.onclick = () => addReaction(emoji);
         picker.appendChild(span);
     });
-}
+}s
 // Run this once when the app loads
 populateEmojiPicker();
 // --- MAIN ENTRY, PRESENCE, & INFINITE SCROLL ---
@@ -534,7 +550,106 @@ function updateMessageReactions(messageId, msg) {
     }
 }
 
-// --- LOGIN BINDINGS (SAFE BINDINGS) ---
+// --- NEW AUTHENTICATION OVERHAUL ---
+const loginBtn = document.getElementById('show-login-btn');
+const signupBtn = document.getElementById('show-signup-btn');
+const loginForm = document.getElementById('email-login-form');
+const signupForm = document.getElementById('email-signup-form');
+
+// 1. Toggle Login vs Signup Card
+if (loginBtn && signupBtn) {
+    loginBtn.addEventListener('click', () => {
+        loginBtn.classList.add('active'); signupBtn.classList.remove('active');
+        loginForm.classList.remove('hidden'); signupForm.classList.add('hidden');
+    });
+    signupBtn.addEventListener('click', () => {
+        signupBtn.classList.add('active'); loginBtn.classList.remove('active');
+        signupForm.classList.remove('hidden'); loginForm.classList.add('hidden');
+    });
+}
+
+// 2. Login Step-by-Step Logic
+const loginNext = document.getElementById('login-next-btn');
+if (loginNext) {
+    loginNext.addEventListener('click', () => {
+        if (document.getElementById('login-email').checkValidity()) {
+            document.getElementById('login-step-1').classList.add('hidden');
+            document.getElementById('login-step-2').classList.remove('hidden');
+        } else { document.getElementById('login-email').reportValidity(); }
+    });
+    document.getElementById('login-back-btn').addEventListener('click', () => {
+        document.getElementById('login-step-2').classList.add('hidden');
+        document.getElementById('login-step-1').classList.remove('hidden');
+    });
+}
+
+// 3. Signup Step-by-Step Logic
+const signupNext1 = document.getElementById('signup-next-1-btn');
+if (signupNext1) {
+    signupNext1.addEventListener('click', () => {
+        if (document.getElementById('signup-email').checkValidity()) {
+            document.getElementById('signup-step-1').classList.add('hidden');
+            document.getElementById('signup-step-2').classList.remove('hidden');
+        } else { document.getElementById('signup-email').reportValidity(); }
+    });
+    document.getElementById('signup-back-1-btn').addEventListener('click', () => {
+        document.getElementById('signup-step-2').classList.add('hidden');
+        document.getElementById('signup-step-1').classList.remove('hidden');
+    });
+    
+    document.getElementById('signup-next-2-btn').addEventListener('click', () => {
+        if (document.getElementById('signup-username').checkValidity()) {
+            document.getElementById('signup-step-2').classList.add('hidden');
+            document.getElementById('signup-step-3').classList.remove('hidden');
+        } else { document.getElementById('signup-username').reportValidity(); }
+    });
+    document.getElementById('signup-back-2-btn').addEventListener('click', () => {
+        document.getElementById('signup-step-3').classList.add('hidden');
+        document.getElementById('signup-step-2').classList.remove('hidden');
+    });
+}
+
+// 4. Submit Firebase Email/Password Sign Up
+if (signupForm) {
+    signupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const username = document.getElementById('signup-username').value;
+        const phone = document.getElementById('signup-phone').value;
+        
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // Update Firebase Auth Profile
+            await updateProfile(userCredential.user, { displayName: username });
+            // Save to your Realtime Database
+            const userShortId = generateShortId();
+            await set(ref(db, 'users/' + userCredential.user.uid), { 
+                displayName: username, 
+                phoneNumber: phone,
+                photoUrl: getAvatarUrl(username, ""),
+                shortId: userShortId, 
+                themeColor: "#FFD700",
+                bio: "I'm new here!", 
+                pronouns: ""
+            });
+            // The Security Bouncer will auto-redirect them to chat.html!
+        } catch (error) { alert("Sign Up Error: " + error.message); }
+    });
+}
+
+// 5. Submit Firebase Email/Password Log In
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        try { await signInWithEmailAndPassword(auth, email, password); } 
+        catch (error) { alert("Login Error: " + error.message); }
+    });
+}
+
+// 6. Safe Google Sign-In Injections
 const googleLoginBtn = document.getElementById('google-login-btn');
 if (googleLoginBtn) {
     googleLoginBtn.addEventListener('click', async () => { 
@@ -542,27 +657,13 @@ if (googleLoginBtn) {
         catch (error) { alert("Google Auth Error: " + error.message); } 
     });
 }
-
-const sendCodeBtn = document.getElementById('send-code-btn');
-if (sendCodeBtn) {
-    sendCodeBtn.addEventListener('click', async () => {
-        try {
-            if (!window.recaptchaVerifier) window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
-            window.confirmationResult = await signInWithPhoneNumber(auth, document.getElementById('phone-input').value, window.recaptchaVerifier); 
-            document.getElementById('phone-step-1').classList.add('hidden'); 
-            document.getElementById('phone-step-2').classList.remove('hidden'); 
-        } catch (error) { alert("SMS Failed: " + error.message); }
+const googleSignupBtn = document.getElementById('google-signup-btn');
+if (googleSignupBtn) {
+    googleSignupBtn.addEventListener('click', async () => { 
+        try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+        catch (error) { alert("Google Auth Error: " + error.message); } 
     });
 }
-
-const verifyCodeBtn = document.getElementById('verify-code-btn');
-if (verifyCodeBtn) {
-    verifyCodeBtn.addEventListener('click', async () => { 
-        try { await window.confirmationResult.confirm(document.getElementById('code-input').value); } 
-        catch (error) { alert("Verification Error: " + error.message); } 
-    });
-}
-
 // --- FRIEND SYSTEM & CONTACTS ---
 let friendsListenerActive = false;
 
@@ -575,11 +676,14 @@ function toggleContacts() {
     }
 }
 
-document.getElementById('close-contacts-btn').addEventListener('click', () => {
-    document.getElementById('contacts-panel').classList.remove('open');
-    off(ref(db, 'friends/' + currentUser.uid));
-    friendsListenerActive = false;
-});
+const closeContactsBtn = document.getElementById('close-contacts-btn');
+if (closeContactsBtn) {
+    closeContactsBtn.addEventListener('click', () => {
+        document.getElementById('contacts-panel').classList.remove('open');
+        off(ref(db, 'friends/' + currentUser.uid));
+        friendsListenerActive = false;
+    });
+}
 
 window.sendRequest = async (targetUid) => {
     await set(ref(db, `friends/${currentUser.uid}/${targetUid}`), 'pending_sent');
@@ -685,23 +789,35 @@ window.openPrivateChat = function(targetUid, targetName) {
     } catch(err) { alert("Private Message Error: " + err.message); }
 }
 
-document.getElementById('pm-close-btn').addEventListener('click', () => {
-    document.getElementById('pm-popup').classList.add('hidden');
-    if (pmQueryRef) off(pmQueryRef);
-    currentPmRoomId = null; currentPmTargetUid = null;
-});
-
-document.getElementById('pm-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const pmInput = document.getElementById('pm-input'); const text = pmInput.value.trim();
-    if (text && currentPmRoomId) {
-        try {
-            await push(ref(db, `private_messages/${currentPmRoomId}`), { uid: currentUser.uid, text: text, timestamp: serverTimestamp() });
-            await set(ref(db, `inbox/${currentPmTargetUid}/${currentUser.uid}`), { fromName: userProfileName, timestamp: Date.now(), read: false });
-            pmInput.value = '';
-        } catch(err) { alert("Failed to send PM: " + err.message); }
-    }
-});
+const pmCloseBtn = document.getElementById('pm-close-btn');
+if (pmCloseBtn) {
+    pmCloseBtn.addEventListener('click', () => {
+        document.getElementById('pm-popup').classList.add('hidden');
+        if (pmQueryRef) off(pmQueryRef);
+        currentPmRoomId = null; currentPmTargetUid = null;
+    });
+}
+const pmFormObj = document.getElementById('pm-form');
+if (pmFormObj) {
+    pmFormObj.addEventListener('submit', async (e) => {
+        // CRITICAL: Stops the page from refreshing when you hit send!
+        e.preventDefault(); 
+        
+        const pmInput = document.getElementById('pm-input'); 
+        const text = pmInput.value.trim();
+        
+        if (text && currentPmRoomId) {
+            try {
+                await push(ref(db, `private_messages/${currentPmRoomId}`), { uid: currentUser.uid, text: text, timestamp: serverTimestamp() });
+                await set(ref(db, `inbox/${currentPmTargetUid}/${currentUser.uid}`), { fromName: userProfileName, timestamp: Date.now(), read: false });
+                pmInput.value = '';
+            } catch(err) { 
+                alert("Failed to send PM: " + err.message); 
+            }
+        }
+    });
+}
+    
 
 // --- USER PROFILE POPUP LOGIC ---
 window.viewUserProfile = async function(targetUid) {
