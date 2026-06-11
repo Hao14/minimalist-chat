@@ -1,0 +1,57 @@
+<div class="container fade-in-up app-screen" id="login-container">
+        <div id="auth-box" class="brutalist-auth-card">
+            
+            <div class="auth-toggle">
+                <button id="show-login-btn" class="toggle-btn active">Log In</button>
+                <button id="show-signup-btn" class="toggle-btn">Sign Up</button>
+            </div>
+
+            <form id="email-login-form" class="auth-form active">
+                <h1>Welcome <span>Back</span></h1>
+                
+                <div class="input-group mt-1">
+                    <label>EMAIL ADDRESS</label>
+                    <input type="email" id="login-email" placeholder="you@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label>PASSWORD</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                
+                <button type="submit" class="auth-submit-btn">Sign In</button>
+                <a href="#" id="forgot-password-link" class="text-link">Forgot Password?</a>
+                
+                <div class="auth-divider"><span>OR</span></div>
+                
+                <button type="button" class="google-btn" id="google-login-btn">Sign In with Google</button>
+            </form>
+
+            <form id="email-signup-form" class="auth-form hidden">
+                <h1>Create <span>Account</span></h1>
+                
+                <div class="input-group mt-1">
+                    <label>EMAIL ADDRESS</label>
+                    <input type="email" id="signup-email" placeholder="you@example.com" required>
+                </div>
+                <div class="input-group">
+                    <label>USERNAME</label>
+                    <input type="text" id="signup-username" placeholder="ChatName" required>
+                </div>
+                <div class="input-group">
+                    <label>PHONE NUMBER (OPTIONAL)</label>
+                    <input type="tel" id="signup-phone" placeholder="+1...">
+                </div>
+                <div class="input-group">
+                    <label>PASSWORD</label>
+                    <input type="password" id="signup-password" placeholder="Min. 6 characters" required>
+                </div>
+                
+                <button type="submit" class="auth-submit-btn">Create Account</button>
+                
+                <div class="auth-divider"><span>OR</span></div>
+                
+                <button type="button" class="google-btn" id="google-signup-btn">Sign Up with Google</button>
+            </form>
+            
+        </div>
+    </div>

@@ -119,13 +119,31 @@ function listenForNotifications() {
 // --- AUTH & PROFILE ---
 function generateShortId() { return Math.random().toString(36).substring(2, 8).toUpperCase(); }
 
+// --- THE SECURITY BOUNCER ---
 onAuthStateChanged(auth, async (user) => {
+    // Check which page the browser is currently looking at
+    const currentPage = window.location.pathname;
+    const isLoginPage = currentPage.includes('login.html');
+
     if (user) {
+        // SCENARIO 1: Logged in, but sitting on the login page.
+        // Action: Teleport them to the secure chat vault.
+        if (isLoginPage) {
+            window.location.replace('chat.html');
+            return; 
+        }
+        
+        // SCENARIO 2: Logged in, and safely on the chat page.
+        // Action: Load their profile data and boot up the chat.
         currentUser = user;
         checkUserProfile(user.uid);
+        
     } else {
-        showScreen('login-container');
-        document.getElementById('messages').innerHTML = '';
+        // SCENARIO 3: Not logged in, but trying to view the chat page.
+        // Action: Kick them instantly to the login page.
+        if (!isLoginPage) {
+            window.location.replace('login.html');
+        }
     }
 });
 
@@ -410,8 +428,16 @@ function initializeChatMemory() {
 
     document.getElementById('chat-form').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const file = document.getElementById('image-input').files[0];
     
+    // ADD THIS LINE RIGHT HERE:
+    const sendBtn = document.getElementById('send-message-btn');
+    
+    // Disable the button so users can't spam it
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+
+    const file = document.getElementById('image-input').files[0];
+    // ... the rest of your upload logic ...
     // 1. Define limits (in bytes: 1MB = 1,048,576 bytes)
     const LIMITS = { free: 1048576, advanced: 1073741824, pro: 8589934592 };
     const userTier = 'free'; // You should fetch this from database for the current user!
