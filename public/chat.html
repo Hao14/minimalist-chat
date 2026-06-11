@@ -90,48 +90,37 @@
             <button id="close-settings-btn" class="brutalist-close" title="Close">✖</button>
 
             <div class="settings-pane active" id="pane-profile">
-                <h2>My Account</h2>
-                <div class="settings-card">
-                    <div class="settings-card-header">
-                        <img id="settings-photo-preview" src="">
-                        <div class="settings-card-title">
-                            <div class="title-name" id="settings-display-name-title">User</div>
-                        </div>
-                        
-                        <button id="preview-profile-btn" style="width: auto; margin:0 10px 0 0; background: #4e5058; color: white; border-color: #4e5058; box-shadow: 4px 4px 0px var(--text-color);">Preview Card</button>
-                        
-                        <button id="update-profile-btn" style="width: auto; margin:0;">Save</button>
-                    </div>
-                    <div class="settings-card" style="margin-top: 2rem;">
-    <div class="settings-card-body">
-        <h3 class="card-section-title">Account Safety</h3>
-        <p style="font-weight: 600; color: #666; font-size: 0.9rem;">Joined: June 9, 2026</p>
-        <p style="font-weight: 600; color: #666; font-size: 0.9rem;">Email: user@example.com</p>
+    <h2>My Account</h2>
+    <div class="settings-card">
+        <div class="settings-card-header">
+            <img id="settings-photo-preview" src="">
+            <div class="settings-card-title">
+                <div class="title-name" id="settings-display-name-title">User</div>
+            </div>
+            <button id="toggle-edit-btn" style="width: auto;">Edit Profile</button>
+        </div>
+        
+        <div class="settings-card-body" id="profile-form-fields" style="pointer-events: none; opacity: 0.7;">
+            <div class="input-group">
+                <label>DISPLAY NAME</label>
+                <input type="text" id="edit-display-name" readonly>
+            </div>
+            <div class="input-group">
+                <label>PRONOUNS</label>
+                <input type="text" id="edit-pronouns" readonly>
+            </div>
+            <div class="input-group">
+                <label>AVATAR IMAGE</label>
+                <input type="file" id="edit-photo-file" accept="image/*" disabled>
+            </div>
+            <div class="input-group">
+                <label>ABOUT ME</label>
+                <textarea id="edit-bio" readonly></textarea>
+            </div>
+            <button id="update-profile-btn" class="hidden">Save Changes</button>
+        </div>
     </div>
 </div>
-                    <div class="settings-card-body">
-                        <div class="input-group">
-                            <label>DISPLAY NAME</label>
-                            <input type="text" id="edit-display-name">
-                        </div>
-                        <div class="input-group">
-                            <label>PRONOUNS</label>
-                            <input type="text" id="edit-pronouns">
-                        </div>
-                        <div class="input-group">
-                            <label>AVATAR URL</label>
-                            <input type="url" id="edit-photo-url">
-                        </div>
-                        <div class="input-group">
-                            <label>ABOUT ME</label>
-                            <textarea id="edit-bio"></textarea>
-                        </div>
-                        <div class="input-group">
-                            <label>THEME COLOR</label>
-                            <input type="color" id="edit-theme-color" class="color-input">
-                        </div>
-                    </div>
-                </div>
 
                 <div class="settings-card" style="margin-top: 2rem;">
                     <div class="settings-card-body">

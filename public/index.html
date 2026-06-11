@@ -12,19 +12,23 @@
 
     <nav>
         <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; width: 100%;">
-            <a href="index.html">Home</a>
+            <a href="index.html" class="active">Home</a>
             <a href="story.html">Story</a>
-            <a href="chat.html" class="active">Chat</a>
+            <a href="chat.html" class="auth-only hidden">Chat</a>
         </div>
 
-        <div id="nav-actions" class="desktop-nav"></div> 
+        <div id="nav-actions" class="desktop-nav">
+            <a href="login.html" class="action-btn guest-only" style="text-decoration: none; padding: 0.5rem 1rem;">Log In</a>
+        </div> 
 
         <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
         <div id="mobile-nav-links" class="mobile-only hidden">
             <a href="index.html" class="mobile-link">HOME</a>
             <a href="story.html" class="mobile-link">STORY</a>
-            <button class="action-btn mobile-link-btn" id="open-contacts-btn-mobile">CONTACTS</button>
-            <button class="action-btn mobile-link-btn" id="open-settings-btn-mobile">SETTINGS</button>
+            <a href="chat.html" class="mobile-link auth-only hidden">CHAT</a>
+            <a href="login.html" class="mobile-link guest-only">LOG IN</a>
+            <button class="action-btn mobile-link-btn auth-only hidden" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn auth-only hidden" id="open-settings-btn-mobile">SETTINGS</button>
         </div>
     </nav>
     <div class="container fade-in-up">

@@ -391,3 +391,26 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
 .auth-divider { text-align: center; border-bottom: 2px solid #ddd; line-height: 0.1em; margin: 1.5rem 0; }
 .auth-divider span { background: var(--bg-color); padding: 0 15px; font-weight: 800; color: #888; font-size: 0.85rem; }
 .text-link { font-size: 0.85rem; font-weight: 600; text-decoration: underline; color: var(--text-color); text-align: center; margin-top: 0.5rem; display: block; }
+/* --- HOME PAGE IMAGE GRID --- */
+.image-grid {
+    display: flex;
+    gap: 2rem;
+    margin-top: 3rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.image-grid img {
+    width: 100%;
+    max-width: 380px;
+    height: 250px;
+    object-fit: cover;
+    border: 4px solid var(--text-color);
+    box-shadow: 8px 8px 0px var(--accent-color);
+    filter: grayscale(100%);
+    transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease;
+}
+.image-grid img:hover {
+    filter: grayscale(0%);
+    transform: translate(-4px, -4px);
+    box-shadow: 12px 12px 0px var(--text-color);
+}
