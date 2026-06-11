@@ -534,25 +534,34 @@ function updateMessageReactions(messageId, msg) {
     }
 }
 
-// --- LOGIN BINDINGS ---
-document.getElementById('google-login-btn').addEventListener('click', async () => { 
-    try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
-    catch (error) { alert("Google Auth Error: " + error.message); } 
-});
+// --- LOGIN BINDINGS (SAFE BINDINGS) ---
+const googleLoginBtn = document.getElementById('google-login-btn');
+if (googleLoginBtn) {
+    googleLoginBtn.addEventListener('click', async () => { 
+        try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
+        catch (error) { alert("Google Auth Error: " + error.message); } 
+    });
+}
 
-document.getElementById('send-code-btn').addEventListener('click', async () => {
-    try {
-        if (!window.recaptchaVerifier) window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
-        window.confirmationResult = await signInWithPhoneNumber(auth, document.getElementById('phone-input').value, window.recaptchaVerifier); 
-        document.getElementById('phone-step-1').classList.add('hidden'); 
-        document.getElementById('phone-step-2').classList.remove('hidden'); 
-    } catch (error) { alert("SMS Failed: " + error.message); }
-});
+const sendCodeBtn = document.getElementById('send-code-btn');
+if (sendCodeBtn) {
+    sendCodeBtn.addEventListener('click', async () => {
+        try {
+            if (!window.recaptchaVerifier) window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' });
+            window.confirmationResult = await signInWithPhoneNumber(auth, document.getElementById('phone-input').value, window.recaptchaVerifier); 
+            document.getElementById('phone-step-1').classList.add('hidden'); 
+            document.getElementById('phone-step-2').classList.remove('hidden'); 
+        } catch (error) { alert("SMS Failed: " + error.message); }
+    });
+}
 
-document.getElementById('verify-code-btn').addEventListener('click', async () => { 
-    try { await window.confirmationResult.confirm(document.getElementById('code-input').value); } 
-    catch (error) { alert("Verification Error: " + error.message); } 
-});
+const verifyCodeBtn = document.getElementById('verify-code-btn');
+if (verifyCodeBtn) {
+    verifyCodeBtn.addEventListener('click', async () => { 
+        try { await window.confirmationResult.confirm(document.getElementById('code-input').value); } 
+        catch (error) { alert("Verification Error: " + error.message); } 
+    });
+}
 
 // --- FRIEND SYSTEM & CONTACTS ---
 let friendsListenerActive = false;
