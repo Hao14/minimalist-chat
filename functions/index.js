@@ -7,21 +7,13 @@ admin.initializeApp();
 // 1. Generate Checkout Link
 exports.createCheckoutSession = functions.https.onCall(async (data, context) => {
     try {
-        let uid = context.auth ? context.auth.uid : null;
+        // Fallback to data.userId if Firebase drops the auth context
+        const uid = context.auth?.uid || data.userId;
         
-        // Grab the token from ANY possible key we passed
-        let rawToken = data.clientToken || data.fallbackToken || data.token; 
-        
-        if (!uid && rawToken) {
-            const decoded = await admin.auth().verifyIdToken(rawToken);
-            uid = decoded.uid;
-        }
-
         if (!uid) {
-            throw new Error(`AUTH_FAIL: Security context is empty. Token provided: ${rawToken ? 'YES' : 'NO'}`);
+            throw new functions.https.HttpsError('unauthenticated', 'User ID is missing. Please log in again.');
         }
 
-        // --- STRIPE LOGIC ---
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             mode: 'subscription',
@@ -32,34 +24,24 @@ exports.createCheckoutSession = functions.https.onCall(async (data, context) => 
         });
 
         return { url: session.url };
-
     } catch (error) {
-        if (error.message.startsWith("AUTH_FAIL:")) throw new functions.https.HttpsError('unauthenticated', error.message.replace("AUTH_FAIL: ", ""));
-        throw new functions.https.HttpsError('internal', `Stripe Error: ${error.message}`);
+        throw new functions.https.HttpsError('internal', error.message);
     }
 });
 
 // 2. Generate Manage Portal Link
 exports.createPortalLink = functions.https.onCall(async (data, context) => {
     try {
-        let uid = context.auth ? context.auth.uid : null;
-        let rawToken = data.clientToken || data.fallbackToken || data.token;
-
-        if (!uid && rawToken) {
-            const decoded = await admin.auth().verifyIdToken(rawToken);
-            uid = decoded.uid;
-        }
-
+        const uid = context.auth?.uid || data.userId;
         if (!uid) {
-            throw new Error(`AUTH_FAIL: Security context is empty. Token provided: ${rawToken ? 'YES' : 'NO'}`);
+            throw new functions.https.HttpsError('unauthenticated', 'User ID is missing. Please log in again.');
         }
 
-        // --- STRIPE LOGIC ---
         const userSnap = await admin.database().ref(`users/${uid}`).once('value');
         const stripeCustomerId = userSnap.val()?.stripeCustomerId;
 
         if (!stripeCustomerId) {
-            throw new Error("NO_SUB: No active subscription found. Are you on a free plan?");
+            throw new functions.https.HttpsError('failed-precondition', 'No active subscription found. Are you on a free plan?');
         }
 
         const portalSession = await stripe.billingPortal.sessions.create({
@@ -68,10 +50,7 @@ exports.createPortalLink = functions.https.onCall(async (data, context) => {
         });
 
         return { url: portalSession.url };
-
     } catch (error) {
-        if (error.message.startsWith("AUTH_FAIL:")) throw new functions.https.HttpsError('unauthenticated', error.message.replace("AUTH_FAIL: ", ""));
-        if (error.message.startsWith("NO_SUB:")) throw new functions.https.HttpsError('failed-precondition', error.message.replace("NO_SUB: ", ""));
-        throw new functions.https.HttpsError('internal', `Stripe Error: ${error.message}`);
+        throw new functions.https.HttpsError(error.code || 'internal', error.message);
     }
 });

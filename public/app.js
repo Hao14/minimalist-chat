@@ -926,31 +926,19 @@ window.addReaction = function(emoji) {
     }
 };
 
-// --- BILLING LOGIC (ULTIMATE RAW FETCH BYPASS) ---
+// --- BILLING LOGIC ---
 document.addEventListener('click', async (event) => {
     const advancedBtn = event.target.closest('#upgrade-advanced-btn');
     if (advancedBtn) {
         try {
-            // VISUAL TRIPWIRE: If it doesn't say this, you are on the old cached version!
-            advancedBtn.textContent = "Connecting to Stripe..."; 
-            advancedBtn.disabled = true;
-            
-            const token = await auth.currentUser.getIdToken(true);
-            
-            // Raw HTTP connection (Bypasses the Firebase SDK entirely)
-            const response = await fetch('https://us-central1-chat-app-356c1.cloudfunctions.net/createCheckoutSession', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ data: { priceId: 'price_1TgW8pK2lNxMjmQ4JbPdu46Z', clientToken: token } })
+            advancedBtn.textContent = "Loading..."; advancedBtn.disabled = true;
+            const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
+            // Safely pass the userId directly
+            const response = await createCheckoutSession({ 
+                priceId: 'price_1TgW8pK2lNxMjmQ4JbPdu46Z', 
+                userId: auth.currentUser.uid 
             });
-            
-            const result = await response.json();
-            if (result.error) throw new Error(result.error.message);
-            
-            window.location.assign(result.result.url);
+            window.location.assign(response.data.url);
         } catch (error) {
             alert("Backend Error: " + error.message);
             advancedBtn.textContent = "Upgrade"; advancedBtn.disabled = false;
@@ -960,24 +948,13 @@ document.addEventListener('click', async (event) => {
     const proBtn = event.target.closest('#upgrade-pro-btn');
     if (proBtn) {
         try {
-            proBtn.textContent = "Connecting to Stripe..."; 
-            proBtn.disabled = true;
-            
-            const token = await auth.currentUser.getIdToken(true);
-            
-            const response = await fetch('https://us-central1-chat-app-356c1.cloudfunctions.net/createCheckoutSession', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ data: { priceId: 'price_1TgWAhK2lNxMjmQ4fGT5TANb', clientToken: token } })
+            proBtn.textContent = "Loading..."; proBtn.disabled = true;
+            const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
+            const response = await createCheckoutSession({ 
+                priceId: 'price_1TgWAhK2lNxMjmQ4fGT5TANb', 
+                userId: auth.currentUser.uid 
             });
-            
-            const result = await response.json();
-            if (result.error) throw new Error(result.error.message);
-            
-            window.location.assign(result.result.url);
+            window.location.assign(response.data.url);
         } catch (error) {
             alert("Backend Error: " + error.message);
             proBtn.textContent = "Upgrade"; proBtn.disabled = false;
@@ -987,22 +964,12 @@ document.addEventListener('click', async (event) => {
     const manageBtn = event.target.closest('#manage-billing-btn');
     if (manageBtn) {
         try {
-            manageBtn.textContent = "Connecting...";
-            const token = await auth.currentUser.getIdToken(true);
-            
-            const response = await fetch('https://us-central1-chat-app-356c1.cloudfunctions.net/createPortalLink', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ data: { clientToken: token } })
+            manageBtn.textContent = "Loading...";
+            const createPortalLink = httpsCallable(functions, 'createPortalLink');
+            const response = await createPortalLink({ 
+                userId: auth.currentUser.uid 
             });
-            
-            const result = await response.json();
-            if (result.error) throw new Error(result.error.message);
-            
-            window.location.assign(result.result.url);
+            window.location.assign(response.data.url);
         } catch (error) {
             alert("Could not load billing portal. Are you on a free plan? \n" + error.message);
             manageBtn.textContent = "Manage";
