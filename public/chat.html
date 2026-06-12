@@ -76,7 +76,11 @@
 
     <div class="modal-overlay hidden" id="modal-overlay"></div>
     
+
     <div id="settings-modal" class="hidden brutalist-settings">
+
+        <button id="close-settings-btn" class="brutalist-close" title="Close">✖</button>
+
         <div class="settings-sidebar">
             <h3 class="sidebar-header">USER SETTINGS</h3>
             <div class="settings-tab active" id="tab-btn-profile">My Account</div>
@@ -87,92 +91,110 @@
         </div>
 
         <div class="settings-content">
-            <button id="close-settings-btn" class="brutalist-close" title="Close">✖</button>
 
             <div class="settings-pane active" id="pane-profile">
-    <h2>My Account</h2>
-    <div class="settings-card">
-        <div class="settings-card-header">
-            <img id="settings-photo-preview" src="">
-            <div class="settings-card-title">
-                <div class="title-name" id="settings-display-name-title">User</div>
-            </div>
-            <button id="toggle-edit-btn" style="width: auto;">Edit Profile</button>
-        </div>
-        
-        <div class="settings-card-body" id="profile-form-fields" style="pointer-events: none; opacity: 0.7;">
-            <div class="input-group">
-                <label>DISPLAY NAME</label>
-                <input type="text" id="edit-display-name" readonly>
-            </div>
-            <div class="input-group">
-                <label>PRONOUNS</label>
-                <input type="text" id="edit-pronouns" readonly>
-            </div>
-            <div class="input-group">
-                <label>AVATAR IMAGE</label>
-                <input type="file" id="edit-photo-file" accept="image/*" disabled>
-            </div>
-            <div class="input-group">
-                <label>ABOUT ME</label>
-                <textarea id="edit-bio" readonly></textarea>
-            </div>
-            <button id="update-profile-btn" class="hidden">Save Changes</button>
-        </div>
-    </div>
-</div>
+                <h2>My Account</h2>
+                
+                <div class="settings-card">
+                    <div class="settings-card-header">
+                        <img id="settings-photo-preview" src="">
+                        <div class="settings-card-title">
+                            <div class="title-name" id="settings-display-name-title">User</div>
+                        </div>
+                        <button id="preview-profile-btn" class="action-btn" style="width: auto; margin:0;">Preview Card</button>
+                    </div>
+                </div>
 
-                <div class="settings-card" style="margin-top: 2rem;">
+                <div class="settings-card">
                     <div class="settings-card-body">
-                        <h3 style="font-size: 1.2rem; font-weight: 800; text-transform: uppercase;">Account Management</h3>
-                        <p style="font-weight: 600; color: #666;">Account deletion is permanent. Once you delete your account, there is no going back. Please be certain.</p>
-                        <button id="delete-account-btn" style="background: transparent; color: red; border-color: red; width: auto; padding: 0.8rem 1.5rem; margin-top: 0.5rem; box-shadow: 4px 4px 0px red;">Delete Account</button>
+                        <h3 class="sidebar-header" style="border:none; margin-bottom: 0.5rem; padding:0;">Account Safety</h3>
+                        <p id="settings-joined-date" style="font-weight: 600; color: #666; font-size: 0.9rem; margin-bottom: 0.2rem;">Joined: Loading...</p>
+                        <p id="settings-user-email" style="font-weight: 600; color: #666; font-size: 0.9rem;">Email: Loading...</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-card-body">
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                            <h3 class="sidebar-header" style="border:none; margin:0; padding:0;">Public Profile</h3>
+                            <button id="toggle-edit-btn" style="width: auto; margin:0; padding: 0.4rem 1rem;">Edit Profile</button>
+                        </div>
+
+                        <div id="profile-form-fields" style="pointer-events: none; opacity: 0.7;">
+                            <div class="input-group">
+                                <label>DISPLAY NAME</label>
+                                <input type="text" id="edit-display-name" readonly>
+                            </div>
+                            <div class="input-group">
+                                <label>PRONOUNS</label>
+                                <input type="text" id="edit-pronouns" readonly>
+                            </div>
+                            <div class="input-group">
+                                <label>AVATAR IMAGE</label>
+                                <input type="file" id="edit-photo-file" accept="image/*" disabled style="padding: 0.4rem;">
+                            </div>
+                            <div class="input-group">
+                                <label>ABOUT ME</label>
+                                <textarea id="edit-bio" readonly></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label>THEME COLOR</label>
+                                <input type="color" id="edit-theme-color" class="color-input">
+                            </div>
+                            <button id="update-profile-btn" class="hidden" style="margin-top: 1rem; width: 100%;">Save Changes</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <div class="settings-card-body">
+                        <h3 class="sidebar-header" style="border:none; margin-bottom: 0.5rem; padding:0; color: red;">Account Management</h3>
+                        <p style="font-weight: 600; color: #666; font-size: 0.9rem;">Account deletion is permanent. Once you delete your account, there is no going back.</p>
+                        <button id="delete-account-btn" style="background: transparent; color: red; border-color: red; width: auto; padding: 0.8rem 1.5rem; margin-top: 1rem; box-shadow: 4px 4px 0px red;">Delete Account</button>
                     </div>
                 </div>
             </div>
 
             <div class="settings-pane hidden" id="pane-billing">
-    <h2>Billing</h2>
-    
-    <div class="settings-card" style="border: 4px solid var(--text-color); box-shadow: 6px 6px 0px var(--accent-color);">
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: var(--accent-color); color: var(--text-color);">
-            
-            <div style="display: flex; flex-direction: column; gap: 0.3rem;">
-                <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Current Plan</span>
-                <span style="font-size: 1.8rem; font-weight: 800; line-height: 1;">Minimalist Base</span>
-            </div>
-            
-<button id="manage-billing-btn" style="width: auto; margin: 0; padding: 0.6rem 1.5rem; background: var(--bg-color); color: var(--text-color); box-shadow: 4px 4px 0px var(--text-color); font-size: 1rem;">Manage</button>            
-        </div>
-    </div>
+                <h2>Billing</h2>
+                <div class="settings-card" style="border: 4px solid var(--text-color); box-shadow: 6px 6px 0px var(--accent-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: var(--accent-color); color: var(--text-color);">
+                        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                            <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Current Plan</span>
+                            <span style="font-size: 1.8rem; font-weight: 800; line-height: 1;">Minimalist Base</span>
+                        </div>
+                        <button id="manage-billing-btn" style="width: auto; margin: 0; padding: 0.6rem 1.5rem; background: var(--bg-color); color: var(--text-color); box-shadow: 4px 4px 0px var(--text-color); font-size: 1rem;">Manage</button>            
+                    </div>
+                </div>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
-        <div class="settings-card">
-            <div class="settings-card-body">
-                <h3>Advanced</h3>
-                <h2 style="border:none; margin:0;">$1.99<span>/mo</span></h2>
-                <ul style="list-style: none; margin: 1rem 0; font-weight: 600; font-size: 0.9rem;">
-                    <li>✓ 1GB Uploads</li>
-                    <li>✓ Verified Badge</li>
-                    <li>✓ 5 Custom Themes</li>
-                </ul>
-            <button id="upgrade-advanced-btn" class="discord-brand-btn">Upgrade</button>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div class="settings-card">
+                        <div class="settings-card-body">
+                            <h3>Advanced</h3>
+                            <h2 style="border:none; margin:0;">$1.99<span>/mo</span></h2>
+                            <ul style="list-style: none; margin: 1rem 0; font-weight: 600; font-size: 0.9rem;">
+                                <li>✓ 1GB Uploads</li>
+                                <li>✓ Verified Badge</li>
+                                <li>✓ 5 Custom Themes</li>
+                            </ul>
+                            <button id="upgrade-advanced-btn" class="action-btn" style="width: 100%;">Upgrade</button>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <div class="settings-card-body">
+                            <h3>Pro</h3>
+                            <h2 style="border:none; margin:0;">$3.99<span>/mo</span></h2>
+                            <ul style="list-style: none; margin: 1rem 0; font-weight: 600; font-size: 0.9rem;">
+                                <li>✓ 8GB Uploads</li>
+                                <li>✓ Offline Viewing</li>
+                                <li>✓ Pro Badge & Emojis</li>
+                            </ul>
+                            <button id="upgrade-pro-btn" class="action-btn" style="width: 100%;">Upgrade</button>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </div>
-        <div class="settings-card">
-            <div class="settings-card-body">
-                <h3>Pro</h3>
-                <h2 style="border:none; margin:0;">$3.99<span>/mo</span></h2>
-                <ul style="list-style: none; margin: 1rem 0; font-weight: 600; font-size: 0.9rem;">
-                    <li>✓ 8GB Uploads</li>
-                    <li>✓ Offline Viewing</li>
-                    <li>✓ Pro Badge & Custom Emojis</li>
-                </ul>
-            <button id="upgrade-pro-btn" class="discord-brand-btn">Upgrade</button>
-            </div>
-        </div>
-    </div>
-</div>
 
             <div class="settings-pane hidden" id="pane-app">
                 <h2>Appearance</h2>
@@ -181,6 +203,7 @@
                     <button id="theme-toggle-btn" style="width: auto; margin: 0;">Dark / Light 🌓</button>
                 </div>
             </div>
+            
         </div>
     </div>
 
@@ -210,8 +233,9 @@
         <div class="footer-links"><a href="#">FAQ</a><a href="#">Contact</a></div>
         <div class="footer-info">System Time Zone: GMT -8</div>
     </footer>
-
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=stripefix"></script>
     <div id="emoji-picker" class="hidden"></div>
+</body>
+</html>
 </body>
 </html>

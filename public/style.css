@@ -414,3 +414,17 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
     transform: translate(-4px, -4px);
     box-shadow: 12px 12px 0px var(--text-color);
 }
+
+/* --- STICKY CLOSE BUTTON FIX --- */
+#settings-modal {
+    position: relative; /* Anchors the close button to the modal */
+}
+
+/* --- STICKY CLOSE BUTTON FIX --- */
+.brutalist-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 999; 
+    /* Feel free to add background/border styling here if it looks too plain! */
+}
