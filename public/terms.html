@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minimalist | Chat</title>
+    
+<link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
+    <link rel="stylesheet" href="style.css?v=blip3">
+</head>
+<body>
+    <div class="shape yellow-circle bottom-left"></div>
+
+    <nav>
+        <a href="index.html" id="nav-logo">
+            <div class="mascot-blip">
+                <div class="blip-eye left"></div>
+                <div class="blip-eye right"></div>
+            </div>
+        </a>
+
+        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
+            <a href="index.html">Home</a>
+            <a href="story.html">Story</a>
+            <a href="chat.html" class="active">Chat</a>
+        </div>
+
+        <div id="nav-actions" class="desktop-nav"></div> 
+
+        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
+        <div id="mobile-nav-links" class="mobile-only hidden">
+            <a href="index.html" class="mobile-link">HOME</a>
+            <a href="story.html" class="mobile-link">STORY</a>
+            <button class="action-btn mobile-link-btn" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn" id="open-settings-btn-mobile">SETTINGS</button>
+        </div>
+    </nav>
+
+    <div class="container fade-in-up" style="max-width: 800px; text-align: left;">
+        <h1 style="font-size: 3.5rem; margin-bottom: 0.5rem;">Terms of <span>Service</span></h1>
+        <p style="font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 3rem;">Last Updated: June 2026</p>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">1. Acceptance of Terms</h2>
+            <p style="font-weight: 600; color: #444;">By accessing and using Minimalist Chat, you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this service.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">2. User Conduct & Content</h2>
+            <p style="font-weight: 600; color: #444; margin-bottom: 1rem;">You are solely responsible for the content you transmit via Minimalist Chat. You agree not to use the service to:</p>
+            <ul style="margin-left: 2rem; font-weight: 600; color: #444;">
+                <li>Upload or share illegal, harmful, or abusive content.</li>
+                <li>Impersonate any person or entity.</li>
+                <li>Attempt to bypass Stripe billing or authentication protocols.</li>
+            </ul>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">3. Subscriptions & Refunds</h2>
+            <p style="font-weight: 600; color: #444;">Premium features are billed securely via Stripe. Subscriptions auto-renew until cancelled. You may cancel at any time through the in-app billing portal.</p>
+        </div>
+
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

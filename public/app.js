@@ -41,6 +41,7 @@ let userPronouns = "";
 let userBio = "";
 let userThemeColor = "#FFD700";
 let userShortId = "";
+let userTier = "free"; // <-- ADD THIS LINE
 let currentPmRoomId = null;
 let currentPmTargetUid = null;
 let pmQueryRef = null;
@@ -52,6 +53,34 @@ let chatInitialized = false;
 let oldestMessageKey = null;
 let isFetchingHistory = false;
 
+// --- OPTIMISTIC UI RENDERING ---
+document.addEventListener('DOMContentLoaded', () => {
+    if (sessionStorage.getItem('blipLoaded') === 'true') {
+        
+        // 1. Hide the loading screen immediately
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) loadingScreen.classList.add('hidden');
+        
+        // 2. Instantly draw the chat UI shell 
+        const chatWrapper = document.getElementById('chat-wrapper');
+        if (chatWrapper) {
+            document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
+            chatWrapper.classList.remove('hidden');
+        }
+
+        // 3. NEW: Instantly draw the top buttons so the header doesn't jump!
+        const desktopNavActions = document.getElementById('nav-actions');
+        if (desktopNavActions) {
+            desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
+        }
+
+        // 4. NEW: Add a temporary pulsing loader inside the chat box
+        const messagesList = document.getElementById('messages');
+        if (messagesList && messagesList.innerHTML.trim() === '') {
+            messagesList.innerHTML = `<li id="temp-msg-loader" style="text-align: center; color: #888; font-weight: 800; margin-top: 2rem; list-style: none; animation: textPulse 1.5s infinite ease-in-out;">DECRYPTING MESSAGES...</li>`;
+        }
+    }
+});
 // --- UI SCREEN MANAGER ---
 function showScreen(screenId) {
     document.querySelectorAll('.app-screen').forEach(screen => { screen.classList.add('hidden'); });
@@ -158,11 +187,23 @@ async function checkUserProfile(uid) {
             userPronouns = data.pronouns || "";
             userBio = data.bio || "";
             userThemeColor = data.themeColor || "#FFD700";
+            userTier = data.tier || "free"; // <-- ADD THIS LINE
             
             if (!data.shortId) {
                 userShortId = generateShortId();
                 await set(ref(db, 'users/' + uid + '/shortId'), userShortId);
             } else { userShortId = data.shortId; }
+            if (!data.shortId) {
+                userShortId = generateShortId();
+                await set(ref(db, 'users/' + uid + '/shortId'), userShortId);
+            } else { userShortId = data.shortId; }
+
+            // --- NEW: BACKFILL CREATION DATE ---
+            // If the user's public profile is missing a join date, silently add it!
+            if (!data.createdAt && auth.currentUser) {
+                await set(ref(db, 'users/' + uid + '/createdAt'), auth.currentUser.metadata.creationTime);
+            }
+
             enterChat();
         } else { 
             showScreen('profile-setup-container'); 
@@ -254,6 +295,8 @@ if (tabProfileBtn) {
     if(logoutBtn) logoutBtn.addEventListener('click', () => { 
         document.getElementById('settings-modal').classList.add('hidden'); 
         document.getElementById('modal-overlay').classList.add('hidden'); 
+        // Add this line inside your logout button click event
+        sessionStorage.removeItem('blipLoaded');
         signOut(auth); 
     });
     
@@ -356,38 +399,72 @@ populateEmojiPicker();
 // --- MAIN CHAT ENGINE ---
 window.enterChat = function() {
     try {
-        showScreen('chat-wrapper');
         const desktopNavActions = document.getElementById('nav-actions');
-        if(desktopNavActions) {
-            desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
-            document.getElementById('open-settings-btn').addEventListener('click', openSettings);
-            document.getElementById('open-contacts-btn').addEventListener('click', toggleContacts);
-        }
-        
-        const myStatusRef = ref(db, `presence/${currentUser.uid}`);
-        const connectedRef = ref(db, '.info/connected');
-        
-        onValue(connectedRef, (snap) => {
-            if (snap.val() === true) {
-                onDisconnect(myStatusRef).set({ state: 'offline', last_changed: serverTimestamp() }).then(() => {
-                    set(myStatusRef, { state: 'online', last_changed: serverTimestamp() });
+
+        // Wrap the actual chat launch sequence in a helper function
+        const launchChatUI = () => {
+            showScreen('chat-wrapper'); 
+            
+            if(desktopNavActions) {
+                desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
+                document.getElementById('open-settings-btn').addEventListener('click', openSettings);
+                document.getElementById('open-contacts-btn').addEventListener('click', toggleContacts);
+            }
+            
+            const myStatusRef = ref(db, `presence/${currentUser.uid}`);
+            const connectedRef = ref(db, '.info/connected');
+            
+            onValue(connectedRef, (snap) => {
+                if (snap.val() === true) {
+                    onDisconnect(myStatusRef).set({ state: 'offline', last_changed: serverTimestamp() }).then(() => {
+                        set(myStatusRef, { state: 'online', last_changed: serverTimestamp() });
+                    });
+                }
+            });
+
+            const previewBtn = document.getElementById('preview-profile-btn');
+            if (previewBtn) {
+                previewBtn.addEventListener('click', () => {
+                    document.getElementById('user-profile-popup').classList.add('preview-layout');
+                    viewUserProfile(currentUser.uid); 
                 });
             }
-        });
+            window.viewUserProfile = async function(targetUid) {
+    // ... inside your viewUserProfile function
+    const user = (await get(ref(db, 'users/' + targetUid))).val();
+    
+    // Badge Logic for Profile Card
+    let badgeHtml = '';
+    if (user.tier === 'pro') badgeHtml = `<span class="tier-badge pro">PRO</span>`;
+    if (user.tier === 'advanced') badgeHtml = `<span class="tier-badge advanced">ADVANCED</span>`;
 
-        const previewBtn = document.getElementById('preview-profile-btn');
-        if (previewBtn) {
-            previewBtn.addEventListener('click', () => {
-                document.getElementById('user-profile-popup').classList.add('preview-layout');
-                viewUserProfile(currentUser.uid); 
-            });
+    // Inject this into your profile pop-up HTML
+    document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
+    // ... rest of the function
+}
+            
+            if (!chatInitialized) {
+                initializeChatMemory();
+                listenForNotifications();
+                chatInitialized = true;
+            }
+        };
+
+        // --- THE FIX: CHECK SESSION MEMORY ---
+        // If they already loaded the chat this session, skip the delay completely!
+        if (sessionStorage.getItem('blipLoaded') === 'true') {
+            launchChatUI(); 
+        } else {
+            // First time logging in: Show Blip, wait 2 seconds, then save to memory
+            showScreen('loading-screen');
+            if(desktopNavActions) desktopNavActions.innerHTML = '';
+            
+            setTimeout(() => {
+                sessionStorage.setItem('blipLoaded', 'true'); // Save to memory
+                launchChatUI();
+            }, 2000);
         }
-        
-        if (!chatInitialized) {
-            initializeChatMemory();
-            listenForNotifications();
-            chatInitialized = true;
-        }
+
     } catch (error) { alert("Error launching chat interface: " + error.message); }
 }
 
@@ -499,8 +576,13 @@ if (chatForm) {
             }
             
             const payload = { 
-                uid: currentUser.uid, name: userProfileName, photoUrl: userPhotoUrl, 
-                text: text, attachedImage: uploadedImageUrl, timestamp: serverTimestamp() 
+                uid: currentUser.uid, 
+                name: userProfileName, 
+                photoUrl: userPhotoUrl, 
+                text: text, 
+                attachedImage: uploadedImageUrl, 
+                timestamp: serverTimestamp(), // <--- MAKE SURE THIS COMMA IS HERE!
+                tier: userTier 
             };
             if (activeReplyData) payload.replyTo = activeReplyData;
             
@@ -531,12 +613,22 @@ if (cancelReplyBtn) {
 }
 
 function displayMessage(messageId, msg, prepend = false) {
+    // --- NEW: Remove the temporary loader when the first real message arrives ---
+    const tempLoader = document.getElementById('temp-msg-loader');
+    if (tempLoader) tempLoader.remove();
+
     const messagesList = document.getElementById('messages');
     if(!messagesList || document.getElementById(`msg-${messageId}`)) return;
 
     const item = document.createElement('li');
     item.id = `msg-${messageId}`;
-    const timeString = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+    
+    // FORMAT DATE & TIME (e.g., 6/9/2026 9:25 AM)
+    let timeString = '';
+    if (msg.timestamp) {
+        const d = new Date(msg.timestamp);
+        timeString = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
 
     if (msg.uid === currentUser.uid) item.classList.add('my-message');
 
@@ -544,6 +636,11 @@ function displayMessage(messageId, msg, prepend = false) {
     const replyHTML = msg.replyTo ? `<div class="reply-quote"><span class="reply-quote-name">↩ Replying to ${msg.replyTo.name}</span>"${msg.replyTo.text}"</div>` : '';
     const attachedImgHTML = msg.attachedImage ? `<img src="${msg.attachedImage}" class="msg-attached-img">` : '';
     const textHTML = msg.text ? `<div class="msg-text">${msg.text}</div>` : '';
+
+    // GENERATE TIER BADGES
+    let badgeHTML = '';
+    if (msg.tier === 'advanced') badgeHTML = `<span class="tier-badge advanced">ADVANCED</span>`;
+    if (msg.tier === 'pro') badgeHTML = `<span class="tier-badge pro">PRO</span>`;
 
     item.innerHTML = `
         <div class="msg-actions">
@@ -556,6 +653,7 @@ function displayMessage(messageId, msg, prepend = false) {
             <img src="${avatarImg}" class="msg-avatar" alt="Avatar" onclick="viewUserProfile('${msg.uid}')">
             <div class="header-text">
                 <span class="msg-name" style="cursor: pointer;" onclick="viewUserProfile('${msg.uid}')">${msg.name}</span>
+                ${badgeHTML}
                 <span class="msg-time">${timeString}</span>
             </div>
         </div>
@@ -579,19 +677,55 @@ window.prepareReply = function(id, name, text) {
 };
 
 window.reactToMessage = async function(messageId, emoji) {
-    try { await set(ref(db, `messages/${messageId}/reactions/${currentUser.uid}`), emoji); } 
-    catch(err) { console.error("Reaction failed", err); }
+    try { 
+        const myReactionRef = ref(db, `messages/${messageId}/reactions/${currentUser.uid}`);
+        const snap = await get(myReactionRef);
+        
+        // UNDO LOGIC: If you click the exact same emoji you already used, remove it!
+        if (snap.exists() && snap.val() === emoji) {
+            await remove(myReactionRef);
+        } else {
+            // Otherwise, apply the new reaction
+            await set(myReactionRef, emoji);
+        }
+    } catch(err) { console.error("Reaction failed", err); }
 };
 
 function updateMessageReactions(messageId, msg) {
     const reactionContainer = document.getElementById(`reactions-${messageId}`);
-    if (!reactionContainer || !msg.reactions) return;
-    const counts = {};
-    for (const uid in msg.reactions) counts[msg.reactions[uid]] = (counts[msg.reactions[uid]] || 0) + 1;
+    if (!reactionContainer) return;
+    
     reactionContainer.innerHTML = '';
+    if (!msg.reactions) return;
+
+    const counts = {};
+    let myReaction = null;
+
+    // Tally the emojis and figure out which one belongs to the current user
+    for (const uid in msg.reactions) {
+        const emoji = msg.reactions[uid];
+        counts[emoji] = (counts[emoji] || 0) + 1;
+        if (uid === currentUser.uid) {
+            myReaction = emoji;
+        }
+    }
+    
+    // Draw the badges
     for (const emoji in counts) {
-        const badge = document.createElement('div'); badge.className = 'reaction-badge';
-        badge.innerHTML = `${emoji} <strong>${counts[emoji]}</strong>`; reactionContainer.appendChild(badge);
+        const badge = document.createElement('div');
+        badge.className = 'reaction-badge';
+        
+        // Highlight this specific badge if it's the one the user selected
+        if (emoji === myReaction) {
+            badge.classList.add('user-reacted');
+        }
+        
+        badge.innerHTML = `${emoji} <strong>${counts[emoji]}</strong>`;
+        
+        // ECHO LOGIC: Clicking an existing badge triggers that specific reaction
+        badge.onclick = () => reactToMessage(messageId, emoji);
+        
+        reactionContainer.appendChild(badge);
     }
 }
 
@@ -668,7 +802,8 @@ if (signupForm) {
             await set(ref(db, 'users/' + userCredential.user.uid), { 
                 displayName: username, phoneNumber: phone,
                 photoUrl: getAvatarUrl(username, ""), shortId: userShortId, 
-                themeColor: "#FFD700", bio: "I'm new here!", pronouns: ""
+                themeColor: "#FFD700", bio: "I'm new here!", pronouns: "",
+                createdAt: userCredential.user.metadata.creationTime // <-- NEW!
             });
         } catch (error) { alert("Sign Up Error: " + error.message); }
     });
@@ -865,6 +1000,18 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
         document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
         
+        // --- NEW: INJECT FORMATTED JOIN DATE ---
+        const joinedEl = document.getElementById('up-joined');
+        if (joinedEl) {
+            if (user.createdAt) {
+                const d = new Date(user.createdAt);
+                // Formats exactly as requested: "Joined: 6/11/2026 08:09 PM"
+                joinedEl.textContent = "Joined: " + d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                joinedEl.textContent = "";
+            }
+        }
+        
         const msgBtn = document.getElementById('up-message-btn');
         if(msgBtn) {
             msgBtn.onclick = () => {
@@ -927,52 +1074,90 @@ window.addReaction = function(emoji) {
 };
 
 // --- BILLING LOGIC ---
-document.addEventListener('click', async (event) => {
+document.addEventListener('click', (event) => {
+    // 1. Upgrade Advanced
     const advancedBtn = event.target.closest('#upgrade-advanced-btn');
     if (advancedBtn) {
-        try {
-            advancedBtn.textContent = "Loading..."; advancedBtn.disabled = true;
-            const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
-            // Safely pass the userId directly
-            const response = await createCheckoutSession({ 
-                priceId: 'price_1TgW8pK2lNxMjmQ4JbPdu46Z', 
-                userId: auth.currentUser.uid 
-            });
-            window.location.assign(response.data.url);
-        } catch (error) {
-            alert("Backend Error: " + error.message);
-            advancedBtn.textContent = "Upgrade"; advancedBtn.disabled = false;
-        }
+        // REPLACE THE URL BELOW with the one you copied from Lemon Squeezy
+        const url = "https://minimalistchat.lemonsqueezy.com/checkout/buy/b6f29d05-deb2-4314-ab4f-ab9c43b5e6bb"; 
+        window.location.href = `${url}?checkout[custom][user_id]=${auth.currentUser.uid}`;
     }
 
+    // 2. Upgrade Pro
     const proBtn = event.target.closest('#upgrade-pro-btn');
     if (proBtn) {
-        try {
-            proBtn.textContent = "Loading..."; proBtn.disabled = true;
-            const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
-            const response = await createCheckoutSession({ 
-                priceId: 'price_1TgWAhK2lNxMjmQ4fGT5TANb', 
-                userId: auth.currentUser.uid 
-            });
-            window.location.assign(response.data.url);
-        } catch (error) {
-            alert("Backend Error: " + error.message);
-            proBtn.textContent = "Upgrade"; proBtn.disabled = false;
-        }
+        // REPLACE THE URL BELOW with the one you copied from Lemon Squeezy
+        const url = "https://minimalistchat.lemonsqueezy.com/checkout/buy/12f9553f-8cb0-4f39-aefc-7ca11ef2f85e"; 
+        window.location.href = `${url}?checkout[custom][user_id]=${auth.currentUser.uid}`;
     }
 
+    // 3. Manage Billing
     const manageBtn = event.target.closest('#manage-billing-btn');
     if (manageBtn) {
-        try {
-            manageBtn.textContent = "Loading...";
-            const createPortalLink = httpsCallable(functions, 'createPortalLink');
-            const response = await createPortalLink({ 
-                userId: auth.currentUser.uid 
-            });
-            window.location.assign(response.data.url);
-        } catch (error) {
-            alert("Could not load billing portal. Are you on a free plan? \n" + error.message);
-            manageBtn.textContent = "Manage";
-        }
+        // This takes them to their Lemon Squeezy billing portal
+        window.location.href = "https://minimalist.lemonsqueezy.com/billing";
     }
 });
+// --- LIVE FOOTER CLOCK ---
+function initLiveClock() {
+    const clockEl = document.getElementById('live-clock');
+    if (!clockEl) return;
+    
+    // Updates the clock every 1000 milliseconds (1 second)
+    setInterval(() => {
+        const now = new Date();
+        
+        // Formats the time to look like "08:09:45 PM PDT"
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short'
+        });
+        
+        clockEl.textContent = `SYSTEM TIME: ${timeString}`;
+    }, 1000);
+    
+    // Run it once immediately so there is no 1-second delay on page load
+    clockEl.textContent = `SYSTEM TIME: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' })}`;
+}
+initLiveClock();
+
+// --- BLIP FAVICON ANIMATION ---
+function initBlinkingFavicon() {
+    const favicon = document.getElementById('dynamic-favicon');
+    if (!favicon) return;
+
+    // Blip with open eyes (Circles)
+    const openEyes = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>";
+    
+    // Blip with closed eyes (Flat lines)
+    const closedEyes = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><line x1='27' y1='40' x2='43' y2='40' stroke='%23000' stroke-width='6' stroke-linecap='round'/><line x1='57' y1='40' x2='73' y2='40' stroke='%23000' stroke-width='6' stroke-linecap='round'/></svg>";
+
+    // Every 4 seconds, close the eyes, then open them 150 milliseconds later
+    setInterval(() => {
+        favicon.href = closedEyes;
+        
+        setTimeout(() => {
+            favicon.href = openEyes;
+        }, 150); // 150ms is the perfect speed for a natural human blink
+        
+    }, 4000);
+}
+
+// Start the animation!
+initBlinkingFavicon();
+function updateBillingUI() {
+    const upgradeAdvancedBtn = document.getElementById('upgrade-advanced-btn');
+    const upgradeProBtn = document.getElementById('upgrade-pro-btn');
+    const manageBtn = document.getElementById('manage-billing-btn');
+
+    if (userTier === 'pro' || userTier === 'advanced') {
+        if (upgradeAdvancedBtn) upgradeAdvancedBtn.style.display = 'none';
+        if (upgradeProBtn) upgradeProBtn.style.display = 'none';
+        if (manageBtn) manageBtn.style.display = 'block'; // Show "Manage Subscription"
+    } else {
+        if (manageBtn) manageBtn.style.display = 'none';
+    }
+}
+// Call updateBillingUI() inside your enterChat() function!

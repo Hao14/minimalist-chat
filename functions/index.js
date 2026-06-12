@@ -1,56 +1,31 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const stripe = require('stripe')('sk_test_51QgFVBK2lNxMjmQ4Nd24aAajTj8MjVNBXsUfnAelMA4lJPmMeEdWrfC1cYYUKr3AcZtSjQl2Tmwv6INsY9QHIlCj00r0fAWnM5');
+const crypto = require('crypto');
 
 admin.initializeApp();
 
-// 1. Generate Checkout Link
-exports.createCheckoutSession = functions.https.onCall(async (data, context) => {
-    try {
-        // Fallback to data.userId if Firebase drops the auth context
-        const uid = context.auth?.uid || data.userId;
-        
-        if (!uid) {
-            throw new functions.https.HttpsError('unauthenticated', 'User ID is missing. Please log in again.');
-        }
+exports.lemonSqueezyWebhook = functions.https.onRequest(async (req, res) => {
+    // 1. Verify Signature (Crucial for security)
+    const crypto = require('crypto');
+    const secret = "youareabanana";
+    const hmac = crypto.createHmac('sha256', secret);
+    const digest = Buffer.from(hmac.update(req.rawBody).digest('hex'), 'utf8');
+    const signature = Buffer.from(req.get('x-signature') || '', 'utf8');
 
-        const session = await stripe.checkout.sessions.create({
-            payment_method_types: ['card'],
-            mode: 'subscription',
-            line_items: [{ price: data.priceId, quantity: 1 }],
-            success_url: 'https://chat-app-356c1.web.app/chat.html?success=true',
-            cancel_url: 'https://chat-app-356c1.web.app/chat.html?canceled=true',
-            client_reference_id: uid, 
+    if (!crypto.timingSafeEqual(digest, signature)) return res.status(403).send('Invalid signature');
+
+    const event = req.body;
+    
+    // 2. Look for successful subscription events
+    if (event.meta.event_name === 'subscription_created' || event.meta.event_name === 'subscription_updated') {
+        const userId = event.meta.custom_data.user_id; // This is the ID we passed in the URL
+        const variantName = event.data.attributes.variant_name; // 'Advanced' or 'Pro'
+
+        // 3. Update the database
+        await admin.database().ref(`users/${userId}`).update({ 
+            tier: variantName.toLowerCase() 
         });
-
-        return { url: session.url };
-    } catch (error) {
-        throw new functions.https.HttpsError('internal', error.message);
     }
-});
 
-// 2. Generate Manage Portal Link
-exports.createPortalLink = functions.https.onCall(async (data, context) => {
-    try {
-        const uid = context.auth?.uid || data.userId;
-        if (!uid) {
-            throw new functions.https.HttpsError('unauthenticated', 'User ID is missing. Please log in again.');
-        }
-
-        const userSnap = await admin.database().ref(`users/${uid}`).once('value');
-        const stripeCustomerId = userSnap.val()?.stripeCustomerId;
-
-        if (!stripeCustomerId) {
-            throw new functions.https.HttpsError('failed-precondition', 'No active subscription found. Are you on a free plan?');
-        }
-
-        const portalSession = await stripe.billingPortal.sessions.create({
-            customer: stripeCustomerId,
-            return_url: 'https://chat-app-356c1.web.app/chat.html', 
-        });
-
-        return { url: portalSession.url };
-    } catch (error) {
-        throw new functions.https.HttpsError(error.code || 'internal', error.message);
-    }
+    res.status(200).send('OK');
 });

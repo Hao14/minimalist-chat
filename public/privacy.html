@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minimalist | Chat</title>
+    
+<link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
+    <link rel="stylesheet" href="style.css?v=blip3">
+</head>
+<body>
+    <div class="shape yellow-circle bottom-left"></div>
+
+    <nav>
+        <a href="index.html" id="nav-logo">
+            <div class="mascot-blip">
+                <div class="blip-eye left"></div>
+                <div class="blip-eye right"></div>
+            </div>
+        </a>
+
+        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
+            <a href="index.html">Home</a>
+            <a href="story.html">Story</a>
+            <a href="chat.html" class="active">Chat</a>
+        </div>
+
+        <div id="nav-actions" class="desktop-nav"></div> 
+
+        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
+        <div id="mobile-nav-links" class="mobile-only hidden">
+            <a href="index.html" class="mobile-link">HOME</a>
+            <a href="story.html" class="mobile-link">STORY</a>
+            <button class="action-btn mobile-link-btn" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn" id="open-settings-btn-mobile">SETTINGS</button>
+        </div>
+    </nav>
+
+    <div class="container fade-in-up" style="max-width: 800px; text-align: left;">
+        <h1 style="font-size: 3.5rem; margin-bottom: 0.5rem;">Privacy <span>Policy</span></h1>
+        <p style="font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 3rem;">Last Updated: June 2026</p>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">1. Information We Collect</h2>
+            <p style="font-weight: 600; color: #444; margin-bottom: 1rem;">To provide you with a seamless chat experience, we collect the following information:</p>
+            <ul style="margin-left: 2rem; font-weight: 600; color: #444;">
+                <li><strong>Account Data:</strong> Email address, display name, and authentication tokens provided by Google or Email sign-up.</li>
+                <li><strong>Chat Data:</strong> Messages, uploaded images, and reactions sent within the app.</li>
+                <li><strong>Billing Data:</strong> Subscription status and Stripe Customer IDs (we do not store raw credit card numbers).</li>
+            </ul>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">2. Third-Party Services</h2>
+            <p style="font-weight: 600; color: #444; margin-bottom: 1rem;">We utilize industry-standard, secure infrastructure to power Minimalist Chat:</p>
+            <ul style="margin-left: 2rem; font-weight: 600; color: #444;">
+                <li><strong>Google Firebase:</strong> Used for secure user authentication, real-time database hosting, and cloud storage for your images.</li>
+                <li><strong>Stripe:</strong> Used to securely process subscription payments. Your payment details are handled directly by Stripe.</li>
+            </ul>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">3. Your Right to Deletion</h2>
+            <p style="font-weight: 600; color: #444;">You have complete control over your data. You can permanently delete your account at any time via the Settings menu. Doing so will instantly erase your user profile and authentication records from our database.</p>
+        </div>
+
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>

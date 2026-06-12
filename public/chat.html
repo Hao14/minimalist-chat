@@ -4,13 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimalist | Chat</title>
-    <link rel="stylesheet" href="style.css">
+    
+<link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
+    <link rel="stylesheet" href="style.css?v=blip3">
 </head>
 <body>
     <div class="shape yellow-circle bottom-left"></div>
 
     <nav>
-        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; width: 100%;">
+        <a href="index.html" id="nav-logo">
+            <div class="mascot-blip">
+                <div class="blip-eye left"></div>
+                <div class="blip-eye right"></div>
+            </div>
+            <span class="logo-text">MINIMALIST</span>
+        </a>
+
+        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
             <a href="index.html">Home</a>
             <a href="story.html">Story</a>
             <a href="chat.html" class="active">Chat</a>
@@ -32,6 +42,14 @@
         <input type="text" id="new-display-name" placeholder="Enter your display name">
         <input type="url" id="new-photo-url" placeholder="Image URL (Leave blank for auto)">
         <button id="save-new-profile-btn">Enter Chat</button>
+    </div>
+
+<div class="app-screen hidden" id="loading-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; height: 60vh;">
+        <div class="mascot-blip" style="transform: scale(2); margin-bottom: 3rem; cursor: default;">
+            <div class="blip-eye left"></div>
+            <div class="blip-eye right"></div>
+        </div>
+        <h2 class="loading-pulse-text">LOADING CHAT RESOURCES...</h2>
     </div>
 
     <div class="chat-container-full app-screen hidden" id="chat-wrapper">
@@ -223,6 +241,7 @@
                 <span class="profile-short-id" id="up-shortid">#000000</span>
             </div>
             <div class="profile-bio" id="up-bio">Bio goes here...</div>
+            <div class="profile-joined-date" id="up-joined">Joined: Loading...</div>
             <div class="profile-actions">
                 <button id="up-message-btn">Message</button>
             </div>
@@ -230,8 +249,14 @@
     </div>
 
     <footer>
-        <div class="footer-links"><a href="#">FAQ</a><a href="#">Contact</a></div>
-        <div class="footer-info">System Time Zone: GMT -8</div>
+        <div class="footer-links">
+            <a href="faq.html">FAQ</a>
+            <a href="terms.html">Terms of Service</a>
+            <a href="privacy.html">Privacy Policy</a>
+            <a href="mailto:support@minimalist.com">Contact</a>
+            <a href="https://github.com/Hao14/minimalist-chat/issues" target="_blank" rel="noopener noreferrer">Bug Report</a>
+        </div>
+        <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
     </footer>
     <script type="module" src="app.js?v=stripefix"></script>
     <div id="emoji-picker" class="hidden"></div>
