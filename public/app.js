@@ -188,6 +188,7 @@ async function checkUserProfile(uid) {
             userBio = data.bio || "";
             userThemeColor = data.themeColor || "#FFD700";
             userTier = data.tier || "free"; // <-- ADD THIS LINE
+            updateBillingUI();
             
             if (!data.shortId) {
                 userShortId = generateShortId();
@@ -397,6 +398,84 @@ function populateEmojiPicker() {
 populateEmojiPicker();
 
 // --- MAIN CHAT ENGINE ---
+// --- MOVE THIS OUTSIDE OF enterChat() ---
+window.viewUserProfile = async function(targetUid) {
+    try {
+        const snapshot = await get(ref(db, 'users/' + targetUid));
+        if (!snapshot.exists()) return;
+        
+        const user = snapshot.val();
+        const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
+        
+        // --- IMPROVED BADGE LOGIC ---
+        let badgeHtml = '';
+        const tier = (user.tier || "").toLowerCase();
+        
+        if (tier.includes('pro')) {
+            badgeHtml = `<span class="tier-badge pro">PRO</span>`;
+        } else if (tier.includes('advanced')) {
+            badgeHtml = `<span class="tier-badge advanced">ADVANCED</span>`;
+        }
+
+        document.getElementById('up-avatar').src = avatar;
+        document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
+        
+        // --- THE FIX: SELF-HEALING SHORT ID ---
+        // If they have an ID, use it. If not, generate one and save it permanently!
+        let finalShortId = user.shortId;
+        if (!finalShortId) {
+            finalShortId = generateShortId();
+            // This line instantly repairs their broken database record behind the scenes
+            await set(ref(db, 'users/' + targetUid + '/shortId'), finalShortId); 
+        }
+
+        document.getElementById('up-pronouns').textContent = user.pronouns || "";
+        document.getElementById('up-shortid').textContent = "#" + finalShortId;
+        document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
+        document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
+        
+        // --- INJECT FORMATTED JOIN DATE ---
+        const joinedEl = document.getElementById('up-joined');
+        if (joinedEl) {
+            if (user.createdAt) {
+                const d = new Date(user.createdAt);
+                joinedEl.textContent = "Joined: " + d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } else {
+                joinedEl.textContent = "";
+            }
+        }
+        
+        const msgBtn = document.getElementById('up-message-btn');
+        if(msgBtn) {
+            msgBtn.onclick = () => {
+                document.getElementById('user-profile-popup').classList.add('hidden');
+                document.getElementById('modal-overlay').classList.add('hidden'); 
+                document.getElementById('contacts-panel').classList.remove('open');
+                openPrivateChat(targetUid, user.displayName);
+            };
+        }
+
+        document.getElementById('user-profile-popup').classList.remove('hidden');
+        document.getElementById('modal-overlay').classList.remove('hidden');
+    } catch (error) { alert("Failed to load user profile: " + error.message); }
+};
+
+// --- THIS UPDATES THE BUTTONS ---
+window.updateBillingUI = function() {
+    const upgradeAdvancedBtn = document.getElementById('upgrade-advanced-btn');
+    const upgradeProBtn = document.getElementById('upgrade-pro-btn');
+    const manageBtn = document.getElementById('manage-billing-btn');
+
+    if (userTier === 'pro' || userTier === 'advanced') {
+        if (upgradeAdvancedBtn) upgradeAdvancedBtn.style.display = 'none';
+        if (upgradeProBtn) upgradeProBtn.style.display = 'none';
+        if (manageBtn) manageBtn.style.display = 'block'; 
+    } else {
+        if (upgradeAdvancedBtn) upgradeAdvancedBtn.style.display = 'block';
+        if (upgradeProBtn) upgradeProBtn.style.display = 'block';
+        if (manageBtn) manageBtn.style.display = 'none';
+    }
+}
 window.enterChat = function() {
     try {
         const desktopNavActions = document.getElementById('nav-actions');
@@ -429,19 +508,6 @@ window.enterChat = function() {
                     viewUserProfile(currentUser.uid); 
                 });
             }
-            window.viewUserProfile = async function(targetUid) {
-    // ... inside your viewUserProfile function
-    const user = (await get(ref(db, 'users/' + targetUid))).val();
-    
-    // Badge Logic for Profile Card
-    let badgeHtml = '';
-    if (user.tier === 'pro') badgeHtml = `<span class="tier-badge pro">PRO</span>`;
-    if (user.tier === 'advanced') badgeHtml = `<span class="tier-badge advanced">ADVANCED</span>`;
-
-    // Inject this into your profile pop-up HTML
-    document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
-    // ... rest of the function
-}
             
             if (!chatInitialized) {
                 initializeChatMemory();
@@ -993,12 +1059,18 @@ window.viewUserProfile = async function(targetUid) {
         const user = snapshot.val();
         const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
         
+        // --- IMPROVED BADGE LOGIC ---
+        let badgeHtml = '';
+        const tier = (user.tier || "").toLowerCase();
+        
+        if (tier.includes('pro')) {
+            badgeHtml = `<span class="tier-badge pro">PRO</span>`;
+        } else if (tier.includes('advanced')) {
+            badgeHtml = `<span class="tier-badge advanced">ADVANCED</span>`;
+        }
+
         document.getElementById('up-avatar').src = avatar;
-        document.getElementById('up-name').textContent = user.displayName;
-        document.getElementById('up-pronouns').textContent = user.pronouns || "";
-        document.getElementById('up-shortid').textContent = "#" + (user.shortId || "000000");
-        document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
-        document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
+        document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
         
         // --- NEW: INJECT FORMATTED JOIN DATE ---
         const joinedEl = document.getElementById('up-joined');
@@ -1161,3 +1233,26 @@ function updateBillingUI() {
     }
 }
 // Call updateBillingUI() inside your enterChat() function!
+
+// --- DATABASE MIGRATION SCRIPT ---
+// Run this in the console to fix all old accounts missing a Short ID
+window.fixMissingShortIds = async function() {
+    try {
+        const usersSnap = await get(ref(db, 'users'));
+        let fixedCount = 0;
+        
+        usersSnap.forEach(childSnap => {
+            const userData = childSnap.val();
+            if (!userData.shortId) {
+                const newId = generateShortId();
+                set(ref(db, `users/${childSnap.key}/shortId`), newId);
+                console.log(`Fixed ID for ${userData.displayName}: #${newId}`);
+                fixedCount++;
+            }
+        });
+        
+        alert(`Database patched! Fixed ${fixedCount} accounts.`);
+    } catch (error) {
+        console.error("Migration failed:", error);
+    }
+};

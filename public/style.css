@@ -581,3 +581,24 @@ body.dark-mode .blip-eye { background-color: var(--bg-color); }
     0%, 100% { opacity: 0.3; }
     50% { opacity: 1; }
 }
+
+/* --- TIER BADGES --- */
+.tier-badge {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: 800;
+    vertical-align: middle;
+    border: 2px solid var(--text-color);
+}
+
+.tier-badge.pro {
+    background-color: #FFD700; /* Gold */
+    color: black;
+}
+
+.tier-badge.advanced {
+    background-color: #000; /* Black */
+    color: #FFD700;
+}
