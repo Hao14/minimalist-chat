@@ -602,3 +602,48 @@ body.dark-mode .blip-eye { background-color: var(--bg-color); }
     background-color: #000; /* Black */
     color: #FFD700;
 }
+/* --- BRUTALIST TOAST NOTIFICATION --- */
+#brutalist-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--bg-color, #ffffff);
+    color: var(--text-color, #000000);
+    border: 4px solid var(--text-color, #000000);
+    box-shadow: 6px 6px 0px var(--accent-color, #FFD700);
+    padding: 1rem 1.5rem;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    font-weight: 800;
+    width: 90%;
+    max-width: 400px;
+    transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy entrance */
+}
+
+#brutalist-toast.toast-hidden {
+    top: -150px; /* Hides it off the top of the screen */
+}
+
+#toast-message {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+#toast-close {
+    background: transparent;
+    border: 2px solid var(--text-color, #000000);
+    color: var(--text-color, #000000);
+    font-weight: 900;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    transition: all 0.1s;
+}
+
+#toast-close:active {
+    background: var(--text-color, #000000);
+    color: var(--bg-color, #ffffff);
+}

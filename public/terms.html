@@ -31,8 +31,11 @@
         <div id="mobile-nav-links" class="mobile-only hidden">
             <a href="index.html" class="mobile-link">HOME</a>
             <a href="story.html" class="mobile-link">STORY</a>
-            <button class="action-btn mobile-link-btn" id="open-contacts-btn-mobile">CONTACTS</button>
-            <button class="action-btn mobile-link-btn" id="open-settings-btn-mobile">SETTINGS</button>
+            
+            <a href="login.html" class="mobile-link guest-only" style="color: var(--accent-color); font-weight: 800;">LOGIN</a>
+
+            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
         </div>
     </nav>
 
@@ -62,6 +65,11 @@
 
     </div>
 
-    <script type="module" src="app.js"></script>
+<script type="module" src="app.js?v=toastfix"></script>
+    <div id="brutalist-toast" class="toast-hidden">
+    <span id="toast-icon">⚠️</span>
+    <span id="toast-message">Error message goes here</span>
+    <button id="toast-close">✖</button>
+</div>
 </body>
 </html>

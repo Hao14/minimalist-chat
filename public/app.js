@@ -8,13 +8,13 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 window.addEventListener('error', (event) => { 
     if (event.filename && event.filename.includes('extension')) return;
     if (event.message && event.message.includes('s is not defined')) return;
-    alert("Script Crash: " + event.message); 
+    showToast("Script Crash: " + event.message); 
 });
 
 window.addEventListener('unhandledrejection', (event) => { 
     const msg = event.reason?.message || event.reason || "";
     if (typeof msg === 'string' && msg.includes('MetaMask')) return;
-    alert("Database/Network Crash: " + msg); 
+    showToast("Database/Network Crash: " + msg); 
 });
 
 const firebaseConfig = {
@@ -54,13 +54,42 @@ let chatInitialized = false;
 let oldestMessageKey = null;
 let isFetchingHistory = false;
 
+// --- CUSTOM UI NOTIFICATIONS ---
+window.showToast = function(message, isError = true) {
+    const toast = document.getElementById('brutalist-toast');
+    const toastMsg = document.getElementById('toast-message');
+    const toastIcon = document.getElementById('toast-icon');
+    
+    if (toast && toastMsg) {
+        toastMsg.textContent = message;
+        toastIcon.textContent = isError ? '⚠️' : '✅';
+        
+        // Slide it down
+        toast.classList.remove('toast-hidden');
+        
+        // Auto-hide after 4 seconds
+        setTimeout(() => {
+            toast.classList.add('toast-hidden');
+        }, 4000);
+    } else {
+        // Fallback just in case the HTML is missing
+        alert(message);
+    }
+};
+
+// Make the close button work
+document.addEventListener('click', (e) => {
+    if (e.target.id === 'toast-close') {
+        document.getElementById('brutalist-toast').classList.add('toast-hidden');
+    }
+});
 // --- HANDLE GOOGLE REDIRECT RETURN ---
 // When the app reloads after Google login, check if anything went wrong
 getRedirectResult(auth).catch((error) => {
     // We only alert if there is a real error, ignoring minor network interruptions
     if (error.code !== 'auth/redirect-cancelled-by-user') {
         console.error("Google Auth Error:", error);
-        alert("Google Sign-In failed: " + error.message);
+        showToast("Google Sign-In failed: " + error.message);
     }
 });
 // --- OPTIMISTIC UI RENDERING ---
@@ -205,10 +234,6 @@ async function checkUserProfile(uid) {
                 userShortId = generateShortId();
                 await set(ref(db, 'users/' + uid + '/shortId'), userShortId);
             } else { userShortId = data.shortId; }
-            if (!data.shortId) {
-                userShortId = generateShortId();
-                await set(ref(db, 'users/' + uid + '/shortId'), userShortId);
-            } else { userShortId = data.shortId; }
 
             // --- NEW: BACKFILL CREATION DATE ---
             // If the user's public profile is missing a join date, silently add it!
@@ -221,7 +246,7 @@ async function checkUserProfile(uid) {
             showScreen('profile-setup-container'); 
         }
     } catch (error) {
-        alert("Database Error loading profile: " + error.message);
+        showToast("Database Error loading profile: " + error.message);
     }
 }
 
@@ -245,7 +270,7 @@ if (saveProfileBtn) {
                 userThemeColor = "#FFD700"; userBio = "I'm new here!"; userPronouns = "";
                 enterChat();
             }
-        } catch (error) { alert("Error saving profile: " + error.message); }
+        } catch (error) { showToast("Error saving profile: " + error.message); }
     });
 }
 
@@ -372,8 +397,8 @@ if (updateProfileBtn) {
             userThemeColor = document.getElementById('edit-theme-color').value;
 
             document.getElementById('toggle-edit-btn').click(); 
-            alert("Profile Updated!");
-        } catch (error) { alert("Error updating profile: " + error.message); }
+            showToast("Profile Updated!");
+        } catch (error) { showToast("Error updating profile: " + error.message); }
     });
 }
 
@@ -385,14 +410,14 @@ if (deleteAccountBtn) {
             try {
                 await remove(ref(db, 'users/' + currentUser.uid));
                 await deleteUser(currentUser);
-                alert("Account deleted successfully.");
+                showToast("Account deleted successfully.");
                 window.location.reload();
             } catch (error) {
                 if (error.code === 'auth/requires-recent-login') {
-                    alert("For your security, Firebase requires you to log out and log back in right before deleting your account.");
-                } else { alert("Failed to delete account: " + error.message); }
+                    showToast("For your security, Firebase requires you to log out and log back in right before deleting your account.");
+                } else { showToast("Failed to delete account: " + error.message); }
             }
-        } else if (confirmationText !== null) { alert("Account deletion cancelled: You did not type 'I WANT DELETION' correctly."); }
+        } else if (confirmationText !== null) { showToast("Account deletion cancelled: You did not type 'I WANT DELETION' correctly."); }
     });
 }
 
@@ -487,7 +512,7 @@ window.enterChat = function() {
             }, 2000);
         }
 
-    } catch (error) { alert("Error launching chat interface: " + error.message); }
+    } catch (error) { showToast("Error launching chat interface: " + error.message); }
 }
 
 function initializeChatMemory() {
@@ -620,7 +645,7 @@ if (chatForm) {
                 cancelReplyBtn.click();
             }
             
-        } catch (error) { alert("Failed to send message: " + error.message); } 
+        } catch (error) { showToast("Failed to send message: " + error.message); } 
         finally { if(sendBtn) { sendBtn.textContent = 'SEND'; sendBtn.disabled = false; } }
     });
 }
@@ -827,7 +852,7 @@ if (signupForm) {
                 themeColor: "#FFD700", bio: "I'm new here!", pronouns: "",
                 createdAt: userCredential.user.metadata.creationTime // <-- NEW!
             });
-        } catch (error) { alert("Sign Up Error: " + error.message); }
+        } catch (error) { showToast("Sign Up Error: " + error.message); }
     });
 }
 
@@ -837,7 +862,7 @@ if (loginForm) {
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         try { await signInWithEmailAndPassword(auth, email, password); } 
-        catch (error) { alert("Login Error: " + error.message); }
+        catch (error) { showToast("Login Error: " + error.message); }
     });
 }
 
@@ -981,7 +1006,7 @@ window.openPrivateChat = function(targetUid, targetName) {
         });
 
         popup.classList.remove('hidden');
-    } catch(err) { alert("Private Message Error: " + err.message); }
+    } catch(err) { showToast("Private Message Error: " + err.message); }
 }
 
 const pmCloseBtn = document.getElementById('pm-close-btn');
@@ -1003,7 +1028,7 @@ if (pmFormObj) {
                 await push(ref(db, `private_messages/${currentPmRoomId}`), { uid: currentUser.uid, text: text, timestamp: serverTimestamp() });
                 await set(ref(db, `inbox/${currentPmTargetUid}/${currentUser.uid}`), { fromName: userProfileName, timestamp: Date.now(), read: false });
                 pmInput.value = '';
-            } catch(err) { alert("Failed to send PM: " + err.message); }
+            } catch(err) { showToast("Failed to send PM: " + err.message); }
         }
     });
 }
@@ -1065,7 +1090,7 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('modal-overlay').classList.remove('hidden');
     } catch (error) { 
         console.error("Profile Load Error:", error);
-        alert("Failed to load user profile: " + error.message); 
+        showToast("Failed to load user profile: " + error.message); 
     }
 };
 const closeProfileBtn = document.getElementById('close-profile-btn');
@@ -1188,21 +1213,6 @@ function initBlinkingFavicon() {
 
 // Start the animation!
 initBlinkingFavicon();
-function updateBillingUI() {
-    const upgradeAdvancedBtn = document.getElementById('upgrade-advanced-btn');
-    const upgradeProBtn = document.getElementById('upgrade-pro-btn');
-    const manageBtn = document.getElementById('manage-billing-btn');
-
-    if (userTier === 'pro' || userTier === 'advanced') {
-        if (upgradeAdvancedBtn) upgradeAdvancedBtn.style.display = 'none';
-        if (upgradeProBtn) upgradeProBtn.style.display = 'none';
-        if (manageBtn) manageBtn.style.display = 'block'; // Show "Manage Subscription"
-    } else {
-        if (manageBtn) manageBtn.style.display = 'none';
-    }
-}
-// Call updateBillingUI() inside your enterChat() function!
-
 // --- DATABASE MIGRATION SCRIPT ---
 // Run this in the console to fix all old accounts missing a Short ID
 window.fixMissingShortIds = async function() {
