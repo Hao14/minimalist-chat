@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, RecaptchaVerifier, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
@@ -54,7 +54,15 @@ let chatInitialized = false;
 let oldestMessageKey = null;
 let isFetchingHistory = false;
 
-
+// --- HANDLE GOOGLE REDIRECT RETURN ---
+// When the app reloads after Google login, check if anything went wrong
+getRedirectResult(auth).catch((error) => {
+    // We only alert if there is a real error, ignoring minor network interruptions
+    if (error.code !== 'auth/redirect-cancelled-by-user') {
+        console.error("Google Auth Error:", error);
+        alert("Google Sign-In failed: " + error.message);
+    }
+});
 // --- OPTIMISTIC UI RENDERING ---
 document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('blipLoaded') === 'true') {
@@ -835,16 +843,17 @@ if (loginForm) {
 
 const googleLoginBtn = document.getElementById('google-login-btn');
 if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', async () => { 
-        try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
-        catch (error) { alert("Google Auth Error: " + error.message); } 
+    googleLoginBtn.addEventListener('click', () => { 
+        // Instantly redirects the page to Google
+        signInWithRedirect(auth, new GoogleAuthProvider()); 
     });
 }
+
 const googleSignupBtn = document.getElementById('google-signup-btn');
 if (googleSignupBtn) {
-    googleSignupBtn.addEventListener('click', async () => { 
-        try { await signInWithPopup(auth, new GoogleAuthProvider()); } 
-        catch (error) { alert("Google Auth Error: " + error.message); } 
+    googleSignupBtn.addEventListener('click', () => { 
+        // Instantly redirects the page to Google
+        signInWithRedirect(auth, new GoogleAuthProvider()); 
     });
 }
 
@@ -1216,3 +1225,12 @@ window.fixMissingShortIds = async function() {
         console.error("Migration failed:", error);
     }
 };
+
+// --- PWA SERVICE WORKER REGISTRATION ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker registered!', reg))
+            .catch(err => console.error('Service Worker registration failed: ', err));
+    });
+}
