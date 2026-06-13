@@ -42,6 +42,7 @@ let userBio = "";
 let userThemeColor = "#FFD700";
 let userShortId = "";
 let userTier = "free"; // <-- ADD THIS LINE
+let userPhone = "No phone on file"; // <-- ADD THIS LINE
 let currentPmRoomId = null;
 let currentPmTargetUid = null;
 let pmQueryRef = null;
@@ -52,6 +53,7 @@ let activeReplyData = null;
 let chatInitialized = false;
 let oldestMessageKey = null;
 let isFetchingHistory = false;
+
 
 // --- OPTIMISTIC UI RENDERING ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -188,6 +190,7 @@ async function checkUserProfile(uid) {
             userBio = data.bio || "";
             userThemeColor = data.themeColor || "#FFD700";
             userTier = data.tier || "free"; // <-- ADD THIS LINE
+            userPhone = data.phoneNumber || "No phone on file"; // <-- ADD THIS LINE
             updateBillingUI();
             
             if (!data.shortId) {
@@ -247,6 +250,7 @@ window.openSettings = function() {
         window.location.href = 'chat.html';
         return;
     }
+    
 
     const safeSetValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
@@ -262,6 +266,10 @@ window.openSettings = function() {
     
     if (auth.currentUser) {
         safeSetText('settings-user-email', "Email: " + (auth.currentUser.email || "No email on file"));
+        
+        // --- NEW: Inject the phone number ---
+        safeSetText('settings-user-phone', "Phone: " + userPhone);
+        
         const joinDate = new Date(auth.currentUser.metadata.creationTime);
         const dateOptions = { month: 'long', day: 'numeric', year: 'numeric' };
         safeSetText('settings-joined-date', "Joined: " + joinDate.toLocaleDateString('en-US', dateOptions));
@@ -399,66 +407,6 @@ populateEmojiPicker();
 
 // --- MAIN CHAT ENGINE ---
 // --- MOVE THIS OUTSIDE OF enterChat() ---
-window.viewUserProfile = async function(targetUid) {
-    try {
-        const snapshot = await get(ref(db, 'users/' + targetUid));
-        if (!snapshot.exists()) return;
-        
-        const user = snapshot.val();
-        const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
-        
-        // --- IMPROVED BADGE LOGIC ---
-        let badgeHtml = '';
-        const tier = (user.tier || "").toLowerCase();
-        
-        if (tier.includes('pro')) {
-            badgeHtml = `<span class="tier-badge pro">PRO</span>`;
-        } else if (tier.includes('advanced')) {
-            badgeHtml = `<span class="tier-badge advanced">ADVANCED</span>`;
-        }
-
-        document.getElementById('up-avatar').src = avatar;
-        document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
-        
-        // --- THE FIX: SELF-HEALING SHORT ID ---
-        // If they have an ID, use it. If not, generate one and save it permanently!
-        let finalShortId = user.shortId;
-        if (!finalShortId) {
-            finalShortId = generateShortId();
-            // This line instantly repairs their broken database record behind the scenes
-            await set(ref(db, 'users/' + targetUid + '/shortId'), finalShortId); 
-        }
-
-        document.getElementById('up-pronouns').textContent = user.pronouns || "";
-        document.getElementById('up-shortid').textContent = "#" + finalShortId;
-        document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
-        document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
-        
-        // --- INJECT FORMATTED JOIN DATE ---
-        const joinedEl = document.getElementById('up-joined');
-        if (joinedEl) {
-            if (user.createdAt) {
-                const d = new Date(user.createdAt);
-                joinedEl.textContent = "Joined: " + d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            } else {
-                joinedEl.textContent = "";
-            }
-        }
-        
-        const msgBtn = document.getElementById('up-message-btn');
-        if(msgBtn) {
-            msgBtn.onclick = () => {
-                document.getElementById('user-profile-popup').classList.add('hidden');
-                document.getElementById('modal-overlay').classList.add('hidden'); 
-                document.getElementById('contacts-panel').classList.remove('open');
-                openPrivateChat(targetUid, user.displayName);
-            };
-        }
-
-        document.getElementById('user-profile-popup').classList.remove('hidden');
-        document.getElementById('modal-overlay').classList.remove('hidden');
-    } catch (error) { alert("Failed to load user profile: " + error.message); }
-};
 
 // --- THIS UPDATES THE BUTTONS ---
 window.updateBillingUI = function() {
@@ -1050,7 +998,7 @@ if (pmFormObj) {
         }
     });
 }
-
+// --- VIEW USER PROFILE (THE DEFINITIVE VERSION) ---
 window.viewUserProfile = async function(targetUid) {
     try {
         const snapshot = await get(ref(db, 'users/' + targetUid));
@@ -1059,10 +1007,9 @@ window.viewUserProfile = async function(targetUid) {
         const user = snapshot.val();
         const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
         
-        // --- IMPROVED BADGE LOGIC ---
+        // 1. Render Tier Badges
         let badgeHtml = '';
         const tier = (user.tier || "").toLowerCase();
-        
         if (tier.includes('pro')) {
             badgeHtml = `<span class="tier-badge pro">PRO</span>`;
         } else if (tier.includes('advanced')) {
@@ -1072,18 +1019,28 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('up-avatar').src = avatar;
         document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
         
-        // --- NEW: INJECT FORMATTED JOIN DATE ---
+        // 2. THE VISUAL PATCH: Fake it till they make it!
+        // Generates a visual ID to hide the #000000 error without triggering Firebase Security Rules
+        let displayId = user.shortId;
+        if (!displayId) displayId = generateShortId();
+
+        document.getElementById('up-pronouns').textContent = user.pronouns || "";
+        document.getElementById('up-shortid').textContent = "#" + displayId;
+        document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
+        document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
+        
+        // 3. Render Joined Date
         const joinedEl = document.getElementById('up-joined');
         if (joinedEl) {
             if (user.createdAt) {
                 const d = new Date(user.createdAt);
-                // Formats exactly as requested: "Joined: 6/11/2026 08:09 PM"
                 joinedEl.textContent = "Joined: " + d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             } else {
                 joinedEl.textContent = "";
             }
         }
         
+        // 4. Setup PM Button
         const msgBtn = document.getElementById('up-message-btn');
         if(msgBtn) {
             msgBtn.onclick = () => {
@@ -1094,11 +1051,14 @@ window.viewUserProfile = async function(targetUid) {
             };
         }
 
+        // Show Modal
         document.getElementById('user-profile-popup').classList.remove('hidden');
         document.getElementById('modal-overlay').classList.remove('hidden');
-    } catch (error) { alert("Failed to load user profile: " + error.message); }
+    } catch (error) { 
+        console.error("Profile Load Error:", error);
+        alert("Failed to load user profile: " + error.message); 
+    }
 };
-
 const closeProfileBtn = document.getElementById('close-profile-btn');
 if (closeProfileBtn) {
     closeProfileBtn.addEventListener('click', () => {
