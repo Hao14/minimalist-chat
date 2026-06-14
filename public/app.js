@@ -609,12 +609,17 @@ if (chatForm) {
             
             // Apply Tier Limits for Uploads
             const LIMITS = { free: 1048576, advanced: 1073741824, pro: 8589934592 };
-            const userTier = 'free'; // In the future, fetch this from the user's DB profile
+            
+            // OPTIMIZATION: Use the global userTier variable we fetched on login!
+            const activeTier = userTier || 'free'; 
             
             if (file) {
-                if (file.size > LIMITS[userTier]) {
-                    alert(`File too large! Your current plan allows ${userTier.toUpperCase()} uploads.`);
+                if (file.size > LIMITS[activeTier]) {
+                    showToast(`File too large! Your current plan allows ${activeTier.toUpperCase()} uploads.`);
                     if(sendBtn) { sendBtn.textContent = 'SEND'; sendBtn.disabled = false; }
+                    // Clear the file input so they don't accidentally try sending it again
+                    imageInput.value = ''; 
+                    attachBtn.classList.remove('active');
                     return;
                 }
                 const fileRef = sRef(storage, `chat_images/${Date.now()}_${file.name}`);
@@ -1230,7 +1235,7 @@ window.fixMissingShortIds = async function() {
             }
         });
         
-        alert(`Database patched! Fixed ${fixedCount} accounts.`);
+        showToast(`Database patched! Fixed ${fixedCount} accounts.`);
     } catch (error) {
         console.error("Migration failed:", error);
     }

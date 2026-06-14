@@ -625,6 +625,7 @@ body.dark-mode .blip-eye { background-color: var(--bg-color); }
 
 #brutalist-toast.toast-hidden {
     top: -150px; /* Hides it off the top of the screen */
+    pointer-events: none;
 }
 
 #toast-message {
