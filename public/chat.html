@@ -8,7 +8,8 @@
     <meta name="theme-color" content="#FFD700">
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
-    <link rel="stylesheet" href="style.css?v=brutal_2">
+        <script src="https://unpkg.com/@phosphor-icons/web"></script>
+<link rel="stylesheet" href="style.css?v=brutal_2">
 </head>
 <body>
     <div class="shape yellow-circle bottom-left"></div>
@@ -101,7 +102,13 @@
     </div>
 
     <div id="pm-popup" class="hidden">
-        <div class="pm-header"><span id="pm-target-name">User</span><span class="pm-close" id="pm-close-btn">✖</span></div>
+        <div class="pm-header">
+            <span id="pm-target-name">User</span>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span class="pm-action-btn" id="pm-call-btn" title="Call User">📞</span>
+                <span class="pm-close" id="pm-close-btn" title="Close">✖</span>
+            </div>
+        </div>
         <ul id="pm-messages"></ul>
         <form id="pm-form" action=""><input id="pm-input" autocomplete="off" placeholder="Message..." /><button type="submit">Send</button></form>
     </div>
@@ -242,7 +249,12 @@
 
     <div id="user-profile-popup" class="hidden">
         <div class="profile-banner" id="up-banner">
-            <div class="profile-popup-close" id="close-profile-btn">✖</div>
+            <div class="profile-popup-more" id="more-profile-btn"><i class="ph-bold ph-dots-three"></i></div>
+            
+            <div id="profile-more-dropdown" class="hidden brutalist-dropdown">
+                <button id="up-remove-friend-btn" class="danger-btn">Remove Friend</button>
+            </div>
+
             <div class="profile-avatar-wrapper">
                 <img id="up-avatar" src="" alt="Avatar">
             </div>
@@ -257,9 +269,46 @@
             </div>
             <div class="profile-bio" id="up-bio">Bio goes here...</div>
             <div class="profile-joined-date" id="up-joined">Joined: Loading...</div>
+            
             <div class="profile-actions">
-                <button id="up-message-btn">Message</button>
+                <button id="up-message-btn" style="width: 100%;">Message</button>
             </div>
+        </div>
+    </div>
+
+    <div id="incoming-call-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="text-align: center; max-width: 350px;">
+            <h2 style="margin-top: 1rem; border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem;">Incoming Call</h2>
+            <div class="profile-avatar-wrapper" style="position: relative; bottom: 0; left: 0; margin: 1.5rem auto;">
+                <img id="caller-avatar" src="" alt="Caller" style="width: 80px; height: 80px;">
+            </div>
+            <h3 id="caller-name" style="font-size: 1.5rem; margin-bottom: 1.5rem;">User Name</h3>
+            
+            <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
+                <button id="accept-call-btn" style="background: #23a559; color: white; border-color: #000; flex: 1;">Accept</button>
+                <button id="decline-call-btn" style="background: #ff3333; color: white; border-color: #000; flex: 1;">Decline</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="active-call-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; flex-direction: column; background: var(--bg-color);">
+        <div style="padding: 1rem; border-bottom: 4px solid var(--text-color); display: flex; justify-content: space-between; align-items: center; background: var(--accent-color);">
+            <h2 id="active-call-name" style="margin: 0; font-size: 1.2rem;">Calling...</h2>
+            <span id="call-timer" style="font-weight: 800; font-family: monospace; font-size: 1.2rem;">00:00</span>
+        </div>
+        
+        <div id="video-container" style="flex: 1; position: relative; background: #111; display: flex; justify-content: center; align-items: center; overflow: hidden;">
+            <video id="remote-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
+            
+            <video id="local-video" autoplay playsinline muted style="position: absolute; bottom: 20px; right: 20px; width: 120px; height: 160px; border: 4px solid var(--accent-color); object-fit: cover; box-shadow: -4px 4px 0px #000;"></video>
+            
+            <img id="audio-only-avatar" src="" class="hidden" style="width: 150px; height: 150px; border-radius: 50%; border: 4px solid var(--accent-color);">
+        </div>
+
+        <div style="padding: 1.5rem; border-top: 4px solid var(--text-color); display: flex; justify-content: center; gap: 1.5rem; background: var(--bg-color);">
+            <button id="toggle-mute-btn" class="action-btn" style="width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; padding: 0;">🎤</button>
+            <button id="toggle-video-btn" class="action-btn" style="width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; padding: 0;">📹</button>
+            <button id="end-call-btn" style="width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; padding: 0; background: #ff3333; color: white; border-color: #000; box-shadow: 4px 4px 0px #000; margin: 0;">☎</button>
         </div>
     </div>
 

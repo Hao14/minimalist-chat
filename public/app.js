@@ -326,7 +326,19 @@ window.switchTab = function(paneId, btnId) {
     document.getElementById(paneId).classList.remove('hidden');
     document.getElementById(btnId).classList.add('active');
 }
-
+// --- CLOSE SETTINGS BUTTON ---
+const closeSettingsBtn = document.getElementById('close-settings-btn');
+if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', () => {
+        document.getElementById('settings-modal').classList.add('hidden');
+        
+        // Only hide the background overlay if the Profile Preview isn't also open
+        const profilePopup = document.getElementById('user-profile-popup');
+        if (!profilePopup || profilePopup.classList.contains('hidden')) {
+            document.getElementById('modal-overlay').classList.add('hidden');
+        }
+    });
+}
 const tabProfileBtn = document.getElementById('tab-btn-profile');
 if (tabProfileBtn) {
     tabProfileBtn.addEventListener('click', () => switchTab('pane-profile', 'tab-btn-profile'));
@@ -1009,10 +1021,12 @@ async function renderContactsUI() {
             const isOnline = presenceData[uid] && presenceData[uid].state === 'online';
             const statusClass = isOnline ? 'online' : 'offline';
 
+            // NUKED the onclick from the row so it doesn't open the profile!
+            // (You can still click their Avatar to view it)
             const baseItem = `
                 <li class="contact-item">
-                    <div class="contact-info" onclick="viewUserProfile('${uid}')">
-                        <div class="avatar-wrapper">
+                    <div class="contact-info">
+                        <div class="avatar-wrapper" onclick="viewUserProfile('${uid}')" style="cursor: pointer;" title="View Profile">
                             <img src="${avatar}" class="contact-avatar">
                             <div class="status-dot ${statusClass}"></div>
                         </div>
@@ -1021,7 +1035,16 @@ async function renderContactsUI() {
                     </div>
                     <div class="contact-actions">
             `;
-            if (status === 'accepted') { htmlFriends += baseItem + `<button class="mini-btn danger" onclick="removeFriend('${uid}')" title="Remove Friend">✖</button></div></li>`; } 
+            
+            // NEW: Upgraded from emojis to clean, minimalist Phosphor Icons!
+            if (status === 'accepted') { 
+                htmlFriends += baseItem + `
+                    <button class="contact-icon-btn" onclick="openPrivateChat('${uid}', '${user.displayName.replace(/'/g, "\\'")}')" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button>
+                    <button class="contact-icon-btn" onclick="showToast('Voice call coming soon!')" title="Voice Call"><i class="ph-bold ph-phone"></i></button>
+                    <button class="contact-icon-btn" onclick="showToast('Video call coming soon!')" title="Video Call"><i class="ph-bold ph-video-camera"></i></button>
+                    <button class="contact-icon-btn" onclick="viewUserProfile('${uid}')" title="More Options"><i class="ph-bold ph-dots-three-vertical"></i></button>
+                </div></li>`; 
+            }
             else if (status === 'pending_received') { htmlRequests += baseItem + `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`; } 
             else if (status === 'pending_sent') { htmlOthers += baseItem + `<span style="font-size:0.8rem; color:#888;">Requested</span></div></li>`; } 
             else { htmlOthers += baseItem + `<button class="mini-btn outline" onclick="sendRequest('${uid}')">Add</button></div></li>`; }
@@ -1152,6 +1175,25 @@ window.viewUserProfile = async function(targetUid) {
                 openPrivateChat(targetUid, user.displayName);
             };
         }
+       // 5. Setup Remove Friend Dropdown
+        const removeBtn = document.getElementById('up-remove-friend-btn');
+        const moreDropdown = document.getElementById('profile-more-dropdown');
+        if (moreDropdown) moreDropdown.classList.add('hidden'); // Reset dropdown on open
+
+        if (removeBtn) {
+            get(ref(db, `friends/${currentUser.uid}/${targetUid}`)).then(snap => {
+                if (snap.exists() && snap.val() === 'accepted') {
+                    removeBtn.style.display = 'block';
+                    removeBtn.onclick = () => {
+                        removeFriend(targetUid);
+                        document.getElementById('modal-overlay').click(); // Auto-closes UI
+                        showToast("Friend removed from contacts.");
+                    };
+                } else {
+                    removeBtn.style.display = 'none'; // Hides from dropdown if not friends
+                }
+            });
+        }
 
         // Show Modal
         document.getElementById('user-profile-popup').classList.remove('hidden');
@@ -1161,22 +1203,33 @@ window.viewUserProfile = async function(targetUid) {
         showToast("Failed to load user profile: " + error.message); 
     }
 };
-const closeProfileBtn = document.getElementById('close-profile-btn');
-if (closeProfileBtn) {
-    closeProfileBtn.addEventListener('click', () => {
+// --- NEW: CLICK OUTSIDE TO CLOSE ---
+const overlayObj = document.getElementById('modal-overlay');
+if (overlayObj) {
+    overlayObj.addEventListener('click', () => {
+        // 1. Close Profile & Dropdown
         const popup = document.getElementById('user-profile-popup');
-        if(popup) { popup.classList.add('hidden'); popup.classList.remove('preview-layout'); }
-        if(document.getElementById('settings-modal') && document.getElementById('settings-modal').classList.contains('hidden')) {
-            document.getElementById('modal-overlay').classList.add('hidden');
+        if(popup && !popup.classList.contains('hidden')) {
+            popup.classList.add('hidden');
+            popup.classList.remove('preview-layout');
+            const dropdown = document.getElementById('profile-more-dropdown');
+            if (dropdown) dropdown.classList.add('hidden');
+        }
+        
+        // 2. Only hide the background overlay if Settings is ALSO closed!
+        const settingsModal = document.getElementById('settings-modal');
+        if(!settingsModal || settingsModal.classList.contains('hidden')) {
+            overlayObj.classList.add('hidden');
         }
     });
 }
 
-const closeSettingsBtn = document.getElementById('close-settings-btn');
-if (closeSettingsBtn) {
-    closeSettingsBtn.addEventListener('click', () => { 
-        document.getElementById('settings-modal').classList.add('hidden'); 
-        document.getElementById('modal-overlay').classList.add('hidden'); 
+// --- NEW: TOGGLE 3-DOT MENU ---
+const moreProfileBtn = document.getElementById('more-profile-btn');
+if (moreProfileBtn) {
+    moreProfileBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // Stops the click from accidentally hitting the overlay
+        document.getElementById('profile-more-dropdown').classList.toggle('hidden');
     });
 }
 
