@@ -421,8 +421,10 @@ document.addEventListener('click', (e) => {
     if (e.target.id === 'open-settings-btn-mobile') {
         openSettings(); 
     }
-    // Mobile Updates Button
-    if (e.target.id === 'open-updates-btn-mobile') {
+
+    // NEW: Mobile & Desktop Updates Button
+    if (e.target.id === 'open-updates-btn-mobile' || e.target.id === 'open-updates-btn-desktop') {
+        e.preventDefault(); // Prevents the desktop <a> link from jumping to the top of the page
         const updatesPanel = document.getElementById('updates-panel');
         if (updatesPanel) {
             updatesPanel.classList.toggle('open');
@@ -491,21 +493,15 @@ window.enterChat = function() {
             showScreen('chat-wrapper'); 
             
             if(desktopNavActions) {
-                // NEW: Injected the Updates button into the desktop navbar
-                desktopNavActions.innerHTML = `<button class="action-btn" id="open-updates-btn">Updates</button><button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
+                // 1. Inject only Contacts and Settings
+                desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
                 
-                // Re-attached the listeners
-                document.getElementById('open-settings-btn').addEventListener('click', openSettings);
-                document.getElementById('open-contacts-btn').addEventListener('click', toggleContacts);
+                // 2. Safely attach listeners (This prevents the null crash!)
+                const settingsBtn = document.getElementById('open-settings-btn');
+                if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
                 
-                // NEW: Attached the Updates panel listener for desktop
-                document.getElementById('open-updates-btn').addEventListener('click', () => {
-                    const updatesPanel = document.getElementById('updates-panel');
-                    if (updatesPanel) {
-                        updatesPanel.classList.toggle('open');
-                        if (updatesPanel.classList.contains('open')) fetchGitHubUpdates();
-                    }
-                });
+                const contactsBtn = document.getElementById('open-contacts-btn');
+                if (contactsBtn) contactsBtn.addEventListener('click', toggleContacts);
             }
 
             const previewBtn = document.getElementById('preview-profile-btn');

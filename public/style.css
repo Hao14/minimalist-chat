@@ -477,13 +477,12 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
 
     /* 3. Unified Tab Formatting (Fixing the Action-Btn overrides!) */
     .mobile-link, .mobile-link-btn {
-        flex: 1 !important; /* Forces all 4 tabs to be exactly 25% width */
+        flex: 1 !important; 
         display: block !important;
         text-align: center !important;
         font-size: 0.7rem !important; 
         font-weight: 800 !important;
         
-        /* Stripping the ugly global button borders/shadows */
         border: none !important;
         border-right: 2px solid var(--text-color) !important;
         box-shadow: none !important;
@@ -493,11 +492,13 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
         margin: 0 !important;
         text-decoration: none !important;
         
-        /* Perfect vertical centering */
         padding-top: 0.8rem !important;
         padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px)) !important;
         padding-left: 0 !important;
         padding-right: 0 !important;
+        
+        /* NEW: Required to anchor the underline to the bottom of the tab */
+        position: relative !important; 
     }
     
     /* Clean up the far-right border */
@@ -509,6 +510,33 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
     .mobile-link:active, .mobile-link-btn:active {
         background: var(--accent-color) !important;
         transform: none !important;
+    }
+
+    /* NEW: Kill the button shift effect and replace it with a fast underline */
+    .mobile-link:hover, .mobile-link-btn:hover {
+        transform: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Generates the custom yellow underline */
+    .mobile-link::after, .mobile-link-btn::after {
+        content: '' !important;
+        position: absolute !important;
+        width: 100% !important;
+        height: 5px !important; /* Thick brutalist line */
+        background-color: var(--accent-color) !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        transform: scaleX(0) !important;
+        transform-origin: bottom right !important;
+        transition: transform 0.15s ease-out !important; /* FASTER ANIMATION (was 0.3s) */
+    }
+
+    /* Triggers the slide-in animation when touched/hovered */
+    .mobile-link:hover::after, .mobile-link-btn:hover::after,
+    .mobile-link:active::after, .mobile-link-btn:active::after {
+        transform: scaleX(1) !important;
+        transform-origin: bottom left !important;
     }
 
     /* 4. Bump the Chat Input Up (So tabs don't overlap it) */
