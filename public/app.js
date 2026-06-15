@@ -342,11 +342,6 @@ if (tabProfileBtn) {
         signOut(auth); 
     });
     
-    const openSettingsMobile = document.getElementById('open-settings-btn-mobile');
-    if(openSettingsMobile) openSettingsMobile.addEventListener('click', () => { 
-        document.getElementById('mobile-nav-links').classList.add('hidden'); 
-        openSettings(); 
-    });
 }
 
 const toggleEditBtn = document.getElementById('toggle-edit-btn');
@@ -420,7 +415,37 @@ if (deleteAccountBtn) {
         } else if (confirmationText !== null) { showToast("Account deletion cancelled: You did not type 'I WANT DELETION' correctly."); }
     });
 }
-
+// --- MOBILE MENU GLOBAL ACTIONS ---
+document.addEventListener('click', (e) => {
+    // 1. Mobile Settings Button
+    if (e.target.id === 'open-settings-btn-mobile') {
+        openSettings(); 
+    }
+    // Mobile Updates Button
+    if (e.target.id === 'open-updates-btn-mobile') {
+        const updatesPanel = document.getElementById('updates-panel');
+        if (updatesPanel) {
+            updatesPanel.classList.toggle('open');
+            if (updatesPanel.classList.contains('open')) {
+                fetchGitHubUpdates(); // Trigger the API pull!
+            }
+        }
+    }
+    
+    // Close Updates Panel
+    if (e.target.id === 'close-updates-btn') {
+        document.getElementById('updates-panel').classList.remove('open');
+    }
+    // 2. Mobile Contacts Button
+    if (e.target.id === 'open-contacts-btn-mobile') {
+        const contactsPanel = document.getElementById('contacts-panel');
+        if (!contactsPanel) {
+            window.location.href = 'chat.html'; 
+        } else {
+            if (typeof toggleContacts === 'function') toggleContacts();
+        }
+    }
+});
 // --- EMOJI PICKER ---
 const emojis = ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","🤡","💩","👻","💀","☠️","👽","👾","🤖","🎃","👍","👎","❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎"];
 
@@ -582,67 +607,91 @@ function initializeChatMemory() {
 
     const fileInput = document.getElementById('image-input');
     const attachBtn = document.getElementById('attach-btn');
+    const mobileSendBtn = document.getElementById('mobile-send-btn');
+
     if (attachBtn && fileInput) {
         attachBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', function() {
-            if(this.files.length > 0) attachBtn.classList.add('active');
-            else attachBtn.classList.remove('active');
+            if(this.files.length > 0) {
+                attachBtn.classList.add('active');
+                if(mobileSendBtn) mobileSendBtn.classList.remove('hidden'); // SHOW BUTTON
+            } else { 
+                attachBtn.classList.remove('active');
+                if(mobileSendBtn) mobileSendBtn.classList.add('hidden'); // HIDE BUTTON
+            }
         });
     }
 }
 
+// --- MAIN CHAT ENGINE ---
 const chatForm = document.getElementById('chat-form');
+const messageInputObj = document.getElementById('message-input');
+
+if (messageInputObj) {
+    // Smooth mobile textarea logic: Shift+Enter is newline, Enter is SEND
+    messageInputObj.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); // Prevents the keyboard from adding a weird new line
+            if (chatForm) chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+    });
+}
+
 if (chatForm) {
     chatForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const sendBtn = document.getElementById('send-message-btn');
-        if(sendBtn) { sendBtn.disabled = true; sendBtn.textContent = 'Sending...'; }
-
-        const textInput = document.getElementById('message-input');
-        const text = textInput ? textInput.value.trim() : '';
+        const text = messageInputObj ? messageInputObj.value.trim() : '';
         const imageInput = document.getElementById('image-input');
         const file = imageInput ? imageInput.files[0] : null;
+        const attachBtn = document.getElementById('attach-btn');
         
+        // Prevents bad code from sending empty messages
+        if (!text && !file) return;
+
         try {
+            // OPTIMIZATION: Clear the text area instantly for a smooth typing experience
+            if(messageInputObj) {
+                messageInputObj.value = '';
+                messageInputObj.rows = 1;
+            }
+            
             let uploadedImageUrl = null;
-            
-            // Apply Tier Limits for Uploads
             const LIMITS = { free: 1048576, advanced: 1073741824, pro: 8589934592 };
-            
-            // OPTIMIZATION: Use the global userTier variable we fetched on login!
             const activeTier = userTier || 'free'; 
             
             if (file) {
                 if (file.size > LIMITS[activeTier]) {
                     showToast(`File too large! Your current plan allows ${activeTier.toUpperCase()} uploads.`);
-                    if(sendBtn) { sendBtn.textContent = 'SEND'; sendBtn.disabled = false; }
-                    // Clear the file input so they don't accidentally try sending it again
-                    imageInput.value = ''; 
-                    attachBtn.classList.remove('active');
+                    if(imageInput) imageInput.value = ''; 
+                    if(attachBtn) attachBtn.classList.remove('active');
                     return;
                 }
                 const fileRef = sRef(storage, `chat_images/${Date.now()}_${file.name}`);
                 await uploadBytesResumable(fileRef, file);
                 uploadedImageUrl = await getDownloadURL(fileRef);
             }
+            // Existing cleanup code...
+            if(imageInput) imageInput.value = ''; 
+            if(attachBtn) attachBtn.classList.remove('active');
             
+            // NEW: Hide the send button after the message goes through!
+            const mobileSendBtnObj = document.getElementById('mobile-send-btn');
+            if(mobileSendBtnObj) mobileSendBtnObj.classList.add('hidden');
             const payload = { 
                 uid: currentUser.uid, 
                 name: userProfileName, 
                 photoUrl: userPhotoUrl, 
                 text: text, 
                 attachedImage: uploadedImageUrl, 
-                timestamp: serverTimestamp(), // <--- MAKE SURE THIS COMMA IS HERE!
+                timestamp: serverTimestamp(),
                 tier: userTier 
             };
             if (activeReplyData) payload.replyTo = activeReplyData;
             
             await set(push(ref(db, 'messages')), payload);
             
-            if(textInput) textInput.value = ''; 
             if(imageInput) imageInput.value = ''; 
-            const attachBtn = document.getElementById('attach-btn');
             if(attachBtn) attachBtn.classList.remove('active');
             
             const cancelReplyBtn = document.getElementById('cancel-reply-btn');
@@ -651,7 +700,6 @@ if (chatForm) {
             }
             
         } catch (error) { showToast("Failed to send message: " + error.message); } 
-        finally { if(sendBtn) { sendBtn.textContent = 'SEND'; sendBtn.disabled = false; } }
     });
 }
 
@@ -885,6 +933,24 @@ if (googleSignupBtn) {
         // Instantly redirects the page to Google
         signInWithRedirect(auth, new GoogleAuthProvider()); 
     });
+}
+// --- NATIVE PLATFORM CHECK ---
+// If the app is running natively on Android or iOS, hide web-specific elements
+if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+    
+    // 1. Hide the Google web buttons
+    const googleLoginBtnObj = document.getElementById('google-login-btn');
+    const googleSignupBtnObj = document.getElementById('google-signup-btn');
+    if (googleLoginBtnObj) googleLoginBtnObj.style.display = 'none';
+    if (googleSignupBtnObj) googleSignupBtnObj.style.display = 'none';
+
+    // 2. Hide "Home" and "Story" from the mobile slide-out menu
+    const webLinks = document.querySelectorAll('.mobile-link[href="index.html"], .mobile-link[href="story.html"]');
+    webLinks.forEach(link => link.style.display = 'none');
+
+    // 3. Prevent the Top-Left Logo from routing back to the website
+    const logoLink = document.getElementById('nav-logo');
+    if (logoLink) logoLink.href = 'chat.html';
 }
 
 // --- FRIENDS & PMS ---
@@ -1248,4 +1314,45 @@ if ('serviceWorker' in navigator) {
             .then(reg => console.log('Service Worker registered!', reg))
             .catch(err => console.error('Service Worker registration failed: ', err));
     });
+}
+// --- GITHUB API CHANGELOG ENGINE ---
+async function fetchGitHubUpdates() {
+    const list = document.getElementById('updates-list');
+    if (!list) return;
+    
+    // Show a brutalist loading state
+    list.innerHTML = '<li style="padding: 2rem; text-align: center; font-weight: 800; animation: textPulse 1.5s infinite;">PULLING COMMITS...</li>';
+    
+    try {
+        // Fetching the last 15 commits directly from your repo!
+        const response = await fetch('https://api.github.com/repos/Hao14/minimalist-chat/commits?per_page=15');
+        if (!response.ok) throw new Error("Failed to fetch GitHub data");
+        
+        const commits = await response.json();
+        list.innerHTML = ''; // Clear loader
+        
+        commits.forEach(commitObj => {
+            const msg = commitObj.commit.message;
+            const dateObj = new Date(commitObj.commit.author.date);
+            const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            // Get the avatar if it exists, otherwise use a fallback
+            const authorUrl = commitObj.author ? commitObj.author.avatar_url : 'https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700';
+            const authorName = commitObj.commit.author.name;
+            
+            list.innerHTML += `
+                <li class="update-card fade-in-up">
+                    <div class="update-date">${dateStr}</div>
+                    <div class="update-msg">${msg}</div>
+                    <div class="update-author">
+                        <img src="${authorUrl}" alt="Author"> 
+                        ${authorName}
+                    </div>
+                </li>
+            `;
+        });
+    } catch (err) {
+        console.error(err);
+        list.innerHTML = `<li style="padding: 2rem; text-align: center; color: red; border: 4px solid red; font-weight: bold;">CONNECTION FAILED.</li>`;
+    }
 }

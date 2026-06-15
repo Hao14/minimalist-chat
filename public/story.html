@@ -22,8 +22,11 @@
 
         <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
             <a href="index.html">Home</a>
-            <a href="story.html" class="active">Story</a>
-            <a href="chat.html">Chat</a>
+            <a href="story.html">Story</a>
+            
+            <a href="chat.html" class="auth-only hidden">Chat</a>
+            
+            <a href="login.html" class="guest-only" style="color: var(--accent-color);">Login</a>
         </div>
 
         <div id="nav-actions" class="desktop-nav"></div> 
@@ -32,6 +35,7 @@
         <div id="mobile-nav-links" class="mobile-only hidden">
             <a href="index.html" class="mobile-link">HOME</a>
             <a href="story.html" class="mobile-link">STORY</a>
+            <a href="chat.html" class="mobile-link">CHAT</a>
             
             <a href="login.html" class="mobile-link guest-only" style="color: var(--accent-color); font-weight: 800;">LOGIN</a>
 

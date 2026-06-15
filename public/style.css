@@ -8,8 +8,17 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Space Grotesk', sans-serif; }
 
-body { background-color: var(--bg-color); color: var(--text-color); line-height: 1.6; display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; position: relative; }
-
+body { 
+    height: 100vh;
+    height: 100dvh; /* Adapts to mobile phone URL bars */
+    overflow: hidden; /* Kills the infinite page scroll wheel! */
+    display: flex; 
+    flex-direction: column; 
+    background-color: var(--bg-color); 
+    color: var(--text-color); 
+    line-height: 1.6; 
+    position: relative; 
+}
 /* Background Shapes */
 .shape { position: absolute; z-index: -1; animation: float 6s ease-in-out infinite; }
 .shape.yellow-circle { width: 300px; height: 300px; background-color: var(--accent-color); border-radius: 50%; top: -50px; right: -100px; opacity: 0.8; }
@@ -29,7 +38,18 @@ body { background-color: var(--bg-color); color: var(--text-color); line-height:
 .divider-text { margin: 2rem 0; font-weight: bold; }
 
 /* Navigation */
-nav { display: flex; align-items: center; justify-content: center; padding: 2rem; border-bottom: 4px solid var(--text-color); background: var(--bg-color); position: relative; z-index: 10; }
+/* Navigation */
+nav { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    padding: 2rem; 
+    border-bottom: 4px solid var(--text-color); 
+    background: var(--bg-color); 
+    position: relative; 
+    z-index: 10; 
+    flex-shrink: 0; /* NEW: Prevents the chat from crushing the header! */
+}
 nav a { color: var(--text-color); text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; position: relative; padding-bottom: 5px; }
 nav a::after { content: ''; position: absolute; width: 100%; height: 4px; background-color: var(--accent-color); bottom: 0; left: 0; transform: scaleX(0); transform-origin: bottom right; transition: transform 0.3s ease-out; }
 nav a:hover::after, nav a.active::after { transform: scaleX(1); transform-origin: bottom left; }
@@ -49,27 +69,95 @@ button:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0px var(--acc
 .action-btn { background: none; border: 2px solid var(--text-color); color: var(--text-color); padding: 0.5rem 1rem; font-size: 0.9rem; box-shadow: 3px 3px 0px var(--accent-color); cursor: pointer; font-weight: 700; transition: all 0.2s; }
 .action-btn:hover { transform: translate(2px, 2px); box-shadow: 1px 1px 0px var(--accent-color); }
 
-/* Main Chat UI */
-.chat-container-full { width: 100%; max-width: 1200px; margin: 0 auto; padding: 2rem; display: flex; flex-direction: column; flex: 1; }
-#chat-interface { display: flex; flex-direction: column; flex: none !important; height: 70vh !important; min-height: 500px; border: 6px solid var(--text-color); box-shadow: 15px 15px 0px var(--accent-color); background: var(--bg-color); overflow: hidden; }
-#messages { flex: 1; list-style-type: none; padding: 2rem; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 1rem; min-height: 0; }
-#messages li { padding: 0.8rem 1.2rem; background-color: var(--bg-color); border: 2px solid var(--text-color); border-left: 6px solid var(--accent-color); border-radius: 12px; font-size: 1.05rem; font-weight: 400; max-width: 75%; align-self: flex-start; animation: fadeInUp 0.3s ease forwards; display: flex; flex-direction: column; gap: 0.3rem; position: relative; }
-#messages li.my-message { align-self: flex-end; border-left: 2px solid var(--text-color); border-right: 6px solid var(--accent-color); background-color: #fafafa; }
+/* Main Chat UI (Full Screen, No Borders) */
+/* Main Chat UI (Full Screen, No Borders) */
+.chat-container-full { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
 
+#chat-interface { display: flex; flex-direction: column; flex: 1; border: none; box-shadow: none; background: var(--bg-color); overflow: hidden; min-height: 0; }
+
+#messages { flex: 1; list-style-type: none; padding: 1rem; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 0.8rem; min-height: 0; padding-bottom: 2rem; }
+/* Modern Alternating Bubbles */
+#messages li { 
+    padding: 0.5rem 0.8rem; /* Reduced padding (was 0.8rem 1rem) */
+    background-color: #ffffff; 
+    border: 2px solid var(--text-color); 
+    border-radius: 12px 12px 12px 0px; 
+    font-size: 0.95rem; 
+    font-weight: 400; 
+    max-width: 80%; /* Slightly thinner max-width */
+    align-self: flex-start; 
+    animation: fadeInUp 0.3s ease forwards; 
+    display: flex; 
+    flex-direction: column; 
+    gap: 0.1rem; /* Hugs the text closer to the header */
+    position: relative; 
+    word-wrap: break-word; 
+}
+#messages li.my-message { align-self: flex-end; border-radius: 12px 12px 0px 12px; background-color: var(--accent-color); color: var(--text-color); border: 2px solid var(--text-color); }
+
+/* Chat Form Area */
+#chat-form { 
+    display: flex; /* Swapped to flex so the send button can appear/hide smoothly */
+    border-top: 4px solid var(--text-color); 
+    background: var(--bg-color); 
+    padding: 0.8rem 1rem; gap: 0.6rem; align-items: flex-end; 
+}
+
+/* Decreased Text Area Size */
+#chat-form textarea#message-input { 
+    flex: 1; /* Takes up middle space */
+    height: auto; 
+    min-height: 38px; /* SHRUNK FROM 44px */
+    max-height: 100px; 
+    border: 3px solid var(--text-color); 
+    padding: 0.5rem 0.8rem; font-family: inherit; font-size: 0.95rem; 
+    resize: none; overflow-y: auto; border-radius: 8px; line-height: 1.4; 
+    background: var(--bg-color); color: var(--text-color); margin: 0; 
+}
+#chat-form textarea#message-input:focus { outline: none; border-color: var(--accent-color); }
+
+/* Attachment & Send Buttons */
+#chat-form button#attach-btn, #chat-form button#mobile-send-btn { 
+    background-color: var(--bg-color); color: var(--text-color); 
+    border: 3px solid var(--text-color); border-radius: 8px; 
+    width: 40px; height: 40px; /* Slightly smaller to match input */
+    display: flex; align-items: center; justify-content: center; 
+    margin: 0; box-shadow: none; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; 
+}
+#chat-form button#attach-btn:hover, #chat-form button#attach-btn.active, #chat-form button#mobile-send-btn { 
+    background-color: var(--accent-color); 
+}
+.msg-attached-img { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 0.8rem; border: 3px solid var(--text-color); object-fit: cover; }
 /* --- UPDATED CHAT HEADERS & BADGES --- */
-.msg-header { display: flex; align-items: center; gap: 0.8rem; border-bottom: 1px solid #eee; padding-bottom: 0.4rem; margin-bottom: 0.2rem; }
-.header-text { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.msg-header { 
+    display: flex; 
+    align-items: center; 
+    gap: 0.4rem; /* Tighter gap between avatar and name */
+    padding-bottom: 0; /* Removed padding */
+    margin-bottom: 0.1rem; /* Tighter gap above text */
+    border-bottom: none; /* NUKED the dividing line! */
+}
+.header-text { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
 
-/* Make Username Bigger */
-.msg-name { font-weight: 800; color: var(--text-color); font-size: 1.15rem; }
+/* Smaller, sleeker Username */
+.msg-name { font-weight: 800; color: var(--text-color); font-size: 0.95rem; }
 
-/* Update Time Styling */
-.msg-time { color: #888; font-size: 0.75rem; margin-left: 4px; } 
+/* Tighter Time Styling */
+.msg-time { color: #888; font-size: 0.65rem; } 
 
-.msg-avatar { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid var(--text-color); background-color: var(--bg-color); cursor: pointer; transition: all 0.2s ease; }
+/* Shrunk the Avatar */
+.msg-avatar { 
+    width: 24px; 
+    height: 24px; 
+    border-radius: 50%; 
+    object-fit: cover; 
+    border: 2px solid var(--text-color); 
+    background-color: var(--bg-color); 
+    cursor: pointer; 
+    transition: all 0.2s ease; 
+}
 .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent-color); }
-.my-message .msg-avatar { border-color: var(--accent-color); }
-
+.my-message .msg-avatar { border-color: var(--text-color); } /* Keep it black on yellow */
 /* Subscription Badges */
 .tier-badge {
     font-size: 0.65rem;
@@ -86,13 +174,6 @@ button:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0px var(--acc
 
 body.dark-mode .tier-badge.advanced { color: #000000; }
 
-/* Chat Form */
-#chat-form { display: flex; border-top: 4px solid var(--text-color); background: var(--bg-color); padding: 0.8rem; gap: 0.8rem; align-items: center; }
-#chat-form input#message-input { padding: 0.8rem; font-size: 1rem; margin: 0; box-shadow: none; border: 3px solid var(--text-color); }
-#chat-form button#attach-btn { background-color: var(--bg-color); color: var(--text-color); border: 3px solid var(--text-color); padding: 0.8rem 1rem; width: auto; margin: 0; box-shadow: none; font-size: 1.2rem; }
-#chat-form button#attach-btn:hover, #chat-form button#attach-btn.active { background-color: var(--accent-color); }
-#chat-form button#send-message-btn { padding: 0.8rem 1.5rem; width: auto; margin: 0; box-shadow: none; }
-.msg-attached-img { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 0.8rem; border: 3px solid var(--text-color); object-fit: cover; }
 
 /* Typing & Reactions */
 #typing-status-container { align-items: center; gap: 10px; padding: 0.5rem 2rem; font-size: 0.85rem; font-weight: 600; color: #666; }
@@ -145,8 +226,23 @@ body.dark-mode .reaction-badge.user-reacted {
 
 /* Sidebars & Modals */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(2px); z-index: 99; }
-#contacts-panel { position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(12px); border-left: 4px solid var(--text-color); box-shadow: -10px 0px 0px var(--accent-color); transition: right 0.3s ease; z-index: 2000; display: flex; flex-direction: column; }
-#contacts-panel.open { right: 0; }
+#contacts-panel, #updates-panel { 
+    position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; 
+    background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(12px); 
+    border-left: 4px solid var(--text-color); box-shadow: -10px 0px 0px var(--accent-color); 
+    transition: right 0.3s ease; z-index: 2000; display: flex; flex-direction: column; 
+}
+#contacts-panel.open, #updates-panel.open { right: 0; }
+/* Brutalist GitHub Changelog Cards */
+#updates-list { list-style: none; overflow-y: auto; flex: 1; padding: 1.5rem; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
+.update-card { border: 3px solid var(--text-color); background: var(--bg-color); padding: 1rem; box-shadow: 4px 4px 0px var(--text-color); transition: transform 0.2s; }
+.update-card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--accent-color); }
+.update-date { font-size: 0.75rem; font-weight: 800; color: #888; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
+.update-msg { font-size: 0.95rem; font-weight: 700; color: var(--text-color); word-wrap: break-word; }
+.update-author { font-size: 0.8rem; margin-top: 0.8rem; color: #666; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.update-author img { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--text-color); }
+
+body.dark-mode .update-card { background: #111; }
 .contacts-header { background: var(--text-color); color: var(--bg-color); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; font-size: 1.2rem; font-weight: 700; }
 .close-panel { cursor: pointer; color: var(--accent-color); transition: transform 0.2s; }
 .close-panel:hover { transform: scale(1.2); }
@@ -180,12 +276,23 @@ body.dark-mode .reaction-badge.user-reacted {
 /* --- USER PROFILE POPUP (UPDATED Z-INDEX) --- */
 #user-profile-popup { 
     position: fixed; top: 50%; left: 50%; 
-    transform: translate(-50%, -50%); width: 340px; 
+    transform: translate(-50%, -50%); 
+    width: 90%; /* Dynamically shrinks on small phones */
+    max-width: 340px; 
+    max-height: 85vh; /* Prevents vertical cutoff */
+    overflow-y: auto; /* Allows scrolling if the screen is super short */
     background: var(--bg-color); border: 4px solid var(--text-color); 
     box-shadow: 10px 10px 0px var(--text-color); 
-    z-index: 4500; /* FIXED: Now sits ABOVE the settings panel (4000) */
+    z-index: 4500; 
     display: flex; flex-direction: column; border-radius: 12px; 
-    animation: fadeInUp 0.2s ease forwards; transition: all 0.3s ease;
+    animation: fadeInCenter 0.2s ease forwards; /* FIXED ANIMATION */
+    transition: all 0.3s ease;
+}
+
+/* NEW: Custom animation that preserves the dead-center alignment */
+@keyframes fadeInCenter {
+    from { opacity: 0; transform: translate(-50%, -40%); }
+    to { opacity: 1; transform: translate(-50%, -50%); }
 }
 /* NEW: Slides the profile card to the left when previewing */
 #user-profile-popup.preview-layout {
@@ -321,28 +428,102 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
 
 /* --- MOBILE RESPONSIVENESS (Phones) --- */
 .mobile-only { display: none !important; }
+
 @media (max-width: 768px) {
     .desktop-nav { display: none !important; }
-    nav { justify-content: flex-end; padding: 1rem; }
-    button.mobile-only { display: block !important; }
-    div#mobile-nav-links.mobile-only:not(.hidden) { display: block !important; }
-    #mobile-nav-links { position: absolute; top: 100%; left: 0; width: 100%; background: var(--bg-color); border-bottom: 3px solid var(--text-color); z-index: 100; }
-    .mobile-link { display: block; padding: 1rem; color: var(--text-color); text-decoration: none; border-bottom: 1px solid #eee; }
-    .mobile-link-btn { width: 100%; border: none; padding: 1rem; }
+    footer { display: none !important; }
     
-    #chat-form { flex-wrap: nowrap; padding: 0.5rem; gap: 0.5rem; }
-    #chat-form input#message-input { flex: 1; width: auto; margin-bottom: 0; }
-    #chat-form button#attach-btn, #chat-form button#send-message-btn { flex: none; width: auto; padding: 0.8rem 1rem; }
+    /* 1. Stack the Logo and Search bar cleanly */
+    nav { 
+        display: flex !important;
+        flex-direction: column !important; 
+        align-items: flex-start !important;
+        padding: 1rem !important; 
+        gap: 1rem !important;
+    }
     
+    /* Un-anchor the logo */
+    nav a#nav-logo {
+        position: relative !important;
+        left: 0 !important;
+    }
+    
+    /* Bring back MINIMALIST text & Search Bar */
+    .logo-text, div#mobile-search-bar.mobile-only { 
+        display: block !important; 
+    }
+    
+    /* 2. The New Bottom Tab Bar */
+    #mobile-menu-btn { display: none !important; }
+    
+    div#mobile-nav-links.mobile-only { 
+        display: flex !important; 
+        position: fixed; 
+        bottom: 0; 
+        left: 0; 
+        width: 100%; 
+        background: var(--bg-color); 
+        border-top: 4px solid var(--text-color); 
+        z-index: 9000; 
+        flex-direction: row; 
+        justify-content: space-between; 
+        padding-bottom: 0 !important; 
+        margin: 0 !important;
+    }
+
+    /* 3. Unified Tab Formatting (Fixing the Action-Btn overrides!) */
+    .mobile-link, .mobile-link-btn {
+        flex: 1 !important; /* Forces all 4 tabs to be exactly 25% width */
+        display: block !important;
+        text-align: center !important;
+        font-size: 0.7rem !important; 
+        font-weight: 800 !important;
+        
+        /* Stripping the ugly global button borders/shadows */
+        border: none !important;
+        border-right: 2px solid var(--text-color) !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        color: var(--text-color) !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        text-decoration: none !important;
+        
+        /* Perfect vertical centering */
+        padding-top: 0.8rem !important;
+        padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px)) !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+    
+    /* Clean up the far-right border */
+    .mobile-link:last-child, .mobile-link-btn:last-child {
+        border-right: none !important;
+    }
+    
+    /* Active Tab Click State */
+    .mobile-link:active, .mobile-link-btn:active {
+        background: var(--accent-color) !important;
+        transform: none !important;
+    }
+
+    /* 4. Bump the Chat Input Up (So tabs don't overlap it) */
+    #chat-form {
+        padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    /* 5. Modals and Popups */
+    #contacts-panel { width: 100%; right: -100%; }
+    #pm-popup { width: 100%; height: 100vh; bottom: 0; right: 0; border: none; border-top: 4px solid var(--text-color); box-shadow: none; border-radius: 0; }
     #settings-modal.brutalist-settings { flex-direction: column; width: 95vw; height: 90vh; }
     .settings-sidebar { width: 100%; border-right: none; border-bottom: 6px solid var(--text-color); padding: 1.5rem; flex-direction: row; flex-wrap: wrap; }
     .sidebar-header { width: 100%; }
     .settings-content { padding: 1.5rem; }
     .brutalist-close { top: 1rem; right: 1rem; }
-    
-    #contacts-panel { width: 100%; right: -100%; }
-    #pm-popup { width: 100%; height: 100vh; bottom: 0; right: 0; border: none; border-top: 4px solid var(--text-color); box-shadow: none; border-radius: 0; }
+    /* Modals and Popups */
+    #contacts-panel, #updates-panel { width: 100%; right: -100%; }
 }
+
 /* --- ONLINE/OFFLINE STATUS INDICATORS --- */
 .avatar-wrapper {
     position: relative;
@@ -496,18 +677,23 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
 
 /* Anchors Blip and forces a perfect side-by-side row */
 nav a#nav-logo {
-    position: absolute !important;
-    left: 2rem !important;
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
     gap: 12px !important;
     text-decoration: none !important;
-    padding-bottom: 0 !important; /* Removes the gap meant for the underline */
+    padding-bottom: 0 !important; 
     z-index: 50;
-    white-space: nowrap; /* Forces the text to stay on the same line */
+    white-space: nowrap; 
 }
 
+/* NEW: Only float the logo on desktop screens! */
+@media (min-width: 769px) {
+    nav a#nav-logo {
+        position: absolute !important;
+        left: 2rem !important;
+    }
+}
 /* NUKES the yellow hover line for the logo specifically */
 nav a#nav-logo::after {
     display: none !important; 
@@ -562,11 +748,6 @@ body.dark-mode .blip-eye { background-color: var(--bg-color); }
     margin-top: 5px; /* Slight nudge down to align with Blip's eyes */
 }
 
-/* Keeps Blip looking great on phone screens */
-@media (max-width: 768px) {
-    nav a#nav-logo { left: 1rem !important; }
-    .logo-text { display: none !important; } 
-}
 
 /* --- LOADING SCREEN ANIMATION --- */
 .loading-pulse-text {
@@ -612,39 +793,54 @@ body.dark-mode .blip-eye { background-color: var(--bg-color); }
     color: var(--text-color, #000000);
     border: 4px solid var(--text-color, #000000);
     box-shadow: 6px 6px 0px var(--accent-color, #FFD700);
-    padding: 1rem 1.5rem;
-    z-index: 10000;
+    
+    /* Alignment Fix */
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    align-items: center; 
+    justify-content: space-between; 
+    
+    padding: 0.8rem 1.2rem; 
+    z-index: 10000;
     font-weight: 800;
     width: 90%;
     max-width: 400px;
-    transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy entrance */
+    
+    /* RESTORED: The smooth, bouncy sliding animation */
+    transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
 }
 
+/* RESTORED: The rule that actually hides the toast! */
 #brutalist-toast.toast-hidden {
-    top: -150px; /* Hides it off the top of the screen */
-    pointer-events: none;
+    top: -150px; 
+    pointer-events: none; /* Prevents invisible mobile click blocking */
+}
+
+/* Grouping icon and text for alignment */
+#brutalist-toast > span {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    flex-grow: 1; 
 }
 
 #toast-message {
-    flex-grow: 1;
     font-size: 0.9rem;
     line-height: 1.4;
+    text-align: left;
 }
 
+/* Less Intrusive Close Button */
 #toast-close {
     background: transparent;
-    border: 2px solid var(--text-color, #000000);
-    color: var(--text-color, #000000);
-    font-weight: 900;
+    border: none; 
+    color: #888888; 
+    font-size: 1.2rem; 
+    font-weight: 400; 
     cursor: pointer;
-    padding: 0.2rem 0.5rem;
-    transition: all 0.1s;
+    padding: 0.2rem 0.4rem; 
+    transition: color 0.1s;
 }
 
-#toast-close:active {
-    background: var(--text-color, #000000);
-    color: var(--bg-color, #ffffff);
+#toast-close:hover {
+    color: var(--text-color, #000000); 
 }

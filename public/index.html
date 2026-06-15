@@ -4,11 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimalist | Chat</title>
+    <script>
+        // If the app is running as a native Android/iOS app, skip the website and go to the app
+        if (window.Capacitor && window.Capacitor.isNativePlatform()) {
+            window.location.replace('chat.html');
+        }
+    </script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#FFD700">
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
-    <<link rel="stylesheet" href="style.css?v=brutal_1">
+    <link rel="stylesheet" href="style.css?v=brutal_2">
 </head>
 <body>
     <!-- Floating Background Shapes -->
@@ -24,19 +30,26 @@
         </a>
 
         <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
-            <a href="index.html" class="active">Home</a>
+            <a href="index.html">Home</a>
             <a href="story.html">Story</a>
-            <a href="chat.html">Chat</a>
+            
+            <a href="chat.html" class="auth-only hidden">Chat</a>
+            
+            <a href="login.html" class="guest-only" style="color: var(--accent-color);">Login</a>
         </div>
 
         <div id="nav-actions" class="desktop-nav"></div> 
 
-        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
-        <div id="mobile-nav-links" class="mobile-only hidden">
+    <div id="mobile-search-bar" class="mobile-only" style="width: 100%; padding-top: 0.5rem;">
+            <input type="text" placeholder="Search messages..." style="width: 100%; margin: 0; padding: 0.6rem; border: 3px solid var(--text-color); border-radius: 8px; font-weight: 600;">
+        </div>
+
+        <div id="mobile-nav-links" class="mobile-only">
             <a href="index.html" class="mobile-link">HOME</a>
             <a href="story.html" class="mobile-link">STORY</a>
+            <a href="chat.html" class="mobile-link auth-only hidden">CHAT</a>
             
-            <a href="login.html" class="mobile-link guest-only" style="color: var(--accent-color); font-weight: 800;">LOGIN</a>
+            <a href="login.html" class="mobile-link guest-only">LOGIN</a>
 
             <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>

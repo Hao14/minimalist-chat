@@ -6,7 +6,7 @@
     <title>Minimalist | Chat</title>
     
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
-<link rel="stylesheet" href="style.css?v=brutal_1">
+<link rel="stylesheet" href="style.css?v=brutal_2">
 </head>
 <body>
     <div class="shape yellow-circle bottom-left"></div>
@@ -22,7 +22,10 @@
         <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
             <a href="index.html">Home</a>
             <a href="story.html">Story</a>
-            <a href="chat.html" class="active">Chat</a>
+            
+            <a href="chat.html" class="auth-only hidden">Chat</a>
+            
+            <a href="login.html" class="guest-only" style="color: var(--accent-color);">Login</a>
         </div>
 
         <div id="nav-actions" class="desktop-nav"></div> 
@@ -31,6 +34,7 @@
         <div id="mobile-nav-links" class="mobile-only hidden">
             <a href="index.html" class="mobile-link">HOME</a>
             <a href="story.html" class="mobile-link">STORY</a>
+            <a href="chat.html" class="mobile-link">CHAT</a>
             
             <a href="login.html" class="mobile-link guest-only" style="color: var(--accent-color); font-weight: 800;">LOGIN</a>
 
