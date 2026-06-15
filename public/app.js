@@ -491,21 +491,22 @@ window.enterChat = function() {
             showScreen('chat-wrapper'); 
             
             if(desktopNavActions) {
-                desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
+                // NEW: Injected the Updates button into the desktop navbar
+                desktopNavActions.innerHTML = `<button class="action-btn" id="open-updates-btn">Updates</button><button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
+                
+                // Re-attached the listeners
                 document.getElementById('open-settings-btn').addEventListener('click', openSettings);
                 document.getElementById('open-contacts-btn').addEventListener('click', toggleContacts);
+                
+                // NEW: Attached the Updates panel listener for desktop
+                document.getElementById('open-updates-btn').addEventListener('click', () => {
+                    const updatesPanel = document.getElementById('updates-panel');
+                    if (updatesPanel) {
+                        updatesPanel.classList.toggle('open');
+                        if (updatesPanel.classList.contains('open')) fetchGitHubUpdates();
+                    }
+                });
             }
-            
-            const myStatusRef = ref(db, `presence/${currentUser.uid}`);
-            const connectedRef = ref(db, '.info/connected');
-            
-            onValue(connectedRef, (snap) => {
-                if (snap.val() === true) {
-                    onDisconnect(myStatusRef).set({ state: 'offline', last_changed: serverTimestamp() }).then(() => {
-                        set(myStatusRef, { state: 'online', last_changed: serverTimestamp() });
-                    });
-                }
-            });
 
             const previewBtn = document.getElementById('preview-profile-btn');
             if (previewBtn) {
@@ -1332,20 +1333,29 @@ async function fetchGitHubUpdates() {
         list.innerHTML = ''; // Clear loader
         
         commits.forEach(commitObj => {
-            const msg = commitObj.commit.message;
+            const rawMsg = commitObj.commit.message;
+            
+            // NEW: Split the commit message! First line is title, the rest is description.
+            const msgLines = rawMsg.split('\n');
+            const title = msgLines[0];
+            const description = msgLines.slice(1).join('\n').trim();
+
             const dateObj = new Date(commitObj.commit.author.date);
             const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             
-            // Get the avatar if it exists, otherwise use a fallback
             const authorUrl = commitObj.author ? commitObj.author.avatar_url : 'https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700';
             const authorName = commitObj.commit.author.name;
             
+            // Only render the description div if a description actually exists
+            const descHtml = description ? `<div class="update-desc">${description}</div>` : '';
+
             list.innerHTML += `
                 <li class="update-card fade-in-up">
                     <div class="update-date">${dateStr}</div>
-                    <div class="update-msg">${msg}</div>
+                    <div class="update-title">${title}</div>
+                    ${descHtml}
                     <div class="update-author">
-                        <img src="${authorUrl}" alt="Author"> 
+                        <img src="${authorUrl}" alt="Author" onerror="this.src='https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700'"> 
                         ${authorName}
                     </div>
                 </li>

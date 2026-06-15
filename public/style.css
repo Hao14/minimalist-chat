@@ -238,7 +238,11 @@ body.dark-mode .reaction-badge.user-reacted {
 .update-card { border: 3px solid var(--text-color); background: var(--bg-color); padding: 1rem; box-shadow: 4px 4px 0px var(--text-color); transition: transform 0.2s; }
 .update-card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--accent-color); }
 .update-date { font-size: 0.75rem; font-weight: 800; color: #888; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
-.update-msg { font-size: 0.95rem; font-weight: 700; color: var(--text-color); word-wrap: break-word; }
+/* New Split Text Styling */
+.update-title { font-size: 1.1rem; font-weight: 800; color: var(--text-color); margin-bottom: 0.4rem; word-wrap: break-word; line-height: 1.3; }
+.update-desc { font-size: 0.9rem; font-weight: 600; color: #555555; word-wrap: break-word; white-space: pre-line; line-height: 1.4; }
+
+body.dark-mode .update-desc { color: #aaaaaa; }
 .update-author { font-size: 0.8rem; margin-top: 0.8rem; color: #666; display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .update-author img { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--text-color); }
 
