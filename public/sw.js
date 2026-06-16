@@ -3,7 +3,8 @@ self.addEventListener('install', (event) => {
     console.log('Minimalist Service Worker installing.');
 });
 
+// We must include this listener to pass PWA requirements, 
+// but we leave it EMPTY so it stops breaking Firebase Auth!
 self.addEventListener('fetch', (event) => {
-    // We let Firebase and the browser handle normal fetching
-    event.respondWith(fetch(event.request));
+    return; 
 });

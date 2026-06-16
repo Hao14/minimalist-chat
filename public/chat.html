@@ -24,13 +24,13 @@
         </a>
 
         <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
-            <a href="index.html">Home</a>
-            <a href="story.html">Story</a>
-            <a href="chat.html" class="auth-only hidden">Chat</a>
+            <a href="/">Home</a>
+            <a href="/story">Story</a>
+            <a href="/chat" class="auth-only hidden">Chat</a>
             
             <a href="#" id="open-updates-btn-desktop" class="auth-only hidden">Updates</a>
             
-            <a href="login.html" class="guest-only" style="color: var(--accent-color);">Login</a>
+            <a href="/login" class="guest-only" style="color: var(--accent-color);">Login</a>
         </div>
         <div id="nav-actions" class="desktop-nav"></div> 
 
@@ -40,8 +40,8 @@
 
         <div id="mobile-nav-links" class="mobile-only">
             <a href="chat.html" class="mobile-link auth-only">CHAT</a>
-            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">UPDATES</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">UPDATES</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
         </div>
     </nav>
@@ -88,11 +88,17 @@
         </div>
     </div>
     <div id="updates-panel">
-        <div class="contacts-header">
-            <span>Change Log</span><span class="close-panel" id="close-updates-btn">✖</span>
+        <div class="contacts-header" style="justify-content: flex-start; gap: 15px;">
+            <span>Change Log</span>
+            
+            <div id="mini-admin-blip" title="Report Bug" class="mascot-blip" style="width: 30px; height: 24px; border-width: 2px; border-radius: 10px; margin: 0 auto 0 10px;">
+                <div class="blip-eye left" style="width: 4px; height: 4px;"></div>
+                <div class="blip-eye right" style="width: 4px; height: 4px;"></div>
+            </div>
+            
+            <span class="close-panel" id="close-updates-btn" style="margin-left: auto;">✖</span>
         </div>
-        <ul id="updates-list">
-            </ul>
+        <ul id="updates-list"></ul>
     </div>
     <div id="contacts-panel">
         <div class="contacts-header">
@@ -125,6 +131,8 @@
             <div class="settings-tab active" id="tab-btn-profile">My Account</div>
             <div class="settings-tab" id="tab-btn-billing">Billing</div>
             <div class="settings-tab" id="tab-btn-app">Appearance</div>
+            
+
             <div class="settings-divider"></div>
             <div class="settings-tab danger" id="logout-btn">Log Out</div>
         </div>
@@ -235,7 +243,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="settings-pane hidden" id="pane-app">
                 <h2>Appearance</h2>
                 <div class="settings-card" style="display: flex; justify-content: space-between; align-items: center; padding: 2rem;">
@@ -312,6 +319,24 @@
         </div>
     </div>
 
+    <div id="admin-dashboard-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid red; padding-bottom: 0.5rem; color: red; margin-top: 0;">RESTRICTED: ADMIN</h2>
+            
+            <div class="input-group mt-1" style="text-align: left;">
+                <label>TARGET USER ID (UID)</label>
+                <input type="text" id="admin-target-id" placeholder="Enter precise UID...">
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="admin-mute-btn" style="background: #FF9800; color: #000; border-color: #000; flex: 1;">Mute 24h</button>
+                <button id="admin-ban-btn" style="background: red; color: white; border-color: #000; flex: 1;">Permaban</button>
+            </div>
+            
+            <button id="admin-wipe-btn" style="background: transparent; color: var(--text-color); margin-top: 2rem;">Wipe Ghost Connections</button>
+            <button id="close-admin-dashboard-btn" style="background: var(--text-color); color: var(--bg-color); margin-top: 0.5rem;">Close Dashboard</button>
+        </div>
+    </div>
     <footer>
         <div class="footer-links">
             <a href="faq.html">FAQ</a>
@@ -323,8 +348,8 @@
         <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
     </footer>
     <div id="emoji-picker" class="hidden"></div>
-    <script type="module" src="app.js?v=brutal_1"></script>
-    
+
+    <script type="module" src="app.js?v=brutal_3"></script>
     <div id="brutalist-toast" class="toast-hidden">
         <span id="toast-icon">⚠️</span>
         <span id="toast-message">Error message goes here</span>

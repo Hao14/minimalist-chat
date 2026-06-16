@@ -225,7 +225,7 @@ body.dark-mode .reaction-badge.user-reacted {
 #active-reply-box { background: #fafafa; border-top: 4px solid var(--text-color); padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
 
 /* Sidebars & Modals */
-.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(2px); z-index: 99; }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(2px); z-index: 3999; }
 #contacts-panel, #updates-panel { 
     position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; 
     background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(12px); 

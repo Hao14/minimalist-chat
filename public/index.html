@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimalist | Chat</title>
     <script>
-        // If the app is running as a native Android/iOS app, skip the website and go to the app
+        // If the app is running as a native Android/iOS app, use explicit file paths!
         if (window.Capacitor && window.Capacitor.isNativePlatform()) {
             window.location.replace('chat.html');
         }
@@ -17,12 +17,11 @@
     <link rel="stylesheet" href="style.css?v=brutal_2">
 </head>
 <body>
-    <!-- Floating Background Shapes -->
     <div class="shape yellow-circle"></div>
     <div class="shape outline-square"></div>
 
     <nav>
-        <a href="index.html" id="nav-logo">
+        <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
                 <div class="blip-eye right"></div>
@@ -30,13 +29,13 @@
         </a>
 
         <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
-            <a href="index.html">Home</a>
-            <a href="story.html">Story</a>
+            <a href="/">Home</a>
+            <a href="/story">Story</a>
             
-            <a href="chat.html" class="auth-only hidden">Chat</a>
+            <a href="/chat" class="auth-only hidden">Chat</a>
             <a href="#" id="open-updates-btn-desktop" class="auth-only hidden">Updates</a>
             
-            <a href="login.html" class="guest-only" style="color: var(--accent-color);">Login</a>
+            <a href="/login" class="guest-only" style="color: var(--accent-color);">Login</a>
         </div>
 
         <div id="nav-actions" class="desktop-nav"></div> 
@@ -46,11 +45,11 @@
         </div>
 
         <div id="mobile-nav-links" class="mobile-only">
-            <a href="index.html" class="mobile-link">HOME</a>
-            <a href="story.html" class="mobile-link">STORY</a>
-            <a href="chat.html" class="mobile-link auth-only hidden">CHAT</a>
+            <a href="/" class="mobile-link">HOME</a>
+            <a href="/story" class="mobile-link">STORY</a>
+            <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
             
-            <a href="login.html" class="mobile-link guest-only">LOGIN</a>
+            <a href="/login" class="mobile-link guest-only">LOGIN</a>
 
             <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
@@ -61,23 +60,21 @@
         <p class="fade-in-up delay-1">Welcome to a space unburdened by noise. Connect deeply, speak freely, and experience communication in its purest form.</p>
         
         <div class="image-grid fade-in-up delay-2">
-            <!-- Grayscale imagery that reveals color on hover -->
             <img src="https://picsum.photos/seed/street/800/600" alt="Street scene">
             <img src="https://picsum.photos/seed/city/800/600" alt="Cityscape">
         </div>
     </div>
-    <!-- Add this right before </body> in index.html and story.html -->
     <footer>
         <div class="footer-links">
-            <a href="faq.html">FAQ</a>
-            <a href="terms.html">Terms of Service</a>
-            <a href="privacy.html">Privacy Policy</a>
+            <a href="/faq">FAQ</a>
+            <a href="/terms">Terms of Service</a>
+            <a href="/privacy">Privacy Policy</a>
             <a href="mailto:support@minimalist.com">Contact</a>
             <a href="https://github.com/Hao14/minimalist-chat/issues" target="_blank" rel="noopener noreferrer">Bug Report</a>
         </div>
         <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
     </footer>
-<script type="module" src="app.js?v=toastfix"></script>
+<script type="module" src="app.js?v=brutal_5"></script>
     <div id="brutalist-toast" class="toast-hidden">
     <span id="toast-icon">⚠️</span>
     <span id="toast-message">Error message goes here</span>

@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signInWithPhoneNumber, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase, ref, set, get, push, onValue, onChildAdded, onChildChanged, off, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { getStorage, ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
@@ -41,8 +41,8 @@ let userPronouns = "";
 let userBio = "";
 let userThemeColor = "#FFD700";
 let userShortId = "";
-let userTier = "free"; // <-- ADD THIS LINE
-let userPhone = "No phone on file"; // <-- ADD THIS LINE
+let userTier = "free"; 
+let userPhone = "No phone on file"; 
 let currentPmRoomId = null;
 let currentPmTargetUid = null;
 let pmQueryRef = null;
@@ -64,62 +64,47 @@ window.showToast = function(message, isError = true) {
         toastMsg.textContent = message;
         toastIcon.textContent = isError ? '⚠️' : '✅';
         
-        // Slide it down
         toast.classList.remove('toast-hidden');
         
-        // Auto-hide after 4 seconds
         setTimeout(() => {
             toast.classList.add('toast-hidden');
         }, 4000);
     } else {
-        // Fallback just in case the HTML is missing
         alert(message);
     }
 };
 
-// Make the close button work
 document.addEventListener('click', (e) => {
     if (e.target.id === 'toast-close') {
         document.getElementById('brutalist-toast').classList.add('toast-hidden');
     }
 });
-// --- HANDLE GOOGLE REDIRECT RETURN ---
-// When the app reloads after Google login, check if anything went wrong
-getRedirectResult(auth).catch((error) => {
-    // We only alert if there is a real error, ignoring minor network interruptions
-    if (error.code !== 'auth/redirect-cancelled-by-user') {
-        console.error("Google Auth Error:", error);
-        showToast("Google Sign-In failed: " + error.message);
-    }
-});
+
 // --- OPTIMISTIC UI RENDERING ---
 document.addEventListener('DOMContentLoaded', () => {
     if (sessionStorage.getItem('blipLoaded') === 'true') {
         
-        // 1. Hide the loading screen immediately
         const loadingScreen = document.getElementById('loading-screen');
         if (loadingScreen) loadingScreen.classList.add('hidden');
         
-        // 2. Instantly draw the chat UI shell 
         const chatWrapper = document.getElementById('chat-wrapper');
         if (chatWrapper) {
             document.querySelectorAll('.app-screen').forEach(s => s.classList.add('hidden'));
             chatWrapper.classList.remove('hidden');
         }
 
-        // 3. NEW: Instantly draw the top buttons so the header doesn't jump!
         const desktopNavActions = document.getElementById('nav-actions');
         if (desktopNavActions) {
             desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
         }
 
-        // 4. NEW: Add a temporary pulsing loader inside the chat box
         const messagesList = document.getElementById('messages');
         if (messagesList && messagesList.innerHTML.trim() === '') {
             messagesList.innerHTML = `<li id="temp-msg-loader" style="text-align: center; color: #888; font-weight: 800; margin-top: 2rem; list-style: none; animation: textPulse 1.5s infinite ease-in-out;">DECRYPTING MESSAGES...</li>`;
         }
     }
 });
+
 // --- UI SCREEN MANAGER ---
 function showScreen(screenId) {
     document.querySelectorAll('.app-screen').forEach(screen => { screen.classList.add('hidden'); });
@@ -196,14 +181,18 @@ function listenForNotifications() {
 // --- THE SECURITY BOUNCER ---
 onAuthStateChanged(auth, async (user) => {
     const currentPage = window.location.pathname;
-    const isLoginPage = currentPage.includes('login.html');
-    const isChatPage = currentPage.includes('chat.html');
+    const isLoginPage = currentPage.includes('login');
+    const isChatPage = currentPage.includes('chat');
+
+    // SMART ROUTER: Native app needs explicit .html files, Web uses clean URLs
+    const chatUrl = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'chat.html' : '/chat';
+    const loginUrl = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'login.html' : '/login';
 
     if (user) {
         document.querySelectorAll('.auth-only').forEach(el => el.classList.remove('hidden'));
         document.querySelectorAll('.guest-only').forEach(el => el.classList.add('hidden'));
 
-        if (isLoginPage) { window.location.replace('chat.html'); return; }
+        if (isLoginPage) { window.location.replace(chatUrl); return; }
         if (isChatPage) {
             currentUser = user;
             checkUserProfile(user.uid);
@@ -212,7 +201,7 @@ onAuthStateChanged(auth, async (user) => {
         document.querySelectorAll('.auth-only').forEach(el => el.classList.add('hidden'));
         document.querySelectorAll('.guest-only').forEach(el => el.classList.remove('hidden'));
 
-        if (isChatPage) { window.location.replace('login.html'); }
+        if (isChatPage) { window.location.replace(loginUrl); }
     }
 });
 
@@ -226,8 +215,8 @@ async function checkUserProfile(uid) {
             userPronouns = data.pronouns || "";
             userBio = data.bio || "";
             userThemeColor = data.themeColor || "#FFD700";
-            userTier = data.tier || "free"; // <-- ADD THIS LINE
-            userPhone = data.phoneNumber || "No phone on file"; // <-- ADD THIS LINE
+            userTier = data.tier || "free"; 
+            userPhone = data.phoneNumber || "No phone on file"; 
             updateBillingUI();
             
             if (!data.shortId) {
@@ -235,8 +224,6 @@ async function checkUserProfile(uid) {
                 await set(ref(db, 'users/' + uid + '/shortId'), userShortId);
             } else { userShortId = data.shortId; }
 
-            // --- NEW: BACKFILL CREATION DATE ---
-            // If the user's public profile is missing a join date, silently add it!
             if (!data.createdAt && auth.currentUser) {
                 await set(ref(db, 'users/' + uid + '/createdAt'), auth.currentUser.metadata.creationTime);
             }
@@ -280,11 +267,10 @@ window.openSettings = function() {
     
     // SAFETY CHECK: Redirect to chat page if settings modal doesn't exist
     if (!modalObj) {
-        window.location.href = 'chat.html';
+        window.location.href = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'chat.html' : '/chat';
         return;
     }
     
-
     const safeSetValue = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
     const safeSetText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
 
@@ -299,8 +285,6 @@ window.openSettings = function() {
     
     if (auth.currentUser) {
         safeSetText('settings-user-email', "Email: " + (auth.currentUser.email || "No email on file"));
-        
-        // --- NEW: Inject the phone number ---
         safeSetText('settings-user-phone', "Phone: " + userPhone);
         
         const joinDate = new Date(auth.currentUser.metadata.creationTime);
@@ -319,6 +303,7 @@ window.switchTab = function(paneId, btnId) {
     document.getElementById('pane-profile').classList.add('hidden');
     document.getElementById('pane-billing').classList.add('hidden');
     document.getElementById('pane-app').classList.add('hidden');
+    
     document.getElementById('tab-btn-profile').classList.remove('active');
     document.getElementById('tab-btn-billing').classList.remove('active');
     document.getElementById('tab-btn-app').classList.remove('active');
@@ -326,34 +311,33 @@ window.switchTab = function(paneId, btnId) {
     document.getElementById(paneId).classList.remove('hidden');
     document.getElementById(btnId).classList.add('active');
 }
+
 // --- CLOSE SETTINGS BUTTON ---
 const closeSettingsBtn = document.getElementById('close-settings-btn');
 if (closeSettingsBtn) {
     closeSettingsBtn.addEventListener('click', () => {
         document.getElementById('settings-modal').classList.add('hidden');
         
-        // Only hide the background overlay if the Profile Preview isn't also open
         const profilePopup = document.getElementById('user-profile-popup');
         if (!profilePopup || profilePopup.classList.contains('hidden')) {
             document.getElementById('modal-overlay').classList.add('hidden');
         }
     });
 }
+
 const tabProfileBtn = document.getElementById('tab-btn-profile');
 if (tabProfileBtn) {
     tabProfileBtn.addEventListener('click', () => switchTab('pane-profile', 'tab-btn-profile'));
     document.getElementById('tab-btn-billing').addEventListener('click', () => switchTab('pane-billing', 'tab-btn-billing'));
     document.getElementById('tab-btn-app').addEventListener('click', () => switchTab('pane-app', 'tab-btn-app'));
-    
+ 
     const logoutBtn = document.getElementById('logout-btn');
     if(logoutBtn) logoutBtn.addEventListener('click', () => { 
         document.getElementById('settings-modal').classList.add('hidden'); 
         document.getElementById('modal-overlay').classList.add('hidden'); 
-        // Add this line inside your logout button click event
         sessionStorage.removeItem('blipLoaded');
         signOut(auth); 
     });
-    
 }
 
 const toggleEditBtn = document.getElementById('toggle-edit-btn');
@@ -427,39 +411,38 @@ if (deleteAccountBtn) {
         } else if (confirmationText !== null) { showToast("Account deletion cancelled: You did not type 'I WANT DELETION' correctly."); }
     });
 }
+
 // --- MOBILE MENU GLOBAL ACTIONS ---
 document.addEventListener('click', (e) => {
-    // 1. Mobile Settings Button
     if (e.target.id === 'open-settings-btn-mobile') {
         openSettings(); 
     }
 
-    // NEW: Mobile & Desktop Updates Button
     if (e.target.id === 'open-updates-btn-mobile' || e.target.id === 'open-updates-btn-desktop') {
-        e.preventDefault(); // Prevents the desktop <a> link from jumping to the top of the page
+        e.preventDefault(); 
         const updatesPanel = document.getElementById('updates-panel');
         if (updatesPanel) {
             updatesPanel.classList.toggle('open');
             if (updatesPanel.classList.contains('open')) {
-                fetchGitHubUpdates(); // Trigger the API pull!
+                fetchGitHubUpdates(); 
             }
         }
     }
     
-    // Close Updates Panel
     if (e.target.id === 'close-updates-btn') {
         document.getElementById('updates-panel').classList.remove('open');
     }
-    // 2. Mobile Contacts Button
+    
     if (e.target.id === 'open-contacts-btn-mobile') {
         const contactsPanel = document.getElementById('contacts-panel');
         if (!contactsPanel) {
-            window.location.href = 'chat.html'; 
+            window.location.href = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'chat.html' : '/chat'; 
         } else {
             if (typeof toggleContacts === 'function') toggleContacts();
         }
     }
 });
+
 // --- EMOJI PICKER ---
 const emojis = ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","🤡","💩","👻","💀","☠️","👽","👾","🤖","🎃","👍","👎","❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎"];
 
@@ -477,10 +460,6 @@ function populateEmojiPicker() {
 }
 populateEmojiPicker();
 
-// --- MAIN CHAT ENGINE ---
-// --- MOVE THIS OUTSIDE OF enterChat() ---
-
-// --- THIS UPDATES THE BUTTONS ---
 window.updateBillingUI = function() {
     const upgradeAdvancedBtn = document.getElementById('upgrade-advanced-btn');
     const upgradeProBtn = document.getElementById('upgrade-pro-btn');
@@ -496,19 +475,17 @@ window.updateBillingUI = function() {
         if (manageBtn) manageBtn.style.display = 'none';
     }
 }
+
 window.enterChat = function() {
     try {
         const desktopNavActions = document.getElementById('nav-actions');
 
-        // Wrap the actual chat launch sequence in a helper function
         const launchChatUI = () => {
             showScreen('chat-wrapper'); 
             
             if(desktopNavActions) {
-                // 1. Inject only Contacts and Settings
                 desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
                 
-                // 2. Safely attach listeners (This prevents the null crash!)
                 const settingsBtn = document.getElementById('open-settings-btn');
                 if (settingsBtn) settingsBtn.addEventListener('click', openSettings);
                 
@@ -527,21 +504,19 @@ window.enterChat = function() {
             if (!chatInitialized) {
                 initializeChatMemory();
                 listenForNotifications();
+                initializePresence();
                 chatInitialized = true;
             }
         };
 
-        // --- THE FIX: CHECK SESSION MEMORY ---
-        // If they already loaded the chat this session, skip the delay completely!
         if (sessionStorage.getItem('blipLoaded') === 'true') {
             launchChatUI(); 
         } else {
-            // First time logging in: Show Blip, wait 2 seconds, then save to memory
             showScreen('loading-screen');
             if(desktopNavActions) desktopNavActions.innerHTML = '';
             
             setTimeout(() => {
-                sessionStorage.setItem('blipLoaded', 'true'); // Save to memory
+                sessionStorage.setItem('blipLoaded', 'true');
                 launchChatUI();
             }, 2000);
         }
@@ -623,10 +598,10 @@ function initializeChatMemory() {
         fileInput.addEventListener('change', function() {
             if(this.files.length > 0) {
                 attachBtn.classList.add('active');
-                if(mobileSendBtn) mobileSendBtn.classList.remove('hidden'); // SHOW BUTTON
+                if(mobileSendBtn) mobileSendBtn.classList.remove('hidden');
             } else { 
                 attachBtn.classList.remove('active');
-                if(mobileSendBtn) mobileSendBtn.classList.add('hidden'); // HIDE BUTTON
+                if(mobileSendBtn) mobileSendBtn.classList.add('hidden');
             }
         });
     }
@@ -637,10 +612,9 @@ const chatForm = document.getElementById('chat-form');
 const messageInputObj = document.getElementById('message-input');
 
 if (messageInputObj) {
-    // Smooth mobile textarea logic: Shift+Enter is newline, Enter is SEND
     messageInputObj.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault(); // Prevents the keyboard from adding a weird new line
+            e.preventDefault(); 
             if (chatForm) chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
         }
     });
@@ -655,11 +629,9 @@ if (chatForm) {
         const file = imageInput ? imageInput.files[0] : null;
         const attachBtn = document.getElementById('attach-btn');
         
-        // Prevents bad code from sending empty messages
         if (!text && !file) return;
 
         try {
-            // OPTIMIZATION: Clear the text area instantly for a smooth typing experience
             if(messageInputObj) {
                 messageInputObj.value = '';
                 messageInputObj.rows = 1;
@@ -680,13 +652,12 @@ if (chatForm) {
                 await uploadBytesResumable(fileRef, file);
                 uploadedImageUrl = await getDownloadURL(fileRef);
             }
-            // Existing cleanup code...
             if(imageInput) imageInput.value = ''; 
             if(attachBtn) attachBtn.classList.remove('active');
             
-            // NEW: Hide the send button after the message goes through!
             const mobileSendBtnObj = document.getElementById('mobile-send-btn');
             if(mobileSendBtnObj) mobileSendBtnObj.classList.add('hidden');
+            
             const payload = { 
                 uid: currentUser.uid, 
                 name: userProfileName, 
@@ -722,7 +693,6 @@ if (cancelReplyBtn) {
 }
 
 function displayMessage(messageId, msg, prepend = false) {
-    // --- NEW: Remove the temporary loader when the first real message arrives ---
     const tempLoader = document.getElementById('temp-msg-loader');
     if (tempLoader) tempLoader.remove();
 
@@ -732,7 +702,6 @@ function displayMessage(messageId, msg, prepend = false) {
     const item = document.createElement('li');
     item.id = `msg-${messageId}`;
     
-    // FORMAT DATE & TIME (e.g., 6/9/2026 9:25 AM)
     let timeString = '';
     if (msg.timestamp) {
         const d = new Date(msg.timestamp);
@@ -746,7 +715,6 @@ function displayMessage(messageId, msg, prepend = false) {
     const attachedImgHTML = msg.attachedImage ? `<img src="${msg.attachedImage}" class="msg-attached-img">` : '';
     const textHTML = msg.text ? `<div class="msg-text">${msg.text}</div>` : '';
 
-    // GENERATE TIER BADGES
     let badgeHTML = '';
     if (msg.tier === 'advanced') badgeHTML = `<span class="tier-badge advanced">ADVANCED</span>`;
     if (msg.tier === 'pro') badgeHTML = `<span class="tier-badge pro">PRO</span>`;
@@ -790,11 +758,9 @@ window.reactToMessage = async function(messageId, emoji) {
         const myReactionRef = ref(db, `messages/${messageId}/reactions/${currentUser.uid}`);
         const snap = await get(myReactionRef);
         
-        // UNDO LOGIC: If you click the exact same emoji you already used, remove it!
         if (snap.exists() && snap.val() === emoji) {
             await remove(myReactionRef);
         } else {
-            // Otherwise, apply the new reaction
             await set(myReactionRef, emoji);
         }
     } catch(err) { console.error("Reaction failed", err); }
@@ -810,7 +776,6 @@ function updateMessageReactions(messageId, msg) {
     const counts = {};
     let myReaction = null;
 
-    // Tally the emojis and figure out which one belongs to the current user
     for (const uid in msg.reactions) {
         const emoji = msg.reactions[uid];
         counts[emoji] = (counts[emoji] || 0) + 1;
@@ -819,19 +784,15 @@ function updateMessageReactions(messageId, msg) {
         }
     }
     
-    // Draw the badges
     for (const emoji in counts) {
         const badge = document.createElement('div');
         badge.className = 'reaction-badge';
         
-        // Highlight this specific badge if it's the one the user selected
         if (emoji === myReaction) {
             badge.classList.add('user-reacted');
         }
         
         badge.innerHTML = `${emoji} <strong>${counts[emoji]}</strong>`;
-        
-        // ECHO LOGIC: Clicking an existing badge triggers that specific reaction
         badge.onclick = () => reactToMessage(messageId, emoji);
         
         reactionContainer.appendChild(badge);
@@ -912,7 +873,7 @@ if (signupForm) {
                 displayName: username, phoneNumber: phone,
                 photoUrl: getAvatarUrl(username, ""), shortId: userShortId, 
                 themeColor: "#FFD700", bio: "I'm new here!", pronouns: "",
-                createdAt: userCredential.user.metadata.creationTime // <-- NEW!
+                createdAt: userCredential.user.metadata.creationTime
             });
         } catch (error) { showToast("Sign Up Error: " + error.message); }
     });
@@ -930,36 +891,48 @@ if (loginForm) {
 
 const googleLoginBtn = document.getElementById('google-login-btn');
 if (googleLoginBtn) {
-    googleLoginBtn.addEventListener('click', () => { 
-        // Instantly redirects the page to Google
-        signInWithRedirect(auth, new GoogleAuthProvider()); 
+    googleLoginBtn.addEventListener('click', async () => { 
+        try {
+            await signInWithPopup(auth, new GoogleAuthProvider()); 
+        } catch (error) {
+            if (error.code !== 'auth/popup-closed-by-user') {
+                showToast("Google Sign-In failed: " + error.message);
+            }
+        }
     });
 }
 
 const googleSignupBtn = document.getElementById('google-signup-btn');
 if (googleSignupBtn) {
-    googleSignupBtn.addEventListener('click', () => { 
-        // Instantly redirects the page to Google
-        signInWithRedirect(auth, new GoogleAuthProvider()); 
+    googleSignupBtn.addEventListener('click', async () => { 
+        try {
+            await signInWithPopup(auth, new GoogleAuthProvider()); 
+        } catch (error) {
+            if (error.code !== 'auth/popup-closed-by-user') {
+                showToast("Google Sign-Up failed: " + error.message);
+            }
+        }
     });
 }
+
 // --- NATIVE PLATFORM CHECK ---
-// If the app is running natively on Android or iOS, hide web-specific elements
 if (window.Capacitor && window.Capacitor.isNativePlatform()) {
     
-    // 1. Hide the Google web buttons
     const googleLoginBtnObj = document.getElementById('google-login-btn');
     const googleSignupBtnObj = document.getElementById('google-signup-btn');
     if (googleLoginBtnObj) googleLoginBtnObj.style.display = 'none';
     if (googleSignupBtnObj) googleSignupBtnObj.style.display = 'none';
 
-    // 2. Hide "Home" and "Story" from the mobile slide-out menu
-    const webLinks = document.querySelectorAll('.mobile-link[href="index.html"], .mobile-link[href="story.html"]');
+    const webLinks = document.querySelectorAll('.mobile-link[href="/"], .mobile-link[href="/story"]');
     webLinks.forEach(link => link.style.display = 'none');
 
-    // 3. Prevent the Top-Left Logo from routing back to the website
+    // Force the top-left Logo to explicitly load the HTML file on native devices
     const logoLink = document.getElementById('nav-logo');
     if (logoLink) logoLink.href = 'chat.html';
+
+    // Force the bottom mobile-nav CHAT tab to explicitly load the HTML file on native devices
+    const chatLinks = document.querySelectorAll('a[href="/chat"]');
+    chatLinks.forEach(link => link.href = 'chat.html');
 }
 
 // --- FRIENDS & PMS ---
@@ -971,6 +944,9 @@ window.toggleContacts = function() {
     panel.classList.toggle('open');
     if (panel.classList.contains('open') && !friendsListenerActive) {
         onValue(ref(db, 'friends/' + currentUser.uid), () => { renderContactsUI(); });
+        
+        onValue(ref(db, 'presence'), () => { renderContactsUI(); }); 
+        
         friendsListenerActive = true;
     }
 }
@@ -980,6 +956,9 @@ if (closeContactsBtn) {
     closeContactsBtn.addEventListener('click', () => {
         document.getElementById('contacts-panel').classList.remove('open');
         off(ref(db, 'friends/' + currentUser.uid));
+        
+        off(ref(db, 'presence')); 
+        
         friendsListenerActive = false;
     });
 }
@@ -1021,8 +1000,6 @@ async function renderContactsUI() {
             const isOnline = presenceData[uid] && presenceData[uid].state === 'online';
             const statusClass = isOnline ? 'online' : 'offline';
 
-            // NUKED the onclick from the row so it doesn't open the profile!
-            // (You can still click their Avatar to view it)
             const baseItem = `
                 <li class="contact-item">
                     <div class="contact-info">
@@ -1036,7 +1013,6 @@ async function renderContactsUI() {
                     <div class="contact-actions">
             `;
             
-            // NEW: Upgraded from emojis to clean, minimalist Phosphor Icons!
             if (status === 'accepted') { 
                 htmlFriends += baseItem + `
                     <button class="contact-icon-btn" onclick="openPrivateChat('${uid}', '${user.displayName.replace(/'/g, "\\'")}')" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button>
@@ -1132,7 +1108,6 @@ window.viewUserProfile = async function(targetUid) {
         const user = snapshot.val();
         const avatar = user.photoUrl || getAvatarUrl(user.displayName, "");
         
-        // 1. Render Tier Badges
         let badgeHtml = '';
         const tier = (user.tier || "").toLowerCase();
         if (tier.includes('pro')) {
@@ -1144,8 +1119,6 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('up-avatar').src = avatar;
         document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
         
-        // 2. THE VISUAL PATCH: Fake it till they make it!
-        // Generates a visual ID to hide the #000000 error without triggering Firebase Security Rules
         let displayId = user.shortId;
         if (!displayId) displayId = generateShortId();
 
@@ -1154,7 +1127,6 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
         document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
         
-        // 3. Render Joined Date
         const joinedEl = document.getElementById('up-joined');
         if (joinedEl) {
             if (user.createdAt) {
@@ -1165,7 +1137,6 @@ window.viewUserProfile = async function(targetUid) {
             }
         }
         
-        // 4. Setup PM Button
         const msgBtn = document.getElementById('up-message-btn');
         if(msgBtn) {
             msgBtn.onclick = () => {
@@ -1175,10 +1146,10 @@ window.viewUserProfile = async function(targetUid) {
                 openPrivateChat(targetUid, user.displayName);
             };
         }
-       // 5. Setup Remove Friend Dropdown
+        
         const removeBtn = document.getElementById('up-remove-friend-btn');
         const moreDropdown = document.getElementById('profile-more-dropdown');
-        if (moreDropdown) moreDropdown.classList.add('hidden'); // Reset dropdown on open
+        if (moreDropdown) moreDropdown.classList.add('hidden'); 
 
         if (removeBtn) {
             get(ref(db, `friends/${currentUser.uid}/${targetUid}`)).then(snap => {
@@ -1186,16 +1157,15 @@ window.viewUserProfile = async function(targetUid) {
                     removeBtn.style.display = 'block';
                     removeBtn.onclick = () => {
                         removeFriend(targetUid);
-                        document.getElementById('modal-overlay').click(); // Auto-closes UI
+                        document.getElementById('modal-overlay').click(); 
                         showToast("Friend removed from contacts.");
                     };
                 } else {
-                    removeBtn.style.display = 'none'; // Hides from dropdown if not friends
+                    removeBtn.style.display = 'none'; 
                 }
             });
         }
 
-        // Show Modal
         document.getElementById('user-profile-popup').classList.remove('hidden');
         document.getElementById('modal-overlay').classList.remove('hidden');
     } catch (error) { 
@@ -1203,11 +1173,10 @@ window.viewUserProfile = async function(targetUid) {
         showToast("Failed to load user profile: " + error.message); 
     }
 };
-// --- NEW: CLICK OUTSIDE TO CLOSE ---
+
 const overlayObj = document.getElementById('modal-overlay');
 if (overlayObj) {
     overlayObj.addEventListener('click', () => {
-        // 1. Close Profile & Dropdown
         const popup = document.getElementById('user-profile-popup');
         if(popup && !popup.classList.contains('hidden')) {
             popup.classList.add('hidden');
@@ -1216,7 +1185,6 @@ if (overlayObj) {
             if (dropdown) dropdown.classList.add('hidden');
         }
         
-        // 2. Only hide the background overlay if Settings is ALSO closed!
         const settingsModal = document.getElementById('settings-modal');
         if(!settingsModal || settingsModal.classList.contains('hidden')) {
             overlayObj.classList.add('hidden');
@@ -1224,11 +1192,10 @@ if (overlayObj) {
     });
 }
 
-// --- NEW: TOGGLE 3-DOT MENU ---
 const moreProfileBtn = document.getElementById('more-profile-btn');
 if (moreProfileBtn) {
     moreProfileBtn.addEventListener('click', (e) => {
-        e.stopPropagation(); // Stops the click from accidentally hitting the overlay
+        e.stopPropagation(); 
         document.getElementById('profile-more-dropdown').classList.toggle('hidden');
     });
 }
@@ -1262,26 +1229,20 @@ window.addReaction = function(emoji) {
 
 // --- BILLING LOGIC ---
 document.addEventListener('click', (event) => {
-    // 1. Upgrade Advanced
     const advancedBtn = event.target.closest('#upgrade-advanced-btn');
     if (advancedBtn) {
-        // REPLACE THE URL BELOW with the one you copied from Lemon Squeezy
         const url = "https://minimalistchat.lemonsqueezy.com/checkout/buy/b6f29d05-deb2-4314-ab4f-ab9c43b5e6bb"; 
         window.location.href = `${url}?checkout[custom][user_id]=${auth.currentUser.uid}`;
     }
 
-    // 2. Upgrade Pro
     const proBtn = event.target.closest('#upgrade-pro-btn');
     if (proBtn) {
-        // REPLACE THE URL BELOW with the one you copied from Lemon Squeezy
         const url = "https://minimalistchat.lemonsqueezy.com/checkout/buy/12f9553f-8cb0-4f39-aefc-7ca11ef2f85e"; 
         window.location.href = `${url}?checkout[custom][user_id]=${auth.currentUser.uid}`;
     }
 
-    // 3. Manage Billing
     const manageBtn = event.target.closest('#manage-billing-btn');
     if (manageBtn) {
-        // This takes them to their Lemon Squeezy billing portal
         window.location.href = "https://minimalist.lemonsqueezy.com/billing";
     }
 });
@@ -1290,11 +1251,8 @@ function initLiveClock() {
     const clockEl = document.getElementById('live-clock');
     if (!clockEl) return;
     
-    // Updates the clock every 1000 milliseconds (1 second)
     setInterval(() => {
         const now = new Date();
-        
-        // Formats the time to look like "08:09:45 PM PDT"
         const timeString = now.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
@@ -1305,7 +1263,6 @@ function initLiveClock() {
         clockEl.textContent = `SYSTEM TIME: ${timeString}`;
     }, 1000);
     
-    // Run it once immediately so there is no 1-second delay on page load
     clockEl.textContent = `SYSTEM TIME: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' })}`;
 }
 initLiveClock();
@@ -1315,27 +1272,21 @@ function initBlinkingFavicon() {
     const favicon = document.getElementById('dynamic-favicon');
     if (!favicon) return;
 
-    // Blip with open eyes (Circles)
     const openEyes = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>";
-    
-    // Blip with closed eyes (Flat lines)
     const closedEyes = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><line x1='27' y1='40' x2='43' y2='40' stroke='%23000' stroke-width='6' stroke-linecap='round'/><line x1='57' y1='40' x2='73' y2='40' stroke='%23000' stroke-width='6' stroke-linecap='round'/></svg>";
 
-    // Every 4 seconds, close the eyes, then open them 150 milliseconds later
     setInterval(() => {
         favicon.href = closedEyes;
         
         setTimeout(() => {
             favicon.href = openEyes;
-        }, 150); // 150ms is the perfect speed for a natural human blink
+        }, 150); 
         
     }, 4000);
 }
-
-// Start the animation!
 initBlinkingFavicon();
+
 // --- DATABASE MIGRATION SCRIPT ---
-// Run this in the console to fix all old accounts missing a Short ID
 window.fixMissingShortIds = async function() {
     try {
         const usersSnap = await get(ref(db, 'users'));
@@ -1365,26 +1316,62 @@ if ('serviceWorker' in navigator) {
             .catch(err => console.error('Service Worker registration failed: ', err));
     });
 }
+// --- REAL-TIME PRESENCE ENGINE ---
+window.initializePresence = function() {
+    if (!currentUser) return;
+
+    const myPresenceRef = ref(db, `presence/${currentUser.uid}`);
+    const connectedRef = ref(db, '.info/connected');
+
+    onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+            onDisconnect(myPresenceRef).set({
+                state: 'offline',
+                lastChanged: serverTimestamp()
+            }).then(() => {
+                set(myPresenceRef, {
+                    state: 'online',
+                    lastChanged: serverTimestamp()
+                });
+            });
+        }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            set(myPresenceRef, { state: 'online', lastChanged: serverTimestamp() });
+        } else {
+            set(myPresenceRef, { state: 'offline', lastChanged: serverTimestamp() });
+        }
+    });
+};
+
+// --- ADMIN: WIPE GHOST CONNECTIONS ---
+window.wipeGhosts = async function() {
+    try {
+        await remove(ref(db, 'presence'));
+        showToast("All ghost connections wiped!");
+    } catch(e) {
+        console.error("Wipe failed:", e);
+    }
+};
 // --- GITHUB API CHANGELOG ENGINE ---
 async function fetchGitHubUpdates() {
     const list = document.getElementById('updates-list');
     if (!list) return;
     
-    // Show a brutalist loading state
     list.innerHTML = '<li style="padding: 2rem; text-align: center; font-weight: 800; animation: textPulse 1.5s infinite;">PULLING COMMITS...</li>';
     
     try {
-        // Fetching the last 15 commits directly from your repo!
         const response = await fetch('https://api.github.com/repos/Hao14/minimalist-chat/commits?per_page=15');
         if (!response.ok) throw new Error("Failed to fetch GitHub data");
         
         const commits = await response.json();
-        list.innerHTML = ''; // Clear loader
+        list.innerHTML = ''; 
         
         commits.forEach(commitObj => {
             const rawMsg = commitObj.commit.message;
             
-            // NEW: Split the commit message! First line is title, the rest is description.
             const msgLines = rawMsg.split('\n');
             const title = msgLines[0];
             const description = msgLines.slice(1).join('\n').trim();
@@ -1395,7 +1382,6 @@ async function fetchGitHubUpdates() {
             const authorUrl = commitObj.author ? commitObj.author.avatar_url : 'https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700';
             const authorName = commitObj.commit.author.name;
             
-            // Only render the description div if a description actually exists
             const descHtml = description ? `<div class="update-desc">${description}</div>` : '';
 
             list.innerHTML += `
@@ -1414,4 +1400,78 @@ async function fetchGitHubUpdates() {
         console.error(err);
         list.innerHTML = `<li style="padding: 2rem; text-align: center; color: red; border: 4px solid red; font-weight: bold;">CONNECTION FAILED.</li>`;
     }
+}
+// --- SECRET ADMIN EASTER EGG & SECURITY ---
+let blipClickCount = 0;
+let blipClickTimer = null;
+
+const MY_ADMIN_UID = "WsREhwYvPxaCSAjz0aqvwAU1leg2"; 
+
+const miniBlip = document.getElementById('mini-admin-blip');
+if (miniBlip) {
+    miniBlip.addEventListener('click', () => {
+        blipClickCount++;
+        
+        if (blipClickCount === 5) {
+            clearTimeout(blipClickTimer);
+            blipClickCount = 0;
+            
+            if (currentUser && currentUser.uid === MY_ADMIN_UID) {
+                document.getElementById('admin-dashboard-modal').classList.remove('hidden');
+                showToast("Admin Dashboard Unlocked.", false);
+            } else {
+                showToast("Access Denied. Intruder logged.");
+            }
+        } else {
+            clearTimeout(blipClickTimer);
+            blipClickTimer = setTimeout(() => {
+                if (blipClickCount > 0 && blipClickCount < 5) {
+                    window.open("https://github.com/Hao14/minimalist-chat/issues", "_blank");
+                }
+                blipClickCount = 0;
+            }, 400); 
+        }
+    });
+}
+
+const closeAdminBtn = document.getElementById('close-admin-dashboard-btn');
+if (closeAdminBtn) {
+    closeAdminBtn.addEventListener('click', () => {
+        document.getElementById('admin-dashboard-modal').classList.add('hidden');
+    });
+}
+
+const adminWipeBtn = document.getElementById('admin-wipe-btn');
+if (adminWipeBtn) {
+    adminWipeBtn.addEventListener('click', async () => {
+        try { 
+            await remove(ref(db, 'presence')); 
+            showToast("Ghost connections wiped successfully!"); 
+        } 
+        catch(e) { showToast("Failed to wipe connections: " + e.message); }
+    });
+}
+
+const adminBanBtn = document.getElementById('admin-ban-btn');
+if (adminBanBtn) {
+    adminBanBtn.addEventListener('click', () => {
+        const target = document.getElementById('admin-target-id').value.trim();
+        if (!target) return showToast("Enter a UID first!");
+        
+        set(ref(db, `users/${target}/isBanned`), true)
+            .then(() => showToast(`User ${target} banned!`))
+            .catch((e) => showToast("Ban failed: " + e.message));
+    });
+}
+
+const adminMuteBtn = document.getElementById('admin-mute-btn');
+if (adminMuteBtn) {
+    adminMuteBtn.addEventListener('click', () => {
+        const target = document.getElementById('admin-target-id').value.trim();
+        if (!target) return showToast("Enter a UID first!");
+        
+        set(ref(db, `users/${target}/isMuted`), true)
+            .then(() => showToast(`User ${target} muted!`))
+            .catch((e) => showToast("Mute failed: " + e.message));
+    });
 }
