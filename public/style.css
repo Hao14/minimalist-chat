@@ -10,8 +10,8 @@
 
 body { 
     height: 100vh;
-    height: 100dvh; /* Adapts to mobile phone URL bars */
-    overflow: hidden; /* Kills the infinite page scroll wheel! */
+    height: 100dvh; 
+    overflow: hidden; 
     display: flex; 
     flex-direction: column; 
     background-color: var(--bg-color); 
@@ -19,17 +19,14 @@ body {
     line-height: 1.6; 
     position: relative; 
 }
-/* Background Shapes */
 .shape { position: absolute; z-index: -1; animation: float 6s ease-in-out infinite; }
 .shape.yellow-circle { width: 300px; height: 300px; background-color: var(--accent-color); border-radius: 50%; top: -50px; right: -100px; opacity: 0.8; }
 .shape.bottom-left { top: auto; bottom: 50px; left: -100px; }
 @keyframes float { 0% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-20px) rotate(5deg); } 100% { transform: translateY(0px) rotate(0deg); } }
 
-/* Animations */
 .fade-in-up { opacity: 0; transform: translateY(30px); animation: fadeInUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
 
-/* Utility */
 .hidden { display: none !important; }
 .mb-2 { margin-bottom: 2rem; }
 .mb-3 { margin-bottom: 3rem; }
@@ -37,18 +34,10 @@ body {
 .cancel-text { margin-top: 1rem; cursor: pointer; text-decoration: underline; }
 .divider-text { margin: 2rem 0; font-weight: bold; }
 
-/* Navigation */
-/* Navigation */
 nav { 
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    padding: 2rem; 
-    border-bottom: 4px solid var(--text-color); 
-    background: var(--bg-color); 
-    position: relative; 
-    z-index: 10; 
-    flex-shrink: 0; /* NEW: Prevents the chat from crushing the header! */
+    display: flex; align-items: center; justify-content: center; 
+    padding: 2rem; border-bottom: 4px solid var(--text-color); 
+    background: var(--bg-color); position: relative; z-index: 10; flex-shrink: 0; 
 }
 nav a { color: var(--text-color); text-decoration: none; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; position: relative; padding-bottom: 5px; }
 nav a::after { content: ''; position: absolute; width: 100%; height: 4px; background-color: var(--accent-color); bottom: 0; left: 0; transform: scaleX(0); transform-origin: bottom right; transition: transform 0.3s ease-out; }
@@ -56,7 +45,6 @@ nav a:hover::after, nav a.active::after { transform: scaleX(1); transform-origin
 #nav-actions { position: absolute; right: 2rem; display: flex; gap: 1rem; }
 .nav-btn { width: auto; padding: 0.5rem 1rem; }
 
-/* Buttons & Inputs */
 .container { max-width: 900px; margin: 0 auto; padding: 4rem 2rem; flex: 1; text-align: center; position: relative; }
 h1 { font-size: 4rem; font-weight: 700; margin-bottom: 1.5rem; line-height: 1.1; }
 h1 span { background-color: var(--accent-color); padding: 0 10px; }
@@ -69,113 +57,91 @@ button:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0px var(--acc
 .action-btn { background: none; border: 2px solid var(--text-color); color: var(--text-color); padding: 0.5rem 1rem; font-size: 0.9rem; box-shadow: 3px 3px 0px var(--accent-color); cursor: pointer; font-weight: 700; transition: all 0.2s; }
 .action-btn:hover { transform: translate(2px, 2px); box-shadow: 1px 1px 0px var(--accent-color); }
 
-/* Main Chat UI (Full Screen, No Borders) */
-/* Main Chat UI (Full Screen, No Borders) */
-.chat-container-full { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.chat-container-full { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#chat-interface { display: flex; flex: 1; border: none; box-shadow: none; background: var(--bg-color); overflow: hidden; min-height: 0; flex-direction: row; }
 
-#chat-interface { display: flex; flex-direction: column; flex: 1; border: none; box-shadow: none; background: var(--bg-color); overflow: hidden; min-height: 0; }
+/* --- MULTI-ROOM SIDEBAR ARCHITECTURE --- */
+#desktop-room-sidebar {
+    width: 280px;
+    border-right: 4px solid var(--text-color);
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+}
+.sidebar-header { padding: 1.5rem; border-bottom: 3px solid var(--text-color); }
+.sidebar-header h3 { margin: 0; font-size: 1.2rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1px;}
+#room-list { flex: 1; overflow-y: auto; list-style: none; padding: 0; margin: 0; }
+.room-item {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid #ddd;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    flex-direction: column;
+}
+.room-item:hover { background: rgba(0,0,0,0.05); }
+.room-item.active { background: var(--accent-color); color: var(--text-color); border-bottom: 3px solid var(--text-color); }
+.room-name { font-weight: 800; font-size: 1rem; display: block; }
+.room-preview { font-size: 0.8rem; color: #666; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.sidebar-actions { padding: 1rem; border-top: 1px solid #ddd; background: var(--bg-color); display: flex; gap: 0.5rem; }
+.room-action-btn { flex: 1; border: none; font-size: 0.9rem; padding: 0.8rem; font-weight: 600; border-radius: 4px; cursor: pointer; transition: opacity 0.2s; }
+.room-action-btn:hover { opacity: 0.8; }
+.btn-dark { background: #1a1a1a; color: white; }
+.btn-light { background: #ebebeb; color: #1a1a1a; }
+
+body.dark-mode .sidebar-actions { border-color: #333; }
+body.dark-mode .btn-dark { background: #fafafa; color: #111; }
+body.dark-mode .btn-light { background: #333; color: #fafafa; }
+
+body.gray-mode .sidebar-actions { border-color: #444; }
+body.gray-mode .btn-dark { background: #e0e0e0; color: #242424; }
+body.gray-mode .btn-light { background: #444; color: #e0e0e0; }
+/* MAIN CHAT AREA */
+#main-chat-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0; 
+}
+#active-room-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 3px solid var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--bg-color);
+    z-index: 10;
+}
+#active-room-name-display { font-weight: 800; font-size: 1.2rem; }
 
 #messages { flex: 1; list-style-type: none; padding: 1rem; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 0.8rem; min-height: 0; padding-bottom: 2rem; }
-/* Modern Alternating Bubbles */
 #messages li { 
-    padding: 0.5rem 0.8rem; /* Reduced padding (was 0.8rem 1rem) */
-    background-color: #ffffff; 
-    border: 2px solid var(--text-color); 
-    border-radius: 12px 12px 12px 0px; 
-    font-size: 0.95rem; 
-    font-weight: 400; 
-    max-width: 80%; /* Slightly thinner max-width */
-    align-self: flex-start; 
-    animation: fadeInUp 0.3s ease forwards; 
-    display: flex; 
-    flex-direction: column; 
-    gap: 0.1rem; /* Hugs the text closer to the header */
-    position: relative; 
-    word-wrap: break-word; 
+    padding: 0.5rem 0.8rem; background-color: #ffffff; border: 2px solid var(--text-color); 
+    border-radius: 12px 12px 12px 0px; font-size: 0.95rem; font-weight: 400; 
+    max-width: 80%; align-self: flex-start; animation: fadeInUp 0.3s ease forwards; 
+    display: flex; flex-direction: column; gap: 0.1rem; position: relative; word-wrap: break-word; 
 }
 #messages li.my-message { align-self: flex-end; border-radius: 12px 12px 0px 12px; background-color: var(--accent-color); color: var(--text-color); border: 2px solid var(--text-color); }
 
-/* Chat Form Area */
-#chat-form { 
-    display: flex; /* Swapped to flex so the send button can appear/hide smoothly */
-    border-top: 4px solid var(--text-color); 
-    background: var(--bg-color); 
-    padding: 0.8rem 1rem; gap: 0.6rem; align-items: flex-end; 
-}
-
-/* Decreased Text Area Size */
-#chat-form textarea#message-input { 
-    flex: 1; /* Takes up middle space */
-    height: auto; 
-    min-height: 38px; /* SHRUNK FROM 44px */
-    max-height: 100px; 
-    border: 3px solid var(--text-color); 
-    padding: 0.5rem 0.8rem; font-family: inherit; font-size: 0.95rem; 
-    resize: none; overflow-y: auto; border-radius: 8px; line-height: 1.4; 
-    background: var(--bg-color); color: var(--text-color); margin: 0; 
-}
+#chat-form { display: flex; border-top: 4px solid var(--text-color); background: var(--bg-color); padding: 0.8rem 1rem; gap: 0.6rem; align-items: flex-end; }
+#chat-form textarea#message-input { flex: 1; min-height: 38px; max-height: 100px; border: 3px solid var(--text-color); padding: 0.5rem 0.8rem; font-family: inherit; font-size: 0.95rem; resize: none; overflow-y: auto; border-radius: 8px; line-height: 1.4; background: var(--bg-color); color: var(--text-color); margin: 0; }
 #chat-form textarea#message-input:focus { outline: none; border-color: var(--accent-color); }
-
-/* Attachment & Send Buttons */
-#chat-form button#attach-btn, #chat-form button#mobile-send-btn { 
-    background-color: var(--bg-color); color: var(--text-color); 
-    border: 3px solid var(--text-color); border-radius: 8px; 
-    width: 40px; height: 40px; /* Slightly smaller to match input */
-    display: flex; align-items: center; justify-content: center; 
-    margin: 0; box-shadow: none; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; 
-}
-#chat-form button#attach-btn:hover, #chat-form button#attach-btn.active, #chat-form button#mobile-send-btn { 
-    background-color: var(--accent-color); 
-}
+#chat-form button#attach-btn, #chat-form button#mobile-send-btn { background-color: var(--bg-color); color: var(--text-color); border: 3px solid var(--text-color); border-radius: 8px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; margin: 0; box-shadow: none; font-size: 1.2rem; cursor: pointer; transition: all 0.2s; }
+#chat-form button#attach-btn:hover, #chat-form button#attach-btn.active, #chat-form button#mobile-send-btn { background-color: var(--accent-color); }
 .msg-attached-img { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 0.8rem; border: 3px solid var(--text-color); object-fit: cover; }
-/* --- UPDATED CHAT HEADERS & BADGES --- */
-.msg-header { 
-    display: flex; 
-    align-items: center; 
-    gap: 0.4rem; /* Tighter gap between avatar and name */
-    padding-bottom: 0; /* Removed padding */
-    margin-bottom: 0.1rem; /* Tighter gap above text */
-    border-bottom: none; /* NUKED the dividing line! */
-}
+
+.msg-header { display: flex; align-items: center; gap: 0.4rem; padding-bottom: 0; margin-bottom: 0.1rem; border-bottom: none; }
 .header-text { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-
-/* Smaller, sleeker Username */
 .msg-name { font-weight: 800; color: var(--text-color); font-size: 0.95rem; }
-
-/* Tighter Time Styling */
 .msg-time { color: #888; font-size: 0.65rem; } 
-
-/* Shrunk the Avatar */
-.msg-avatar { 
-    width: 24px; 
-    height: 24px; 
-    border-radius: 50%; 
-    object-fit: cover; 
-    border: 2px solid var(--text-color); 
-    background-color: var(--bg-color); 
-    cursor: pointer; 
-    transition: all 0.2s ease; 
-}
+.msg-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 2px solid var(--text-color); background-color: var(--bg-color); cursor: pointer; transition: all 0.2s ease; }
 .msg-avatar:hover { transform: scale(1.1); border-color: var(--accent-color); }
-.my-message .msg-avatar { border-color: var(--text-color); } /* Keep it black on yellow */
-/* Subscription Badges */
-.tier-badge {
-    font-size: 0.65rem;
-    font-weight: 800;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 1px;
-    border: 2px solid var(--text-color);
-    box-shadow: 2px 2px 0px var(--text-color);
-    user-select: none;
-}
+.my-message .msg-avatar { border-color: var(--text-color); } 
+.tier-badge { font-size: 0.65rem; font-weight: 800; padding: 2px 6px; border-radius: 4px; letter-spacing: 1px; border: 2px solid var(--text-color); box-shadow: 2px 2px 0px var(--text-color); user-select: none; }
 .tier-badge.advanced { background: #FF9800; color: var(--text-color); }
 .tier-badge.pro { background: #9C27B0; color: #ffffff; }
 
-body.dark-mode .tier-badge.advanced { color: #000000; }
-
-
-/* Typing & Reactions */
 #typing-status-container { align-items: center; gap: 10px; padding: 0.5rem 2rem; font-size: 0.85rem; font-weight: 600; color: #666; }
 .typing-dots { display: flex; gap: 4px; padding: 8px 12px; background: var(--bg-color); border: 2px solid var(--text-color); border-radius: 12px; border-bottom-left-radius: 2px; }
 .dot { width: 6px; height: 6px; background-color: var(--accent-color); border-radius: 50%; animation: bounce 1.4s infinite ease-in-out both; }
@@ -186,67 +152,27 @@ body.dark-mode .tier-badge.advanced { color: #000000; }
 .action-icon { cursor: pointer; font-size: 1rem; transition: transform 0.2s; user-select: none; }
 .action-icon:hover { transform: scale(1.3); }
 .msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
-/* --- UPDATED REACTION BADGES --- */
-.reaction-badge { 
-    background: #fafafa; 
-    border: 2px solid #ccc; /* Slightly thicker border */
-    border-radius: 10px; 
-    padding: 2px 8px; 
-    font-size: 0.85rem; 
-    display: flex; 
-    align-items: center; 
-    gap: 4px; 
-    cursor: pointer; /* Shows the pointing hand icon on hover */
-    transition: all 0.2s;
-    user-select: none;
-}
-.reaction-badge:hover {
-    transform: scale(1.1); /* Pops out slightly when hovered */
-    border-color: var(--text-color);
-}
-body.dark-mode .reaction-badge { 
-    background-color: #111111; 
-    border-color: #444;
-}
-body.dark-mode .reaction-badge.user-reacted {
-    background-color: var(--accent-color);
-    color: var(--bg-color);
-}
-/* Highlights the specific reaction the user has chosen */
-.reaction-badge.user-reacted {
-    background: var(--accent-color);
-    border-color: var(--text-color);
-    color: var(--text-color);
-    box-shadow: 2px 2px 0px var(--text-color);
-    font-weight: bold;
-}
+
+.reaction-badge { background: #fafafa; border: 2px solid #ccc; border-radius: 10px; padding: 2px 8px; font-size: 0.85rem; display: flex; align-items: center; gap: 4px; cursor: pointer; transition: all 0.2s; user-select: none; }
+.reaction-badge:hover { transform: scale(1.1); border-color: var(--text-color); }
+.reaction-badge.user-reacted { background: var(--accent-color); border-color: var(--text-color); color: var(--text-color); box-shadow: 2px 2px 0px var(--text-color); font-weight: bold; }
 .reply-quote { background: rgba(0, 0, 0, 0.05); border-left: 4px solid var(--accent-color); padding: 0.4rem 0.8rem; margin-bottom: 0.5rem; font-size: 0.85rem; border-radius: 4px; color: #444; }
 .reply-quote-name { font-weight: 700; color: var(--text-color); display: block; margin-bottom: 2px; }
 #active-reply-box { background: #fafafa; border-top: 4px solid var(--text-color); padding: 0.8rem 1rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; }
 
-/* Sidebars & Modals */
 .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(2px); z-index: 3999; }
-#contacts-panel, #updates-panel { 
-    position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; 
-    background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(12px); 
-    border-left: 4px solid var(--text-color); box-shadow: -10px 0px 0px var(--accent-color); 
-    transition: right 0.3s ease; z-index: 2000; display: flex; flex-direction: column; 
-}
+#contacts-panel, #updates-panel { position: fixed; top: 0; right: -400px; width: 400px; height: 100vh; background: rgba(255, 255, 255, 0.90); backdrop-filter: blur(12px); border-left: 4px solid var(--text-color); box-shadow: -10px 0px 0px var(--accent-color); transition: right 0.3s ease; z-index: 2000; display: flex; flex-direction: column; }
 #contacts-panel.open, #updates-panel.open { right: 0; }
-/* Brutalist GitHub Changelog Cards */
+
 #updates-list { list-style: none; overflow-y: auto; flex: 1; padding: 1.5rem; margin: 0; display: flex; flex-direction: column; gap: 1rem; }
 .update-card { border: 3px solid var(--text-color); background: var(--bg-color); padding: 1rem; box-shadow: 4px 4px 0px var(--text-color); transition: transform 0.2s; }
 .update-card:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0px var(--accent-color); }
 .update-date { font-size: 0.75rem; font-weight: 800; color: #888; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px; }
-/* New Split Text Styling */
 .update-title { font-size: 1.1rem; font-weight: 800; color: var(--text-color); margin-bottom: 0.4rem; word-wrap: break-word; line-height: 1.3; }
-.update-desc { font-size: 0.9rem; font-weight: 600; color: #555555; word-wrap: break-word; white-space: pre-line; line-height: 1.4; }
-
-body.dark-mode .update-desc { color: #aaaaaa; }
+.update-desc { font-size: 0.85rem; font-weight: 600; color: #555555; word-wrap: break-word; white-space: pre-line; line-height: 1.4; }
 .update-author { font-size: 0.8rem; margin-top: 0.8rem; color: #666; display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .update-author img { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--text-color); }
 
-body.dark-mode .update-card { background: #111; }
 .contacts-header { background: var(--text-color); color: var(--bg-color); padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; font-size: 1.2rem; font-weight: 700; }
 .close-panel { cursor: pointer; color: var(--accent-color); transition: transform 0.2s; }
 .close-panel:hover { transform: scale(1.2); }
@@ -258,22 +184,8 @@ body.dark-mode .update-card { background: #111; }
 .contact-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--text-color); object-fit: cover; }
 .contact-actions { display: flex; gap: 0.5rem; }
 .mini-btn { background: var(--text-color); color: var(--bg-color); border: 2px solid var(--text-color); padding: 0.3rem 0.6rem; font-size: 0.75rem; font-weight: bold; cursor: pointer; box-shadow: none; transition: all 0.2s; margin:0; }
-
-/* Contact Inline Action Icons */
-.contact-icon-btn { 
-    background: transparent; 
-    border: none; 
-    font-size: 1.4rem; /* Bumped up slightly so the lines look crisp */
-    color: var(--text-color); /* NEW: Forces icons to match the theme */
-    cursor: pointer; 
-    padding: 4px 6px; 
-    transition: transform 0.2s; 
-    box-shadow: none; 
-    margin: 0; 
-}
-.contact-icon-btn:hover { 
-    transform: scale(1.3); 
-}
+.contact-icon-btn { background: transparent; border: none; font-size: 1.4rem; color: var(--text-color); cursor: pointer; padding: 4px 6px; transition: transform 0.2s; box-shadow: none; margin: 0; }
+.contact-icon-btn:hover { transform: scale(1.3); }
 .mini-btn:hover { background: var(--accent-color); border-color: var(--accent-color); color: var(--text-color); }
 .mini-btn.outline { background: transparent; color: var(--text-color); }
 .mini-btn.danger { background: transparent; color: red; border-color: red; }
@@ -294,62 +206,15 @@ body.dark-mode .update-card { background: #111; }
 #pm-form button { margin: 0; width: auto; border: none; border-left: 4px solid var(--text-color); box-shadow: none; padding: 0 1.5rem; }
 .unread-ping { width: 12px; height: 12px; background-color: red; border-radius: 50%; display: inline-block; margin-left: auto; animation: pulse 1.5s infinite; }
 
-/* USER PROFILE POPUP */
-/* --- USER PROFILE POPUP (UPDATED Z-INDEX) --- */
-#user-profile-popup { 
-    position: fixed; top: 50%; left: 50%; 
-    transform: translate(-50%, -50%); 
-    width: 90%; /* Dynamically shrinks on small phones */
-    max-width: 340px; 
-    max-height: 85vh; /* Prevents vertical cutoff */
-    overflow-y: auto; /* Allows scrolling if the screen is super short */
-    background: var(--bg-color); border: 4px solid var(--text-color); 
-    box-shadow: 10px 10px 0px var(--text-color); 
-    z-index: 4500; 
-    display: flex; flex-direction: column; border-radius: 12px; 
-    animation: fadeInCenter 0.2s ease forwards; /* FIXED ANIMATION */
-    transition: all 0.3s ease;
-}
-
-/* NEW: Custom animation that preserves the dead-center alignment */
-@keyframes fadeInCenter {
-    from { opacity: 0; transform: translate(-50%, -40%); }
-    to { opacity: 1; transform: translate(-50%, -50%); }
-}
-/* NEW: Slides the profile card to the left when previewing */
-#user-profile-popup.preview-layout {
-    left: 5%;
-    transform: translate(0, -50%);
-}
-@media (max-width: 1200px) {
-    /* If the monitor is too small, snap it back to the center */
-    #user-profile-popup.preview-layout {
-        left: 50%; transform: translate(-50%, -50%);
-    }
-}
+#user-profile-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90%; max-width: 340px; max-height: 85vh; overflow-y: auto; background: var(--bg-color); border: 4px solid var(--text-color); box-shadow: 10px 10px 0px var(--text-color); z-index: 4500; display: flex; flex-direction: column; border-radius: 12px; animation: fadeInCenter 0.2s ease forwards; transition: all 0.3s ease; }
+@keyframes fadeInCenter { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+#user-profile-popup.preview-layout { left: 5%; transform: translate(0, -50%); }
+@media (max-width: 1200px) { #user-profile-popup.preview-layout { left: 50%; transform: translate(-50%, -50%); } }
 .profile-banner { height: 100px; background-color: var(--accent-color); position: relative; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom: 4px solid var(--text-color); }
-/* NEW: 3-Dot Options Button */
-.profile-popup-more { 
-    position: absolute; top: 10px; right: 15px; 
-    color: var(--text-color); background: transparent; 
-    border-radius: 50%; width: 30px; height: 30px; 
-    display: flex; align-items: center; justify-content: center; 
-    cursor: pointer; font-size: 1.8rem; transition: transform 0.2s; 
-}
+.profile-popup-more { position: absolute; top: 10px; right: 15px; color: var(--text-color); background: transparent; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.8rem; transition: transform 0.2s; }
 .profile-popup-more:hover { transform: scale(1.1); }
-
-/* NEW: Brutalist Dropdown Menu */
-.brutalist-dropdown {
-    position: absolute; top: 45px; right: 15px;
-    background: var(--bg-color); border: 3px solid var(--text-color);
-    box-shadow: 4px 4px 0px var(--text-color); z-index: 100;
-    display: flex; flex-direction: column; min-width: 140px;
-}
-.brutalist-dropdown button {
-    margin: 0; padding: 0.8rem 1rem; border: none; box-shadow: none;
-    background: transparent; color: var(--text-color);
-    font-size: 0.85rem; text-align: left; border-radius: 0;
-}
+.brutalist-dropdown { position: absolute; top: 45px; right: 15px; background: var(--bg-color); border: 3px solid var(--text-color); box-shadow: 4px 4px 0px var(--text-color); z-index: 100; display: flex; flex-direction: column; min-width: 140px; }
+.brutalist-dropdown button { margin: 0; padding: 0.8rem 1rem; border: none; box-shadow: none; background: transparent; color: var(--text-color); font-size: 0.85rem; text-align: left; border-radius: 0; }
 .brutalist-dropdown button.danger-btn { color: red; font-weight: 800; }
 .brutalist-dropdown button.danger-btn:hover { background: red; color: white; }
 .profile-avatar-wrapper { position: absolute; bottom: -35px; left: 20px; border: 4px solid var(--text-color); border-radius: 50%; background: var(--bg-color); padding: 2px; }
@@ -360,23 +225,12 @@ body.dark-mode .update-card { background: #111; }
 .profile-pronouns { font-size: 0.9rem; color: #888; font-weight: 600; }
 .profile-short-id { font-family: monospace; background: var(--text-color); color: var(--bg-color); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 .profile-bio { font-size: 0.95rem; margin-top: 10px; padding: 12px; background: rgba(0,0,0,0.03); border-left: 4px solid var(--text-color); border-radius: 4px; color: var(--text-color); white-space: pre-wrap; }
-.profile-joined-date {
-    font-size: 0.75rem;
-    color: #888;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-top: 8px;
-    padding-left: 2px;
-}
-body.dark-mode .profile-bio { background: rgba(255,255,255,0.05); }
+.profile-joined-date { font-size: 0.75rem; color: #888; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-top: 8px; padding-left: 2px; }
 .profile-actions { margin-top: 15px; display: flex; gap: 10px; }
 .profile-actions button { margin-bottom: 0; padding: 0.8rem; }
 
-/* BRUTALIST DISCORD-STYLE SETTINGS MODAL */
 #settings-modal.brutalist-settings { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 90vw; max-width: 1000px; height: 80vh; max-height: 800px; background: var(--bg-color); border: 6px solid var(--text-color); box-shadow: 15px 15px 0px var(--accent-color); display: flex; flex-direction: row; z-index: 4000; padding: 0; text-align: left; }
 .settings-sidebar { width: 30%; min-width: 250px; background: #fafafa; border-right: 6px solid var(--text-color); padding: 2rem; display: flex; flex-direction: column; gap: 0.5rem; }
-body.dark-mode .settings-sidebar { background: #111; }
 .sidebar-header { font-size: 1rem; font-weight: 800; color: #666; margin-bottom: 1rem; border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; text-transform: uppercase; }
 .settings-tab { padding: 1rem; font-weight: 700; font-size: 1.1rem; cursor: pointer; border: 3px solid transparent; transition: all 0.2s; }
 .settings-tab:hover { border-color: var(--text-color); background: var(--bg-color); transform: translate(-2px, -2px); box-shadow: 4px 4px 0px var(--text-color); }
@@ -384,86 +238,62 @@ body.dark-mode .settings-sidebar { background: #111; }
 .settings-tab.danger { color: red; }
 .settings-tab.danger.active { background: red; color: white; border-color: red; }
 .settings-divider { height: 4px; background: var(--text-color); margin: 1rem 0; }
-/* Main Content */
-.settings-content {
-    flex: 1; 
-    padding: 3rem; 
-    overflow-y: auto; 
-    position: relative; 
-    text-align: left;
-}
-
-/* NEW: Restrict the width of the panes so they don't stretch forever! */
-.settings-pane {
-    max-width: 600px; /* Slims down the inner UI */
-    margin: 0; /* Aligns it to the left next to the sidebar */
-}
-
-/* Cards & Inputs - SHRUNK DOWN */
-.settings-pane h2 { 
-    font-size: 1.8rem; /* Was 2.5rem */
-    margin-bottom: 1.5rem; 
-    border-bottom: 3px solid var(--text-color); 
-    padding-bottom: 0.5rem; 
-}
-
-.settings-card-body { 
-    padding: 1.5rem; /* Less empty space */
-    display: flex; flex-direction: column; gap: 1rem; /* Tighter gaps */
-}
-
-.input-group input, .input-group textarea {
-    padding: 0.8rem; /* Slimmer text boxes */
-}
+.settings-content { flex: 1; padding: 3rem; overflow-y: auto; position: relative; text-align: left; }
+.settings-pane { max-width: 600px; margin: 0; }
+.settings-pane h2 { font-size: 1.8rem; margin-bottom: 1.5rem; border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; }
+.settings-card-body { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; }
+.input-group input, .input-group textarea { padding: 0.8rem; }
 .brutalist-close { position: absolute; top: 1.5rem; right: 1.5rem; background-color: #ff3333; color: white; border: 4px solid var(--text-color); border-radius: 12px; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: bold; cursor: pointer; padding: 0; margin: 0; box-shadow: 4px 4px 0px var(--text-color); transition: all 0.2s; z-index: 10; }
 .brutalist-close:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--text-color); background-color: #e60000; }
-.settings-card {
-    border: 3px solid var(--text-color); /* Slimmer borders */
-    background: var(--bg-color);
-    box-shadow: 6px 6px 0px var(--text-color); 
-    margin-bottom: 1.5rem; 
-}
-.settings-card-header {
-    display: flex; align-items: center; gap: 1rem; 
-    padding: 1rem 1.5rem; 
-    border-bottom: 3px solid var(--text-color); 
-    background: #fafafa;
-}
-body.dark-mode .settings-card-header { background: #111; }
-body.dark-mode .input-group label { color: #aaa; }
-
-.settings-card-header img {
-    width: 60px; height: 60px; /* Was 80px */
-    border-radius: 50%; border: 3px solid var(--text-color); 
-    background: var(--bg-color); object-fit: cover;
-}
+.settings-card { border: 3px solid var(--text-color); background: var(--bg-color); box-shadow: 6px 6px 0px var(--text-color); margin-bottom: 1.5rem; }
+.settings-card-header { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 3px solid var(--text-color); background: #fafafa; }
+.settings-card-header img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--text-color); background: var(--bg-color); object-fit: cover; }
 .settings-card-title { flex: 1; }
-.title-name { font-size: 1.3rem; font-weight: 800; } /* Was 1.8rem */
-
-.input-group label { 
-    font-size: 0.85rem; /* Smaller labels */
-    color: #666; /* Grey text for sleeker look */
-    font-weight: 800; display: block; margin-bottom: 0.3rem; 
-}
-.input-group input, .input-group textarea {
-    width: 100%; 
-    border: 3px solid var(--text-color); /* Slimmer borders */
-    padding: 0.6rem 0.8rem; /* Shorter text boxes */
-    font-size: 0.95rem; /* Standard readable text size */
-    background: var(--bg-color); color: var(--text-color); 
-    font-family: 'Space Grotesk', sans-serif; box-shadow: none; margin-bottom: 0;
-}
+.title-name { font-size: 1.3rem; font-weight: 800; } 
+.input-group label { font-size: 0.85rem; color: #666; font-weight: 800; display: block; margin-bottom: 0.3rem; }
+.input-group input, .input-group textarea { width: 100%; border: 3px solid var(--text-color); padding: 0.6rem 0.8rem; font-size: 0.95rem; background: var(--bg-color); color: var(--text-color); font-family: inherit; box-shadow: none; margin-bottom: 0; }
 .input-group textarea { resize: vertical; min-height: 80px; }
 .color-input { height: 35px; padding: 2px !important; cursor: pointer; }
 
 /* Dark Mode Overrides */
 body.dark-mode { --bg-color: #000000; --text-color: #ffffff; }
+body.dark-mode #desktop-room-sidebar { background: #111; border-color: #333; }
+body.dark-mode .room-item { border-color: #333; }
+body.dark-mode .room-preview { color: #aaa; }
 body.dark-mode #contacts-panel { background: rgba(0, 0, 0, 0.85); }
 body.dark-mode .contact-item:hover { background: rgba(255, 255, 255, 0.1); }
 body.dark-mode .reply-quote { background: rgba(255, 255, 255, 0.15); }
-body.dark-mode #messages li.my-message, body.dark-mode #pm-messages li.their-pm, body.dark-mode #active-reply-box, body.dark-mode .reaction-badge { background-color: #111111; }
+body.dark-mode #messages li, body.dark-mode #pm-messages li, body.dark-mode #active-reply-box, body.dark-mode .reaction-badge { background-color: #111111; border-color: #333333; }
+body.dark-mode #messages li.my-message, body.dark-mode #pm-messages li.my-pm { background-color: #222222; border-color: #444444; }
+body.dark-mode .settings-sidebar { background: #111; }
+body.dark-mode .settings-card-header { background: #111; }
+body.dark-mode .input-group label { color: #aaa; }
+body.dark-mode .profile-bio { background: rgba(255,255,255,0.05); }
+body.dark-mode .update-card { background: #111; }
+body.dark-mode .update-desc { color: #aaaaaa; }
+body.dark-mode .tier-badge.advanced { color: #000000; }
+body.dark-mode .reaction-badge { background-color: #111111; border-color: #444; }
+body.dark-mode .reaction-badge.user-reacted { background-color: var(--accent-color); color: var(--bg-color); }
+body.dark-mode .blip-eye { background-color: var(--bg-color); }
 
-/* Footer */
+/* --- GRAY MODE OVERRIDES --- */
+body.gray-mode { --bg-color: #242424; --text-color: #e0e0e0; --accent-color: #666666; }
+body.gray-mode #desktop-room-sidebar { background: #2a2a2a; border-color: #555555;}
+body.gray-mode .room-item { border-color: #444; }
+body.gray-mode .room-preview { color: #999; }
+body.gray-mode #contacts-panel, body.gray-mode #updates-panel { background: rgba(36, 36, 36, 0.95); }
+body.gray-mode .contact-item:hover { background: rgba(255, 255, 255, 0.05); }
+body.gray-mode .reply-quote { background: rgba(255, 255, 255, 0.1); }
+body.gray-mode #messages li, body.gray-mode #pm-messages li, body.gray-mode #active-reply-box, body.gray-mode .reaction-badge { background-color: #2a2a2a; border-color: #555555; }
+body.gray-mode #messages li.my-message, body.gray-mode #pm-messages li.my-pm { background-color: #383838; border-color: #666666; }
+body.gray-mode .reaction-badge { background-color: #333333; border-color: #666666; }
+body.gray-mode .settings-card-header { background: #333333; }
+body.gray-mode .update-card { background: #333333; border-color: #666666; }
+body.gray-mode .update-desc { color: #a0a0a0; }
+body.gray-mode .input-group label { color: #a0a0a0; }
+body.gray-mode .profile-bio { background: rgba(255, 255, 255, 0.05); }
+body.gray-mode .settings-sidebar { background: #2a2a2a; border-color: #555555; }
+
 footer { margin-top: auto; border-top: 4px solid var(--text-color); background: var(--bg-color); padding: 2rem; text-align: center; position: relative; z-index: 10; }
 .footer-links { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .footer-links a { color: var(--text-color); text-decoration: none; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px; transition: color 0.2s; }
@@ -477,442 +307,118 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
     .desktop-nav { display: none !important; }
     footer { display: none !important; }
     
-    /* 1. Stack the Logo and Search bar cleanly */
-    nav { 
-        display: flex !important;
-        flex-direction: column !important; 
-        align-items: flex-start !important;
-        padding: 1rem !important; 
-        gap: 1rem !important;
-    }
-    
-    /* Un-anchor the logo */
-    nav a#nav-logo {
-        position: relative !important;
-        left: 0 !important;
-    }
-    
-    /* Bring back MINIMALIST text & Search Bar */
-    .logo-text, div#mobile-search-bar.mobile-only { 
-        display: block !important; 
-    }
-    
-    /* 2. The New Bottom Tab Bar */
-    #mobile-menu-btn { display: none !important; }
+    nav { display: flex !important; flex-direction: column !important; align-items: flex-start !important; padding: 1rem !important; gap: 1rem !important; }
+    nav a#nav-logo { position: relative !important; left: 0 !important; }
+    .logo-text, div#mobile-search-bar.mobile-only { display: block !important; }
     
     div#mobile-nav-links.mobile-only { 
-        display: flex !important; 
-        position: fixed; 
-        bottom: 0; 
-        left: 0; 
-        width: 100%; 
-        background: var(--bg-color); 
-        border-top: 4px solid var(--text-color); 
-        z-index: 9000; 
-        flex-direction: row; 
-        justify-content: space-between; 
-        padding-bottom: 0 !important; 
-        margin: 0 !important;
+        display: flex !important; position: fixed; bottom: 0; left: 0; width: 100%; 
+        background: var(--bg-color); border-top: 4px solid var(--text-color); 
+        z-index: 9000; flex-direction: row; justify-content: space-between; 
+        padding-bottom: 0 !important; margin: 0 !important;
     }
 
-    /* 3. Unified Tab Formatting (Fixing the Action-Btn overrides!) */
     .mobile-link, .mobile-link-btn {
-        flex: 1 !important; 
-        display: block !important;
-        text-align: center !important;
-        font-size: 0.7rem !important; 
-        font-weight: 800 !important;
-        
-        border: none !important;
-        border-right: 2px solid var(--text-color) !important;
-        box-shadow: none !important;
-        background: transparent !important;
-        color: var(--text-color) !important;
-        border-radius: 0 !important;
-        margin: 0 !important;
-        text-decoration: none !important;
-        
-        padding-top: 0.8rem !important;
-        padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px)) !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        
-        /* NEW: Required to anchor the underline to the bottom of the tab */
-        position: relative !important; 
+        flex: 1 !important; display: block !important; text-align: center !important;
+        font-size: 0.7rem !important; font-weight: 800 !important; border: none !important;
+        border-right: 2px solid var(--text-color) !important; box-shadow: none !important;
+        background: transparent !important; color: var(--text-color) !important;
+        border-radius: 0 !important; margin: 0 !important; text-decoration: none !important;
+        padding-top: 0.8rem !important; padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px)) !important;
+        padding-left: 0 !important; padding-right: 0 !important; position: relative !important; 
     }
     
-    /* Clean up the far-right border */
-    .mobile-link:last-child, .mobile-link-btn:last-child {
-        border-right: none !important;
-    }
-    
-    /* Active Tab Click State */
-    .mobile-link:active, .mobile-link-btn:active {
-        background: var(--accent-color) !important;
-        transform: none !important;
-    }
-
-    /* NEW: Kill the button shift effect and replace it with a fast underline */
-    .mobile-link:hover, .mobile-link-btn:hover {
-        transform: none !important;
-        box-shadow: none !important;
-    }
-
-    /* Generates the custom yellow underline */
+    .mobile-link:last-child, .mobile-link-btn:last-child { border-right: none !important; }
+    .mobile-link:active, .mobile-link-btn:active { background: var(--accent-color) !important; transform: none !important; }
+    .mobile-link:hover, .mobile-link-btn:hover { transform: none !important; box-shadow: none !important; }
     .mobile-link::after, .mobile-link-btn::after {
-        content: '' !important;
-        position: absolute !important;
-        width: 100% !important;
-        height: 5px !important; /* Thick brutalist line */
-        background-color: var(--accent-color) !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        transform: scaleX(0) !important;
-        transform-origin: bottom right !important;
-        transition: transform 0.15s ease-out !important; /* FASTER ANIMATION (was 0.3s) */
+        content: '' !important; position: absolute !important; width: 100% !important; height: 5px !important; 
+        background-color: var(--accent-color) !important; bottom: 0 !important; left: 0 !important;
+        transform: scaleX(0) !important; transform-origin: bottom right !important; transition: transform 0.15s ease-out !important; 
+    }
+    .mobile-link:hover::after, .mobile-link-btn:hover::after, .mobile-link:active::after, .mobile-link-btn:active::after {
+        transform: scaleX(1) !important; transform-origin: bottom left !important;
     }
 
-    /* Triggers the slide-in animation when touched/hovered */
-    .mobile-link:hover::after, .mobile-link-btn:hover::after,
-    .mobile-link:active::after, .mobile-link-btn:active::after {
-        transform: scaleX(1) !important;
-        transform-origin: bottom left !important;
-    }
+    #chat-form { padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important; }
 
-    /* 4. Bump the Chat Input Up (So tabs don't overlap it) */
-    #chat-form {
-        padding-bottom: calc(75px + env(safe-area-inset-bottom, 0px)) !important;
+    /* ROOM SIDEBAR BECOMES A SLIDE-OUT PANEL */
+    #desktop-room-sidebar {
+        position: absolute; top: 0; left: -100%; height: 100%; width: 300px; max-width: 85%;
+        z-index: 2000; transition: left 0.3s ease; box-shadow: 10px 0px 0px var(--accent-color);
     }
+    #desktop-room-sidebar.open { left: 0; }
 
-    /* 5. Modals and Popups */
-    #contacts-panel { width: 100%; right: -100%; }
+    #contacts-panel, #updates-panel { width: 100%; right: -100%; }
     #pm-popup { width: 100%; height: 100vh; bottom: 0; right: 0; border: none; border-top: 4px solid var(--text-color); box-shadow: none; border-radius: 0; }
     #settings-modal.brutalist-settings { flex-direction: column; width: 95vw; height: 90vh; }
     .settings-sidebar { width: 100%; border-right: none; border-bottom: 6px solid var(--text-color); padding: 1.5rem; flex-direction: row; flex-wrap: wrap; }
     .sidebar-header { width: 100%; }
     .settings-content { padding: 1.5rem; }
     .brutalist-close { top: 1rem; right: 1rem; }
-    /* Modals and Popups */
-    #contacts-panel, #updates-panel { width: 100%; right: -100%; }
 }
 
-/* --- ONLINE/OFFLINE STATUS INDICATORS --- */
-.avatar-wrapper {
-    position: relative;
-    display: inline-block;
-    width: 40px; 
-    height: 40px;
-}
+.avatar-wrapper { position: relative; display: inline-block; width: 40px; height: 40px; }
+.status-dot { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--bg-color); background-color: #80848e; transition: background-color 0.3s; }
+.status-dot.online { background-color: #23a559; }
 
-.status-dot {
-    position: absolute;
-    bottom: -2px;
-    right: -2px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    border: 3px solid var(--bg-color);
-    background-color: #80848e; /* Default Grey/Offline */
-    transition: background-color 0.3s;
-}
-
-/* Discord Green */
-.status-dot.online {
-    background-color: #23a559; 
-}
-/* --- FIXED SIZE & SCROLLABLE EMOJI GRID --- */
 #emoji-picker {
-    position: absolute;
-    width: 250px;     /* Keeps the grid width consistent */
-    height: 200px;    /* Forces a fixed vertical size */
-    overflow-y: auto; /* Enables the scrollbar when content exceeds 200px */
-    background: var(--bg-color);
-    border: 3px solid var(--text-color);
-    padding: 10px;
-    display: flex;
-    flex-wrap: wrap;  /* Keeps emojis flowing in a grid */
-    justify-content: flex-start; /* Aligns emojis to the left */
-    align-content: flex-start;   /* Keeps them at the top of the container */
-    gap: 5px;
-    box-shadow: 6px 6px 0px var(--accent-color);
-    z-index: 5000;
+    position: absolute; width: 250px; height: 200px; overflow-y: auto; background: var(--bg-color);
+    border: 3px solid var(--text-color); padding: 10px; display: flex; flex-wrap: wrap; 
+    justify-content: flex-start; align-content: flex-start; gap: 5px; box-shadow: 6px 6px 0px var(--accent-color); z-index: 5000;
 }
+#emoji-picker span { cursor: pointer; font-size: 1.4rem; padding: 2px; transition: transform 0.2s; width: 35px; text-align: center; }
+#emoji-picker span:hover { transform: scale(1.3); }
 
-#emoji-picker span {
-    cursor: pointer;
-    font-size: 1.4rem;
-    padding: 2px;
-    transition: transform 0.2s;
-    width: 35px;
-    text-align: center;
-}
-
-#emoji-picker span:hover {
-    transform: scale(1.3);
-}
-
-/* --- BRUTALIST AUTHENTICATION MODULE --- */
 .brutalist-auth-card {
-    background: var(--bg-color);
-    border: 4px solid var(--text-color);
-    box-shadow: 8px 8px 0px var(--accent-color);
-    padding: 0 2rem 2rem 2rem;
-    width: 100%;
-    max-width: 420px;
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
+    background: var(--bg-color); border: 4px solid var(--text-color); box-shadow: 8px 8px 0px var(--accent-color);
+    padding: 0 2rem 2rem 2rem; width: 100%; max-width: 420px; margin: 0 auto; display: flex; flex-direction: column;
 }
-
-.auth-toggle {
-    display: flex;
-    border-bottom: 4px solid var(--text-color);
-    margin-bottom: 1.5rem;
-    margin-left: -2rem;
-    margin-right: -2rem;
-}
-
+.auth-toggle { display: flex; border-bottom: 4px solid var(--text-color); margin-bottom: 1.5rem; margin-left: -2rem; margin-right: -2rem; }
 .toggle-btn {
-    flex: 1;
-    background: transparent;
-    border: none;
-    border-right: 4px solid var(--text-color);
-    padding: 1.2rem;
-    font-size: 1rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    cursor: pointer;
-    color: #888;
-    border-radius: 0;
-    box-shadow: none;
-    margin: 0;
-    transition: all 0.2s ease;
+    flex: 1; background: transparent; border: none; border-right: 4px solid var(--text-color); padding: 1.2rem;
+    font-size: 1rem; font-weight: 800; text-transform: uppercase; cursor: pointer; color: #888;
+    border-radius: 0; box-shadow: none; margin: 0; transition: all 0.2s ease;
 }
-
 .toggle-btn:last-child { border-right: none; }
 .toggle-btn.active { background: var(--accent-color); color: var(--text-color); }
 .toggle-btn:hover:not(.active) { background: #f0f0f0; }
-
 .auth-form { display: flex; flex-direction: column; gap: 0.8rem; }
 .auth-form.hidden { display: none; }
-
 .auth-submit-btn {
-    width: 100%; margin-top: 1rem; padding: 0.8rem; font-size: 1.1rem;
-    border: 2px solid var(--text-color); box-shadow: 4px 4px 0px var(--text-color);
-    background: var(--text-color); color: var(--bg-color);
+    width: 100%; margin-top: 1rem; padding: 0.8rem; font-size: 1.1rem; border: 2px solid var(--text-color); 
+    box-shadow: 4px 4px 0px var(--text-color); background: var(--text-color); color: var(--bg-color);
     cursor: pointer; font-weight: bold; text-transform: uppercase;
 }
 .auth-submit-btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--text-color); }
-
 .auth-divider { text-align: center; border-bottom: 2px solid #ddd; line-height: 0.1em; margin: 1.5rem 0; }
 .auth-divider span { background: var(--bg-color); padding: 0 15px; font-weight: 800; color: #888; font-size: 0.85rem; }
 .text-link { font-size: 0.85rem; font-weight: 600; text-decoration: underline; color: var(--text-color); text-align: center; margin-top: 0.5rem; display: block; }
-/* --- HOME PAGE IMAGE GRID --- */
-.image-grid {
-    display: flex;
-    gap: 2rem;
-    margin-top: 3rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-.image-grid img {
-    width: 100%;
-    max-width: 380px;
-    height: 250px;
-    object-fit: cover;
-    border: 4px solid var(--text-color);
-    box-shadow: 8px 8px 0px var(--accent-color);
-    filter: grayscale(100%);
-    transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease;
-}
-.image-grid img:hover {
-    filter: grayscale(0%);
-    transform: translate(-4px, -4px);
-    box-shadow: 12px 12px 0px var(--text-color);
-}
 
-/* --- STICKY CLOSE BUTTON FIX --- */
-#settings-modal {
-    position: relative; /* Anchors the close button to the modal */
-}
+.image-grid { display: flex; gap: 2rem; margin-top: 3rem; justify-content: center; flex-wrap: wrap; }
+.image-grid img { width: 100%; max-width: 380px; height: 250px; object-fit: cover; border: 4px solid var(--text-color); box-shadow: 8px 8px 0px var(--accent-color); filter: grayscale(100%); transition: transform 0.3s ease, filter 0.3s ease, box-shadow 0.3s ease; }
+.image-grid img:hover { filter: grayscale(0%); transform: translate(-4px, -4px); box-shadow: 12px 12px 0px var(--text-color); }
 
-/* --- STICKY CLOSE BUTTON FIX --- */
-.brutalist-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    z-index: 999; 
-    /* Feel free to add background/border styling here if it looks too plain! */
-}
+#settings-modal { position: relative; }
+.brutalist-close { position: absolute; top: 1rem; right: 1rem; z-index: 999; }
 
-/* --- MEET BLIP (THE CSS MASCOT) --- */
+nav a#nav-logo { display: flex !important; flex-direction: row !important; align-items: center !important; gap: 12px !important; text-decoration: none !important; padding-bottom: 0 !important; z-index: 50; white-space: nowrap; }
+@media (min-width: 769px) { nav a#nav-logo { position: absolute !important; left: 2rem !important; } }
+nav a#nav-logo::after { display: none !important; }
 
-/* Anchors Blip and forces a perfect side-by-side row */
-nav a#nav-logo {
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
-    gap: 12px !important;
-    text-decoration: none !important;
-    padding-bottom: 0 !important; 
-    z-index: 50;
-    white-space: nowrap; 
-}
-
-/* NEW: Only float the logo on desktop screens! */
-@media (min-width: 769px) {
-    nav a#nav-logo {
-        position: absolute !important;
-        left: 2rem !important;
-    }
-}
-/* NUKES the yellow hover line for the logo specifically */
-nav a#nav-logo::after {
-    display: none !important; 
-}
-
-.mascot-blip {
-    width: 50px;
-    height: 40px;
-    background-color: var(--accent-color);
-    border: 4px solid var(--text-color);
-    border-radius: 20px;
-    border-bottom-left-radius: 4px; 
-    position: relative;
-    box-shadow: 4px 4px 0px var(--text-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    transition: transform 0.2s;
-    cursor: pointer;
-    margin: 0; 
-}
-
-.mascot-blip:hover {
-    transform: translateY(-5px);
-    box-shadow: 4px 9px 0px var(--text-color);
-}
-
-.blip-eye {
-    width: 8px;
-    height: 8px;
-    background-color: var(--text-color);
-    border-radius: 50%;
-    animation: blink 4s infinite; 
-}
-
-@keyframes blink {
-    0%, 96%, 98%, 100% { transform: scaleY(1); }
-    97%, 99% { transform: scaleY(0.1); }
-}
-
+.mascot-blip { width: 50px; height: 40px; background-color: var(--accent-color); border: 4px solid var(--text-color); border-radius: 20px; border-bottom-left-radius: 4px; position: relative; box-shadow: 4px 4px 0px var(--text-color); display: flex; justify-content: center; align-items: center; gap: 8px; transition: transform 0.2s; cursor: pointer; margin: 0; }
+.mascot-blip:hover { transform: translateY(-5px); box-shadow: 4px 9px 0px var(--text-color); }
+.blip-eye { width: 8px; height: 8px; background-color: var(--text-color); border-radius: 50%; animation: blink 4s infinite; }
+@keyframes blink { 0%, 96%, 98%, 100% { transform: scaleY(1); } 97%, 99% { transform: scaleY(0.1); } }
 body.dark-mode .blip-eye { background-color: var(--bg-color); }
+.logo-text { font-weight: 800; font-size: 1.4rem; color: var(--text-color); letter-spacing: 2px; text-transform: uppercase; line-height: 1; margin-top: 5px; }
 
-/* The Heavy Brutalist Wordmark */
-.logo-text {
-    font-weight: 800;
-    font-size: 1.4rem;
-    color: var(--text-color);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    line-height: 1; /* Fixes vertical centering */
-    margin-top: 5px; /* Slight nudge down to align with Blip's eyes */
-}
+.loading-pulse-text { font-size: 1.2rem; font-weight: 800; color: #888; letter-spacing: 2px; animation: textPulse 1.5s infinite ease-in-out; }
+@keyframes textPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
 
-
-/* --- LOADING SCREEN ANIMATION --- */
-.loading-pulse-text {
-    font-size: 1.2rem;
-    font-weight: 800;
-    color: #888;
-    letter-spacing: 2px;
-    animation: textPulse 1.5s infinite ease-in-out;
-}
-
-@keyframes textPulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 1; }
-}
-
-/* --- TIER BADGES --- */
-.tier-badge {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    border-radius: 4px;
-    margin-left: 8px;
-    font-weight: 800;
-    vertical-align: middle;
-    border: 2px solid var(--text-color);
-}
-
-.tier-badge.pro {
-    background-color: #FFD700; /* Gold */
-    color: black;
-}
-
-.tier-badge.advanced {
-    background-color: #000; /* Black */
-    color: #FFD700;
-}
-/* --- BRUTALIST TOAST NOTIFICATION --- */
-#brutalist-toast {
-    position: fixed;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: var(--bg-color, #ffffff);
-    color: var(--text-color, #000000);
-    border: 4px solid var(--text-color, #000000);
-    box-shadow: 6px 6px 0px var(--accent-color, #FFD700);
-    
-    /* Alignment Fix */
-    display: flex;
-    align-items: center; 
-    justify-content: space-between; 
-    
-    padding: 0.8rem 1.2rem; 
-    z-index: 10000;
-    font-weight: 800;
-    width: 90%;
-    max-width: 400px;
-    
-    /* RESTORED: The smooth, bouncy sliding animation */
-    transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-}
-
-/* RESTORED: The rule that actually hides the toast! */
-#brutalist-toast.toast-hidden {
-    top: -150px; 
-    pointer-events: none; /* Prevents invisible mobile click blocking */
-}
-
-/* Grouping icon and text for alignment */
-#brutalist-toast > span {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    flex-grow: 1; 
-}
-
-#toast-message {
-    font-size: 0.9rem;
-    line-height: 1.4;
-    text-align: left;
-}
-
-/* Less Intrusive Close Button */
-#toast-close {
-    background: transparent;
-    border: none; 
-    color: #888888; 
-    font-size: 1.2rem; 
-    font-weight: 400; 
-    cursor: pointer;
-    padding: 0.2rem 0.4rem; 
-    transition: color 0.1s;
-}
-
-#toast-close:hover {
-    color: var(--text-color, #000000); 
-}
+#brutalist-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: var(--bg-color, #ffffff); color: var(--text-color, #000000); border: 4px solid var(--text-color, #000000); box-shadow: 6px 6px 0px var(--accent-color, #FFD700); display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1.2rem; z-index: 10000; font-weight: 800; width: 90%; max-width: 400px; transition: top 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+#brutalist-toast.toast-hidden { top: -150px; pointer-events: none; }
+#brutalist-toast > span { display: flex; align-items: center; gap: 0.8rem; flex-grow: 1; }
+#toast-message { font-size: 0.9rem; line-height: 1.4; text-align: left; }
+#toast-close { background: transparent; border: none; color: #888888; font-size: 1.2rem; font-weight: 400; cursor: pointer; padding: 0.2rem 0.4rem; transition: color 0.1s; }
+#toast-close:hover { color: var(--text-color, #000000); }

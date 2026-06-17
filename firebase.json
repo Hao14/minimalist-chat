@@ -16,6 +16,12 @@
   "hosting": {
     "public": "public",
     "cleanUrls": true,
+    "rewrites": [
+      {
+        "source": "/join/**",
+        "destination": "/chat.html"
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",

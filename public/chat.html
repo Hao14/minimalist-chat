@@ -9,13 +9,13 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
         <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<link rel="stylesheet" href="style.css?v=brutal_2">
+<link rel="stylesheet" href="style.css?v=brutal_6">
 </head>
 <body>
     <div class="shape yellow-circle bottom-left"></div>
 
     <nav>
-        <a href="index.html" id="nav-logo">
+        <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
                 <div class="blip-eye right"></div>
@@ -27,9 +27,7 @@
             <a href="/">Home</a>
             <a href="/story">Story</a>
             <a href="/chat" class="auth-only hidden">Chat</a>
-            
             <a href="#" id="open-updates-btn-desktop" class="auth-only hidden">Updates</a>
-            
             <a href="/login" class="guest-only" style="color: var(--accent-color);">Login</a>
         </div>
         <div id="nav-actions" class="desktop-nav"></div> 
@@ -39,7 +37,7 @@
         </div>
 
         <div id="mobile-nav-links" class="mobile-only">
-            <a href="chat.html" class="mobile-link auth-only">CHAT</a>
+            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">ROOMS</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">UPDATES</button>
             <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
@@ -53,7 +51,7 @@
         <button id="save-new-profile-btn">Enter Chat</button>
     </div>
 
-<div class="app-screen hidden" id="loading-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; height: 60vh;">
+    <div class="app-screen hidden" id="loading-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; height: 60vh;">
         <div class="mascot-blip" style="transform: scale(2); margin-bottom: 3rem; cursor: default;">
             <div class="blip-eye left"></div>
             <div class="blip-eye right"></div>
@@ -62,44 +60,75 @@
     </div>
 
     <div class="chat-container-full app-screen hidden" id="chat-wrapper">
-        <div id="chat-interface" class="fade-in-up">
-            <div id="loading-history" class="hidden">Loading history...</div>
-            <ul id="messages"></ul>
+        <div id="chat-interface" class="fade-in-up" style="flex-direction: row; position: relative;">
             
-            <div id="typing-status-container" class="hidden">
-                <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-                <span id="typing-text">Someone is typing...</span>
-            </div>
-
-            <div id="active-reply-box" class="hidden">
-                <div>
-                    <strong>Replying to <span id="replying-to-name"></span>:</strong>
-                    <span id="replying-to-text"></span>
+            <div id="desktop-room-sidebar">
+                <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>Rooms</h3>
+                    <button class="close-panel mobile-only" id="close-mobile-rooms-btn" style="background:none; border:none; font-size:1.5rem; margin:0; padding:0; box-shadow:none;">✖</button>
                 </div>
-                <span class="cancel-reply" id="cancel-reply-btn">✖</span>
+                <ul id="room-list">
+                    </ul>
+                <div class="sidebar-actions">
+                    <button id="create-room-btn" class="room-action-btn btn-dark">+ New room</button>
+                    <button id="join-room-btn" class="room-action-btn btn-light">→] Join</button>
+                </div>
             </div>
 
-            <form id="chat-form" action="">
-                <button type="button" id="attach-btn" title="Attach Image">📎</button>
-                <input type="file" id="image-input" accept="image/*" class="hidden">
-                <textarea id="message-input" rows="1" placeholder="Message..."></textarea>
-                <button type="submit" id="mobile-send-btn" class="hidden">Send</button>
-            </form>
+            <div id="main-chat-area">
+                <div id="active-room-header" style="position: relative; z-index: 100;">
+                    <div id="room-name-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s;">
+                        <span id="active-room-name-display">Global Chat</span>
+                        <span id="active-room-tag" class="tier-badge advanced">PUBLIC</span>
+                        <i class="ph-bold ph-caret-down" style="font-size: 1rem; color: #888;"></i>
+                    </div>
+
+                    <div id="room-settings-dropdown" class="hidden brutalist-dropdown" style="top: 45px; left: 1.5rem;">
+                        <button id="room-drop-invite">Invite to Room</button>
+                        <button id="room-drop-settings">Room Settings</button>
+                        <button id="room-drop-notifications">Notification Options</button>
+                    </div>
+                </div>
+
+                <div id="loading-history" class="hidden">Loading history...</div>
+                <ul id="messages"></ul>
+                
+                <div id="typing-status-container" class="hidden">
+                    <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                    <span id="typing-text">Someone is typing...</span>
+                </div>
+
+                <div id="active-reply-box" class="hidden">
+                    <div>
+                        <strong>Replying to <span id="replying-to-name"></span>:</strong>
+                        <span id="replying-to-text"></span>
+                    </div>
+                    <span class="cancel-reply" id="cancel-reply-btn">✖</span>
+                </div>
+
+                <form id="chat-form" action="">
+                    <button type="button" id="attach-btn" title="Attach Image">📎</button>
+                    <input type="file" id="image-input" accept="image/*" class="hidden">
+                    <textarea id="message-input" rows="1" placeholder="Message Global Chat..."></textarea>
+                    <button type="submit" id="mobile-send-btn" class="hidden">Send</button>
+                </form>
+            </div>
+
         </div>
     </div>
+
     <div id="updates-panel">
         <div class="contacts-header" style="justify-content: flex-start; gap: 15px;">
             <span>Change Log</span>
-            
             <div id="mini-admin-blip" title="Report Bug" class="mascot-blip" style="width: 30px; height: 24px; border-width: 2px; border-radius: 10px; margin: 0 auto 0 10px;">
                 <div class="blip-eye left" style="width: 4px; height: 4px;"></div>
                 <div class="blip-eye right" style="width: 4px; height: 4px;"></div>
             </div>
-            
             <span class="close-panel" id="close-updates-btn" style="margin-left: auto;">✖</span>
         </div>
         <ul id="updates-list"></ul>
     </div>
+
     <div id="contacts-panel">
         <div class="contacts-header">
             <span>Contacts</span><span class="close-panel" id="close-contacts-btn">✖</span>
@@ -121,27 +150,20 @@
 
     <div class="modal-overlay hidden" id="modal-overlay"></div>
     
-
     <div id="settings-modal" class="hidden brutalist-settings">
-
         <button id="close-settings-btn" class="brutalist-close" title="Close">✖</button>
-
         <div class="settings-sidebar">
             <h3 class="sidebar-header">USER SETTINGS</h3>
             <div class="settings-tab active" id="tab-btn-profile">My Account</div>
             <div class="settings-tab" id="tab-btn-billing">Billing</div>
             <div class="settings-tab" id="tab-btn-app">Appearance</div>
-            
-
             <div class="settings-divider"></div>
             <div class="settings-tab danger" id="logout-btn">Log Out</div>
         </div>
 
         <div class="settings-content">
-
             <div class="settings-pane active" id="pane-profile">
                 <h2>My Account</h2>
-                
                 <div class="settings-card">
                     <div class="settings-card-header">
                         <img id="settings-photo-preview" src="">
@@ -163,12 +185,10 @@
 
                 <div class="settings-card">
                     <div class="settings-card-body">
-                        
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                             <h3 class="sidebar-header" style="border:none; margin:0; padding:0;">Public Profile</h3>
                             <button id="toggle-edit-btn" style="width: auto; margin:0; padding: 0.4rem 1rem;">Edit Profile</button>
                         </div>
-
                         <div id="profile-form-fields" style="pointer-events: none; opacity: 0.7;">
                             <div class="input-group">
                                 <label>DISPLAY NAME</label>
@@ -243,25 +263,28 @@
                     </div>
                 </div>
             </div>
+            
             <div class="settings-pane hidden" id="pane-app">
                 <h2>Appearance</h2>
-                <div class="settings-card" style="display: flex; justify-content: space-between; align-items: center; padding: 2rem;">
-                    <span style="font-weight: 700; font-size: 1.2rem;">Theme Mode</span>
-                    <button id="theme-toggle-btn" style="width: auto; margin: 0;">Dark / Light 🌓</button>
+                <div class="settings-card" style="padding: 2rem;">
+                    <span style="font-weight: 700; font-size: 1.2rem; display: block; margin-bottom: 1rem;">Theme Selection</span>
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="action-btn theme-select-btn" data-theme="light" style="flex: 1; margin: 0;">Light ☀️</button>
+                        <button class="action-btn theme-select-btn" data-theme="dark" style="flex: 1; margin: 0;">Dark 🌙</button>
+                        <button class="action-btn theme-select-btn" data-theme="gray" style="flex: 1; margin: 0;">Gray ☁️</button>
+                    </div>
                 </div>
             </div>
-            
-        </div>
-    </div>
+        </div> 
+    </div> 
 
     <div id="user-profile-popup" class="hidden">
         <div class="profile-banner" id="up-banner">
             <div class="profile-popup-more" id="more-profile-btn"><i class="ph-bold ph-dots-three"></i></div>
-            
             <div id="profile-more-dropdown" class="hidden brutalist-dropdown">
+                <button id="up-mute-btn" style="font-weight: 600;">Mute User</button>
                 <button id="up-remove-friend-btn" class="danger-btn">Remove Friend</button>
             </div>
-
             <div class="profile-avatar-wrapper">
                 <img id="up-avatar" src="" alt="Avatar">
             </div>
@@ -276,72 +299,116 @@
             </div>
             <div class="profile-bio" id="up-bio">Bio goes here...</div>
             <div class="profile-joined-date" id="up-joined">Joined: Loading...</div>
-            
             <div class="profile-actions">
                 <button id="up-message-btn" style="width: 100%;">Message</button>
             </div>
         </div>
     </div>
 
-    <div id="incoming-call-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
-        <div class="brutalist-auth-card" style="text-align: center; max-width: 350px;">
-            <h2 style="margin-top: 1rem; border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem;">Incoming Call</h2>
-            <div class="profile-avatar-wrapper" style="position: relative; bottom: 0; left: 0; margin: 1.5rem auto;">
-                <img id="caller-avatar" src="" alt="Caller" style="width: 80px; height: 80px;">
-            </div>
-            <h3 id="caller-name" style="font-size: 1.5rem; margin-bottom: 1.5rem;">User Name</h3>
-            
-            <div style="display: flex; gap: 1rem; justify-content: center; margin-bottom: 1rem;">
-                <button id="accept-call-btn" style="background: #23a559; color: white; border-color: #000; flex: 1;">Accept</button>
-                <button id="decline-call-btn" style="background: #ff3333; color: white; border-color: #000; flex: 1;">Decline</button>
-            </div>
-        </div>
-    </div>
-    
-    <div id="active-call-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; flex-direction: column; background: var(--bg-color);">
-        <div style="padding: 1rem; border-bottom: 4px solid var(--text-color); display: flex; justify-content: space-between; align-items: center; background: var(--accent-color);">
-            <h2 id="active-call-name" style="margin: 0; font-size: 1.2rem;">Calling...</h2>
-            <span id="call-timer" style="font-weight: 800; font-family: monospace; font-size: 1.2rem;">00:00</span>
-        </div>
-        
-        <div id="video-container" style="flex: 1; position: relative; background: #111; display: flex; justify-content: center; align-items: center; overflow: hidden;">
-            <video id="remote-video" autoplay playsinline style="width: 100%; height: 100%; object-fit: cover;"></video>
-            
-            <video id="local-video" autoplay playsinline muted style="position: absolute; bottom: 20px; right: 20px; width: 120px; height: 160px; border: 4px solid var(--accent-color); object-fit: cover; box-shadow: -4px 4px 0px #000;"></video>
-            
-            <img id="audio-only-avatar" src="" class="hidden" style="width: 150px; height: 150px; border-radius: 50%; border: 4px solid var(--accent-color);">
-        </div>
-
-        <div style="padding: 1.5rem; border-top: 4px solid var(--text-color); display: flex; justify-content: center; gap: 1.5rem; background: var(--bg-color);">
-            <button id="toggle-mute-btn" class="action-btn" style="width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; padding: 0;">🎤</button>
-            <button id="toggle-video-btn" class="action-btn" style="width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; padding: 0;">📹</button>
-            <button id="end-call-btn" style="width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; padding: 0; background: #ff3333; color: white; border-color: #000; box-shadow: 4px 4px 0px #000; margin: 0;">☎</button>
-        </div>
-    </div>
-
     <div id="admin-dashboard-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
         <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
             <h2 style="border-bottom: 4px solid red; padding-bottom: 0.5rem; color: red; margin-top: 0;">RESTRICTED: ADMIN</h2>
-            
             <div class="input-group mt-1" style="text-align: left;">
                 <label>TARGET USER ID (UID)</label>
                 <input type="text" id="admin-target-id" placeholder="Enter precise UID...">
             </div>
-            
             <div style="display: flex; gap: 1rem; margin-top: 1rem;">
                 <button id="admin-mute-btn" style="background: #FF9800; color: #000; border-color: #000; flex: 1;">Mute 24h</button>
                 <button id="admin-ban-btn" style="background: red; color: white; border-color: #000; flex: 1;">Permaban</button>
             </div>
-            
             <button id="admin-wipe-btn" style="background: transparent; color: var(--text-color); margin-top: 2rem;">Wipe Ghost Connections</button>
             <button id="close-admin-dashboard-btn" style="background: var(--text-color); color: var(--bg-color); margin-top: 0.5rem;">Close Dashboard</button>
         </div>
     </div>
+    <div id="room-action-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 id="room-action-title" style="border-bottom: 4px solid var(--text-color); padding-bottom: 0.5rem; margin-top: 0;">Join Room</h2>
+            <div class="input-group mt-1" style="text-align: left;">
+                <label id="room-action-label">ROOM ID</label>
+                <input type="text" id="room-action-input" placeholder="Enter Room ID...">
+            </div>
+            <button id="room-action-submit" style="background: var(--text-color); color: var(--bg-color); margin-top: 1rem;">Join</button>
+            <button id="close-room-action-btn" style="background: transparent; color: var(--text-color); margin-top: 0.5rem; border: 2px solid var(--text-color); box-shadow: none;">Cancel</button>
+        </div>
+    </div>
+
+    <div id="room-settings-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 700px; height: 70vh; padding: 0; text-align: left; display: flex; flex-direction: row; overflow: hidden; background: var(--bg-color);">
+            
+            <div class="settings-sidebar" style="width: 30%; min-width: 180px; padding: 1.5rem; border-right: 4px solid var(--text-color);">
+                
+                <h3 class="sidebar-header" style="font-size: 0.9rem;">ROOM SETTINGS</h3>
+                <div class="settings-tab active" id="rs-tab-members" style="padding: 0.6rem; font-size: 0.9rem;">Members</div>
+                <div class="settings-tab" id="rs-tab-webhooks" style="padding: 0.6rem; font-size: 0.9rem;">Webhooks</div>
+                <div class="settings-tab" id="rs-tab-logs" style="padding: 0.6rem; font-size: 0.9rem;">Audit Logs</div>
+                
+                <div style="flex-grow: 1;"></div>
+                
+                <div class="settings-divider"></div>
+                <button id="rs-delete-room-btn" class="mini-btn danger hidden" style="width: 100%; padding: 0.8rem; margin-bottom: 0.5rem; border: 2px solid red;">Delete Room</button>
+                <button id="rs-leave-room-btn" class="mini-btn danger hidden" style="width: 100%; padding: 0.8rem; margin-bottom: 0.5rem; border: 2px solid red;">Leave Room</button>
+
+                <button id="close-room-settings-btn" class="mini-btn" style="width: 100%; padding: 0.8rem; background: transparent; color: var(--text-color); border: 2px solid var(--text-color);">Close Menu</button>
+            </div>
+
+            <div style="flex: 1; padding: 2rem; overflow-y: auto;">
+                <div id="rs-pane-members" class="rs-pane">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Member List</h2>
+                    <ul id="rs-members-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;"></ul>
+                </div>
+                
+                <div id="rs-pane-webhooks" class="rs-pane hidden">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Webhooks</h2>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: #666; margin-bottom: 1rem;">Integrate with Discord, Slack, or automated bots.</p>
+                    <div class="input-group">
+                        <label>WEBHOOK URL</label>
+                        <input type="text" id="rs-webhook-input" placeholder="https://...">
+                    </div>
+                    <button id="rs-save-webhook" class="action-btn" style="width: 100%;">Save Integration</button>
+                </div>
+                
+                <div id="rs-pane-logs" class="rs-pane hidden">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Audit Logs</h2>
+                    <ul id="rs-logs-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;"></ul>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    <div id="leave-room-modal" class="hidden modal-overlay" style="z-index: 7000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 0.5rem; margin-top: 0;">Leave Room</h2>
+            <p style="margin: 1.5rem 0; font-weight: 600; font-size: 1.1rem;">Are you sure you want to leave this room?</p>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="cancel-leave-btn" class="action-btn" style="flex: 1; margin: 0; padding: 0.8rem; box-shadow: none;">Cancel</button>
+                <button id="confirm-leave-btn" style="background: var(--text-color); color: var(--bg-color); border: 2px solid var(--text-color); flex: 1; padding: 0.8rem; margin: 0; font-weight: bold;">Leave</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-room-modal" class="hidden modal-overlay" style="z-index: 7000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid red; padding-bottom: 0.5rem; margin-top: 0; color: red;">Delete Room</h2>
+            <p style="margin: 1rem 0; font-weight: 600; font-size: 0.95rem;">This action is permanent. Type <strong style="color: red;">confirm</strong> to proceed.</p>
+            <input type="text" id="delete-room-input" placeholder="Type confirm..." style="width: 100%; text-align: center; font-weight: bold; padding: 0.8rem; border: 3px solid var(--text-color);">
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="cancel-delete-btn" class="action-btn" style="flex: 1; margin: 0; padding: 0.8rem; box-shadow: none;">Cancel</button>
+                <button id="confirm-delete-btn" style="background: red; color: white; border: 2px solid var(--text-color); flex: 1; padding: 0.8rem; margin: 0; font-weight: bold;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-context-menu" class="hidden brutalist-dropdown" style="position: fixed; z-index: 10000; min-width: 160px;">
+        <button id="ctx-mute-btn" style="font-weight: 600;">Mute User</button>
+        <button id="ctx-friend-btn" style="font-weight: 600;">Add Friend</button>
+        <button id="ctx-copy-btn" style="font-weight: 600;">Copy User ID</button>
+    </div>
+
     <footer>
         <div class="footer-links">
-            <a href="faq.html">FAQ</a>
-            <a href="terms.html">Terms of Service</a>
-            <a href="privacy.html">Privacy Policy</a>
+            <a href="/faq">FAQ</a>
+            <a href="/terms">Terms of Service</a>
+            <a href="/privacy">Privacy Policy</a>
             <a href="mailto:support@minimalist.com">Contact</a>
             <a href="https://github.com/Hao14/minimalist-chat/issues" target="_blank" rel="noopener noreferrer">Bug Report</a>
         </div>
@@ -349,7 +416,7 @@
     </footer>
     <div id="emoji-picker" class="hidden"></div>
 
-    <script type="module" src="app.js?v=brutal_3"></script>
+    <script type="module" src="app.js?v=brutal_15"></script>
     <div id="brutalist-toast" class="toast-hidden">
         <span id="toast-icon">⚠️</span>
         <span id="toast-message">Error message goes here</span>
