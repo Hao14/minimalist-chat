@@ -57,9 +57,8 @@ button:hover { transform: translate(2px, 2px); box-shadow: 4px 4px 0px var(--acc
 .action-btn { background: none; border: 2px solid var(--text-color); color: var(--text-color); padding: 0.5rem 1rem; font-size: 0.9rem; box-shadow: 3px 3px 0px var(--accent-color); cursor: pointer; font-weight: 700; transition: all 0.2s; }
 .action-btn:hover { transform: translate(2px, 2px); box-shadow: 1px 1px 0px var(--accent-color); }
 
-.chat-container-full { width: 100%; max-width: 1400px; margin: 0 auto; padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
-#chat-interface { display: flex; flex: 1; border: none; box-shadow: none; background: var(--bg-color); overflow: hidden; min-height: 0; flex-direction: row; }
-
+.chat-container-full { width: 100%; max-width: 100%; margin: 0; padding: 0; display: flex; flex-direction: column; flex: 1; min-height: 0; }
+#chat-interface { display: flex; flex: 1; border: none; box-shadow: none; background: var(--bg-color); overflow: hidden; min-height: 0; flex-direction: row; border-radius: 0; }
 /* --- MULTI-ROOM SIDEBAR ARCHITECTURE --- */
 #desktop-room-sidebar {
     width: 280px;
@@ -275,6 +274,7 @@ body.dark-mode .tier-badge.advanced { color: #000000; }
 body.dark-mode .reaction-badge { background-color: #111111; border-color: #444; }
 body.dark-mode .reaction-badge.user-reacted { background-color: var(--accent-color); color: var(--bg-color); }
 body.dark-mode .blip-eye { background-color: var(--bg-color); }
+body.dark-mode .modal-overlay { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 /* --- GRAY MODE OVERRIDES --- */
 body.gray-mode { --bg-color: #242424; --text-color: #e0e0e0; --accent-color: #666666; }
@@ -293,6 +293,7 @@ body.gray-mode .update-desc { color: #a0a0a0; }
 body.gray-mode .input-group label { color: #a0a0a0; }
 body.gray-mode .profile-bio { background: rgba(255, 255, 255, 0.05); }
 body.gray-mode .settings-sidebar { background: #2a2a2a; border-color: #555555; }
+body.gray-mode .modal-overlay { background: rgba(36, 36, 36, 0.4); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
 footer { margin-top: auto; border-top: 4px solid var(--text-color); background: var(--bg-color); padding: 2rem; text-align: center; position: relative; z-index: 10; }
 .footer-links { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 1rem; }
@@ -304,6 +305,8 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
 .mobile-only { display: none !important; }
 
 @media (max-width: 768px) {
+    /* NEW: Strips the borders and padding on mobile to keep it full-screen! */
+    
     .desktop-nav { display: none !important; }
     footer { display: none !important; }
     
@@ -422,3 +425,380 @@ body.dark-mode .blip-eye { background-color: var(--bg-color); }
 #toast-message { font-size: 0.9rem; line-height: 1.4; text-align: left; }
 #toast-close { background: transparent; border: none; color: #888888; font-size: 1.2rem; font-weight: 400; cursor: pointer; padding: 0.2rem 0.4rem; transition: color 0.1s; }
 #toast-close:hover { color: var(--text-color, #000000); }
+/* --- ORIGINAL SIDEBAR ACTION BUTTONS --- */
+.sidebar-actions { padding: 1.5rem; border-top: 1px solid #ddd; background: var(--bg-color); display: flex; gap: 0.5rem; margin-top: auto; }
+
+.room-action-btn { 
+    flex: 1; border: none; font-size: 0.85rem; 
+    padding: 0.6rem 0.2rem; /* Reduced top/bottom padding to make it slimmer */
+    font-weight: 700; border-radius: 6px; cursor: pointer; transition: all 0.2s; 
+    text-transform: uppercase; box-shadow: 4px 4px 0px var(--accent-color); margin: 0; 
+    white-space: nowrap; /* Forces the text to stay on one single line! */
+    letter-spacing: 0.5px;
+}
+
+.room-action-btn:hover { transform: translate(2px, 2px); box-shadow: 2px 2px 0px var(--accent-color); }
+.btn-dark { background: #1a1a1a; color: #ffffff; }
+.btn-light { background: #ebebeb; color: #1a1a1a; }
+
+/* Dark Mode fixes for these buttons */
+body.dark-mode .sidebar-actions { border-top: 1px solid #333; }
+body.dark-mode .btn-dark { background: #fafafa; color: #111; }
+body.dark-mode .btn-light { background: #333; color: #fafafa; }
+/* Full-Screen Mobile Drawer */
+@media (max-width: 768px) {
+    /* ROOM SIDEBAR BECOMES A FULL PAGE ON MOBILE */
+    #desktop-room-sidebar {
+        position: fixed; top: 0; left: -100%; height: 100dvh; width: 100%; max-width: 100%;
+        z-index: 8500; transition: left 0.3s ease; box-shadow: none; border-right: none;
+        /* Pushes the Create/Join buttons up so the nav bar doesn't hide them! */
+        padding-bottom: 90px; 
+    }
+    #desktop-room-sidebar.open { left: 0; }
+    
+    #mobile-back-to-rooms { color: var(--text-color); transition: transform 0.2s; }
+    #mobile-back-to-rooms:active { transform: scale(0.9); }
+}
+/* --- THE ULTIMATE MOBILE SIDEBAR FIX --- */
+@media (max-width: 768px) {
+    #desktop-room-sidebar {
+        position: fixed !important;
+        top: 0 !important;
+        /* Physically stops the sidebar right before the navigation bar begins */
+        bottom: calc(55px + env(safe-area-inset-bottom, 0px)) !important; 
+        height: auto !important; /* Disables the buggy 100% height calculation */
+        padding-bottom: 0 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    .sidebar-actions {
+        position: relative !important; /* Turns off absolute positioning */
+        bottom: auto !important;
+        margin-top: auto !important; /* Safely pushes the buttons to the bottom */
+        z-index: 10 !important;
+    }
+}
+/* --- TERMINAL BOOTLOADER ANIMATIONS --- */
+.boot-line { display: flex; align-items: center; gap: 10px; opacity: 0; animation: fadeInLine 0.1s forwards; }
+@keyframes fadeInLine { to { opacity: 1; } }
+
+.boot-cursor { 
+    display: inline-block; width: 8px; height: 16px; 
+    background-color: var(--text-color); 
+    animation: terminalBlink 1s step-end infinite; 
+    margin-left: 2px; 
+}
+@keyframes terminalBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+.boot-prefix { font-weight: 900; color: var(--text-color); width: 15px; }
+.boot-text { color: var(--text-color); }
+
+/* --- NATIVE MOBILE APP HEADER FIX --- */
+@media (max-width: 768px) {
+    /* 1. Nuke the top nav (logo & global search) ONLY on the chat page */
+    body:has(#chat-wrapper) nav {
+        padding: 0 !important;
+        border-bottom: none !important;
+        min-height: 0 !important;
+    }
+    
+    body:has(#chat-wrapper) #nav-logo,
+    body:has(#chat-wrapper) #mobile-search-bar {
+        display: none !important;
+    }
+
+    /* 2. Style the Room Header to sit flush at the top of the phone */
+    #active-room-header {
+        padding: 0.8rem 1rem !important;
+        border-bottom: 3px solid var(--text-color) !important;
+        background: var(--bg-color) !important;
+    }
+
+    /* 3. Perfect the Back Button alignment next to the room name */
+    #mobile-back-to-rooms {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.2rem !important;
+        width: 35px;
+        height: 35px;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+    
+    #mobile-back-to-rooms:active {
+        background: rgba(0,0,0,0.05) !important;
+        transform: scale(0.9);
+    }
+}
+/* --- UPDATES PANEL TABS --- */
+.update-tab { background: transparent; border: none; box-shadow: none; color: #888; font-size: 0.85rem; font-weight: 800; padding: 0.5rem 0; cursor: pointer; border-bottom: 4px solid transparent; border-radius: 0; margin: 0; width: auto; flex: none; text-transform: uppercase; letter-spacing: 1px; transition: color 0.2s; }
+.update-tab.active { color: var(--accent-color); border-bottom: 4px solid var(--accent-color); }
+.update-tab:hover { 
+    background: transparent !important; 
+    transform: none !important; 
+    box-shadow: none !important; 
+    color: var(--accent-color) !important; 
+}
+
+/* Optional: If you want it to hover white in Dark Mode to match the active tab */
+body.dark-mode .update-tab:hover {
+    color: var(--text-color) !important; 
+}
+
+body.dark-mode .update-tab.active { color: var(--text-color); border-color: var(--text-color); }
+
+/* --- MOBILE NAV ICON ALIGNMENT --- */
+@media (max-width: 768px) {
+    .mobile-link-btn {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 4px !important;
+        padding-top: 0.6rem !important;
+        padding-bottom: calc(0.6rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+    
+    .mobile-link-btn i { font-size: 1.5rem; margin-bottom: -2px; }
+    .mobile-link-btn span { font-size: 0.65rem; font-weight: 800; letter-spacing: 0.5px; }
+}
+/* --- SEAMLESS MOBILE UI (NO BORDERS) --- */
+@media (max-width: 768px) {
+    /* 1. Remove Bottom Nav Borders */
+    div#mobile-nav-links.mobile-only { border-top: none !important; }
+    .mobile-link, .mobile-link-btn { border-right: none !important; }
+    
+    /* 2. Remove Menu Headers & Footer Borders */
+    .sidebar-header, .contacts-header, .pm-header { border-bottom: none !important; }
+    .sidebar-actions { border-top: none !important; }
+    
+    /* 3. Remove List Separators (Rooms, Contacts) */
+    .room-item, .contact-item, .section-title { border-bottom: none !important; }
+    .room-item.active { border-bottom: none !important; }
+    
+    /* 4. Remove Main Chat Header Border */
+    #active-room-header { border-bottom: none !important; }
+}
+/* --- MOBILE ROOM SETTINGS MODAL FIX --- */
+@media (max-width: 768px) {
+    /* 1. Stack the layout vertically instead of side-by-side */
+    #room-settings-modal .brutalist-auth-card {
+        flex-direction: column !important;
+        height: 85vh !important;
+    }
+
+    /* 2. Turn the squished left sidebar into a horizontal Top Nav */
+    #room-settings-modal .settings-sidebar {
+        width: 100% !important;
+        min-width: 100% !important;
+        border-right: none !important;
+        border-bottom: 4px solid var(--text-color) !important;
+        padding: 1rem !important;
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    /* 3. Force the Title to its own row */
+    #room-settings-modal .sidebar-header {
+        width: 100% !important;
+        border-bottom: none !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        text-align: center !important;
+    }
+
+    /* 4. Let the 3 tabs sit neatly side-by-side */
+    #room-settings-modal .settings-tab {
+        flex: 1 1 30% !important;
+        font-size: 0.85rem !important;
+        padding: 0.6rem 0.2rem !important;
+        margin: 0 !important;
+    }
+
+    /* Hide the useless desktop spacers */
+    #room-settings-modal .settings-sidebar > div[style*="flex-grow"],
+    #room-settings-modal .settings-divider { 
+        display: none !important; 
+    }
+
+    /* 5. Make the Danger/Close buttons sit side-by-side */
+    #rs-delete-room-btn, #rs-leave-room-btn, #close-room-settings-btn {
+        flex: 1 1 45% !important;
+        margin: 0 !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* 6. Expand the content area to use the full width of the screen */
+    #room-settings-modal .brutalist-auth-card > div:last-child {
+        width: 100% !important;
+        padding: 1rem !important;
+    }
+}
+/* --- DESKTOP LEFT RAIL NAVIGATION (UNIVERSAL) --- */
+@media (min-width: 769px) {
+    /* 1. Global rail padding applied to ALL pages */
+    body { padding-left: 80px !important; }
+    
+    nav {
+        position: fixed !important; top: 0; left: 0; bottom: 0; width: 80px !important; height: 100vh !important;
+        flex-direction: column !important; justify-content: flex-start !important; padding: 1.5rem 0 !important;
+        border-bottom: none !important; border-right: 4px solid var(--text-color) !important;
+        gap: 1.5rem !important; align-items: center !important; z-index: 9000 !important; background: var(--bg-color);
+    }
+    
+    nav a#nav-logo { position: static !important; margin: 0 !important; }
+    .logo-text { display: none !important; } 
+    
+    .desktop-nav { 
+        flex-direction: column !important; width: 100% !important; gap: 1.5rem !important; 
+        margin: 0 !important; align-items: center !important; display: flex !important;
+        height: 100% !important; 
+    }
+
+    .rail-icon {
+        display: flex !important; align-items: center !important; justify-content: center !important;
+        font-size: 1.8rem !important; color: var(--text-color) !important; transition: transform 0.2s !important;
+        background: transparent !important; border: none !important; box-shadow: none !important;
+        padding: 0 !important; margin: 0 !important; width: 45px !important; height: 45px !important; 
+        border-radius: 12px !important; cursor: pointer !important; flex-shrink: 0 !important;
+    }
+    
+    .rail-icon:hover { transform: scale(1.15) !important; background: rgba(0,0,0,0.05) !important; }
+    
+    /* 2. BULLETPROOF HIDDEN FIX: Forces Login/Auth icons to obey JavaScript visibility */
+    .rail-icon.hidden, .guest-only.hidden, .auth-only.hidden { display: none !important; }
+    
+    nav a::after { display: none !important; } 
+    .chat-container-full, .container { max-width: none !important; width: 100% !important; }
+}
+/* --- MODERN NOTIFICATIONS UI --- */
+.modern-notif {
+    transition: background 0.2s ease;
+}
+
+.modern-notif:hover {
+    background: rgba(150, 150, 150, 0.08) !important;
+}
+
+/* Hide the X button by default, show it on hover */
+.notif-close-btn {
+    opacity: 0;
+    transition: all 0.2s;
+}
+
+.modern-notif:hover .notif-close-btn {
+    opacity: 0.6;
+}
+
+.notif-close-btn:hover {
+    opacity: 1 !important;
+    color: #FF3B30 !important;
+}
+
+/* On mobile, always show the X button subtly so they can tap it */
+@media (max-width: 768px) {
+    .notif-close-btn { opacity: 0.5; }
+}
+/* --- EXPANDING HEADER SEARCH BAR --- */
+.header-search-input {
+    width: 0;
+    opacity: 0;
+    padding: 0;
+    margin: 0 !important; /* Kills the global bottom margin pushing it up! */
+    height: 35px !important; /* Locks it to the exact height of the icon */
+    box-sizing: border-box !important; /* Stops padding from warping the height */
+    border: 3px solid transparent;
+    background: transparent;
+    color: var(--text-color);
+    font-weight: 700;
+    font-family: inherit;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    font-size: 0.9rem;
+    pointer-events: none;
+}
+
+.header-search-input.open {
+    width: 250px;
+    opacity: 1;
+    padding: 0 0.8rem;
+    border-color: var(--text-color);
+    border-radius: 6px;
+    margin-right: 8px !important; /* Adds a clean gap before the icon */
+    background: var(--bg-color);
+    pointer-events: auto;
+}
+
+/* Shrink the open width slightly on mobile so it doesn't crash into the room name */
+@media (max-width: 768px) {
+    .header-search-input.open { width: 140px; }
+}
+/* --- ROOM SUB-NAVIGATION TABS --- */
+#room-sub-nav {
+    /* Nukes the thin dividing line completely */
+    border-bottom: none !important; 
+}
+
+.room-tab {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 0.8rem; /* Scaled down slightly for a sub-menu feel */
+    font-weight: 800;
+    color: #888;
+    padding: 0.4rem 0 !important; /* Cut the height by more than half! */
+    margin: 0;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 3px solid transparent !important; /* Thinner active indicator */
+    transition: color 0.2s;
+    outline: none;
+    border-radius: 0;
+}
+
+.room-tab:hover {
+    color: var(--text-color);
+    transform: none !important;
+}
+
+.room-tab.active {
+    color: var(--text-color);
+    border-bottom: 3px solid var(--accent-color) !important;
+}
+
+/* Hide inactive views completely */
+.room-view.hidden {
+    display: none !important;
+}
+/* --- DASHBOARD UI --- */
+.dash-room-card {
+    padding: 1.5rem;
+    border: 3px solid var(--text-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    background: var(--bg-color);
+}
+
+.dash-room-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 4px 4px 0px var(--accent-color);
+}
+
+#open-dashboard-btn:hover { transform: scale(1.02); }
+/* --- ROOM HOMEPAGE GRID --- */
+/* Default Desktop: Left column is twice as wide as the right column */
+#room-home-grid {
+    grid-template-columns: 2fr 1fr;
+}
+
+/* Mobile: Stack them perfectly vertically */
+@media (max-width: 900px) {
+    #room-home-grid {
+        grid-template-columns: 1fr;
+    }
+}

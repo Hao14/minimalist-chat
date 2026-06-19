@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimalist | Chat</title>
+    <link rel="shortcut icon" href="#">
     <script>
         // If the app is running as a native Android/iOS app, use explicit file paths!
         if (window.Capacitor && window.Capacitor.isNativePlatform()) {
@@ -11,6 +12,7 @@
         }
     </script>
     <link rel="manifest" href="manifest.json">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <meta name="theme-color" content="#FFD700">
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
@@ -20,39 +22,43 @@
     <div class="shape yellow-circle"></div>
     <div class="shape outline-square"></div>
 
-    <nav>
+   <nav>
         <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
                 <div class="blip-eye right"></div>
             </div>
+            <span class="logo-text">MINIMALIST</span>
         </a>
 
-        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
-            <a href="/">Home</a>
-            <a href="/story">Story</a>
+        <!-- DESKTOP LEFT RAIL -->
+        <div class="desktop-nav">
+            <a href="/" class="rail-icon" title="Home"><i class="ph-bold ph-house"></i></a>
+            <a href="/story" class="rail-icon" title="Story"><i class="ph-bold ph-book-open"></i></a>
+            <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
             
-            <a href="/chat" class="auth-only hidden">Chat</a>
-            <a href="#" id="open-updates-btn-desktop" class="auth-only hidden">Updates</a>
-            
-            <a href="/login" class="guest-only" style="color: var(--accent-color);">Login</a>
+            <div style="flex-grow: 1; width: 100%; min-height: 20px;"></div>
+
+            <a href="#" id="open-updates-btn-desktop" class="rail-icon auth-only hidden" title="Updates"><i class="ph-bold ph-bell"></i></a>
+            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-settings-btn" title="Settings"><i class="ph-bold ph-gear"></i></button>
+            <a href="/login" class="rail-icon guest-only" title="Login"><i class="ph-bold ph-sign-in"></i></a>
         </div>
-
-        <div id="nav-actions" class="desktop-nav"></div> 
-
-    <div id="mobile-search-bar" class="mobile-only" style="width: 100%; padding-top: 0.5rem;">
-            <input type="text" placeholder="Search messages..." style="width: 100%; margin: 0; padding: 0.6rem; border: 3px solid var(--text-color); border-radius: 8px; font-weight: 600;">
-        </div>
-
+        
+        <!-- MOBILE BOTTOM NAV -->
         <div id="mobile-nav-links" class="mobile-only">
-            <a href="/" class="mobile-link">HOME</a>
-            <a href="/story" class="mobile-link">STORY</a>
-            <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
-            
-            <a href="/login" class="mobile-link guest-only">LOGIN</a>
-
-            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">
+                <i class="ph-bold ph-chats"></i><span>ROOMS</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">
+                <i class="ph-bold ph-users"></i><span>CONTACTS</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">
+                <i class="ph-bold ph-bell"></i><span>UPDATES</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">
+                <i class="ph-bold ph-gear"></i><span>SETTINGS</span>
+            </button>
         </div>
     </nav>
     <div class="container fade-in-up">

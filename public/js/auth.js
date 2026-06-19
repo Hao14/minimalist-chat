@@ -30,8 +30,9 @@ onAuthStateChanged(auth, async (user) => {
     const isLoginPage = currentPage.includes('login');
     const isChatPage = currentPage.includes('chat') || currentPage.includes('join');
 
-    const chatUrl = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'chat.html' : '/chat';
-    const loginUrl = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'login.html' : '/login';
+    // FIX: Explicitly enforce .html extensions to prevent local testing crashes!
+    const chatUrl = 'chat.html';
+    const loginUrl = 'login.html';
 
     if (user) {
         document.querySelectorAll('.auth-only').forEach(el => el.classList.remove('hidden'));

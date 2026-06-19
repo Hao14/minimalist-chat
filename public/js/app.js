@@ -1,12 +1,13 @@
 // js/app.js
+// 1. IMPORT FIREBASE CORE & DB
 import { db, auth } from './firebase-core.js';
-import { ref, set, get, onValue, onChildAdded, onChildChanged, remove, serverTimestamp, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
+import { ref, set, get, onValue, onChildAdded, onChildChanged, remove, serverTimestamp, onDisconnect, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+// 2. IMPORT YOUR MODULES TO ACTIVATE THEM
 import './auth.js';
 import './rooms.js';
 import './chat.js';
 
-// --- GLOBAL STATE ---
+// --- GLOBAL STATE (Shared across files) ---
 window.activeRoomId = 'global';
 window.activeRoomShortId = 'GLOBAL';
 window.currentRoomListener = null;
@@ -18,23 +19,22 @@ window.currentPmTargetUid = null;
 window.pmQueryRef = null;
 window.MY_ADMIN_UID = "WsREhwYvPxaCSAjz0aqvwAU1leg2"; 
 window.activeMessageId = null;
-
-// --- NEW MUTE GLOBALS ---
 window.muteTargetUid = null;
 window.muteTargetName = null;
 window.currentMuteTimeout = null;
 window.currentMuteListenerRef = null;
+window.chatInitialized = false;
 
 // --- GLOBAL CRASH REPORTER ---
 window.addEventListener('error', (event) => { 
     if (event.filename && event.filename.includes('extension')) return;
     if (event.message && event.message.includes('s is not defined')) return;
-    window.showToast("Script Crash: " + event.message); 
+    if(window.showToast) window.showToast("Script Crash: " + event.message); 
 });
 window.addEventListener('unhandledrejection', (event) => { 
     const msg = event.reason?.message || event.reason || "";
     if (typeof msg === 'string' && msg.includes('MetaMask')) return;
-    window.showToast("Database/Network Crash: " + msg); 
+    if(window.showToast) window.showToast("Database/Network Crash: " + msg); 
 });
 
 // --- UI HELPERS ---
@@ -54,21 +54,15 @@ window.showScreen = function(screenId) {
     document.querySelectorAll('.app-screen').forEach(screen => { screen.classList.add('hidden'); });
     const target = document.getElementById(screenId);
     if(target) target.classList.remove('hidden');
+    
+    // NEW: Automatically hide the footer when the chat interface is active!
+    const footer = document.querySelector('footer');
+    if (footer) {
+        footer.style.display = (screenId === 'chat-wrapper') ? 'none' : 'block';
+    }
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem('blipLoaded') === 'true') {
-        document.getElementById('loading-screen')?.classList.add('hidden');
-        document.getElementById('chat-wrapper')?.classList.remove('hidden');
-        document.querySelectorAll('.app-screen:not(#chat-wrapper)').forEach(s => s.classList.add('hidden'));
-        
-        const desktopNavActions = document.getElementById('nav-actions');
-        if (desktopNavActions) {
-            desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
-        }
-    }
-});
-
+// --- THEME ---
 const savedTheme = localStorage.getItem('theme') || 'light';
 document.body.classList.remove('dark-mode', 'gray-mode');
 if (savedTheme !== 'light') document.body.classList.add(`${savedTheme}-mode`);
@@ -82,6 +76,7 @@ document.querySelectorAll('.theme-select-btn').forEach(btn => {
     });
 });
 
+// --- NOTIFICATIONS ---
 let blinkInterval;
 let originalTitle = "Minimalist | Chat";
 window.playPing = function() {
@@ -124,6 +119,7 @@ window.listenForNotifications = function() {
     onChildChanged(inboxRef, handleInboxUpdate);
 };
 
+// --- SETTINGS UI ---
 window.openSettings = function() {
     const modalObj = document.getElementById('settings-modal');
     if (!modalObj) { window.location.href = (window.Capacitor && window.Capacitor.isNativePlatform()) ? 'chat.html' : '/chat'; return; }
@@ -208,12 +204,15 @@ document.getElementById('tab-btn-profile')?.addEventListener('click', () => wind
 document.getElementById('tab-btn-billing')?.addEventListener('click', () => window.switchTab('pane-billing', 'tab-btn-billing'));
 document.getElementById('tab-btn-app')?.addEventListener('click', () => window.switchTab('pane-app', 'tab-btn-app'));
 
+// --- GLOBAL CLICK LISTENER (MOBILE UI & PANELS) ---
 document.addEventListener('click', (e) => {
     if (e.target.id === 'toast-close') document.getElementById('brutalist-toast')?.classList.add('toast-hidden');
     if (e.target.id === 'open-settings-btn-mobile' || e.target.id === 'open-settings-btn') { window.openSettings(); }
     if (e.target.id === 'open-rooms-btn-mobile') { document.getElementById('desktop-room-sidebar')?.classList.add('open'); }
     if (e.target.id === 'close-mobile-rooms-btn') { document.getElementById('desktop-room-sidebar')?.classList.remove('open'); }
     if (e.target.id === 'open-contacts-btn-mobile' || e.target.id === 'open-contacts-btn') { if (window.toggleContacts) window.toggleContacts(); }
+    
+    if (e.target.closest('#mobile-back-to-rooms')) { document.getElementById('desktop-room-sidebar')?.classList.add('open'); }
     
     if (e.target.id === 'open-updates-btn-mobile' || e.target.id === 'open-updates-btn-desktop') {
         e.preventDefault(); 
@@ -226,16 +225,14 @@ document.addEventListener('click', (e) => {
     if (e.target.id === 'close-updates-btn') { document.getElementById('updates-panel')?.classList.remove('open'); }
 });
 
+
+// --- MAIN ENTRY POINT WITH TERMINAL BOOTLOADER ---
 window.enterChat = function() {
     try {
         const desktopNavActions = document.getElementById('nav-actions');
 
         const launchChatUI = () => {
             window.showScreen('chat-wrapper'); 
-            
-            if(desktopNavActions) {
-                desktopNavActions.innerHTML = `<button class="action-btn" id="open-contacts-btn">Contacts</button><button class="action-btn" id="open-settings-btn">Settings</button>`;
-            }
 
             document.getElementById('preview-profile-btn')?.addEventListener('click', () => {
                 document.getElementById('user-profile-popup').classList.add('preview-layout');
@@ -270,16 +267,81 @@ window.enterChat = function() {
             }
         };
 
+        // If they already booted up this session, skip the terminal.
         if (sessionStorage.getItem('blipLoaded') === 'true') {
             launchChatUI(); 
         } else {
             window.showScreen('loading-screen');
             if(desktopNavActions) desktopNavActions.innerHTML = '';
-            setTimeout(() => { sessionStorage.setItem('blipLoaded', 'true'); launchChatUI(); }, 2000);
+            
+            // THE 9 BOOT LINES
+            const bootLines = [
+                "Initializing core system...",
+                "Mounting secure protocols...",
+                "Establishing socket connection...",
+                "Verifying user identity...",
+                "Loading module: auth.js...",
+                "Loading module: rooms.js...",
+                "Loading module: chat.js...",
+                "Syncing realtime database...",
+                "System ready."
+            ];
+
+            const seqContainer = document.getElementById('boot-sequence');
+            if (seqContainer) {
+                seqContainer.innerHTML = '';
+                let currentLine = 0;
+
+                const showNextLine = () => {
+                    // Turn previous line's prefix into a checkmark and remove cursor
+                    if (currentLine > 0) {
+                        const prev = document.getElementById(`boot-line-${currentLine - 1}`);
+                        if (prev) {
+                            prev.querySelector('.boot-prefix').textContent = '✓';
+                            const cursor = prev.querySelector('.boot-cursor');
+                            if (cursor) cursor.remove();
+                        }
+                    }
+
+                    if (currentLine < bootLines.length) {
+                        // Print the new line
+                        const li = document.createElement('div');
+                        li.id = `boot-line-${currentLine}`;
+                        li.className = 'boot-line';
+                        li.innerHTML = `<span class="boot-prefix">›</span><span class="boot-text">${bootLines[currentLine]}</span><span class="boot-cursor"></span>`;
+                        seqContainer.appendChild(li);
+
+                        const isLast = (currentLine === bootLines.length - 1);
+                        currentLine++;
+                        
+                        // Random delay between lines to look like a real machine booting
+                        const delay = isLast ? 800 : Math.floor(Math.random() * 200) + 100;
+                        setTimeout(showNextLine, delay);
+                    } else {
+                        // The boot is finished. Fade out the screen.
+                        const loader = document.getElementById('loading-screen');
+                        if (loader) {
+                            loader.style.opacity = '0'; // CSS fade
+                            setTimeout(() => {
+                                sessionStorage.setItem('blipLoaded', 'true');
+                                launchChatUI();
+                                loader.classList.add('hidden');
+                                loader.style.opacity = '1'; // Reset for next time
+                            }, 500); // Wait for the fade to finish
+                        }
+                    }
+                };
+                
+                // Start the terminal sequence
+                setTimeout(showNextLine, 300);
+            } else {
+                // Failsafe
+                setTimeout(() => { sessionStorage.setItem('blipLoaded', 'true'); launchChatUI(); }, 2000);
+            }
         }
     } catch (error) { window.showToast("Error launching chat interface: " + error.message); }
 };
-
+// --- BACKGROUND SERVICES ---
 setInterval(() => {
     const clockEl = document.getElementById('live-clock');
     if (clockEl) clockEl.textContent = `SYSTEM TIME: ${new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' })}`;
@@ -324,6 +386,7 @@ window.fetchGitHubUpdates = async function() {
     } catch (err) { list.innerHTML = `<li style="padding: 2rem; text-align: center; color: red; border: 4px solid red; font-weight: bold;">CONNECTION FAILED.</li>`; }
 };
 
+// --- EMOJI PICKER POPULATION ---
 const emojis = ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","🤡","💩","👻","💀","☠️","👽","👾","🤖","🎃","👍","👎","❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎"];
 const picker = document.getElementById('emoji-picker');
 if (picker) {
@@ -335,6 +398,7 @@ if (picker) {
     });
 }
 
+// --- ADMIN TOOLS ---
 let blipClickCount = 0; let blipClickTimer = null;
 document.getElementById('mini-admin-blip')?.addEventListener('click', () => {
     blipClickCount++;
@@ -364,4 +428,279 @@ document.getElementById('admin-mute-btn')?.addEventListener('click', () => {
     const target = document.getElementById('admin-target-id').value.trim();
     if (!target) return window.showToast("Enter a UID first!");
     set(ref(db, `users/${target}/isMuted`), true).then(() => window.showToast(`User ${target} globally muted!`, false)).catch((e) => window.showToast("Mute failed: " + e.message));
+});
+// --- NEW: MOBILE UI FIXES & SEARCH LOGIC ---
+document.addEventListener('click', (e) => {
+    
+    // 1. Handle Mobile Back Button
+    if (e.target.closest('#mobile-back-to-rooms')) {
+        document.getElementById('desktop-room-sidebar')?.classList.add('open');
+    }
+    
+    // 2. Clear room search bar automatically when switching rooms
+    if (e.target.closest('.room-item')) {
+        const roomSearch = document.getElementById('room-search-input');
+        if (roomSearch) roomSearch.value = '';
+    }
+    // 4. Handle Updates Panel Tabs
+    if (e.target.id === 'tab-notifications') {
+        document.getElementById('tab-notifications').classList.add('active');
+        document.getElementById('tab-changelog').classList.remove('active');
+        document.getElementById('notifications-list').classList.remove('hidden');
+        document.getElementById('updates-list').classList.add('hidden');
+    }
+    
+    if (e.target.id === 'tab-changelog') {
+        document.getElementById('tab-changelog').classList.add('active');
+        document.getElementById('tab-notifications').classList.remove('active');
+        document.getElementById('updates-list').classList.remove('hidden');
+        document.getElementById('notifications-list').classList.add('hidden');
+    }
+});
+// --- UNIVERSAL NAV BUTTON LISTENERS ---
+document.addEventListener('click', (e) => {
+    // 1. Open Contacts Panel
+    if (e.target.closest('#open-contacts-btn') || e.target.closest('#open-contacts-btn-mobile')) {
+        if (window.toggleContacts) window.toggleContacts();
+    }
+    
+    // 2. Open Settings Modal
+    if (e.target.closest('#open-settings-btn') || e.target.closest('#open-settings-btn-mobile')) {
+        const settingsModal = document.getElementById('settings-modal');
+        if (settingsModal) {
+            settingsModal.classList.remove('hidden');
+            document.getElementById('modal-overlay')?.classList.remove('hidden');
+        }
+    }
+
+    // 3. Open Updates Panel
+    if (e.target.closest('#open-updates-btn-desktop') || e.target.closest('#open-updates-btn-mobile')) {
+        e.preventDefault();
+        document.getElementById('updates-panel')?.classList.toggle('open');
+    }
+});
+// 3. Live Search Filter Logic
+document.addEventListener('input', (e) => {
+    // Filter Main Room Messages
+    if (e.target.id === 'room-search-input') {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('#messages li').forEach(msg => {
+            const text = msg.textContent.toLowerCase();
+            msg.style.display = text.includes(query) ? 'flex' : 'none';
+        });
+    }
+    
+    // Filter Private Messages
+    if (e.target.id === 'pm-search-input') {
+        const query = e.target.value.toLowerCase();
+        document.querySelectorAll('#pm-messages li').forEach(msg => {
+            const text = msg.textContent.toLowerCase();
+            msg.style.display = text.includes(query) ? 'list-item' : 'none';
+        });
+    }
+
+    // NEW: Filter Contacts via Database Query
+    if (e.target.id === 'contact-search-input') {
+        if (window.renderContactsUI) window.renderContactsUI();
+    }
+});
+// --- CLOSE MODALS ON OUTSIDE CLICK ---
+document.addEventListener('click', (e) => {
+    // 1. Safely Close User Profile Popup
+    const profilePopup = document.getElementById('user-profile-popup');
+    if (profilePopup && !profilePopup.classList.contains('hidden')) {
+        // Ignore the click if it was INSIDE the popup, or on the buttons that open it
+        if (!e.target.closest('#user-profile-popup') && 
+            !e.target.closest('.msg-avatar') && 
+            !e.target.closest('.msg-name') && 
+            !e.target.closest('.avatar-wrapper') && 
+            !e.target.closest('.contact-icon-btn') && 
+            !e.target.closest('#preview-profile-btn')) {
+            
+            profilePopup.classList.add('hidden');
+            
+            // Only hide the background overlay if Settings isn't open behind it
+            const settings = document.getElementById('settings-modal');
+            if (!settings || settings.classList.contains('hidden')) {
+                document.getElementById('modal-overlay')?.classList.add('hidden');
+            }
+        }
+    }
+
+    // 2. Safely Close all other Modals (Join, Mute, Delete, etc.)
+    if (e.target.id === 'modal-overlay') {
+        const modals = ['room-action-modal', 'room-settings-modal', 'leave-room-modal', 'delete-room-modal', 'mute-user-modal', 'admin-dashboard-modal'];
+        modals.forEach(id => document.getElementById(id)?.classList.add('hidden'));
+        
+        const settings = document.getElementById('settings-modal');
+        if (!settings || settings.classList.contains('hidden')) {
+            document.getElementById('modal-overlay')?.classList.add('hidden');
+        }
+    }
+});
+// --- REAL-TIME NOTIFICATION ENGINE ---
+
+window.createNotification = async function(targetUid, type, text) {
+    try {
+        // Prevent sending notifications to yourself
+        if (!targetUid || targetUid === window.currentUser.uid) return; 
+        
+        const pushRef = push(ref(db, `notifications/${targetUid}`));
+        await set(pushRef, { 
+            type: type, 
+            text: text, 
+            timestamp: Date.now() 
+        });
+    } catch (err) { console.error("Failed to push notification", err); }
+};
+
+window.clearNotification = async function(notifId) {
+    try {
+        await remove(ref(db, `notifications/${window.currentUser.uid}/${notifId}`));
+    } catch (err) { console.error("Failed to clear notification", err); }
+};
+
+window.listenForNotifications = function() {
+    if (!window.currentUser) return;
+    
+    onValue(ref(db, `notifications/${window.currentUser.uid}`), (snapshot) => {
+        const list = document.getElementById('notifications-list');
+        const deskBell = document.getElementById('open-updates-btn-desktop');
+        const mobBell = document.getElementById('open-updates-btn-mobile');
+        
+        if (!list) return;
+
+        if (snapshot.exists()) {
+            const notifs = Object.entries(snapshot.val()).sort((a,b) => b[1].timestamp - a[1].timestamp);
+            
+            if (deskBell) deskBell.style.color = '#FF3B30';
+            if (mobBell) mobBell.style.color = '#FF3B30';
+
+            list.style.padding = "0"; list.style.gap = "0"; list.innerHTML = '';
+
+            notifs.forEach(([nId, n]) => {
+                let title = "SYSTEM ALERT"; let icon = "ph-bold ph-bell";
+                if (n.type === 'message') { title = "NEW MESSAGE"; icon = "ph-bold ph-chat-circle-text"; }
+                if (n.type === 'friend') { title = "FRIEND REQUEST"; icon = "ph-bold ph-user-plus"; }
+                if (n.type === 'room') { title = "ROOM ACTIVITY"; icon = "ph-bold ph-users-three"; }
+
+                const d = new Date(n.timestamp);
+                const today = new Date();
+                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+                
+                let timeStr = d.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
+                if (d.toDateString() === yesterday.toDateString()) timeStr = "Yesterday";
+                else if (d.toDateString() !== today.toDateString()) timeStr = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+
+                list.innerHTML += `
+                    <li class="modern-notif" style="padding: 1.2rem 1.5rem; border-bottom: 2px solid var(--text-color); display: flex; align-items: center; gap: 15px;">
+                        <i class="${icon}" style="font-size: 1.8rem; color: var(--text-color); flex-shrink: 0;"></i>
+                        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px;">
+                                <span style="font-size: 0.9rem; font-weight: 800; color: var(--text-color); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                                <span style="font-size: 0.75rem; font-weight: 800; color: #888; flex-shrink: 0;">${timeStr}</span>
+                            </div>
+                            <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${n.text}</span>
+                        </div>
+                        <span onclick="clearNotification('${nId}')" class="notif-close-btn" style="font-size: 1.5rem; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 35px; height: 35px; transition: color 0.2s;">
+                            <i class="ph-bold ph-x"></i>
+                        </span>
+                    </li>
+                `;
+            });
+        } else {
+            if (deskBell) deskBell.style.color = 'var(--text-color)';
+            if (mobBell) mobBell.style.color = 'var(--text-color)';
+            list.style.padding = "1.5rem"; 
+            list.innerHTML = `<div style="text-align: center; color: #888; margin-top: 2rem; font-weight: bold;"><i class="ph-bold ph-bell-slash" style="font-size: 3rem; margin-bottom: 1rem; display: block; color: var(--text-color);"></i>You're all caught up!</div>`;
+        }
+    });
+};
+/* --- MASTER NAVIGATION CONTROLLER (FIX DOUBLE FIRE) --- */
+document.addEventListener('click', (e) => {
+    const isRooms = e.target.closest('#open-rooms-btn-mobile');
+    const isContacts = e.target.closest('#open-contacts-btn') || e.target.closest('#open-contacts-btn-mobile');
+    const isUpdates = e.target.closest('#open-updates-btn-desktop') || e.target.closest('#open-updates-btn-mobile');
+    const isSettings = e.target.closest('#open-settings-btn') || e.target.closest('#open-settings-btn-mobile');
+
+    // If the user clicked ANY navigation button...
+    if (isRooms || isContacts || isUpdates || isSettings) {
+        e.stopImmediatePropagation(); // Instantly kill the old double-firing listeners!
+        e.preventDefault();
+
+        const roomsSidebar = document.getElementById('desktop-room-sidebar');
+        const contactsPanel = document.getElementById('contacts-panel');
+        const updatesPanel = document.getElementById('updates-panel');
+        const settingsModal = document.getElementById('settings-modal');
+
+        // 1. Remember what was currently open
+        const wasRoomsOpen = roomsSidebar?.classList.contains('open');
+        const wasContactsOpen = contactsPanel?.classList.contains('open');
+        const wasUpdatesOpen = updatesPanel?.classList.contains('open');
+        const wasSettingsOpen = settingsModal && !settingsModal.classList.contains('hidden');
+
+        // 2. Force close all panels for a clean slate
+        if (roomsSidebar) roomsSidebar.classList.remove('open');
+        if (contactsPanel) contactsPanel.classList.remove('open');
+        if (updatesPanel) updatesPanel.classList.remove('open');
+        if (settingsModal) {
+            settingsModal.classList.add('hidden');
+            document.getElementById('modal-overlay')?.classList.add('hidden');
+        }
+
+        // 3. Open ONLY the requested panel (acts as an exclusive toggle)
+        if (isRooms && !wasRoomsOpen && roomsSidebar) {
+            roomsSidebar.classList.add('open');
+        }
+
+        if (isContacts && !wasContactsOpen) {
+            // Since we explicitly closed it above, toggleContacts will perfectly open it!
+            if (window.toggleContacts) window.toggleContacts();
+        }
+
+        if (isUpdates && !wasUpdatesOpen && updatesPanel) {
+            updatesPanel.classList.add('open');
+            if (window.fetchGitHubUpdates) window.fetchGitHubUpdates();
+        }
+
+        if (isSettings && !wasSettingsOpen) {
+            if (window.openSettings) window.openSettings();
+        }
+    }
+}, true); // The "true" enables the Capture Phase, intercepting the click early!
+// --- TOGGLE HEADER SEARCH BAR ---
+document.addEventListener('click', (e) => {
+    if (e.target.closest('#toggle-room-search-btn')) {
+        const searchInput = document.getElementById('room-search-input');
+        if (searchInput) {
+            searchInput.classList.toggle('open');
+            if (searchInput.classList.contains('open')) {
+                searchInput.focus(); // Auto-focus so you can type immediately
+            } else {
+                // Clear the text and trigger an update to reset the chat feed
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    }
+});
+// --- ROOM DASHBOARD TAB SWITCHING ---
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('room-tab')) {
+        const targetView = e.target.getAttribute('data-target');
+        
+        // 1. Update Tab Visuals
+        document.querySelectorAll('.room-tab').forEach(tab => tab.classList.remove('active'));
+        e.target.classList.add('active');
+        
+        // 2. Hide all views, show the target view
+        document.querySelectorAll('.room-view').forEach(view => view.classList.add('hidden'));
+        document.getElementById(`room-view-${targetView}`)?.classList.remove('hidden');
+        
+        // 3. Auto-scroll chat to bottom if returning to the Chat tab
+        if (targetView === 'chat') {
+            const msgs = document.getElementById('messages');
+            if (msgs) msgs.scrollTop = msgs.scrollHeight;
+        }
+    }
 });

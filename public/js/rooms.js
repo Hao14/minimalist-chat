@@ -33,9 +33,11 @@ window.initializeRooms = function() {
             roomListEl.appendChild(li);
         });
     });
-    window.switchRoom('global', 'Global Chat', 'GLOBAL');
-};
 
+    // Boot directly into Global Chat!
+    window.switchRoom('global', 'Global Chat', 'GLOBAL');
+    if (window.innerWidth <= 768) document.getElementById('desktop-room-sidebar')?.classList.add('open');
+};
 window.switchRoom = function(roomId, roomName, shortId = '') {
     window.activeRoomId = roomId;
     window.activeRoomShortId = shortId || roomId;
@@ -54,7 +56,52 @@ window.switchRoom = function(roomId, roomName, shortId = '') {
     // --- LIVE MUTE CHECKER & COUNTDOWN ---
     if (window.currentMuteListenerRef) off(window.currentMuteListenerRef);
     clearTimeout(window.currentMuteTimeout);
+    // --- UPDATE DYNAMIC ROOM HOMEPAGE ---
+    const rhMemberCount = document.getElementById('rh-member-count');
+    const rhCreatedDate = document.getElementById('rh-created-date');
+    const rhActivityList = document.getElementById('rh-activity-list');
+    const rhMembersList = document.getElementById('rh-members-list');
 
+    if (roomId === 'global') {
+        if(rhMemberCount) rhMemberCount.textContent = '∞';
+        if(rhCreatedDate) rhCreatedDate.textContent = 'Day 1';
+        if(rhMembersList) rhMembersList.innerHTML = `<span style="padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: var(--text-color);">Everyone</span>`;
+        if(rhActivityList) rhActivityList.innerHTML = `<li style="color: #888; font-weight: bold;">Global logs hidden.</li>`;
+    } else {
+        get(ref(db, `rooms_meta/${roomId}`)).then(snap => {
+            if (snap.exists()) {
+                const data = snap.val();
+                
+                if(rhCreatedDate && data.createdAt) rhCreatedDate.textContent = new Date(data.createdAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
+                
+                if(rhMembersList && data.members) {
+                    if(rhMemberCount) rhMemberCount.textContent = Object.keys(data.members).length;
+                    rhMembersList.innerHTML = '';
+                    Object.values(data.members).forEach(name => {
+                        rhMembersList.innerHTML += `<span style="padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: var(--text-color); white-space: nowrap;">${name}</span>`;
+                    });
+                }
+
+                if (rhActivityList && data.logs) {
+                    rhActivityList.innerHTML = '';
+                    Object.values(data.logs).sort((a,b) => b.timestamp - a.timestamp).slice(0, 6).forEach(l => {
+                        const timeStr = new Date(l.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        let icon = l.text.includes('joined') ? 'ph-sign-in' : (l.text.includes('left') || l.text.includes('kicked') ? 'ph-sign-out' : 'ph-check-circle');
+                        
+                        rhActivityList.innerHTML += `
+                            <li style="display: flex; gap: 15px; border-bottom: 1px solid rgba(150,150,150,0.2); padding-bottom: 0.8rem;">
+                                <i class="ph-bold ${icon}" style="color: var(--text-color); font-size: 1.3rem;"></i>
+                                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-color); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${l.text}</div>
+                                    <div style="font-size: 0.75rem; color: #888; font-weight: 800; margin-top: 2px;">${timeStr}</div>
+                                </div>
+                            </li>
+                        `;
+                    });
+                } else if (rhActivityList) { rhActivityList.innerHTML = `<li style="color: #888; font-weight: bold;">No recent activity.</li>`; }
+            }
+        });
+    }
     if (roomId === 'global') {
         if(roomTag) { roomTag.textContent = 'PUBLIC'; roomTag.className = 'tier-badge advanced'; }
         if(inviteBtn) inviteBtn.style.display = 'none'; 
@@ -74,7 +121,7 @@ window.switchRoom = function(roomId, roomName, shortId = '') {
         window.currentMuteListenerRef = ref(db, `rooms_meta/${roomId}/muted/${window.currentUser.uid}`);
         onValue(window.currentMuteListenerRef, (snap) => {
             clearTimeout(window.currentMuteTimeout);
-            if (snap.exists() && snap.val() !== true) { // New Timestamp format
+            if (snap.exists() && snap.val() !== true) { 
                 const unmuteTime = snap.val();
                 const timeLeft = unmuteTime - Date.now();
                 
@@ -83,17 +130,15 @@ window.switchRoom = function(roomId, roomName, shortId = '') {
                         msgInput.disabled = true;
                         msgInput.placeholder = `Muted. Unmutes in ${Math.ceil(timeLeft / 60000)}m...`;
                     }
-                    // Auto-unlock when time expires!
                     window.currentMuteTimeout = setTimeout(() => {
                         if (msgInput) { msgInput.disabled = false; msgInput.placeholder = `Message ${roomName}...`; }
                         remove(ref(db, `rooms_meta/${roomId}/muted/${window.currentUser.uid}`));
                     }, timeLeft);
                 } else {
-                    // Time passed while offline
                     if (msgInput) { msgInput.disabled = false; msgInput.placeholder = `Message ${roomName}...`; }
                     remove(ref(db, `rooms_meta/${roomId}/muted/${window.currentUser.uid}`));
                 }
-            } else if (snap.exists() && snap.val() === true) { // Old True/False format
+            } else if (snap.exists() && snap.val() === true) { 
                 if (msgInput) { msgInput.disabled = true; msgInput.placeholder = "You are permanently muted in this room."; }
             } else {
                 if (msgInput) { msgInput.disabled = false; msgInput.placeholder = `Message ${roomName}...`; }
@@ -180,10 +225,15 @@ document.getElementById('room-action-submit')?.addEventListener('click', async (
                 await set(ref(db, `rooms_meta/${foundRoom.key}/members/${window.currentUser.uid}`), window.userProfileName);
                 let logText = inviterId ? `${window.userProfileName} joined via invite link from user #${inviterId}.` : `${window.userProfileName} joined the room.`;
                 await set(ref(db, `rooms_meta/${foundRoom.key}/logs/${Date.now()}`), { text: logText, timestamp: Date.now() });
+                
+                // NEW: Send notification to the room's creator!
+                if (window.createNotification && foundRoom.creatorId) window.createNotification(foundRoom.creatorId, 'room', `${window.userProfileName || 'Someone'} joined your room!`);
+                
                 if(roomActionModal) roomActionModal.classList.add('hidden');
                 window.switchRoom(foundRoom.key, foundRoom.name, foundRoom.shortId);
                 window.showToast("Joined room successfully!", false);
-            } else { window.showToast("Room ID not found. Check for typos!"); }
+            }
+             else { window.showToast("Room ID not found. Check for typos!"); }
         } catch (e) { window.showToast("Error joining room: " + e.message); }
     }
 });
@@ -255,7 +305,6 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
     }
 });
 
-// Settings Tabs
 const rsTabs = ['members', 'webhooks', 'logs'];
 rsTabs.forEach(tab => {
     const btn = document.getElementById(`rs-tab-${tab}`);
@@ -273,7 +322,9 @@ document.getElementById('rs-save-webhook')?.addEventListener('click', async () =
     window.showToast("Webhook integration saved!", false);
 });
 
-// Leave / Delete Modals
+const leaveRoomModal = document.getElementById('leave-room-modal');
+const deleteRoomModal = document.getElementById('delete-room-modal');
+
 document.getElementById('rs-leave-room-btn')?.addEventListener('click', () => document.getElementById('leave-room-modal')?.classList.remove('hidden'));
 document.getElementById('cancel-leave-btn')?.addEventListener('click', () => document.getElementById('leave-room-modal')?.classList.add('hidden'));
 document.getElementById('confirm-leave-btn')?.addEventListener('click', async () => {
@@ -308,7 +359,7 @@ document.getElementById('confirm-delete-btn')?.addEventListener('click', async (
     } else { window.showToast("You must type 'confirm' exactly."); }
 });
 
-// --- NEW TIMED MUTE UI LOGIC ---
+// --- TIMED MUTE UI LOGIC ---
 let selectedMuteTime = 0;
 document.querySelectorAll('.mute-duration-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -359,7 +410,13 @@ document.getElementById('close-contacts-btn')?.addEventListener('click', () => {
     off(ref(db, 'friends/' + window.currentUser.uid)); off(ref(db, 'presence')); 
 });
 
-window.sendRequest = async (targetUid) => { await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'pending_sent'); await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'pending_received'); };
+window.sendRequest = async (targetUid) => { 
+    await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'pending_sent'); 
+    await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'pending_received');
+    
+    // FIXED: Changed 'uid' to 'targetUid'
+    if (window.createNotification) window.createNotification(targetUid, 'friend', `${window.userProfileName || 'Someone'} sent you a friend request!`);
+};
 window.acceptRequest = async (targetUid) => { await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'accepted'); await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'accepted'); };
 window.removeFriend = async (targetUid) => { await remove(ref(db, `friends/${window.currentUser.uid}/${targetUid}`)); await remove(ref(db, `friends/${targetUid}/${window.currentUser.uid}`)); };
 
@@ -368,33 +425,96 @@ window.renderContactsUI = async function() {
         const list = document.getElementById('contacts-list');
         if(!list) return;
 
+        // Grab current search text
+        const searchInput = document.getElementById('contact-search-input');
+        const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
         const usersSnap = await get(ref(db, 'users'));
         const friendsSnap = await get(ref(db, 'friends/' + window.currentUser.uid));
         const presenceSnap = await get(ref(db, 'presence'));
 
-        const allUsers = usersSnap.val() || {}; const myFriends = friendsSnap.val() || {}; const presenceData = presenceSnap.val() || {}; 
-        let htmlRequests = '', htmlFriends = '', htmlOthers = '';
+        // Check who is in the current room
+        let currentRoomMembers = {};
+        if (window.activeRoomId !== 'global') {
+            const roomSnap = await get(ref(db, `rooms_meta/${window.activeRoomId}/members`));
+            if (roomSnap.exists()) currentRoomMembers = roomSnap.val();
+        }
+
+        const allUsers = usersSnap.val() || {}; 
+        const myFriends = friendsSnap.val() || {}; 
+        const presenceData = presenceSnap.val() || {}; 
+        
+        let htmlRequests = '', htmlOnline = '', htmlOffline = '', htmlRoom = '', htmlSearch = '';
 
         for (const uid in allUsers) {
             if (uid === window.currentUser.uid) continue;
-            const user = allUsers[uid]; const status = myFriends[uid];
-            const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, "");
-            const statusClass = (presenceData[uid] && presenceData[uid].state === 'online') ? 'online' : 'offline';
-
-            const baseItem = `<li class="contact-item"><div class="contact-info"><div class="avatar-wrapper" onclick="viewUserProfile('${uid}')" style="cursor: pointer;" title="View Profile"><img src="${avatar}" class="contact-avatar"><div class="status-dot ${statusClass}"></div></div><span style="font-weight:600;">${user.displayName}</span><span class="unread-indicator" id="dot-${uid}"></span></div><div class="contact-actions">`;
             
-            if (status === 'accepted') htmlFriends += baseItem + `<button class="contact-icon-btn" onclick="openPrivateChat('${uid}', '${user.displayName.replace(/'/g, "\\'")}')" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button><button class="contact-icon-btn" onclick="viewUserProfile('${uid}')" title="More Options"><i class="ph-bold ph-dots-three-vertical"></i></button></div></li>`; 
-            else if (status === 'pending_received') htmlRequests += baseItem + `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`;
-            else if (status === 'pending_sent') htmlOthers += baseItem + `<span style="font-size:0.8rem; color:#888;">Requested</span></div></li>`;
-            else htmlOthers += baseItem + `<button class="mini-btn outline" onclick="sendRequest('${uid}')">Add</button></div></li>`;
+            const user = allUsers[uid]; 
+            const status = myFriends[uid];
+            const isOnline = (presenceData[uid] && presenceData[uid].state === 'online');
+            const statusClass = isOnline ? 'online' : 'offline';
+            const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, "");
+            
+            // Clean strings for searching
+            const displayName = user.displayName || "Unknown";
+            const nameLower = displayName.toLowerCase();
+            const shortIdLower = (user.shortId || "").toLowerCase();
+            
+            // Build the core UI for this user
+            const baseItem = `<li class="contact-item"><div class="contact-info"><div class="avatar-wrapper" onclick="viewUserProfile('${uid}')" style="cursor: pointer;" title="View Profile"><img src="${avatar}" class="contact-avatar"><div class="status-dot ${statusClass}"></div></div><span style="font-weight:600;">${displayName}</span><span class="unread-indicator" id="dot-${uid}"></span></div><div class="contact-actions">`;
+            
+            let actionHtml = '';
+            
+            // Attach the correct buttons based on their relationship to you
+            if (status === 'accepted') {
+                actionHtml = `<button class="contact-icon-btn" onclick="openPrivateChat('${uid}', '${displayName.replace(/'/g, "\\'")}')" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button><button class="contact-icon-btn" onclick="viewUserProfile('${uid}')" title="More Options"><i class="ph-bold ph-dots-three-vertical"></i></button></div></li>`;
+            } else if (status === 'pending_received') {
+                actionHtml = `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`;
+            } else if (status === 'pending_sent') {
+                actionHtml = `<span style="font-size:0.8rem; color:#888; font-weight: bold; margin-top: 5px;">Requested</span></div></li>`;
+            } else {
+                actionHtml = `<button class="mini-btn outline" onclick="sendRequest('${uid}')">ADD</button></div></li>`;
+            }
+
+            const fullItem = baseItem + actionHtml;
+
+            // 1. IF SEARCHING: Check if they match the search query
+            if (query) {
+                if (nameLower.includes(query) || shortIdLower.includes(query)) {
+                    htmlSearch += fullItem;
+                }
+            } 
+            // 2. IF NOT SEARCHING: Distribute them to their normal categories
+            else {
+                if (status === 'accepted') {
+                    if (isOnline) htmlOnline += fullItem;
+                    else htmlOffline += fullItem;
+                } else if (status === 'pending_received' || status === 'pending_sent') {
+                    htmlRequests += fullItem;
+                } else if (currentRoomMembers[uid]) {
+                    htmlRoom += fullItem;
+                }
+            }
         }
+        
         list.innerHTML = '';
-        if (htmlRequests) list.innerHTML += `<li class="section-title">Friend Requests</li>` + htmlRequests;
-        if (htmlFriends) list.innerHTML += `<li class="section-title">My Friends</li>` + htmlFriends;
-        if (htmlOthers) list.innerHTML += `<li class="section-title">People in Room</li>` + htmlOthers;
+        
+        // Final Output Render
+        if (query) {
+            // ONLY show search results if the user is actively typing
+            list.innerHTML += `<li class="section-title">Search Results</li>` + (htmlSearch || `<li style="padding: 1rem 1.5rem; color: #888; font-size: 0.85rem; font-weight: bold;">No users found.</li>`);
+        } else {
+            // Show standard lists when the search box is empty
+            if (htmlOnline) list.innerHTML += `<li class="section-title">Online Friends</li>` + htmlOnline;
+            if (htmlOffline) list.innerHTML += `<li class="section-title" style="opacity: 0.6;">Offline Friends</li>` + htmlOffline;
+            if (htmlRoom) list.innerHTML += `<li class="section-title">People in Room</li>` + htmlRoom;
+            
+            // Requests safely locked to the absolute bottom!
+            if (htmlRequests) list.innerHTML += `<li class="section-title">Requests</li>` + htmlRequests;
+        }
+
     } catch (err) { console.error("Contacts render failed", err); }
 };
-
 window.openPrivateChat = function(targetUid, targetName) {
     window.currentPmTargetUid = targetUid;
     document.getElementById('pm-target-name').textContent = targetName;
@@ -423,12 +543,16 @@ document.getElementById('pm-close-btn')?.addEventListener('click', () => {
     window.currentPmRoomId = null; window.currentPmTargetUid = null;
 });
 
-document.getElementById('pm-form')?.addEventListener('click', async (e) => {
+document.getElementById('pm-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const pmInput = document.getElementById('pm-input'); const text = pmInput.value.trim();
     if (text && window.currentPmRoomId) {
         await push(ref(db, `private_messages/${window.currentPmRoomId}`), { uid: window.currentUser.uid, text: text, timestamp: serverTimestamp() });
         await set(ref(db, `inbox/${window.currentPmTargetUid}/${window.currentUser.uid}`), { fromName: window.userProfileName, timestamp: Date.now(), read: false });
+        
+        // NEW: Trigger the Activity Notification!
+        if (window.createNotification) window.createNotification(window.currentPmTargetUid, 'message', `New message from ${window.userProfileName || 'Someone'}.`);
+        
         pmInput.value = '';
     }
 });

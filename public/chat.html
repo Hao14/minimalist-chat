@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimalist | Chat</title>
+    <link rel="shortcut icon" href="#">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#FFD700">
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
         <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<link rel="stylesheet" href="style.css?v=brutal_6">
+<link rel="stylesheet" href="style.css?v=brutal_8">
 </head>
 <body>
     <div class="shape yellow-circle bottom-left"></div>
@@ -23,24 +24,34 @@
             <span class="logo-text">MINIMALIST</span>
         </a>
 
-        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
-            <a href="/">Home</a>
-            <a href="/story">Story</a>
-            <a href="/chat" class="auth-only hidden">Chat</a>
-            <a href="#" id="open-updates-btn-desktop" class="auth-only hidden">Updates</a>
-            <a href="/login" class="guest-only" style="color: var(--accent-color);">Login</a>
-        </div>
-        <div id="nav-actions" class="desktop-nav"></div> 
+        <!-- DESKTOP LEFT RAIL -->
+        <div class="desktop-nav">
+            <a href="/" class="rail-icon" title="Home"><i class="ph-bold ph-house"></i></a>
+            <a href="/story" class="rail-icon" title="Story"><i class="ph-bold ph-book-open"></i></a>
+            <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
+            
+            <div style="flex-grow: 1; width: 100%; min-height: 20px;"></div>
 
-        <div id="mobile-search-bar" class="mobile-only" style="width: 100%;">
-            <input type="text" placeholder="Search messages..." style="width: 100%; margin: 0; padding: 0.6rem; border: 3px solid var(--text-color); border-radius: 8px; font-weight: 600; background: var(--bg-color); color: var(--text-color);">
+            <a href="#" id="open-updates-btn-desktop" class="rail-icon auth-only hidden" title="Updates"><i class="ph-bold ph-bell"></i></a>
+            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-settings-btn" title="Settings"><i class="ph-bold ph-gear"></i></button>
+            <a href="/login" class="rail-icon guest-only" title="Login"><i class="ph-bold ph-sign-in"></i></a>
         </div>
-
+        
+        <!-- MOBILE BOTTOM NAV -->
         <div id="mobile-nav-links" class="mobile-only">
-            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">ROOMS</button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">UPDATES</button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">
+                <i class="ph-bold ph-chats"></i><span>ROOMS</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">
+                <i class="ph-bold ph-users"></i><span>CONTACTS</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">
+                <i class="ph-bold ph-bell"></i><span>UPDATES</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">
+                <i class="ph-bold ph-gear"></i><span>SETTINGS</span>
+            </button>
         </div>
     </nav>
     
@@ -51,12 +62,19 @@
         <button id="save-new-profile-btn">Enter Chat</button>
     </div>
 
-    <div class="app-screen hidden" id="loading-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; height: 60vh;">
-        <div class="mascot-blip" style="transform: scale(2); margin-bottom: 3rem; cursor: default;">
-            <div class="blip-eye left"></div>
-            <div class="blip-eye right"></div>
+    <div class="app-screen hidden" id="loading-screen" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; flex: 1; height: 100vh; padding: 3rem; position: fixed; top: 0; left: 0; width: 100vw; z-index: 9999; background: var(--bg-color); transition: opacity 0.5s ease; box-sizing: border-box;">
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="mascot-blip" style="margin: 0; cursor: default; width: 44px; height: 36px; border-width: 3px; box-shadow: 3px 3px 0px var(--text-color);">
+                <div class="blip-eye left" style="width: 6px; height: 6px;"></div>
+                <div class="blip-eye right" style="width: 6px; height: 6px;"></div>
+            </div>
+            <span style="font-weight: 800; font-size: 1.4rem; letter-spacing: 2px; color: var(--text-color);">MINIMALIST</span>
         </div>
-        <h2 class="loading-pulse-text">LOADING CHAT RESOURCES...</h2>
+
+        <div id="boot-sequence" style="display: flex; flex-direction: column; gap: 10px; font-family: monospace; font-size: 1rem; font-weight: 700; color: var(--text-color); text-transform: uppercase;">
+            </div>
+
     </div>
 
     <div class="chat-container-full app-screen hidden" id="chat-wrapper">
@@ -67,8 +85,7 @@
                     <h3>Rooms</h3>
                     <button class="close-panel mobile-only" id="close-mobile-rooms-btn" style="background:none; border:none; font-size:1.5rem; margin:0; padding:0; box-shadow:none;">✖</button>
                 </div>
-                <ul id="room-list">
-                    </ul>
+                <ul id="room-list"></ul>
                 <div class="sidebar-actions">
                     <button id="create-room-btn" class="room-action-btn btn-dark">+ New room</button>
                     <button id="join-room-btn" class="room-action-btn btn-light">→] Join</button>
@@ -76,63 +93,170 @@
             </div>
 
             <div id="main-chat-area">
-                <div id="active-room-header" style="position: relative; z-index: 100;">
+                <div id="active-room-header" style="position: relative; z-index: 100; display: flex; align-items: center; padding: 0.8rem 1.5rem; border-bottom: 3px solid var(--text-color); background: var(--bg-color); min-height: 60px;">
+                    
+                    <button id="mobile-back-to-rooms" class="mobile-only action-btn" style="border: none; box-shadow: none; padding: 0; margin: 0; margin-right: 15px; font-size: 1.5rem; background: transparent; cursor: pointer;"><i class="ph-bold ph-arrow-left"></i></button>
+                    
                     <div id="room-name-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s;">
-                        <span id="active-room-name-display">Global Chat</span>
+                        <span id="active-room-name-display" style="font-weight: 800; font-size: 1.1rem; letter-spacing: 0.5px;">Global Chat</span>
                         <span id="active-room-tag" class="tier-badge advanced">PUBLIC</span>
                         <i class="ph-bold ph-caret-down" style="font-size: 1rem; color: #888;"></i>
                     </div>
 
-                    <div id="room-settings-dropdown" class="hidden brutalist-dropdown" style="top: 45px; left: 1.5rem;">
+                    <div style="margin-left: auto; display: flex; align-items: center; position: relative;">
+                        <input type="text" id="room-search-input" class="header-search-input" placeholder="Search..." autocomplete="off">
+                        <div id="toggle-room-search-btn" title="Search Messages" style="background: transparent; border: none; box-shadow: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; line-height: 1; outline: none;">
+                            <i class="ph-bold ph-magnifying-glass"></i>
+                        </div>
+                    </div>
+
+                    <div id="room-settings-dropdown" class="hidden brutalist-dropdown" style="top: 60px; left: 1.5rem;">
                         <button id="room-drop-invite">Invite to Room</button>
                         <button id="room-drop-settings">Room Settings</button>
                         <button id="room-drop-notifications">Notification Options</button>
                     </div>
                 </div>
-
-                <div id="loading-history" class="hidden">Loading history...</div>
-                <ul id="messages"></ul>
-                
-                <div id="typing-status-container" class="hidden">
-                    <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-                    <span id="typing-text">Someone is typing...</span>
+               <div id="room-sub-nav" style="display: flex; gap: 2rem; padding: 0 1.5rem; background: var(--bg-color);">
+                    <button class="room-tab" data-target="home">Home</button>
+                    <button class="room-tab active" data-target="chat">Chat</button>
+                    <button class="room-tab" data-target="docs">Docs</button>
+                    <button class="room-tab" data-target="whiteboard">Whiteboard</button>
                 </div>
 
-                <div id="active-reply-box" class="hidden">
-                    <div>
-                        <strong>Replying to <span id="replying-to-name"></span>:</strong>
-                        <span id="replying-to-text"></span>
+                <div id="room-view-chat" class="room-view active" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+                    <div id="loading-history" class="hidden">Loading history...</div>
+                    <ul id="messages"></ul>
+                    
+                    <div id="typing-status-container" class="hidden">
+                        <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <span id="typing-text">Someone is typing...</span>
                     </div>
-                    <span class="cancel-reply" id="cancel-reply-btn">✖</span>
+
+                    <div id="active-reply-box" class="hidden">
+                        <div>
+                            <strong>Replying to <span id="replying-to-name"></span>:</strong>
+                            <span id="replying-to-text"></span>
+                        </div>
+                        <span class="cancel-reply" id="cancel-reply-btn">✖</span>
+                    </div>
+
+                    <form id="chat-form" action="">
+                        <button type="button" id="attach-btn" title="Attach Image">📎</button>
+                        <input type="file" id="image-input" accept="image/*" class="hidden">
+                        <textarea id="message-input" rows="1" placeholder="Message Room..."></textarea>
+                        <button type="submit" id="mobile-send-btn" class="hidden">Send</button>
+                    </form>
                 </div>
 
-                <form id="chat-form" action="">
-                    <button type="button" id="attach-btn" title="Attach Image">📎</button>
-                    <input type="file" id="image-input" accept="image/*" class="hidden">
-                    <textarea id="message-input" rows="1" placeholder="Message Global Chat..."></textarea>
-                    <button type="submit" id="mobile-send-btn" class="hidden">Send</button>
-                </form>
+                <div id="room-view-home" class="room-view hidden" style="flex: 1; overflow-y: auto; padding: 2rem; background: var(--bg-color);">
+                    
+                    <div style="margin-bottom: 2rem; display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; border-bottom: 3px solid var(--text-color); padding-bottom: 1rem;">
+                        <div style="padding: 0.5rem 1rem; border: 2px solid var(--text-color); border-radius: 4px; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 5px;"><i class="ph-bold ph-chats"></i> <span id="rh-msg-count">~</span> Messages</div>
+                        <div style="padding: 0.5rem 1rem; border: 2px solid var(--text-color); border-radius: 4px; font-weight: bold; font-size: 0.9rem; display: flex; align-items: center; gap: 5px;"><i class="ph-bold ph-users"></i> <span id="rh-member-count">1</span> Members</div>
+                        <div style="flex: 1;"></div>
+                        <div style="font-size: 0.8rem; color: #888; font-weight: 800; text-transform: uppercase;">Created <span id="rh-created-date">Loading...</span></div>
+                    </div>
+
+                    <div id="room-home-grid" style="display: grid; gap: 3rem;">
+                        
+                        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                            
+                            <div>
+                                <h3 style="font-size: 0.85rem; color: #888; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-top: 0; margin-bottom: 0.8rem;">About This Room</h3>
+                                <p id="rh-description" style="font-size: 1.1rem; font-weight: 600; line-height: 1.6; margin: 0; color: var(--text-color);">A dedicated space for communication, sharing resources, and connecting with the group. Everyone is welcome.</p>
+                            </div>
+
+                            <div>
+                                <h3 style="font-size: 0.85rem; color: #888; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 1rem;">Room Guidelines</h3>
+                                <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                                    <div style="padding: 1rem; background: rgba(150,150,150,0.1); border-left: 4px solid var(--text-color); font-weight: 700; font-size: 0.95rem; color: var(--text-color);"><span style="color: #888; margin-right: 15px;">01</span> Be kind and supportive</div>
+                                    <div style="padding: 1rem; background: rgba(150,150,150,0.1); border-left: 4px solid var(--text-color); font-weight: 700; font-size: 0.95rem; color: var(--text-color);"><span style="color: #888; margin-right: 15px;">02</span> Keep topics relevant to the room</div>
+                                    <div style="padding: 1rem; background: rgba(150,150,150,0.1); border-left: 4px solid var(--text-color); font-weight: 700; font-size: 0.95rem; color: var(--text-color);"><span style="color: #888; margin-right: 15px;">03</span> Share and collaborate freely</div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 style="font-size: 0.85rem; color: #888; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;"><i class="ph-bold ph-activity" style="margin-right: 5px;"></i> Recent Activity</h3>
+                                <ul id="rh-activity-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 1rem;">
+                                    <li style="color: #888; font-weight: bold;">Loading activity...</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+                            
+                            <div>
+                                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
+                                    <h3 style="font-size: 0.85rem; color: #888; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin: 0;"><i class="ph-bold ph-push-pin" style="margin-right: 5px;"></i> Pinned Resources</h3>
+                                    <button style="background:none; border:none; color: var(--text-color); cursor:pointer; font-size:1.2rem; padding:0; box-shadow: none;"><i class="ph-bold ph-plus"></i></button>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+                                    <div style="border: 3px solid var(--text-color); padding: 1rem; border-radius: 6px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; background: var(--bg-color);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='3px 3px 0 var(--text-color)'" onmouseout="this.style.transform='none'; this.style.boxShadow='none'">
+                                        <div style="font-weight: 800; font-size: 0.95rem; color: var(--text-color); display: flex; align-items: center; gap: 8px;"><i class="ph-bold ph-file-text"></i> Getting Started Guide</div>
+                                        <div style="font-size: 0.8rem; color: #888; font-weight: 600; margin-top: 4px;">Important server rules & info.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h3 style="font-size: 0.85rem; color: #888; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-bottom: 2px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Members</h3>
+                                <div id="rh-members-list" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                    <span style="padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 20px; font-size: 0.85rem; font-weight: 700; background: transparent; color: var(--text-color);">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="room-view-docs" class="room-view hidden" style="flex: 1; overflow-y: auto; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888;">
+                    <i class="ph-bold ph-file-text" style="font-size: 4rem; color: var(--text-color); margin-bottom: 1rem;"></i>
+                    <h2>Collaborative Docs</h2>
+                    <p style="font-weight: bold;">Google Docs-lite integration pending...</p>
+                </div>
+
+                <div id="room-view-whiteboard" class="room-view hidden" style="flex: 1; overflow-y: auto; padding: 2rem; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #888;">
+                    <i class="ph-bold ph-palette" style="font-size: 4rem; color: var(--text-color); margin-bottom: 1rem;"></i>
+                    <h2>Shared Whiteboard</h2>
+                    <p style="font-weight: bold;">Real-time drawing canvas pending...</p>
+                </div>
             </div>
 
         </div>
     </div>
 
     <div id="updates-panel">
-        <div class="contacts-header" style="justify-content: flex-start; gap: 15px;">
-            <span>Change Log</span>
-            <div id="mini-admin-blip" title="Report Bug" class="mascot-blip" style="width: 30px; height: 24px; border-width: 2px; border-radius: 10px; margin: 0 auto 0 10px;">
-                <div class="blip-eye left" style="width: 4px; height: 4px;"></div>
-                <div class="blip-eye right" style="width: 4px; height: 4px;"></div>
+        <div class="contacts-header" style="flex-direction: column; align-items: flex-start; gap: 10px; padding-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <span style="font-size: 1.2rem; font-weight: 800;">Inbox</span>
+                <span class="close-panel" id="close-updates-btn">✖</span>
             </div>
-            <span class="close-panel" id="close-updates-btn" style="margin-left: auto;">✖</span>
+            
+            <div style="display: flex; gap: 1.5rem; width: 100%; margin-top: 0.5rem;">
+                <button class="update-tab active" id="tab-notifications">Activity</button>
+                <button class="update-tab" id="tab-changelog">Changelog</button>
+            </div>
         </div>
-        <ul id="updates-list"></ul>
+        
+        <ul id="notifications-list" style="list-style: none; overflow-y: auto; flex: 1; padding: 1.5rem; margin: 0; display: flex; flex-direction: column; gap: 0.8rem;">
+            <div style="text-align: center; color: #888; margin-top: 2rem; font-weight: bold;">
+                <i class="ph-bold ph-bell-slash" style="font-size: 3rem; margin-bottom: 1rem; display: block; color: var(--text-color);"></i>
+                You're all caught up!
+            </div>
+        </ul>
+
+        <ul id="updates-list" class="hidden"></ul>
     </div>
 
     <div id="contacts-panel">
         <div class="contacts-header">
             <span>Contacts</span><span class="close-panel" id="close-contacts-btn">✖</span>
         </div>
+        
+        <div style="padding: 1rem; border-bottom: 4px solid var(--text-color); background: var(--bg-color); flex-shrink: 0;">
+            <input type="text" id="contact-search-input" autocomplete="off" placeholder="Search for users..." style="width: 100%; margin: 0; padding: 0.6rem 0.8rem; border: 3px solid var(--text-color); border-radius: 6px; font-size: 0.95rem; font-weight: 700; font-family: inherit; background: var(--bg-color); color: var(--text-color);">
+        </div>
+        
         <ul id="contacts-list"></ul>
     </div>
 
@@ -143,6 +267,9 @@
                 <span class="pm-action-btn" id="pm-call-btn" title="Call User">📞</span>
                 <span class="pm-close" id="pm-close-btn" title="Close">✖</span>
             </div>
+        </div>
+        <div style="padding: 0.5rem; border-bottom: 2px solid var(--text-color); background: var(--bg-color);">
+            <input type="text" id="pm-search-input" placeholder="Search PMs..." style="width: 100%; margin: 0; padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 4px; font-size: 0.85rem; font-family: inherit; background: var(--bg-color); color: var(--text-color);">
         </div>
         <ul id="pm-messages"></ul>
         <form id="pm-form" action=""><input id="pm-input" autocomplete="off" placeholder="Message..." /><button type="submit">Send</button></form>
@@ -438,7 +565,7 @@
     </footer>
     <div id="emoji-picker" class="hidden"></div>
 
-    <script type="module" src="js/app.js?v=modular_final"></script>
+<script type="module" src="js/app.js?v=rail"></script>
     <div id="brutalist-toast" class="toast-hidden">
         <span id="toast-icon">⚠️</span>
         <span id="toast-message">Error message goes here</span>
