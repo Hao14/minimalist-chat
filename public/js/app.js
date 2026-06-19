@@ -105,7 +105,7 @@ window.triggerNotification = function(senderName) {
     }, 1000);
 };
 
-window.listenForNotifications = function() {
+window.listenForPmInbox = function() {
     if (!window.currentUser) return;
     const inboxRef = ref(db, `inbox/${window.currentUser.uid}`);
     const handleInboxUpdate = (snapshot) => {
@@ -149,15 +149,12 @@ window.openSettings = function() {
     document.getElementById('modal-overlay')?.classList.remove('hidden');
 };
 
+const SETTINGS_TABS = ['profile', 'billing', 'app'];
 window.switchTab = function(paneId, btnId) {
-    document.getElementById('pane-profile')?.classList.add('hidden');
-    document.getElementById('pane-billing')?.classList.add('hidden');
-    document.getElementById('pane-app')?.classList.add('hidden');
-    
-    document.getElementById('tab-btn-profile')?.classList.remove('active');
-    document.getElementById('tab-btn-billing')?.classList.remove('active');
-    document.getElementById('tab-btn-app')?.classList.remove('active');
-    
+    SETTINGS_TABS.forEach(t => {
+        document.getElementById(`pane-${t}`)?.classList.add('hidden');
+        document.getElementById(`tab-btn-${t}`)?.classList.remove('active');
+    });
     document.getElementById(paneId)?.classList.remove('hidden');
     document.getElementById(btnId)?.classList.add('active');
 };
@@ -204,25 +201,12 @@ document.getElementById('tab-btn-profile')?.addEventListener('click', () => wind
 document.getElementById('tab-btn-billing')?.addEventListener('click', () => window.switchTab('pane-billing', 'tab-btn-billing'));
 document.getElementById('tab-btn-app')?.addEventListener('click', () => window.switchTab('pane-app', 'tab-btn-app'));
 
-// --- GLOBAL CLICK LISTENER (MOBILE UI & PANELS) ---
+// --- GLOBAL CLICK LISTENER (TOASTS & PANEL CLOSE BUTTONS) ---
+// Navigation button handling is managed by the MASTER NAVIGATION CONTROLLER below.
 document.addEventListener('click', (e) => {
     if (e.target.id === 'toast-close') document.getElementById('brutalist-toast')?.classList.add('toast-hidden');
-    if (e.target.id === 'open-settings-btn-mobile' || e.target.id === 'open-settings-btn') { window.openSettings(); }
-    if (e.target.id === 'open-rooms-btn-mobile') { document.getElementById('desktop-room-sidebar')?.classList.add('open'); }
-    if (e.target.id === 'close-mobile-rooms-btn') { document.getElementById('desktop-room-sidebar')?.classList.remove('open'); }
-    if (e.target.id === 'open-contacts-btn-mobile' || e.target.id === 'open-contacts-btn') { if (window.toggleContacts) window.toggleContacts(); }
-    
-    if (e.target.closest('#mobile-back-to-rooms')) { document.getElementById('desktop-room-sidebar')?.classList.add('open'); }
-    
-    if (e.target.id === 'open-updates-btn-mobile' || e.target.id === 'open-updates-btn-desktop') {
-        e.preventDefault(); 
-        const updatesPanel = document.getElementById('updates-panel');
-        if (updatesPanel) {
-            updatesPanel.classList.toggle('open');
-            if (updatesPanel.classList.contains('open') && window.fetchGitHubUpdates) window.fetchGitHubUpdates(); 
-        }
-    }
-    if (e.target.id === 'close-updates-btn') { document.getElementById('updates-panel')?.classList.remove('open'); }
+    if (e.target.id === 'close-mobile-rooms-btn') document.getElementById('desktop-room-sidebar')?.classList.remove('open');
+    if (e.target.id === 'close-updates-btn') document.getElementById('updates-panel')?.classList.remove('open');
 });
 
 
@@ -241,6 +225,7 @@ window.enterChat = function() {
             
             if (!window.chatInitialized) {
                 if (window.initializeRooms) window.initializeRooms();
+                window.listenForPmInbox();
                 window.listenForNotifications();
                 if (window.initializePresence) window.initializePresence();
                 window.chatInitialized = true;
@@ -377,12 +362,11 @@ window.fetchGitHubUpdates = async function() {
         const response = await fetch('https://api.github.com/repos/Hao14/minimalist-chat/commits?per_page=15');
         if (!response.ok) throw new Error("Failed to fetch GitHub data");
         const commits = await response.json();
-        list.innerHTML = ''; 
-        commits.forEach(commitObj => {
+        list.innerHTML = commits.map(commitObj => {
             const msgLines = commitObj.commit.message.split('\n');
             const descHtml = msgLines.slice(1).join('\n').trim() ? `<div class="update-desc">${msgLines.slice(1).join('\n').trim()}</div>` : '';
-            list.innerHTML += `<li class="update-card fade-in-up"><div class="update-date">${new Date(commitObj.commit.author.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div><div class="update-title">${msgLines[0]}</div>${descHtml}<div class="update-author"><img src="${commitObj.author ? commitObj.author.avatar_url : 'https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700'}"> ${commitObj.commit.author.name}</div></li>`;
-        });
+            return `<li class="update-card fade-in-up"><div class="update-date">${new Date(commitObj.commit.author.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div><div class="update-title">${msgLines[0]}</div>${descHtml}<div class="update-author"><img src="${commitObj.author ? commitObj.author.avatar_url : 'https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700'}"> ${commitObj.commit.author.name}</div></li>`;
+        }).join('');
     } catch (err) { list.innerHTML = `<li style="padding: 2rem; text-align: center; color: red; border: 4px solid red; font-weight: bold;">CONNECTION FAILED.</li>`; }
 };
 
@@ -455,28 +439,6 @@ document.addEventListener('click', (e) => {
         document.getElementById('tab-notifications').classList.remove('active');
         document.getElementById('updates-list').classList.remove('hidden');
         document.getElementById('notifications-list').classList.add('hidden');
-    }
-});
-// --- UNIVERSAL NAV BUTTON LISTENERS ---
-document.addEventListener('click', (e) => {
-    // 1. Open Contacts Panel
-    if (e.target.closest('#open-contacts-btn') || e.target.closest('#open-contacts-btn-mobile')) {
-        if (window.toggleContacts) window.toggleContacts();
-    }
-    
-    // 2. Open Settings Modal
-    if (e.target.closest('#open-settings-btn') || e.target.closest('#open-settings-btn-mobile')) {
-        const settingsModal = document.getElementById('settings-modal');
-        if (settingsModal) {
-            settingsModal.classList.remove('hidden');
-            document.getElementById('modal-overlay')?.classList.remove('hidden');
-        }
-    }
-
-    // 3. Open Updates Panel
-    if (e.target.closest('#open-updates-btn-desktop') || e.target.closest('#open-updates-btn-mobile')) {
-        e.preventDefault();
-        document.getElementById('updates-panel')?.classList.toggle('open');
     }
 });
 // 3. Live Search Filter Logic
@@ -576,23 +538,22 @@ window.listenForNotifications = function() {
             if (deskBell) deskBell.style.color = '#FF3B30';
             if (mobBell) mobBell.style.color = '#FF3B30';
 
-            list.style.padding = "0"; list.style.gap = "0"; list.innerHTML = '';
+            list.style.padding = "0"; list.style.gap = "0";
+            const today = new Date();
+            const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
-            notifs.forEach(([nId, n]) => {
+            list.innerHTML = notifs.map(([nId, n]) => {
                 let title = "SYSTEM ALERT"; let icon = "ph-bold ph-bell";
                 if (n.type === 'message') { title = "NEW MESSAGE"; icon = "ph-bold ph-chat-circle-text"; }
-                if (n.type === 'friend') { title = "FRIEND REQUEST"; icon = "ph-bold ph-user-plus"; }
-                if (n.type === 'room') { title = "ROOM ACTIVITY"; icon = "ph-bold ph-users-three"; }
+                else if (n.type === 'friend') { title = "FRIEND REQUEST"; icon = "ph-bold ph-user-plus"; }
+                else if (n.type === 'room') { title = "ROOM ACTIVITY"; icon = "ph-bold ph-users-three"; }
 
                 const d = new Date(n.timestamp);
-                const today = new Date();
-                const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-                
                 let timeStr = d.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
                 if (d.toDateString() === yesterday.toDateString()) timeStr = "Yesterday";
                 else if (d.toDateString() !== today.toDateString()) timeStr = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
 
-                list.innerHTML += `
+                return `
                     <li class="modern-notif" style="padding: 1.2rem 1.5rem; border-bottom: 2px solid var(--text-color); display: flex; align-items: center; gap: 15px;">
                         <i class="${icon}" style="font-size: 1.8rem; color: var(--text-color); flex-shrink: 0;"></i>
                         <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
@@ -607,7 +568,7 @@ window.listenForNotifications = function() {
                         </span>
                     </li>
                 `;
-            });
+            }).join('');
         } else {
             if (deskBell) deskBell.style.color = 'var(--text-color)';
             if (mobBell) mobBell.style.color = 'var(--text-color)';
