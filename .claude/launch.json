@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "express-server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
+    },
+    {
+      "name": "firebase-hosting",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["firebase", "emulators:start", "--only", "hosting"],
+      "port": 5000
+    },
+    {
+      "name": "firebase-functions",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["firebase", "emulators:start", "--only", "functions"],
+      "port": 5001
+    }
+  ]
+}

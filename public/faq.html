@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minimalist | FAQ</title>
+
+<link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">
+<link rel="stylesheet" href="base.css?v=split1">
+<link rel="stylesheet" href="desktop.css?v=split1">
+<link rel="stylesheet" href="mobile.css?v=split1">
+</head>
+<body>
+    <div class="shape yellow-circle bottom-left"></div>
+
+    <nav>
+        <a href="/" id="nav-logo">
+            <div class="mascot-blip">
+                <div class="blip-eye left"></div>
+                <div class="blip-eye right"></div>
+            </div>
+        </a>
+
+        <div class="desktop-nav" style="display: flex; gap: 3rem; justify-content: center; align-items: center; width: 100%;">
+            <a href="/">Home</a>
+            <a href="/story">Story</a>
+            <a href="/chat" class="auth-only hidden">Chat</a>
+            <a href="/login" class="guest-only" style="color: var(--accent-color);">Login</a>
+        </div>
+
+        <div id="nav-actions" class="desktop-nav"></div>
+
+        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
+        <div id="mobile-nav-links" class="mobile-only hidden">
+            <a href="/" class="mobile-link">HOME</a>
+            <a href="/story" class="mobile-link">STORY</a>
+            <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
+            <a href="/login" class="mobile-link guest-only" style="color: var(--accent-color); font-weight: 800;">LOGIN</a>
+            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">CONTACTS</button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">SETTINGS</button>
+        </div>
+    </nav>
+
+    <div class="container fade-in-up" style="max-width: 800px; text-align: left;">
+        <h1 style="font-size: 3.5rem; margin-bottom: 0.5rem;">Frequently Asked <span>Questions</span></h1>
+        <p style="font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 3rem;">Everything you need to know</p>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">What is Minimalist Chat?</h2>
+            <p style="font-weight: 600; color: #444;">Minimalist Chat is a real-time messaging app built around private rooms. Every room is more than a chat feed — it has a dynamic homepage, collaborative documents, and a shared whiteboard so your group can talk, plan, and create in one place.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">How do I create or join a room?</h2>
+            <p style="font-weight: 600; color: #444;">Open the room sidebar and use <strong>Create</strong> to start a new room, or <strong>Join</strong> to enter one with an invite link or code. Room creators get a sharable invite link from the room menu, and can manage members, rules, resources, and events from the room's Home tab.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">What are Docs and the Whiteboard?</h2>
+            <p style="font-weight: 600; color: #444;">Each room includes <strong>Collaborative Docs</strong> — lightweight documents that update live for everyone in the room — and a <strong>Shared Whiteboard</strong> with draggable sticky notes for brainstorming. Both sync in real time, so changes appear instantly for every member.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">What do the Advanced and Pro tiers include?</h2>
+            <p style="font-weight: 600; color: #444;">Free accounts can send images up to 1&nbsp;MB. <strong>Advanced</strong> and <strong>Pro</strong> raise upload limits significantly and add a badge to your messages. You can upgrade or manage billing anytime from Settings → Billing.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">How do I add friends and send private messages?</h2>
+            <p style="font-weight: 600; color: #444;">Open the Contacts panel to search users by name or short ID, send friend requests, and start private chats. You'll get a notification and a title-bar alert whenever someone messages you.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">Is my data private?</h2>
+            <p style="font-weight: 600; color: #444;">Your account and messages are handled according to our <a href="/privacy" style="color: var(--text-color); font-weight: 800;">Privacy Policy</a>. You can delete your account and associated profile data at any time from Settings.</p>
+        </div>
+
+        <div style="border: 4px solid var(--text-color); padding: 2rem; box-shadow: 8px 8px 0px var(--accent-color); background: var(--bg-color); margin-bottom: 2rem;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 1rem; margin-bottom: 1rem; font-size: 1.5rem;">Still need help?</h2>
+            <p style="font-weight: 600; color: #444;">Email <a href="mailto:support@minimalist.com" style="color: var(--text-color); font-weight: 800;">support@minimalist.com</a> or file a <a href="https://github.com/Hao14/minimalist-chat/issues" target="_blank" rel="noopener noreferrer" style="color: var(--text-color); font-weight: 800;">bug report</a> on GitHub.</p>
+        </div>
+
+    </div>
+
+<script type="module" src="js/app.js?v=modular_final"></script>
+    <div id="brutalist-toast" class="toast-hidden">
+    <span id="toast-icon">⚠️</span>
+    <span id="toast-message">Error message goes here</span>
+    <button id="toast-close">✖</button>
+</div>
+</body>
+</html>

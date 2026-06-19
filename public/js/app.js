@@ -6,6 +6,9 @@ import { ref, set, get, onValue, onChildAdded, onChildChanged, remove, serverTim
 import './auth.js';
 import './rooms.js';
 import './chat.js';
+import './docs.js';
+import './whiteboard.js';
+import './roomhome.js';
 
 // --- GLOBAL STATE (Shared across files) ---
 window.activeRoomId = 'global';
@@ -663,5 +666,22 @@ document.addEventListener('click', (e) => {
             const msgs = document.getElementById('messages');
             if (msgs) msgs.scrollTop = msgs.scrollHeight;
         }
+
+        // 4. Lazy-load room features when their tab is opened
+        if (targetView === 'home' && window.loadRoomHome) window.loadRoomHome();
+        if (targetView === 'docs' && window.loadRoomDocs) window.loadRoomDocs();
+        if (targetView === 'whiteboard' && window.loadRoomWhiteboard) window.loadRoomWhiteboard();
     }
 });
+
+// --- ROOM CHANGE HOOK: land on the Home tab and refresh its data ---
+window.onRoomChanged = function() {
+    // Reset the sub-nav so every room opens on its Home page, not straight into chat.
+    document.querySelectorAll('.room-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('data-target') === 'home');
+    });
+    document.querySelectorAll('.room-view').forEach(view => view.classList.add('hidden'));
+    document.getElementById('room-view-home')?.classList.remove('hidden');
+
+    if (window.loadRoomHome) window.loadRoomHome();
+};
