@@ -1,5 +1,6 @@
 // js/rooms.js
 import { db } from './firebase-core.js';
+import { escapeHtml } from './utils.js';
 import { ref, set, get, push, onValue, onChildAdded, off, remove, serverTimestamp, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 window.initializeRooms = function() {
@@ -28,7 +29,7 @@ window.initializeRooms = function() {
         rooms.forEach(room => {
             const li = document.createElement('li');
             li.className = `room-item ${room.id === window.activeRoomId ? 'active' : ''}`;
-            li.innerHTML = `<span class="room-name">${room.name}</span><span class="room-preview">${room.lastMessage || 'No messages yet...'}</span>`;
+            li.innerHTML = `<span class="room-name">${escapeHtml(room.name)}</span><span class="room-preview">${escapeHtml(room.lastMessage || 'No messages yet...')}</span>`;
             li.onclick = () => window.switchRoom(room.id, room.name, room.shortId);
             roomListEl.appendChild(li);
         });
@@ -56,52 +57,8 @@ window.switchRoom = function(roomId, roomName, shortId = '') {
     // --- LIVE MUTE CHECKER & COUNTDOWN ---
     if (window.currentMuteListenerRef) off(window.currentMuteListenerRef);
     clearTimeout(window.currentMuteTimeout);
-    // --- UPDATE DYNAMIC ROOM HOMEPAGE ---
-    const rhMemberCount = document.getElementById('rh-member-count');
-    const rhCreatedDate = document.getElementById('rh-created-date');
-    const rhActivityList = document.getElementById('rh-activity-list');
-    const rhMembersList = document.getElementById('rh-members-list');
+    // Dynamic Room Homepage is rendered by roomhome.js via window.onRoomChanged().
 
-    if (roomId === 'global') {
-        if(rhMemberCount) rhMemberCount.textContent = '∞';
-        if(rhCreatedDate) rhCreatedDate.textContent = 'Day 1';
-        if(rhMembersList) rhMembersList.innerHTML = `<span style="padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: var(--text-color);">Everyone</span>`;
-        if(rhActivityList) rhActivityList.innerHTML = `<li style="color: #888; font-weight: bold;">Global logs hidden.</li>`;
-    } else {
-        get(ref(db, `rooms_meta/${roomId}`)).then(snap => {
-            if (snap.exists()) {
-                const data = snap.val();
-                
-                if(rhCreatedDate && data.createdAt) rhCreatedDate.textContent = new Date(data.createdAt).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
-                
-                if(rhMembersList && data.members) {
-                    if(rhMemberCount) rhMemberCount.textContent = Object.keys(data.members).length;
-                    rhMembersList.innerHTML = '';
-                    Object.values(data.members).forEach(name => {
-                        rhMembersList.innerHTML += `<span style="padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 20px; font-size: 0.85rem; font-weight: 700; color: var(--text-color); white-space: nowrap;">${name}</span>`;
-                    });
-                }
-
-                if (rhActivityList && data.logs) {
-                    rhActivityList.innerHTML = '';
-                    Object.values(data.logs).sort((a,b) => b.timestamp - a.timestamp).slice(0, 6).forEach(l => {
-                        const timeStr = new Date(l.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        let icon = l.text.includes('joined') ? 'ph-sign-in' : (l.text.includes('left') || l.text.includes('kicked') ? 'ph-sign-out' : 'ph-check-circle');
-                        
-                        rhActivityList.innerHTML += `
-                            <li style="display: flex; gap: 15px; border-bottom: 1px solid rgba(150,150,150,0.2); padding-bottom: 0.8rem;">
-                                <i class="ph-bold ${icon}" style="color: var(--text-color); font-size: 1.3rem;"></i>
-                                <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
-                                    <div style="font-weight: 700; font-size: 0.95rem; color: var(--text-color); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${l.text}</div>
-                                    <div style="font-size: 0.75rem; color: #888; font-weight: 800; margin-top: 2px;">${timeStr}</div>
-                                </div>
-                            </li>
-                        `;
-                    });
-                } else if (rhActivityList) { rhActivityList.innerHTML = `<li style="color: #888; font-weight: bold;">No recent activity.</li>`; }
-            }
-        });
-    }
     if (roomId === 'global') {
         if(roomTag) { roomTag.textContent = 'PUBLIC'; roomTag.className = 'tier-badge advanced'; }
         if(inviteBtn) inviteBtn.style.display = 'none'; 
@@ -157,11 +114,14 @@ window.switchRoom = function(roomId, roomName, shortId = '') {
     const msgsRef = roomId === 'global' ? ref(db, 'messages') : ref(db, `rooms_data/${roomId}/messages`);
     window.currentRoomListener = query(msgsRef, limitToLast(30));
     
-    onChildAdded(window.currentRoomListener, (snapshot) => { 
-        if(!window.oldestMessageKey) window.oldestMessageKey = snapshot.key; 
-        if(window.displayMessage) window.displayMessage(snapshot.key, snapshot.val(), false); 
+    onChildAdded(window.currentRoomListener, (snapshot) => {
+        if(!window.oldestMessageKey) window.oldestMessageKey = snapshot.key;
+        if(window.displayMessage) window.displayMessage(snapshot.key, snapshot.val(), false);
     });
     if (window.bindChatScrolling) window.bindChatScrolling(msgsRef);
+
+    // Reload Docs/Whiteboard if one of those tabs is currently open
+    if (window.onRoomChanged) window.onRoomChanged();
 };
 
 // --- CREATE & JOIN ROOM LOGIC ---
@@ -270,8 +230,8 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
             memList.innerHTML = '';
             if (data.members) {
                 for (let uid in data.members) {
-                    let kickBtnHtml = (isCreator && uid !== window.currentUser.uid) ? `<button class="mini-btn danger kick-user-btn" data-uid="${uid}" data-name="${data.members[uid]}" style="padding: 0.2rem 0.6rem; margin: 0; width: auto; font-size: 0.75rem;">Kick</button>` : '';
-                    memList.innerHTML += `<li style="padding: 0.8rem; border: 3px solid var(--text-color); border-radius: 8px; font-weight: bold; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;"><span>👤 ${data.members[uid]}</span>${kickBtnHtml}</li>`;
+                    let kickBtnHtml = (isCreator && uid !== window.currentUser.uid) ? `<button class="mini-btn danger kick-user-btn" data-uid="${uid}" data-name="${escapeHtml(data.members[uid])}" style="padding: 0.2rem 0.6rem; margin: 0; width: auto; font-size: 0.75rem;">Kick</button>` : '';
+                    memList.innerHTML += `<li style="padding: 0.8rem; border: 3px solid var(--text-color); border-radius: 8px; font-weight: bold; font-size: 0.95rem; display: flex; justify-content: space-between; align-items: center;"><span>👤 ${escapeHtml(data.members[uid])}</span>${kickBtnHtml}</li>`;
                 }
                 setTimeout(() => {
                     document.querySelectorAll('.kick-user-btn').forEach(btn => {
@@ -298,7 +258,7 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
             if (data.logs) {
                 Object.values(data.logs).sort((a,b) => b.timestamp - a.timestamp).forEach(l => {
                     let d = new Date(l.timestamp);
-                    logList.innerHTML += `<li style="padding: 0.8rem; background: rgba(0,0,0,0.05); border-left: 4px solid var(--accent-color); font-family: monospace; font-size: 0.85rem; font-weight: 600;">[${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}]<br>${l.text}</li>`;
+                    logList.innerHTML += `<li style="padding: 0.8rem; background: rgba(0,0,0,0.05); border-left: 4px solid var(--accent-color); font-family: monospace; font-size: 0.85rem; font-weight: 600;">[${d.toLocaleDateString()} ${d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}]<br>${escapeHtml(l.text)}</li>`;
                 });
             } else { logList.innerHTML = '<li style="color: #888;">No logs found.</li>'; }
         }
@@ -461,13 +421,13 @@ window.renderContactsUI = async function() {
             const shortIdLower = (user.shortId || "").toLowerCase();
             
             // Build the core UI for this user
-            const baseItem = `<li class="contact-item"><div class="contact-info"><div class="avatar-wrapper" onclick="viewUserProfile('${uid}')" style="cursor: pointer;" title="View Profile"><img src="${avatar}" class="contact-avatar"><div class="status-dot ${statusClass}"></div></div><span style="font-weight:600;">${displayName}</span><span class="unread-indicator" id="dot-${uid}"></span></div><div class="contact-actions">`;
+            const baseItem = `<li class="contact-item"><div class="contact-info"><div class="avatar-wrapper" onclick="viewUserProfile('${uid}')" style="cursor: pointer;" title="View Profile"><img src="${escapeHtml(avatar)}" class="contact-avatar"><div class="status-dot ${statusClass}"></div></div><span style="font-weight:600;">${escapeHtml(displayName)}</span><span class="unread-indicator" id="dot-${uid}"></span></div><div class="contact-actions">`;
             
             let actionHtml = '';
             
             // Attach the correct buttons based on their relationship to you
             if (status === 'accepted') {
-                actionHtml = `<button class="contact-icon-btn" onclick="openPrivateChat('${uid}', '${displayName.replace(/'/g, "\\'")}')" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button><button class="contact-icon-btn" onclick="viewUserProfile('${uid}')" title="More Options"><i class="ph-bold ph-dots-three-vertical"></i></button></div></li>`;
+                actionHtml = `<button class="contact-icon-btn pm-open-btn" data-uid="${uid}" data-name="${escapeHtml(displayName)}" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button><button class="contact-icon-btn" onclick="viewUserProfile('${uid}')" title="More Options"><i class="ph-bold ph-dots-three-vertical"></i></button></div></li>`;
             } else if (status === 'pending_received') {
                 actionHtml = `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`;
             } else if (status === 'pending_sent') {
@@ -512,6 +472,10 @@ window.renderContactsUI = async function() {
             // Requests safely locked to the absolute bottom!
             if (htmlRequests) list.innerHTML += `<li class="section-title">Requests</li>` + htmlRequests;
         }
+
+        // Message buttons use a listener (names can't break out of inline onclick markup)
+        list.querySelectorAll('.pm-open-btn').forEach(b =>
+            b.addEventListener('click', () => window.openPrivateChat(b.dataset.uid, b.dataset.name)));
 
     } catch (err) { console.error("Contacts render failed", err); }
 };

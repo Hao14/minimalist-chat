@@ -1,5 +1,6 @@
 // js/chat.js
 import { db, storage } from './firebase-core.js';
+import { escapeHtml } from './utils.js';
 import { ref, set, get, push, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -108,8 +109,8 @@ window.displayMessage = function(messageId, msg, prepend = false) {
 
     let timeString = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
     const avatarImg = msg.photoUrl || window.getAvatarUrl(msg.name, "");
-    const replyHTML = msg.replyTo ? `<div class="reply-quote"><span class="reply-quote-name">↩ Replying to ${msg.replyTo.name}</span>"${msg.replyTo.text}"</div>` : '';
-    const attachedImgHTML = msg.attachedImage ? `<img src="${msg.attachedImage}" class="msg-attached-img">` : '';
+    const replyHTML = msg.replyTo ? `<div class="reply-quote"><span class="reply-quote-name">↩ Replying to ${escapeHtml(msg.replyTo.name)}</span>"${escapeHtml(msg.replyTo.text)}"</div>` : '';
+    const attachedImgHTML = msg.attachedImage ? `<img src="${encodeURI(msg.attachedImage)}" class="msg-attached-img">` : '';
     let badgeHTML = msg.tier === 'advanced' ? `<span class="tier-badge advanced">ADVANCED</span>` : (msg.tier === 'pro' ? `<span class="tier-badge pro">PRO</span>` : '');
 
     item.innerHTML = `
@@ -117,18 +118,21 @@ window.displayMessage = function(messageId, msg, prepend = false) {
             <span class="action-icon" onclick="reactToMessage('${messageId}', '👍')">👍</span>
             <span class="action-icon" onclick="reactToMessage('${messageId}', '❤️')">❤️</span>
             <span class="action-icon more-icon" onclick="toggleEmojiPicker(event, '${messageId}')">⋯</span>
-            <span class="action-icon" onclick="prepareReply('${messageId}', '${msg.name.replace(/'/g, "\\'")}', '${msg.text ? msg.text.replace(/'/g, "\\'") : 'Image'}')">↩️</span>
+            <span class="action-icon reply-icon">↩️</span>
         </div>
         <div class="msg-header" style="cursor: context-menu;">
-            <img src="${avatarImg}" class="msg-avatar" alt="Avatar" onclick="viewUserProfile('${msg.uid}')">
+            <img src="${encodeURI(avatarImg)}" class="msg-avatar" alt="Avatar" onclick="viewUserProfile('${msg.uid}')">
             <div class="header-text">
-                <span class="msg-name" style="cursor: pointer;" onclick="viewUserProfile('${msg.uid}')">${msg.name}</span>
+                <span class="msg-name" style="cursor: pointer;" onclick="viewUserProfile('${msg.uid}')">${escapeHtml(msg.name)}</span>
                 ${badgeHTML} <span class="msg-time">${timeString}</span>
             </div>
         </div>
-        ${replyHTML}${attachedImgHTML}<div class="msg-text">${msg.text || ''}</div>
+        ${replyHTML}${attachedImgHTML}<div class="msg-text">${escapeHtml(msg.text || '')}</div>
         <div class="msg-reactions" id="reactions-${messageId}"></div>
     `;
+
+    // Reply uses a listener (not inline onclick) so names/text can't break out of the markup.
+    item.querySelector('.reply-icon')?.addEventListener('click', () => window.prepareReply(messageId, msg.name, msg.text || 'Image'));
 
     item.querySelector('.msg-header')?.addEventListener('contextmenu', (e) => {
         e.preventDefault(); window.showContextMenu(e.pageX, e.pageY, msg.uid, msg.name);
@@ -205,7 +209,7 @@ window.viewUserProfile = async function(targetUid) {
         else if (tier.includes('advanced')) { badgeHtml = `<span class="tier-badge advanced">ADVANCED</span>`; }
 
         document.getElementById('up-avatar').src = avatar;
-        document.getElementById('up-name').innerHTML = `${user.displayName} ${badgeHtml}`;
+        document.getElementById('up-name').innerHTML = `${escapeHtml(user.displayName)} ${badgeHtml}`;
         
         let displayId = user.shortId || window.generateShortId();
         document.getElementById('up-pronouns').textContent = user.pronouns || "";

@@ -1,0 +1,39 @@
+/* desktop.css (min-width: 769px) — generated from style.css; do not duplicate rules here */
+
+@media (min-width: 769px) { nav a#nav-logo { position: absolute !important; left: 2rem !important; } }
+@media (min-width: 769px) {
+    /* 1. Global rail padding applied to ALL pages */
+    body { padding-left: 80px !important; }
+    
+    nav {
+        position: fixed !important; top: 0; left: 0; bottom: 0; width: 80px !important; height: 100vh !important;
+        flex-direction: column !important; justify-content: flex-start !important; padding: 1.5rem 0 !important;
+        border-bottom: none !important; border-right: 4px solid var(--text-color) !important;
+        gap: 1.5rem !important; align-items: center !important; z-index: 9000 !important; background: var(--bg-color);
+    }
+    
+    nav a#nav-logo { position: static !important; margin: 0 !important; }
+    .logo-text { display: none !important; } 
+    
+    .desktop-nav { 
+        flex-direction: column !important; width: 100% !important; gap: 1.5rem !important; 
+        margin: 0 !important; align-items: center !important; display: flex !important;
+        height: 100% !important; 
+    }
+
+    .rail-icon {
+        display: flex !important; align-items: center !important; justify-content: center !important;
+        font-size: 1.8rem !important; color: var(--text-color) !important; transition: transform 0.2s !important;
+        background: transparent !important; border: none !important; box-shadow: none !important;
+        padding: 0 !important; margin: 0 !important; width: 45px !important; height: 45px !important; 
+        border-radius: 12px !important; cursor: pointer !important; flex-shrink: 0 !important;
+    }
+    
+    .rail-icon:hover { transform: scale(1.15) !important; background: rgba(0,0,0,0.05) !important; }
+    
+    /* 2. BULLETPROOF HIDDEN FIX: Forces Login/Auth icons to obey JavaScript visibility */
+    .rail-icon.hidden, .guest-only.hidden, .auth-only.hidden { display: none !important; }
+    
+    nav a::after { display: none !important; } 
+    .chat-container-full, .container { max-width: none !important; width: 100% !important; }
+}
