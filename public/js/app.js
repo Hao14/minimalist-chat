@@ -1,14 +1,23 @@
 // js/app.js
 // 1. IMPORT FIREBASE CORE & DB
-import { db, auth } from './firebase-core.js';
+import { db, auth } from './firebase-core.js?v=15';
 import { ref, set, get, onValue, onChildAdded, onChildChanged, remove, serverTimestamp, onDisconnect, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { escapeHtml } from './utils.js?v=15';
 // 2. IMPORT YOUR MODULES TO ACTIVATE THEM
-import './auth.js';
-import './rooms.js';
-import './chat.js';
-import './docs.js';
-import './whiteboard.js';
-import './roomhome.js';
+import './auth.js?v=15';
+import './rooms.js?v=15';
+import './chat.js?v=15';
+import './docs.js?v=15';
+import './whiteboard.js?v=15';
+import './roomhome.js?v=15';
+import './dragdrop.js?v=15';
+import './pages.js?v=15';
+import './tasks.js?v=15';
+import './events.js?v=15';
+import './calendar.js?v=15';
+import './billing.js?v=15';
+import './search.js?v=15';
+import './messagetools.js?v=15';
 
 // --- GLOBAL STATE (Shared across files) ---
 window.activeRoomId = 'global';
@@ -167,6 +176,11 @@ window.updateBillingUI = function() {
     const upgradeProBtn = document.getElementById('upgrade-pro-btn');
     const manageBtn = document.getElementById('manage-billing-btn');
 
+    // Reflect the user's actual plan in the header.
+    const planName = document.getElementById('billing-plan-name');
+    if (planName) planName.textContent = window.userTier === 'pro' ? 'Minimalist Pro'
+        : window.userTier === 'advanced' ? 'Minimalist Advanced' : 'Minimalist Base';
+
     if (window.userTier === 'pro' || window.userTier === 'advanced') {
         if (upgradeAdvancedBtn) upgradeAdvancedBtn.style.display = 'none';
         if (upgradeProBtn) upgradeProBtn.style.display = 'none';
@@ -231,6 +245,7 @@ window.enterChat = function() {
                 window.listenForPmInbox();
                 window.listenForNotifications();
                 if (window.initializePresence) window.initializePresence();
+                if (window.initMessageTools) window.initMessageTools();
                 window.chatInitialized = true;
 
                 const pendingJoin = sessionStorage.getItem('pendingJoinUrl');
@@ -374,7 +389,11 @@ window.fetchGitHubUpdates = async function() {
 };
 
 // --- EMOJI PICKER POPULATION ---
-const emojis = ["😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🤭","🤫","🤥","😶","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","😈","👿","👹","👺","🤡","💩","👻","💀","☠️","👽","👾","🤖","🎃","👍","👎","❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎"];
+const emojis = ["😀","😃","😄","😁","😆","😅","😂","🤣","🥲","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚","😋","😛","😝","😜","🤪","🤨","🧐","🤓","😎","🥸","🤩","🥳","😏","😒","😞","😔","😟","😕","🙁","☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠","😡","🤬","🤯","😳","🥵","🥶","😱","😨","😰","😥","😓","🤗","🤔","🫡","🤭","🫢","🤫","🤥","😶","🫥","😐","😑","😬","🙄","😯","😦","😧","😮","😲","🥱","😴","🤤","😪","😵","🤐","🥴","🤢","🤮","🤧","😷","🤒","🤕","🤑","🤠","🥳","😈","👿","👹","👺","🤡","💩","👻","💀","☠️","👽","👾","🤖","🎃",
+    "👍","👎","👌","🤌","🤏","✌️","🤞","🫰","🤟","🤘","🤙","👈","👉","👆","👇","☝️","👋","🤚","🖐️","✋","🖖","🫶","🤝","🙏","✊","👊","🤛","🤜","👏","🙌","👐","🤲","💪","🦾",
+    "❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔","❤️‍🔥","❤️‍🩹","💯","💢","💥","💫","💦","💨","🔥","⭐","🌟","✨","⚡","🎉","🎊","🎈","🎁","🏆","🥇","💎","👑",
+    "🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🦄","🐝","🦋",
+    "🍕","🍔","🍟","🌮","🍣","🍦","🍩","🍪","🎂","🍰","🍫","🍿","☕","🍺","🍻","🥂","🍷","🍸"];
 const picker = document.getElementById('emoji-picker');
 if (picker) {
     emojis.forEach(emoji => {
@@ -505,17 +524,26 @@ document.addEventListener('click', (e) => {
 });
 // --- REAL-TIME NOTIFICATION ENGINE ---
 
-window.createNotification = async function(targetUid, type, text) {
+// opts.groupId — when provided, repeated notifications of the same type from the
+// same source collapse into ONE entry with a running `count` (so 10 messages from
+// a person show as a single stacked card, not 10). opts.from carries the sender's
+// display name for nicer "N new messages from X" rendering.
+window.createNotification = async function(targetUid, type, text, opts = {}) {
     try {
         // Prevent sending notifications to yourself
-        if (!targetUid || targetUid === window.currentUser.uid) return; 
-        
-        const pushRef = push(ref(db, `notifications/${targetUid}`));
-        await set(pushRef, { 
-            type: type, 
-            text: text, 
-            timestamp: Date.now() 
-        });
+        if (!targetUid || targetUid === window.currentUser.uid) return;
+
+        const { groupId, from } = opts;
+        if (groupId) {
+            // Firebase keys can't contain . # $ [ ] / — UIDs are safe, but sanitize anyway.
+            const key = `${type}_${groupId}`.replace(/[.#$/[\]]/g, '_');
+            const nRef = ref(db, `notifications/${targetUid}/${key}`);
+            const snap = await get(nRef);
+            const count = (snap.exists() ? (snap.val().count || 1) : 0) + 1;
+            await set(nRef, { type, text, from: from || null, timestamp: Date.now(), count });
+        } else {
+            await set(push(ref(db, `notifications/${targetUid}`)), { type, text, timestamp: Date.now() });
+        }
     } catch (err) { console.error("Failed to push notification", err); }
 };
 
@@ -523,6 +551,14 @@ window.clearNotification = async function(notifId) {
     try {
         await remove(ref(db, `notifications/${window.currentUser.uid}/${notifId}`));
     } catch (err) { console.error("Failed to clear notification", err); }
+};
+
+// Clears every underlying notification id behind a stacked card (comma-separated).
+window.clearNotificationGroup = async function(idsCsv) {
+    try {
+        const ids = (idsCsv || '').split(',').filter(Boolean);
+        await Promise.all(ids.map(id => remove(ref(db, `notifications/${window.currentUser.uid}/${id}`))));
+    } catch (err) { console.error("Failed to clear notifications", err); }
 };
 
 window.listenForNotifications = function() {
@@ -536,8 +572,22 @@ window.listenForNotifications = function() {
         if (!list) return;
 
         if (snapshot.exists()) {
-            const notifs = Object.entries(snapshot.val()).sort((a,b) => b[1].timestamp - a[1].timestamp);
-            
+            // Group at render time so messages/friend-requests from the same person collapse
+            // into ONE card — this also stacks legacy entries that were stored individually.
+            const groups = new Map();
+            for (const [id, n] of Object.entries(snapshot.val())) {
+                let key;
+                if (n.type === 'message') key = 'message::' + (n.from || n.text);
+                else if (n.type === 'friend') key = 'friend::' + (n.from || n.text);
+                else key = 'id::' + id; // room/system stay separate (different people/events)
+                if (!groups.has(key)) groups.set(key, { type: n.type, from: n.from || null, text: n.text, timestamp: n.timestamp || 0, count: 0, ids: [] });
+                const g = groups.get(key);
+                g.count += (n.count || 1);
+                g.ids.push(id);
+                if ((n.timestamp || 0) >= g.timestamp) { g.timestamp = n.timestamp || 0; g.text = n.text; g.from = n.from || g.from; }
+            }
+            const notifs = [...groups.values()].sort((a, b) => b.timestamp - a.timestamp);
+
             if (deskBell) deskBell.style.color = '#FF3B30';
             if (mobBell) mobBell.style.color = '#FF3B30';
 
@@ -545,28 +595,37 @@ window.listenForNotifications = function() {
             const today = new Date();
             const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
 
-            list.innerHTML = notifs.map(([nId, n]) => {
+            list.innerHTML = notifs.map((g) => {
                 let title = "SYSTEM ALERT"; let icon = "ph-bold ph-bell";
-                if (n.type === 'message') { title = "NEW MESSAGE"; icon = "ph-bold ph-chat-circle-text"; }
-                else if (n.type === 'friend') { title = "FRIEND REQUEST"; icon = "ph-bold ph-user-plus"; }
-                else if (n.type === 'room') { title = "ROOM ACTIVITY"; icon = "ph-bold ph-users-three"; }
+                if (g.type === 'message') { title = "NEW MESSAGE"; icon = "ph-bold ph-chat-circle-text"; }
+                else if (g.type === 'friend') { title = "FRIEND REQUEST"; icon = "ph-bold ph-user-plus"; }
+                else if (g.type === 'room') { title = "ROOM ACTIVITY"; icon = "ph-bold ph-users-three"; }
 
-                const d = new Date(n.timestamp);
+                const d = new Date(g.timestamp);
                 let timeStr = d.toLocaleTimeString([], {hour: 'numeric', minute:'2-digit'});
                 if (d.toDateString() === yesterday.toDateString()) timeStr = "Yesterday";
                 else if (d.toDateString() !== today.toDateString()) timeStr = d.toLocaleDateString('en-US', {month: 'short', day: 'numeric'});
+
+                const count = g.count || 1;
+                // Stacked entries summarize the run instead of repeating the last line.
+                let mainText = g.text;
+                if (count > 1 && g.type === 'message') { title = 'NEW MESSAGES'; mainText = `${count} new messages${g.from ? ' from ' + g.from : ''}`; }
+
+                const countBadge = count > 1
+                    ? `<span style="background: #FF3B30; color: #fff; font-size: 0.7rem; font-weight: 800; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;">${count}</span>`
+                    : '';
 
                 return `
                     <li class="modern-notif" style="padding: 1.2rem 1.5rem; border-bottom: 2px solid var(--text-color); display: flex; align-items: center; gap: 15px;">
                         <i class="${icon}" style="font-size: 1.8rem; color: var(--text-color); flex-shrink: 0;"></i>
                         <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
                             <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px;">
-                                <span style="font-size: 0.9rem; font-weight: 800; color: var(--text-color); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${title}</span>
+                                <span style="font-size: 0.9rem; font-weight: 800; color: var(--text-color); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px;">${title} ${countBadge}</span>
                                 <span style="font-size: 0.75rem; font-weight: 800; color: #888; flex-shrink: 0;">${timeStr}</span>
                             </div>
-                            <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${n.text}</span>
+                            <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(mainText)}</span>
                         </div>
-                        <span onclick="clearNotification('${nId}')" class="notif-close-btn" style="font-size: 1.5rem; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 35px; height: 35px; transition: color 0.2s;">
+                        <span onclick="clearNotificationGroup('${g.ids.join(',')}')" class="notif-close-btn" style="font-size: 1.5rem; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 35px; height: 35px; transition: color 0.2s;">
                             <i class="ph-bold ph-x"></i>
                         </span>
                     </li>
@@ -650,12 +709,13 @@ document.addEventListener('click', (e) => {
 });
 // --- ROOM DASHBOARD TAB SWITCHING ---
 document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('room-tab')) {
-        const targetView = e.target.getAttribute('data-target');
-        
+    const tabBtn = e.target.closest('.room-tab'); // closest() so clicks on the inner icon still register
+    if (tabBtn) {
+        const targetView = tabBtn.getAttribute('data-target');
+
         // 1. Update Tab Visuals
         document.querySelectorAll('.room-tab').forEach(tab => tab.classList.remove('active'));
-        e.target.classList.add('active');
+        tabBtn.classList.add('active');
         
         // 2. Hide all views, show the target view
         document.querySelectorAll('.room-view').forEach(view => view.classList.add('hidden'));
@@ -668,9 +728,11 @@ document.addEventListener('click', (e) => {
         }
 
         // 4. Lazy-load room features when their tab is opened
-        if (targetView === 'home' && window.loadRoomHome) window.loadRoomHome();
-        if (targetView === 'docs' && window.loadRoomDocs) window.loadRoomDocs();
-        if (targetView === 'whiteboard' && window.loadRoomWhiteboard) window.loadRoomWhiteboard();
+        const loaders = {
+            home: window.loadRoomHome, docs: window.loadRoomDocs, whiteboard: window.loadRoomWhiteboard,
+            tasks: window.loadRoomTasks, events: window.loadRoomEvents, calendar: window.loadRoomCalendar
+        };
+        if (loaders[targetView]) loaders[targetView]();
     }
 });
 
@@ -682,6 +744,9 @@ window.onRoomChanged = function() {
     });
     document.querySelectorAll('.room-view').forEach(view => view.classList.add('hidden'));
     document.getElementById('room-view-home')?.classList.remove('hidden');
+
+    // Rebuild this room's optional page tabs (Docs/Whiteboard/Tasks/Events/Calendar).
+    if (window.renderRoomPages) window.renderRoomPages();
 
     if (window.loadRoomHome) window.loadRoomHome();
 };

@@ -1,7 +1,7 @@
 // js/chat.js
-import { db, storage } from './firebase-core.js';
-import { escapeHtml } from './utils.js';
-import { ref, set, get, push, remove, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { db, storage } from './firebase-core.js?v=15';
+import { escapeHtml, renderMessageText } from './utils.js?v=15';
+import { ref, set, get, push, update, remove, onValue, onDisconnect, off, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // --- CHAT MESSAGING ---
@@ -11,11 +11,60 @@ const messageInputObj = document.getElementById('message-input');
 if (messageInputObj) {
     messageInputObj.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault(); 
+            e.preventDefault();
             if (chatForm) chatForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
         }
     });
+
+    // Drafts + typing indicator
+    messageInputObj.addEventListener('input', () => {
+        if (window.activeRoomId) localStorage.setItem(`draft:${window.activeRoomId}`, messageInputObj.value);
+        setTyping(messageInputObj.value.trim().length > 0);
+        clearTimeout(typingTimer);
+        typingTimer = setTimeout(() => setTyping(false), 3000);
+    });
 }
+
+// --- TYPING INDICATOR ---
+let typingTimer = null;
+let typingListenerRef = null;
+
+function setTyping(isTyping) {
+    if (!window.currentUser || !window.activeRoomId) return;
+    const myRef = ref(db, `typing/${window.activeRoomId}/${window.currentUser.uid}`);
+    if (isTyping) {
+        set(myRef, window.userProfileName || 'Someone');
+        onDisconnect(myRef).remove();
+    } else {
+        remove(myRef);
+    }
+}
+
+window.bindRoomTyping = function(roomId) {
+    if (typingListenerRef) off(typingListenerRef);
+    setTyping(false); // clear any stale "typing" flag from the room we just left
+    typingListenerRef = ref(db, `typing/${roomId}`);
+    onValue(typingListenerRef, (snap) => {
+        const container = document.getElementById('typing-status-container');
+        const textEl = document.getElementById('typing-text');
+        if (!container) return;
+        const names = Object.entries(snap.val() || {})
+            .filter(([uid]) => uid !== window.currentUser.uid)
+            .map(([, n]) => n);
+        if (!names.length) { container.classList.add('hidden'); return; }
+        if (textEl) {
+            textEl.textContent = names.length === 1 ? `${names[0]} is typing...`
+                : names.length === 2 ? `${names[0]} and ${names[1]} are typing...`
+                : `${names.length} people are typing...`;
+        }
+        container.classList.remove('hidden');
+    });
+};
+
+// --- DRAFTS ---
+window.loadDraft = function(roomId) {
+    if (messageInputObj) messageInputObj.value = localStorage.getItem(`draft:${roomId}`) || '';
+};
 
 if (chatForm) {
     chatForm.addEventListener('submit', async function(e) {
@@ -49,6 +98,8 @@ if (chatForm) {
 
         try {
             if(messageInputObj) { messageInputObj.value = ''; messageInputObj.rows = 1; }
+            localStorage.removeItem(`draft:${window.activeRoomId}`);
+            clearTimeout(typingTimer); setTyping(false);
             let uploadedImageUrl = null;
             
             if (file) {
@@ -106,6 +157,10 @@ window.displayMessage = function(messageId, msg, prepend = false) {
 
     const item = document.createElement('li'); item.id = `msg-${messageId}`;
     if (msg.uid === window.currentUser.uid) item.classList.add('my-message');
+    if (msg.important) item.classList.add('msg-important');
+    // Cache the message so message-tools (forward/bookmark/impact/thread) can read it without re-fetching.
+    window.msgCache = window.msgCache || {};
+    window.msgCache[messageId] = { id: messageId, ...msg };
 
     let timeString = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
     const avatarImg = msg.photoUrl || window.getAvatarUrl(msg.name, "");
@@ -113,34 +168,102 @@ window.displayMessage = function(messageId, msg, prepend = false) {
     const attachedImgHTML = msg.attachedImage ? `<img src="${encodeURI(msg.attachedImage)}" class="msg-attached-img">` : '';
     let badgeHTML = msg.tier === 'advanced' ? `<span class="tier-badge advanced">ADVANCED</span>` : (msg.tier === 'pro' ? `<span class="tier-badge pro">PRO</span>` : '');
 
+    const isMine = msg.uid === window.currentUser.uid;
+    const canDelete = isMine || window.currentUser.uid === window.MY_ADMIN_UID;
+    const editIcon = isMine ? `<span class="action-icon edit-icon" title="Edit">✏️</span>` : '';
+    const deleteIcon = canDelete ? `<span class="action-icon delete-icon" title="Delete">🗑️</span>` : '';
+    const editedHTML = msg.edited ? `<span class="msg-edited" id="ed-${messageId}">(edited)</span>` : `<span class="msg-edited" id="ed-${messageId}"></span>`;
+
     item.innerHTML = `
         <div class="msg-actions">
             <span class="action-icon" onclick="reactToMessage('${messageId}', '👍')">👍</span>
             <span class="action-icon" onclick="reactToMessage('${messageId}', '❤️')">❤️</span>
-            <span class="action-icon more-icon" onclick="toggleEmojiPicker(event, '${messageId}')">⋯</span>
-            <span class="action-icon reply-icon">↩️</span>
+            <span class="action-icon more-icon" onclick="toggleEmojiPicker(event, '${messageId}')" title="React">😊</span>
+            <span class="action-icon reply-icon" title="Reply">↩️</span>
+            <span class="action-icon msg-menu-icon" title="More actions">⋮</span>
+            ${editIcon}${deleteIcon}
         </div>
         <div class="msg-header" style="cursor: context-menu;">
             <img src="${encodeURI(avatarImg)}" class="msg-avatar" alt="Avatar" onclick="viewUserProfile('${msg.uid}')">
             <div class="header-text">
                 <span class="msg-name" style="cursor: pointer;" onclick="viewUserProfile('${msg.uid}')">${escapeHtml(msg.name)}</span>
-                ${badgeHTML} <span class="msg-time">${timeString}</span>
+                ${badgeHTML} <span class="msg-time">${timeString}</span> ${editedHTML}
+                <span class="msg-flag" id="flag-${messageId}" title="Important" style="${msg.important ? '' : 'display:none;'}">⚑</span>
             </div>
         </div>
-        ${replyHTML}${attachedImgHTML}<div class="msg-text">${escapeHtml(msg.text || '')}</div>
+        ${replyHTML}${attachedImgHTML}<div class="msg-text" id="mt-${messageId}">${renderMessageText(msg.text || '')}</div>
         <div class="msg-reactions" id="reactions-${messageId}"></div>
     `;
 
     // Reply uses a listener (not inline onclick) so names/text can't break out of the markup.
     item.querySelector('.reply-icon')?.addEventListener('click', () => window.prepareReply(messageId, msg.name, msg.text || 'Image'));
+    item.querySelector('.edit-icon')?.addEventListener('click', () => window.editMessage(messageId));
+    item.querySelector('.delete-icon')?.addEventListener('click', () => window.deleteMessage(messageId));
+    item.querySelector('.msg-menu-icon')?.addEventListener('click', (e) => window.openMsgMenu?.(e, messageId));
 
     item.querySelector('.msg-header')?.addEventListener('contextmenu', (e) => {
         e.preventDefault(); window.showContextMenu(e.pageX, e.pageY, msg.uid, msg.name);
     });
 
-    if (prepend) messagesList.prepend(item); 
+    if (prepend) messagesList.prepend(item);
     else { messagesList.appendChild(item); setTimeout(() => { messagesList.scrollTo(0, messagesList.scrollHeight); }, 50); }
 }
+
+// Resolve the DB ref for a message in the currently active room.
+function activeMsgRef(id) {
+    return window.activeRoomId === 'global'
+        ? ref(db, `messages/${id}`)
+        : ref(db, `rooms_data/${window.activeRoomId}/messages/${id}`);
+}
+
+// Re-render an existing message in place (used by the live "child changed" listener).
+window.updateMessageEl = function(messageId, msg) {
+    const mt = document.getElementById(`mt-${messageId}`);
+    if (mt && !mt.querySelector('.msg-edit-area')) mt.innerHTML = renderMessageText(msg.text || '');
+    const ed = document.getElementById(`ed-${messageId}`);
+    if (ed) ed.textContent = msg.edited ? '(edited)' : '';
+    // Importance flag can change live.
+    const li = document.getElementById(`msg-${messageId}`);
+    if (li) li.classList.toggle('msg-important', !!msg.important);
+    const flag = document.getElementById(`flag-${messageId}`);
+    if (flag) flag.style.display = msg.important ? '' : 'none';
+    if (window.msgCache) window.msgCache[messageId] = { id: messageId, ...msg };
+};
+
+window.editMessage = async function(messageId) {
+    const mt = document.getElementById(`mt-${messageId}`);
+    if (!mt || mt.querySelector('.msg-edit-area')) return;
+    let current = '';
+    try { const snap = await get(activeMsgRef(messageId)); current = snap.exists() ? (snap.val().text || '') : ''; } catch {}
+    const prev = mt.innerHTML;
+    mt.innerHTML = `
+        <textarea class="msg-edit-area" rows="2"></textarea>
+        <div class="msg-edit-actions">
+            <button class="msg-edit-save">Save</button>
+            <button class="msg-edit-cancel">Cancel</button>
+        </div>`;
+    const ta = mt.querySelector('.msg-edit-area');
+    ta.value = current; ta.focus();
+    mt.querySelector('.msg-edit-cancel').addEventListener('click', () => { mt.innerHTML = prev; });
+    mt.querySelector('.msg-edit-save').addEventListener('click', async () => {
+        const newText = ta.value.trim();
+        if (!newText) return window.showToast('Message cannot be empty. Use delete instead.');
+        try {
+            await update(activeMsgRef(messageId), { text: newText, edited: true });
+            // Re-render locally now (updateMessageEl skips while the edit area is open);
+            // remote clients re-render via the "child changed" listener.
+            mt.innerHTML = renderMessageText(newText);
+            const ed = document.getElementById(`ed-${messageId}`);
+            if (ed) ed.textContent = '(edited)';
+        } catch (e) { window.showToast('Edit failed: ' + e.message); mt.innerHTML = prev; }
+    });
+};
+
+window.deleteMessage = async function(messageId) {
+    if (!confirm('Delete this message for everyone?')) return;
+    try { await remove(activeMsgRef(messageId)); }
+    catch (e) { window.showToast('Delete failed: ' + e.message); }
+};
 
 window.bindChatScrolling = function(msgsRef) {
     const messagesList = document.getElementById('messages');
