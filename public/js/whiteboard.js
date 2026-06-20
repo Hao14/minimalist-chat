@@ -1,6 +1,6 @@
-// js/whiteboard.js
+﻿// js/whiteboard.js
 // Real-time shared sticky-note whiteboard, scoped per room.
-import { db } from './firebase-core.js';
+import { db } from './firebase-core.js?v=19';
 import { ref, push, update, remove, onChildAdded, onChildChanged, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const WB_COLORS = ['#FFE16B', '#A0E8B7', '#A8D4F5', '#F7B0B0', '#D9B3F0', '#F5C98A', '#C9C9C9'];

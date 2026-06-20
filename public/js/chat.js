@@ -1,6 +1,6 @@
-// js/chat.js
-import { db, storage } from './firebase-core.js?v=15';
-import { escapeHtml, renderMessageText } from './utils.js?v=15';
+﻿// js/chat.js
+import { db, storage } from './firebase-core.js?v=19';
+import { escapeHtml, renderMessageText } from './utils.js?v=19';
 import { ref, set, get, push, update, remove, onValue, onDisconnect, off, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -122,6 +122,10 @@ if (chatForm) {
             
             const msgsRef = window.activeRoomId === 'global' ? ref(db, 'messages') : ref(db, `rooms_data/${window.activeRoomId}/messages`);
             await set(push(msgsRef), payload);
+
+            // Notify anyone @mentioned by name in this room, and bump the sender's contribution count.
+            if (text) window.notifyMentions?.(text, window.activeRoomId);
+            window.bumpMessageCount?.(window.currentUser.uid);
 
             if (window.activeRoomId !== 'global') {
                 let pText = text ? `${window.userProfileName}: ${text}` : `${window.userProfileName} sent an image`;
@@ -337,8 +341,42 @@ window.viewUserProfile = async function(targetUid) {
         let displayId = user.shortId || window.generateShortId();
         document.getElementById('up-pronouns').textContent = user.pronouns || "";
         document.getElementById('up-shortid').textContent = "#" + displayId;
+        const upStatus = document.getElementById('up-status');
+        if (upStatus) { upStatus.textContent = user.status || ""; upStatus.style.display = user.status ? "" : "none"; }
         document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
+        const upLinks = document.getElementById('up-links');
+        if (upLinks) upLinks.innerHTML = window.renderProfileLinks ? window.renderProfileLinks(user.links) : "";
+        const upBadges = document.getElementById('up-badges');
+        if (upBadges) upBadges.innerHTML = window.renderBadges ? window.renderBadges(user.badges) : "";
+        const upJoined = document.getElementById('up-joined');
+        if (upJoined) upJoined.textContent = "Joined: " + (user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : "Unknown");
+        const upRep = document.getElementById('up-rep');
+        if (upRep && window.computeRep) upRep.innerHTML = `<i class="ph-bold ph-trophy"></i> ${window.computeRep(user)} reputation`;
         document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
+
+        // Kudos count + give-kudos button (hidden on your own profile)
+        const isSelf = targetUid === window.currentUser.uid;
+        document.getElementById('up-kudos-count').textContent = user.kudos || 0;
+        const kudosBtn = document.getElementById('up-kudos-btn');
+        if (kudosBtn) {
+            kudosBtn.style.display = isSelf ? 'none' : '';
+            const alreadyGave = !isSelf && user.kudosFrom && user.kudosFrom[window.currentUser.uid];
+            kudosBtn.disabled = !!alreadyGave;
+            kudosBtn.onclick = async () => {
+                kudosBtn.disabled = true;
+                const res = await window.giveKudos(targetUid);
+                if (res.ok) { document.getElementById('up-kudos-count').textContent = res.count; window.showToast('Kudos sent! 👏', false); }
+                else { kudosBtn.disabled = res.reason === 'already'; if (res.reason === 'already') window.showToast('You already gave kudos.'); }
+            };
+        }
+
+        // Live presence dot
+        try {
+            const pSnap = await get(ref(db, 'presence/' + targetUid));
+            const online = pSnap.exists() && pSnap.val().state === 'online';
+            const dot = document.getElementById('up-presence');
+            if (dot) { dot.className = 'up-presence status-dot ' + (online ? 'online' : 'offline'); dot.title = online ? 'Online' : 'Offline'; }
+        } catch {}
         
         const msgBtn = document.getElementById('up-message-btn');
         if(msgBtn) {

@@ -1,7 +1,7 @@
-// js/auth.js
-import { auth, db, storage } from './firebase-core.js';
+﻿// js/auth.js
+import { auth, db, storage } from './firebase-core.js?v=19';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { ref, set, get, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
 // --- GLOBAL USER STATE ---
@@ -11,8 +11,10 @@ window.userPhotoUrl = "";
 window.userPronouns = "";
 window.userBio = "";
 window.userThemeColor = "#FFD700";
+window.userStatus = "";
+window.userLinks = [];
 window.userShortId = "";
-window.userTier = "free"; 
+window.userTier = "free";
 window.userPhone = "No phone on file";
 
 // --- GLOBAL HELPERS ---
@@ -64,6 +66,8 @@ async function checkUserProfile(uid) {
             window.userPronouns = data.pronouns || "";
             window.userBio = data.bio || "";
             window.userThemeColor = data.themeColor || "#FFD700";
+            window.userStatus = data.status || "";
+            window.userLinks = Array.isArray(data.links) ? data.links : [];
             window.userTier = data.tier || "free"; 
             window.userPhone = data.phoneNumber || "No phone on file"; 
             
@@ -77,6 +81,9 @@ async function checkUserProfile(uid) {
             if (!data.createdAt && auth.currentUser) {
                 await set(ref(db, 'users/' + uid + '/createdAt'), auth.currentUser.metadata.creationTime);
             }
+
+            // Everyone earns the Welcome badge once (proves/seeds the badge system).
+            if (!(data.badges && data.badges.welcome) && window.awardBadge) window.awardBadge(uid, 'welcome');
 
             if (typeof window.enterChat === 'function') window.enterChat();
         } else { 
@@ -127,20 +134,27 @@ if (updateProfileBtn) {
             }
 
             const newName = document.getElementById('edit-display-name').value.trim();
-            await set(ref(db, 'users/' + window.currentUser.uid), { 
+            const newStatus = (document.getElementById('edit-status')?.value || '').trim();
+            const newLinks = window.parseProfileLinks(document.getElementById('edit-links')?.value || '');
+            // update() (not set()) so we don't wipe tier, phoneNumber, bookmarks, etc. on the user node.
+            await update(ref(db, 'users/' + window.currentUser.uid), {
                 displayName: newName,
                 photoUrl: finalPhotoUrl,
                 pronouns: document.getElementById('edit-pronouns').value.trim(),
                 bio: document.getElementById('edit-bio').value.trim(),
                 themeColor: document.getElementById('edit-theme-color').value,
-                shortId: window.userShortId 
+                status: newStatus,
+                links: newLinks,
+                shortId: window.userShortId
             });
-            
+
             window.userProfileName = newName;
             window.userPhotoUrl = finalPhotoUrl;
             window.userPronouns = document.getElementById('edit-pronouns').value.trim();
             window.userBio = document.getElementById('edit-bio').value.trim();
             window.userThemeColor = document.getElementById('edit-theme-color').value;
+            window.userStatus = newStatus;
+            window.userLinks = newLinks;
 
             document.getElementById('toggle-edit-btn').click(); 
             if(window.showToast) window.showToast("Profile Updated!");

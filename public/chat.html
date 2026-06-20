@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -10,10 +10,11 @@
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
         <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<link rel="stylesheet" href="base.css?v=split1">
+    <script src="config.js?v=2"></script>
+<link rel="stylesheet" href="base.css?v=split3">
 <link rel="stylesheet" href="desktop.css?v=split1">
 <link rel="stylesheet" href="mobile.css?v=split1">
-<link rel="stylesheet" href="features.css?v=1">
+<link rel="stylesheet" href="features.css?v=9">
 </head>
 <body>
     <div class="shape yellow-circle bottom-left"></div>
@@ -32,11 +33,13 @@
             <a href="/" class="rail-icon" title="Home"><i class="ph-bold ph-house"></i></a>
             <a href="/story" class="rail-icon" title="Story"><i class="ph-bold ph-book-open"></i></a>
             <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
-            
+            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
+
             <div style="flex-grow: 1; width: 100%; min-height: 20px;"></div>
 
             <a href="#" id="open-updates-btn-desktop" class="rail-icon auth-only hidden" title="Updates"><i class="ph-bold ph-bell"></i></a>
-            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-bookmarks-btn" title="Saved"><i class="ph-bold ph-bookmark-simple"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-search-btn" title="Search"><i class="ph-bold ph-magnifying-glass"></i></button>
             <button class="rail-icon auth-only hidden" id="open-settings-btn" title="Settings"><i class="ph-bold ph-gear"></i></button>
             <a href="/login" class="rail-icon guest-only" title="Login"><i class="ph-bold ph-sign-in"></i></a>
         </div>
@@ -119,12 +122,15 @@
                         <button id="room-drop-settings">Room Settings</button>
                         <button id="room-drop-notifications">Notification Options</button>
                     </div>
+                    <!-- Lives here (not in #room-sub-nav) so the nav's horizontal scroll/overflow can't clip it -->
+                    <div id="room-add-page-menu" class="hidden brutalist-dropdown" style="top:96px; left:1.5rem;"></div>
                 </div>
-               <div id="room-sub-nav" style="display: flex; gap: 2rem; padding: 0 1.5rem; background: var(--bg-color);">
+               <div id="room-sub-nav" style="display: flex; gap: 2rem; padding: 0 1.5rem; background: var(--bg-color); align-items: center;">
                     <button class="room-tab active" data-target="home">Home</button>
                     <button class="room-tab" data-target="chat">Chat</button>
-                    <button class="room-tab" data-target="docs">Docs</button>
-                    <button class="room-tab" data-target="whiteboard">Whiteboard</button>
+                    <!-- Optional pages (Docs, Whiteboard, Tasks, Events, Calendar) are injected here per room -->
+                    <span id="room-pages-dynamic" style="display: contents;"></span>
+                    <button id="room-add-page-btn" class="hidden" title="Add a page">+</button>
                 </div>
 
                 <div id="room-view-chat" class="room-view hidden" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
@@ -238,6 +244,80 @@
                     </div>
                     <div id="wb-canvas"></div>
                 </div>
+
+                <!-- TASKS PAGE -->
+                <div id="room-view-tasks" class="room-view hidden">
+                    <div class="tasks-toolbar">
+                        <input type="text" id="task-input" placeholder="Add a task and press Enter...">
+                        <button id="task-add-btn">Add</button>
+                    </div>
+                    <div id="tasks-board"></div>
+                </div>
+
+                <!-- EVENTS PAGE -->
+                <div id="room-view-events" class="room-view hidden">
+                    <div class="events-page-scroll">
+                        <div class="events-head">
+                            <h3><i class="ph-bold ph-calendar-dots"></i> Events</h3>
+                            <button id="ev-page-add-btn" class="rh-add-btn hidden"><i class="ph-bold ph-plus"></i> New event</button>
+                        </div>
+                        <div id="ev-page-form" class="rh-add-form hidden">
+                            <input type="text" id="ev-page-title" placeholder="Event title...">
+                            <div class="rh-form-row">
+                                <input type="date" id="ev-page-date">
+                                <input type="time" id="ev-page-time">
+                            </div>
+                            <input type="text" id="ev-page-desc" placeholder="Details (optional)">
+                            <button class="rh-save-btn" id="ev-page-save">Add Event</button>
+                        </div>
+                        <div id="events-page-list"></div>
+                    </div>
+                </div>
+
+                <!-- CALENDAR PAGE -->
+                <div id="room-view-calendar" class="room-view hidden">
+                    <div class="cal-wrap">
+                        <div class="cal-nav">
+                            <button class="cal-nav-btn" id="cal-prev-month" title="Previous month"><i class="ph-bold ph-caret-double-left"></i></button>
+                            <button class="cal-nav-btn" id="cal-prev-week" title="Previous week"><i class="ph-bold ph-caret-left"></i></button>
+                            <div class="cal-nav-label" id="cal-nav-label"></div>
+                            <button class="cal-nav-btn" id="cal-next-week" title="Next week"><i class="ph-bold ph-caret-right"></i></button>
+                            <button class="cal-nav-btn" id="cal-next-month" title="Next month"><i class="ph-bold ph-caret-double-right"></i></button>
+                            <button class="cal-nav-btn cal-today-btn" id="cal-today" title="Jump to today">Today</button>
+                        </div>
+                        <div class="cal-top">
+                            <div class="cal-daystrip" id="cal-daystrip"></div>
+                            <button id="cal-photo-btn" class="cal-photo-btn" title="Import events from a photo (AI)"><i class="ph-bold ph-camera"></i></button>
+                        </div>
+
+                        <div class="cal-connect-banner" id="cal-connect-banner">
+                            <div class="cal-connect-left">
+                                <i class="ph-bold ph-warning-circle"></i>
+                                <span>Connect Google Calendar to sync your real events.</span>
+                            </div>
+                            <button id="cal-gcal-btn" class="cal-connect-link">Connect</button>
+                        </div>
+
+                        <div class="cal-agenda" id="cal-agenda"></div>
+
+                        <div class="cal-add-row" id="cal-add-row">
+                            <button id="cal-add-btn" class="cal-add-btn"><i class="ph-bold ph-plus"></i> Add New Event</button>
+                            <button id="cal-import-btn" class="cal-add-btn hidden"><i class="ph-bold ph-arrows-clockwise"></i> Import from Google</button>
+                        </div>
+                        <input type="file" id="cal-photo-input" accept="image/*" class="hidden">
+                    </div>
+                </div>
+
+                <!-- AI PAGE -->
+                <div id="room-view-ai" class="room-view hidden">
+                    <div class="ai-wrap">
+                        <div class="ai-head">
+                            <h3><i class="ph-bold ph-sparkle"></i> AI Summary</h3>
+                            <button id="ai-refresh-btn" class="rh-add-btn" title="Re-read the room"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
+                        </div>
+                        <div id="ai-output" class="ai-output"></div>
+                    </div>
+                </div>
             </div>
 
         </div>
@@ -252,6 +332,7 @@
             
             <div style="display: flex; gap: 1.5rem; width: 100%; margin-top: 0.5rem;">
                 <button class="update-tab active" id="tab-notifications">Activity</button>
+                <button class="update-tab" id="tab-leaderboard">Leaderboard</button>
                 <button class="update-tab" id="tab-changelog">Changelog</button>
             </div>
         </div>
@@ -264,6 +345,7 @@
         </ul>
 
         <ul id="updates-list" class="hidden"></ul>
+        <ul id="leaderboard-list" class="hidden" style="list-style:none; overflow-y:auto; flex:1; padding:1rem; margin:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
     </div>
 
     <div id="contacts-panel">
@@ -334,6 +416,7 @@
                             <h3 class="sidebar-header" style="border:none; margin:0; padding:0;">Public Profile</h3>
                             <button id="toggle-edit-btn" style="width: auto; margin:0; padding: 0.4rem 1rem;">Edit Profile</button>
                         </div>
+                        <div id="profile-completeness" class="profile-completeness"></div>
                         <div id="profile-form-fields" style="pointer-events: none; opacity: 0.7;">
                             <div class="input-group">
                                 <label>DISPLAY NAME</label>
@@ -344,12 +427,20 @@
                                 <input type="text" id="edit-pronouns" readonly>
                             </div>
                             <div class="input-group">
+                                <label>STATUS</label>
+                                <input type="text" id="edit-status" readonly maxlength="80" placeholder="🟢 Available">
+                            </div>
+                            <div class="input-group">
                                 <label>AVATAR IMAGE</label>
                                 <input type="file" id="edit-photo-file" accept="image/*" disabled style="padding: 0.4rem;">
                             </div>
                             <div class="input-group">
                                 <label>ABOUT ME</label>
                                 <textarea id="edit-bio" readonly></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label>LINKS <span style="font-weight:400; text-transform:none;">(one per line: Label | https://url)</span></label>
+                                <textarea id="edit-links" readonly placeholder="GitHub | https://github.com/me"></textarea>
                             </div>
                             <div class="input-group">
                                 <label>THEME COLOR</label>
@@ -375,7 +466,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: var(--accent-color); color: var(--text-color);">
                         <div style="display: flex; flex-direction: column; gap: 0.3rem;">
                             <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Current Plan</span>
-                            <span style="font-size: 1.8rem; font-weight: 800; line-height: 1;">Minimalist Base</span>
+                            <span id="billing-plan-name" style="font-size: 1.8rem; font-weight: 800; line-height: 1;">Minimalist Base</span>
                         </div>
                         <button id="manage-billing-btn" style="width: auto; margin: 0; padding: 0.6rem 1.5rem; background: var(--bg-color); color: var(--text-color); box-shadow: 4px 4px 0px var(--text-color); font-size: 1rem;">Manage</button>            
                     </div>
@@ -432,6 +523,7 @@
             </div>
             <div class="profile-avatar-wrapper">
                 <img id="up-avatar" src="" alt="Avatar">
+                <span class="up-presence status-dot" id="up-presence" title=""></span>
             </div>
         </div>
         <div class="profile-content">
@@ -442,10 +534,15 @@
             <div style="margin-top: -5px; margin-bottom: 10px;">
                 <span class="profile-short-id" id="up-shortid">#000000</span>
             </div>
+            <div class="profile-status" id="up-status"></div>
             <div class="profile-bio" id="up-bio">Bio goes here...</div>
+            <div class="profile-links" id="up-links"></div>
+            <div class="profile-badges" id="up-badges"></div>
+            <div class="profile-rep" id="up-rep"></div>
             <div class="profile-joined-date" id="up-joined">Joined: Loading...</div>
             <div class="profile-actions">
-                <button id="up-message-btn" style="width: 100%;">Message</button>
+                <button id="up-message-btn">Message</button>
+                <button id="up-kudos-btn" class="up-kudos"><i class="ph-bold ph-hand-heart"></i> Kudos <span id="up-kudos-count">0</span></button>
             </div>
         </div>
     </div>
@@ -583,7 +680,19 @@
     </footer>
     <div id="emoji-picker" class="hidden"></div>
 
-<script type="module" src="js/app.js?v=rail"></script>
+    <!-- GLOBAL OMNI-SEARCH -->
+    <div id="search-modal" class="hidden">
+        <div class="search-box">
+            <div class="search-input-row">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <input type="text" id="global-search-input" placeholder="Search messages, rooms, people..." autocomplete="off">
+                <button id="close-search-btn">✖</button>
+            </div>
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+<script type="module" src="js/app.js?v=19"></script>
     <div id="brutalist-toast" class="toast-hidden">
         <span id="toast-icon">⚠️</span>
         <span id="toast-message">Error message goes here</span>
