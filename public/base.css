@@ -310,6 +310,39 @@ footer { margin-top: auto; border-top: 4px solid var(--text-color); background: 
 .status-dot { position: absolute; bottom: -2px; right: -2px; width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--bg-color); background-color: #80848e; transition: background-color 0.3s; }
 .status-dot.online { background-color: #23a559; }
 
+/* --- Profile & social additions --- */
+.msg-mention { font-weight: 800; color: var(--text-color); background: var(--accent-color); border-radius: 4px; padding: 0 3px; }
+/* NOTE: .profile-avatar-wrapper is already position:absolute (line ~219), which is a valid
+   containing block for the presence dot — do NOT override it to relative or it stretches to a wide oval. */
+.up-presence { width: 18px; height: 18px; bottom: 2px; right: 2px; }
+.profile-status { font-size: 0.92rem; font-weight: 600; color: var(--text-color); margin-bottom: 8px; }
+.profile-links { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 10px; }
+.profile-link { font-size: 0.82rem; font-weight: 700; padding: 0.25rem 0.7rem; border: 2px solid var(--text-color); border-radius: 20px; text-decoration: none; color: var(--text-color); background: transparent; }
+.profile-link:hover { background: var(--accent-color); color: #111; }
+.profile-completeness { margin-bottom: 1rem; }
+.pc-row { display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 700; margin-bottom: 0.35rem; }
+.pc-count { color: #888; }
+.pc-bar { height: 8px; background: rgba(150,150,150,0.25); border-radius: 6px; overflow: hidden; }
+.pc-fill { height: 100%; background: var(--accent-color); transition: width 0.3s; }
+.pc-missing { font-size: 0.78rem; color: #888; margin-top: 0.4rem; }
+.pc-missing.pc-done { color: #23a559; font-weight: 700; }
+.profile-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 10px; }
+.earned-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.74rem; font-weight: 800; padding: 0.2rem 0.6rem; border-radius: 20px; color: #111; background: var(--badge-color, var(--accent-color)); }
+.profile-actions { display: flex; gap: 0.6rem; }
+.profile-actions button { flex: 1; }
+.up-kudos { background: transparent; color: var(--text-color); border: 2px solid var(--text-color); }
+.up-kudos:disabled { opacity: 0.5; cursor: not-allowed; }
+.up-kudos:hover:not(:disabled) { background: var(--accent-color); color: #111; }
+.profile-rep { display: flex; align-items: center; gap: 5px; font-size: 0.88rem; font-weight: 700; color: var(--text-color); margin-top: 8px; }
+/* Global leaderboard */
+.lb-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0.7rem; border: 2px solid var(--text-color); border-radius: 10px; cursor: pointer; background: var(--bg-color); transition: background 0.15s; }
+.lb-row:hover { background: rgba(150,150,150,0.12); }
+.lb-rank { font-weight: 800; font-size: 1rem; min-width: 28px; text-align: center; }
+.lb-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--text-color); flex: 0 0 auto; }
+.lb-name { flex: 1; font-weight: 700; font-size: 0.92rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-rep { font-weight: 800; font-size: 0.82rem; color: var(--text-color); background: var(--accent-color); border-radius: 20px; padding: 0.15rem 0.6rem; flex: 0 0 auto; }
+.lb-empty { list-style: none; text-align: center; color: #888; font-weight: 600; padding: 2rem 1rem; }
+
 #emoji-picker {
     position: absolute; width: 250px; height: 200px; overflow-y: auto; background: var(--bg-color);
     border: 3px solid var(--text-color); padding: 10px; display: flex; flex-wrap: wrap; 
@@ -497,8 +530,17 @@ body.dark-mode .update-tab.active { color: var(--text-color); border-color: var(
 /* --- ROOM SUB-NAVIGATION TABS --- */
 #room-sub-nav {
     /* Nukes the thin dividing line completely */
-    border-bottom: none !important; 
+    border-bottom: none !important;
+    /* Let the tab row scroll sideways when it overflows (mobile) instead of clipping off-screen */
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    /* This nav sits in a flex column; making it a scroll container sets its auto min-height to 0,
+       so without this it collapses to the scrollbar height and the tabs get clipped. */
+    flex-shrink: 0;
 }
+#room-sub-nav::-webkit-scrollbar { display: none; } /* Chrome/Safari */
 
 .room-tab {
     background: transparent !important;
@@ -516,6 +558,9 @@ body.dark-mode .update-tab.active { color: var(--text-color); border-color: var(
     transition: color 0.2s;
     outline: none;
     border-radius: 0;
+    flex: 0 0 auto;        /* don't squish tabs; let the row scroll instead */
+    width: auto;           /* override the global `button { width: 100% }` so tabs size to content */
+    white-space: nowrap;
 }
 
 .room-tab:hover {

@@ -1,7 +1,7 @@
-// js/rooms.js
-import { db } from './firebase-core.js';
-import { escapeHtml } from './utils.js';
-import { ref, set, get, push, onValue, onChildAdded, off, remove, serverTimestamp, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+﻿// js/rooms.js
+import { db } from './firebase-core.js?v=19';
+import { escapeHtml, renderMessageText } from './utils.js?v=19';
+import { ref, set, get, push, onValue, onChildAdded, onChildChanged, onChildRemoved, off, remove, serverTimestamp, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 window.initializeRooms = function() {
     const roomsMetaRef = ref(db, 'rooms_meta');
@@ -118,7 +118,18 @@ window.switchRoom = function(roomId, roomName, shortId = '') {
         if(!window.oldestMessageKey) window.oldestMessageKey = snapshot.key;
         if(window.displayMessage) window.displayMessage(snapshot.key, snapshot.val(), false);
     });
+    // Live edits & deletions
+    onChildChanged(window.currentRoomListener, (snapshot) => {
+        if(window.updateMessageEl) window.updateMessageEl(snapshot.key, snapshot.val());
+    });
+    onChildRemoved(window.currentRoomListener, (snapshot) => {
+        document.getElementById(`msg-${snapshot.key}`)?.remove();
+    });
     if (window.bindChatScrolling) window.bindChatScrolling(msgsRef);
+
+    // Typing indicator + saved draft for this room
+    if (window.bindRoomTyping) window.bindRoomTyping(roomId);
+    if (window.loadDraft) window.loadDraft(roomId);
 
     // Reload Docs/Whiteboard if one of those tabs is currently open
     if (window.onRoomChanged) window.onRoomChanged();
@@ -168,6 +179,7 @@ document.getElementById('room-action-submit')?.addEventListener('click', async (
             logs: { [Date.now()]: { text: `${window.userProfileName} created the room.`, timestamp: Date.now() } }
         });
         if(roomActionModal) roomActionModal.classList.add('hidden');
+        if (window.awardBadge) window.awardBadge(window.currentUser.uid, 'founder');
         window.switchRoom(newRoomRef.key, val, newShortId);
         window.showToast(`Room created! Invite: #${newShortId}-${window.userShortId}`, false);
     } else {
@@ -374,10 +386,22 @@ window.sendRequest = async (targetUid) => {
     await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'pending_sent'); 
     await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'pending_received');
     
-    // FIXED: Changed 'uid' to 'targetUid'
-    if (window.createNotification) window.createNotification(targetUid, 'friend', `${window.userProfileName || 'Someone'} sent you a friend request!`);
+    // Group by sender so a repeated request doesn't pile up duplicate cards.
+    if (window.createNotification) window.createNotification(targetUid, 'friend', `${window.userProfileName || 'Someone'} sent you a friend request!`, { groupId: window.currentUser.uid, from: window.userProfileName || 'Someone' });
 };
-window.acceptRequest = async (targetUid) => { await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'accepted'); await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'accepted'); };
+window.acceptRequest = async (targetUid) => {
+    await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'accepted');
+    await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'accepted');
+    // Friendship milestones for both people.
+    if (window.awardBadge) {
+        window.awardBadge(window.currentUser.uid, 'first_friend');
+        window.awardBadge(targetUid, 'first_friend');
+        try {
+            const mine = Object.values((await get(ref(db, `friends/${window.currentUser.uid}`))).val() || {}).filter(s => s === 'accepted').length;
+            if (mine >= 10) window.awardBadge(window.currentUser.uid, 'social');
+        } catch {}
+    }
+};
 window.removeFriend = async (targetUid) => { await remove(ref(db, `friends/${window.currentUser.uid}/${targetUid}`)); await remove(ref(db, `friends/${targetUid}/${window.currentUser.uid}`)); };
 
 window.renderContactsUI = async function() {
@@ -487,6 +511,8 @@ window.openPrivateChat = function(targetUid, targetName) {
     
     if (window.pmQueryRef) off(window.pmQueryRef);
     set(ref(db, `inbox/${window.currentUser.uid}/${targetUid}/read`), true);
+    // Opening the chat counts as reading: clear the stacked message notification from this person.
+    remove(ref(db, `notifications/${window.currentUser.uid}/message_${targetUid}`));
 
     window.pmQueryRef = query(ref(db, `private_messages/${window.currentPmRoomId}`), limitToLast(30));
     onChildAdded(window.pmQueryRef, (snapshot) => {
@@ -494,7 +520,7 @@ window.openPrivateChat = function(targetUid, targetName) {
         const pmList = document.getElementById('pm-messages');
         const item = document.createElement('li');
         item.classList.add(msg.uid === window.currentUser.uid ? 'my-pm' : 'their-pm');
-        item.textContent = msg.text;
+        item.innerHTML = renderMessageText(msg.text);
         pmList.appendChild(item);
         pmList.scrollTo(0, pmList.scrollHeight);
     });
@@ -514,8 +540,8 @@ document.getElementById('pm-form')?.addEventListener('submit', async (e) => {
         await push(ref(db, `private_messages/${window.currentPmRoomId}`), { uid: window.currentUser.uid, text: text, timestamp: serverTimestamp() });
         await set(ref(db, `inbox/${window.currentPmTargetUid}/${window.currentUser.uid}`), { fromName: window.userProfileName, timestamp: Date.now(), read: false });
         
-        // NEW: Trigger the Activity Notification!
-        if (window.createNotification) window.createNotification(window.currentPmTargetUid, 'message', `New message from ${window.userProfileName || 'Someone'}.`);
+        // Stack repeated messages from me into one notification on the recipient's side.
+        if (window.createNotification) window.createNotification(window.currentPmTargetUid, 'message', `New message from ${window.userProfileName || 'Someone'}.`, { groupId: window.currentUser.uid, from: window.userProfileName || 'Someone' });
         
         pmInput.value = '';
     }

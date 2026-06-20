@@ -1,23 +1,25 @@
-// js/app.js
+﻿// js/app.js
 // 1. IMPORT FIREBASE CORE & DB
-import { db, auth } from './firebase-core.js?v=15';
+import { db, auth } from './firebase-core.js?v=19';
 import { ref, set, get, onValue, onChildAdded, onChildChanged, remove, serverTimestamp, onDisconnect, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=15';
+import { escapeHtml } from './utils.js?v=19';
 // 2. IMPORT YOUR MODULES TO ACTIVATE THEM
-import './auth.js?v=15';
-import './rooms.js?v=15';
-import './chat.js?v=15';
-import './docs.js?v=15';
-import './whiteboard.js?v=15';
-import './roomhome.js?v=15';
-import './dragdrop.js?v=15';
-import './pages.js?v=15';
-import './tasks.js?v=15';
-import './events.js?v=15';
-import './calendar.js?v=15';
-import './billing.js?v=15';
-import './search.js?v=15';
-import './messagetools.js?v=15';
+import './auth.js?v=19';
+import './rooms.js?v=19';
+import './chat.js?v=19';
+import './docs.js?v=19';
+import './whiteboard.js?v=19';
+import './roomhome.js?v=19';
+import './dragdrop.js?v=19';
+import './pages.js?v=19';
+import './tasks.js?v=19';
+import './events.js?v=19';
+import './calendar.js?v=19';
+import './ai.js?v=19';
+import './social.js?v=19';
+import './billing.js?v=19';
+import './search.js?v=19';
+import './messagetools.js?v=19';
 
 // --- GLOBAL STATE (Shared across files) ---
 window.activeRoomId = 'global';
@@ -144,6 +146,9 @@ window.openSettings = function() {
     safeSetValue('edit-pronouns', window.userPronouns);
     safeSetValue('edit-bio', window.userBio);
     safeSetValue('edit-theme-color', window.userThemeColor);
+    safeSetValue('edit-status', window.userStatus || '');
+    safeSetValue('edit-links', window.linksToText ? window.linksToText(window.userLinks) : '');
+    if (window.renderProfileCompleteness) window.renderProfileCompleteness();
 
     const preview = document.getElementById('settings-photo-preview');
     if (preview) preview.src = window.getAvatarUrl(window.userProfileName, window.userPhotoUrl);
@@ -159,6 +164,27 @@ window.openSettings = function() {
     
     modalObj.classList.remove('hidden'); 
     document.getElementById('modal-overlay')?.classList.remove('hidden');
+};
+
+// Profile completeness meter — nudges users to finish their profile.
+window.renderProfileCompleteness = function () {
+    const el = document.getElementById('profile-completeness');
+    if (!el) return;
+    const checks = [
+        ['Display name', !!(window.userProfileName && window.userProfileName !== 'Anonymous')],
+        ['Avatar', !!window.userPhotoUrl],
+        ['Bio', !!(window.userBio && window.userBio !== "I'm new here!")],
+        ['Pronouns', !!window.userPronouns],
+        ['Status', !!window.userStatus],
+        ['Links', Array.isArray(window.userLinks) && window.userLinks.length > 0],
+    ];
+    const done = checks.filter(c => c[1]).length;
+    const pct = Math.round((done / checks.length) * 100);
+    const missing = checks.filter(c => !c[1]).map(c => c[0]);
+    el.innerHTML = `
+        <div class="pc-row"><span>Profile ${pct}% complete</span><span class="pc-count">${done}/${checks.length}</span></div>
+        <div class="pc-bar"><div class="pc-fill" style="width:${pct}%"></div></div>
+        ${missing.length ? `<div class="pc-missing">Add: ${missing.join(', ')}</div>` : `<div class="pc-missing pc-done">All set! 🎉</div>`}`;
 };
 
 const SETTINGS_TABS = ['profile', 'billing', 'app'];
@@ -449,18 +475,12 @@ document.addEventListener('click', (e) => {
         if (roomSearch) roomSearch.value = '';
     }
     // 4. Handle Updates Panel Tabs
-    if (e.target.id === 'tab-notifications') {
-        document.getElementById('tab-notifications').classList.add('active');
-        document.getElementById('tab-changelog').classList.remove('active');
-        document.getElementById('notifications-list').classList.remove('hidden');
-        document.getElementById('updates-list').classList.add('hidden');
-    }
-    
-    if (e.target.id === 'tab-changelog') {
-        document.getElementById('tab-changelog').classList.add('active');
-        document.getElementById('tab-notifications').classList.remove('active');
-        document.getElementById('updates-list').classList.remove('hidden');
-        document.getElementById('notifications-list').classList.add('hidden');
+    if (e.target.id === 'tab-notifications' || e.target.id === 'tab-changelog' || e.target.id === 'tab-leaderboard') {
+        ['tab-notifications', 'tab-changelog', 'tab-leaderboard'].forEach(id => document.getElementById(id)?.classList.toggle('active', id === e.target.id));
+        document.getElementById('notifications-list').classList.toggle('hidden', e.target.id !== 'tab-notifications');
+        document.getElementById('updates-list').classList.toggle('hidden', e.target.id !== 'tab-changelog');
+        document.getElementById('leaderboard-list').classList.toggle('hidden', e.target.id !== 'tab-leaderboard');
+        if (e.target.id === 'tab-leaderboard' && window.renderLeaderboard) window.renderLeaderboard();
     }
 });
 // 3. Live Search Filter Logic
@@ -730,7 +750,8 @@ document.addEventListener('click', (e) => {
         // 4. Lazy-load room features when their tab is opened
         const loaders = {
             home: window.loadRoomHome, docs: window.loadRoomDocs, whiteboard: window.loadRoomWhiteboard,
-            tasks: window.loadRoomTasks, events: window.loadRoomEvents, calendar: window.loadRoomCalendar
+            tasks: window.loadRoomTasks, events: window.loadRoomEvents, calendar: window.loadRoomCalendar,
+            ai: window.loadRoomAI
         };
         if (loaders[targetView]) loaders[targetView]();
     }

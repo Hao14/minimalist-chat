@@ -1,6 +1,6 @@
-// js/docs.js
+﻿// js/docs.js
 // Collaborative documents (Google Docs-lite), scoped per room.
-import { db } from './firebase-core.js';
+import { db } from './firebase-core.js?v=19';
 import { ref, push, set, update, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const DOC_EMOJIS = ['📄', '📝', '☕', '🧘', '🌅', '📌', '💡', '🚀', '🔬', '📚'];
