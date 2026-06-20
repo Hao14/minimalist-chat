@@ -65,5 +65,10 @@ node_modules/
 # dotenv environment variables file
 .env
 
+# Secrets / keys (never commit)
+functions/gkey.txt
+*.key
+serviceAccount*.json
+
 # dataconnect generated files
 .dataconnect
