@@ -47,6 +47,10 @@ build/Release
 # Dependency directories
 node_modules/
 
+# Vite build output / cache
+dist/
+.vite/
+
 # Optional npm cache directory
 .npm
 
