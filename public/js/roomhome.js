@@ -1,7 +1,7 @@
 ﻿// js/roomhome.js
 // Dynamic Room Homepage: description, rules, resources, events,
 // top contributors, recent activity, and members — all per room.
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get, set, update, remove, push, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const $ = (id) => document.getElementById(id);

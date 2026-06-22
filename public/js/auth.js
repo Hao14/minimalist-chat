@@ -1,6 +1,6 @@
 ﻿// js/auth.js
-import { auth, db, storage } from './firebase-core.js?v=19';
-import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { auth, db, storage } from './firebase-core.js?v=30';
+import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut, deleteUser, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, setPersistence, browserLocalPersistence, browserSessionPersistence } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { ref, set, get, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -13,6 +13,8 @@ window.userBio = "";
 window.userThemeColor = "#FFD700";
 window.userStatus = "";
 window.userLinks = [];
+window.userBannerUrl = "";
+window.userFlair = "";
 window.userShortId = "";
 window.userTier = "free";
 window.userPhone = "No phone on file";
@@ -68,6 +70,9 @@ async function checkUserProfile(uid) {
             window.userThemeColor = data.themeColor || "#FFD700";
             window.userStatus = data.status || "";
             window.userLinks = Array.isArray(data.links) ? data.links : [];
+            window.userBannerUrl = data.bannerUrl || "";
+            window.userFlair = data.flair || "";
+            window.userSkills = data.skills || {};
             window.userTier = data.tier || "free"; 
             window.userPhone = data.phoneNumber || "No phone on file"; 
             
@@ -113,6 +118,7 @@ if (saveProfileBtn) {
                 
                 window.userProfileName = name; window.userPhotoUrl = finalPhotoUrl;
                 window.userThemeColor = "#FFD700"; window.userBio = "I'm new here!"; window.userPronouns = "";
+                sessionStorage.setItem('showWelcomeTour', '1'); // onboarding after profile setup
                 if (typeof window.enterChat === 'function') window.enterChat();
             }
         } catch (error) { if(window.showToast) window.showToast("Error saving profile: " + error.message); }
@@ -133,26 +139,43 @@ if (updateProfileBtn) {
                 finalPhotoUrl = await getDownloadURL(fileRef);
             }
 
+            // Optional banner image upload
+            const bannerInput = document.getElementById('edit-banner-file');
+            let finalBannerUrl = window.userBannerUrl || '';
+            if (bannerInput && bannerInput.files.length > 0) {
+                const bRef = sRef(storage, `banners/${window.currentUser.uid}`);
+                await uploadBytesResumable(bRef, bannerInput.files[0]);
+                finalBannerUrl = await getDownloadURL(bRef);
+            }
+
             const newName = document.getElementById('edit-display-name').value.trim();
             const newStatus = (document.getElementById('edit-status')?.value || '').trim();
+            const newFlair = (document.getElementById('edit-flair')?.value || '').trim().slice(0, 24);
             const newLinks = window.parseProfileLinks(document.getElementById('edit-links')?.value || '');
+            const skills = window.buildSkills ? await window.buildSkills(window.currentUser.uid, document.getElementById('edit-skills')?.value || '') : undefined;
             // update() (not set()) so we don't wipe tier, phoneNumber, bookmarks, etc. on the user node.
-            await update(ref(db, 'users/' + window.currentUser.uid), {
+            const payload = {
                 displayName: newName,
                 photoUrl: finalPhotoUrl,
                 pronouns: document.getElementById('edit-pronouns').value.trim(),
                 bio: document.getElementById('edit-bio').value.trim(),
                 themeColor: document.getElementById('edit-theme-color').value,
                 status: newStatus,
+                flair: newFlair,
+                bannerUrl: finalBannerUrl,
                 links: newLinks,
                 shortId: window.userShortId
-            });
+            };
+            if (skills !== undefined) payload.skills = skills;
+            await update(ref(db, 'users/' + window.currentUser.uid), payload);
 
             window.userProfileName = newName;
             window.userPhotoUrl = finalPhotoUrl;
             window.userPronouns = document.getElementById('edit-pronouns').value.trim();
             window.userBio = document.getElementById('edit-bio').value.trim();
             window.userThemeColor = document.getElementById('edit-theme-color').value;
+            window.userBannerUrl = finalBannerUrl;
+            window.userFlair = newFlair;
             window.userStatus = newStatus;
             window.userLinks = newLinks;
 
@@ -164,20 +187,33 @@ if (updateProfileBtn) {
 
 const deleteAccountBtn = document.getElementById('delete-account-btn');
 if (deleteAccountBtn) {
-    deleteAccountBtn.addEventListener('click', async () => {
-        const confirmationText = prompt("WARNING: Account deletion is permanent.\nPlease type exactly:\nI WANT DELETION\n\nto confirm.");
-        if (confirmationText === "I WANT DELETION") {
-            try {
-                await remove(ref(db, 'users/' + window.currentUser.uid));
-                await deleteUser(window.currentUser);
-                if(window.showToast) window.showToast("Account deleted successfully.");
-                window.location.reload();
-            } catch (error) {
-                if (error.code === 'auth/requires-recent-login') {
-                    if(window.showToast) window.showToast("For your security, Firebase requires you to log out and log back in right before deleting your account.");
-                } else { if(window.showToast) window.showToast("Failed to delete account: " + error.message); }
+    const modal = document.getElementById('delete-account-modal');
+    const closeModal = () => modal && modal.classList.add('hidden');
+    deleteAccountBtn.addEventListener('click', () => {
+        const inp = document.getElementById('delete-confirm-input'); if (inp) inp.value = '';
+        modal && modal.classList.remove('hidden');
+    });
+    document.getElementById('delete-cancel-btn')?.addEventListener('click', closeModal);
+    document.getElementById('delete-confirm-btn')?.addEventListener('click', async () => {
+        const input = document.getElementById('delete-confirm-input');
+        if ((input?.value || '').trim().toUpperCase() !== 'DELETE') { if (window.showToast) window.showToast("Type DELETE to confirm."); return; }
+        const btn = document.getElementById('delete-confirm-btn'); if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
+        try {
+            await remove(ref(db, 'users/' + window.currentUser.uid));
+            await deleteUser(window.currentUser);
+            try { await signOut(auth); } catch {}        // modernized: sign out automatically
+            window.location.replace('/');                  // → back to the landing page
+        } catch (error) {
+            if (error.code === 'auth/requires-recent-login') {
+                // Firebase requires a fresh login before deletion — sign out and send them to re-auth.
+                if (window.showToast) window.showToast("Please log in again, then delete — a quick security step.");
+                try { await signOut(auth); } catch {}
+                window.location.replace('/login');
+            } else {
+                if (window.showToast) window.showToast("Failed to delete account: " + error.message);
+                if (btn) { btn.disabled = false; btn.textContent = 'Delete Forever'; }
             }
-        } else if (confirmationText !== null) { if(window.showToast) window.showToast("Account deletion cancelled: You did not type 'I WANT DELETION' correctly."); }
+        }
     });
 }
 
@@ -256,18 +292,31 @@ if (signupForm) {
         const password = document.getElementById('signup-password').value;
         const username = document.getElementById('signup-username').value;
         const phone = document.getElementById('signup-phone').value;
-        
+        const birthday = document.getElementById('signup-birthday')?.value || '';
+        const confirm = document.getElementById('signup-confirm')?.value;
+
+        // Client-side validation before hitting Firebase.
+        if (confirm !== undefined && confirm !== '' && confirm !== password) return window.showToast("Passwords don't match.");
+        if (password.length < 6) return window.showToast("Password must be at least 6 characters.");
+
+        const btn = e.submitter; const orig = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await updateProfile(userCredential.user, { displayName: username });
             const userShortId = window.generateShortId();
-            await set(ref(db, 'users/' + userCredential.user.uid), { 
-                displayName: username, phoneNumber: phone,
-                photoUrl: window.getAvatarUrl(username, ""), shortId: userShortId, 
+            await set(ref(db, 'users/' + userCredential.user.uid), {
+                displayName: username, phoneNumber: phone, birthday: birthday,
+                photoUrl: window.getAvatarUrl(username, ""), shortId: userShortId,
                 themeColor: "#FFD700", bio: "I'm new here!", pronouns: "",
                 createdAt: userCredential.user.metadata.creationTime
             });
-        } catch (error) { if(window.showToast) window.showToast("Sign Up Error: " + error.message); }
+            sessionStorage.setItem('showWelcomeTour', '1'); // trigger onboarding after first sign-up
+            // success → onAuthStateChanged redirects to chat
+        } catch (error) {
+            if(window.showToast) window.showToast("Sign Up Error: " + error.message);
+            if (btn) { btn.disabled = false; btn.textContent = orig; }
+        }
     });
 }
 
@@ -276,8 +325,17 @@ if (loginForm) {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
-        try { await signInWithEmailAndPassword(auth, email, password); } 
-        catch (error) { if(window.showToast) window.showToast("Login Error: " + error.message); }
+        const remember = document.getElementById('remember-me');
+        const btn = e.submitter; const orig = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+        try {
+            // "Remember me" → persist the session locally; otherwise only for this tab.
+            if (remember) await setPersistence(auth, remember.checked ? browserLocalPersistence : browserSessionPersistence);
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error) {
+            if(window.showToast) window.showToast("Login Error: " + error.message);
+            if (btn) { btn.disabled = false; btn.textContent = orig; }
+        }
     });
 }
 

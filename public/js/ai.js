@@ -2,9 +2,9 @@
 // Room AI panel. Two layers:
 //   1. Instant, deterministic, $0: quick stats + extractive (TextRank-lite) summary + open action items.
 //   2. Optional local LLM (transformers.js in a Web Worker) for an abstractive summary — no API tokens.
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 
 const $ = (id) => document.getElementById(id);
 let aiRoomId = null;
@@ -201,7 +201,7 @@ function generateLLM(ctx) {
     setLLMBody(`<div class="ai-progress"><div class="ai-spinner"></div><span id="ai-prog-text">${modelReady ? 'Summarizing…' : 'Loading model…'}</span></div><div class="ai-bar hidden" id="ai-bar"><div id="ai-bar-fill"></div></div>`);
     try {
         if (!worker) {
-            worker = new Worker('js/ai-worker.js?v=19', { type: 'module' });
+            worker = new Worker('js/ai-worker.js?v=30', { type: 'module' });
             worker.onmessage = onWorkerMessage;
             worker.onerror = (e) => setLLMBody(`<div class="ai-empty">Couldn't start the local model: ${escapeHtml(e.message || 'unknown error')}.<br>The instant summary above still works.</div>`);
         }

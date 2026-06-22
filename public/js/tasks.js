@@ -1,8 +1,8 @@
 ﻿// js/tasks.js
 // Per-room shared task list. Data: room_tasks/{roomId}/{taskId} = { text, done, by, byName, createdAt }.
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, push, set, update, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 
 let tasksRoomId = null;
 let tasksRef = null;
@@ -17,6 +17,7 @@ function addTask() {
         by: window.currentUser.uid, byName: window.userProfileName || 'Anonymous',
         createdAt: Date.now()
     });
+    window.awardXP?.(window.currentUser.uid, 'technical', 2);
     input.value = '';
 }
 
@@ -46,6 +47,7 @@ function render(data) {
     board.querySelectorAll('.task-check').forEach(b => b.addEventListener('click', () => {
         const cur = data[b.dataset.id];
         update(ref(db, `room_tasks/${tasksRoomId}/${b.dataset.id}`), { done: !cur.done });
+        if (!cur.done && cur.by === window.currentUser?.uid) window.awardXP?.(window.currentUser.uid, 'technical', 3); // completing your own task
     }));
     board.querySelectorAll('.task-del').forEach(b => b.addEventListener('click', () =>
         remove(ref(db, `room_tasks/${tasksRoomId}/${b.dataset.id}`))));

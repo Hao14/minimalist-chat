@@ -1,7 +1,7 @@
 ﻿// js/pages.js
 // Per-room optional pages. Each room stores rooms_meta/{roomId}/pages = { docs:true, ... }.
 // The room creator/admin can toggle pages on/off via the "+" menu in the sub-nav.
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Order here = order tabs appear in the sub-nav.

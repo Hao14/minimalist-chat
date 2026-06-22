@@ -1,8 +1,8 @@
 ﻿// js/events.js
 // Full Events page. Shares data with the room Home + Calendar: rooms_meta/{roomId}/events.
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get, push, set, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 
 let evRoomId = null;
 let evRef = null;
