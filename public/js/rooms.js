@@ -1,6 +1,6 @@
 ﻿// js/rooms.js
-import { db } from './firebase-core.js?v=19';
-import { escapeHtml, renderMessageText } from './utils.js?v=19';
+import { db } from './firebase-core.js?v=30';
+import { escapeHtml, renderMessageText } from './utils.js?v=30';
 import { ref, set, get, push, onValue, onChildAdded, onChildChanged, onChildRemoved, off, remove, serverTimestamp, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 window.initializeRooms = function() {
@@ -180,6 +180,8 @@ document.getElementById('room-action-submit')?.addEventListener('click', async (
         });
         if(roomActionModal) roomActionModal.classList.add('hidden');
         if (window.awardBadge) window.awardBadge(window.currentUser.uid, 'founder');
+        window.awardXP?.(window.currentUser.uid, 'leadership', 30);
+        window.trackQuest?.('room');
         window.switchRoom(newRoomRef.key, val, newShortId);
         window.showToast(`Room created! Invite: #${newShortId}-${window.userShortId}`, false);
     } else {
@@ -396,6 +398,9 @@ window.acceptRequest = async (targetUid) => {
     if (window.awardBadge) {
         window.awardBadge(window.currentUser.uid, 'first_friend');
         window.awardBadge(targetUid, 'first_friend');
+        window.awardXP?.(window.currentUser.uid, 'support', 5);
+        window.awardXP?.(targetUid, 'support', 5);
+        window.trackQuest?.('friend');
         try {
             const mine = Object.values((await get(ref(db, `friends/${window.currentUser.uid}`))).val() || {}).filter(s => s === 'accepted').length;
             if (mine >= 10) window.awardBadge(window.currentUser.uid, 'social');
@@ -424,11 +429,21 @@ window.renderContactsUI = async function() {
             if (roomSnap.exists()) currentRoomMembers = roomSnap.val();
         }
 
-        const allUsers = usersSnap.val() || {}; 
-        const myFriends = friendsSnap.val() || {}; 
-        const presenceData = presenceSnap.val() || {}; 
-        
-        let htmlRequests = '', htmlOnline = '', htmlOffline = '', htmlRoom = '', htmlSearch = '';
+        const allUsers = usersSnap.val() || {};
+        const myFriends = friendsSnap.val() || {};
+        const presenceData = presenceSnap.val() || {};
+
+        // "People you may know" = co-members of any room I'm in, who aren't already friends.
+        const mutualUids = new Set();
+        try {
+            const meta = (await get(ref(db, 'rooms_meta'))).val() || {};
+            Object.values(meta).forEach(r => {
+                const m = r.members || {};
+                if (m[window.currentUser.uid]) Object.keys(m).forEach(u => { if (u !== window.currentUser.uid) mutualUids.add(u); });
+            });
+        } catch {}
+
+        let htmlRequests = '', htmlOnline = '', htmlOffline = '', htmlRoom = '', htmlSearch = '', htmlSuggest = '';
 
         for (const uid in allUsers) {
             if (uid === window.currentUser.uid) continue;
@@ -477,6 +492,8 @@ window.renderContactsUI = async function() {
                     htmlRequests += fullItem;
                 } else if (currentRoomMembers[uid]) {
                     htmlRoom += fullItem;
+                } else if (mutualUids.has(uid)) {
+                    htmlSuggest += fullItem;
                 }
             }
         }
@@ -492,7 +509,8 @@ window.renderContactsUI = async function() {
             if (htmlOnline) list.innerHTML += `<li class="section-title">Online Friends</li>` + htmlOnline;
             if (htmlOffline) list.innerHTML += `<li class="section-title" style="opacity: 0.6;">Offline Friends</li>` + htmlOffline;
             if (htmlRoom) list.innerHTML += `<li class="section-title">People in Room</li>` + htmlRoom;
-            
+            if (htmlSuggest) list.innerHTML += `<li class="section-title">People you may know</li>` + htmlSuggest;
+
             // Requests safely locked to the absolute bottom!
             if (htmlRequests) list.innerHTML += `<li class="section-title">Requests</li>` + htmlRequests;
         }

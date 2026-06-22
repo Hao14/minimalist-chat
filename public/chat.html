@@ -11,7 +11,7 @@
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
         <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <script src="config.js?v=2"></script>
-<link rel="stylesheet" href="base.css?v=split3">
+<link rel="stylesheet" href="base.css?v=split14">
 <link rel="stylesheet" href="desktop.css?v=split1">
 <link rel="stylesheet" href="mobile.css?v=split1">
 <link rel="stylesheet" href="features.css?v=9">
@@ -30,8 +30,8 @@
 
         <!-- DESKTOP LEFT RAIL -->
         <div class="desktop-nav">
-            <a href="/" class="rail-icon" title="Home"><i class="ph-bold ph-house"></i></a>
-            <a href="/story" class="rail-icon" title="Story"><i class="ph-bold ph-book-open"></i></a>
+            <a href="/" class="rail-icon guest-only" title="Home"><i class="ph-bold ph-house"></i></a>
+            <a href="/story" class="rail-icon guest-only" title="Story"><i class="ph-bold ph-book-open"></i></a>
             <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
             <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
 
@@ -330,8 +330,9 @@
                 <span class="close-panel" id="close-updates-btn">✖</span>
             </div>
             
-            <div style="display: flex; gap: 1.5rem; width: 100%; margin-top: 0.5rem;">
+            <div class="update-tabs">
                 <button class="update-tab active" id="tab-notifications">Activity</button>
+                <button class="update-tab" id="tab-quests">Quests</button>
                 <button class="update-tab" id="tab-leaderboard">Leaderboard</button>
                 <button class="update-tab" id="tab-changelog">Changelog</button>
             </div>
@@ -346,6 +347,7 @@
 
         <ul id="updates-list" class="hidden"></ul>
         <ul id="leaderboard-list" class="hidden" style="list-style:none; overflow-y:auto; flex:1; padding:1rem; margin:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
+        <ul id="quests-list" class="hidden" style="list-style:none; overflow-y:auto; flex:1; padding:1rem; margin:0; display:flex; flex-direction:column; gap:0.6rem;"></ul>
     </div>
 
     <div id="contacts-panel">
@@ -399,6 +401,7 @@
                         </div>
                         <button id="preview-profile-btn" class="action-btn" style="width: auto; margin:0;">Preview Card</button>
                     </div>
+                    <div id="settings-card-inline-preview" class="hidden"></div>
                 </div>
 
                 <div class="settings-card">
@@ -431,8 +434,16 @@
                                 <input type="text" id="edit-status" readonly maxlength="80" placeholder="🟢 Available">
                             </div>
                             <div class="input-group">
+                                <label>ROLE / FLAIR</label>
+                                <input type="text" id="edit-flair" readonly maxlength="24" placeholder="e.g. Designer, Mod">
+                            </div>
+                            <div class="input-group">
                                 <label>AVATAR IMAGE</label>
                                 <input type="file" id="edit-photo-file" accept="image/*" disabled style="padding: 0.4rem;">
+                            </div>
+                            <div class="input-group">
+                                <label>BANNER IMAGE</label>
+                                <input type="file" id="edit-banner-file" accept="image/*" disabled style="padding: 0.4rem;">
                             </div>
                             <div class="input-group">
                                 <label>ABOUT ME</label>
@@ -441,6 +452,10 @@
                             <div class="input-group">
                                 <label>LINKS <span style="font-weight:400; text-transform:none;">(one per line: Label | https://url)</span></label>
                                 <textarea id="edit-links" readonly placeholder="GitHub | https://github.com/me"></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label>SKILLS <span style="font-weight:400; text-transform:none;">(comma separated)</span></label>
+                                <input type="text" id="edit-skills" readonly placeholder="JavaScript, Design, Writing">
                             </div>
                             <div class="input-group">
                                 <label>THEME COLOR</label>
@@ -530,6 +545,7 @@
             <div class="profile-name-row">
                 <span class="profile-display-name" id="up-name">Name</span>
                 <span class="profile-pronouns" id="up-pronouns">Pronouns</span>
+                <span class="profile-flair" id="up-flair"></span>
             </div>
             <div style="margin-top: -5px; margin-bottom: 10px;">
                 <span class="profile-short-id" id="up-shortid">#000000</span>
@@ -537,12 +553,27 @@
             <div class="profile-status" id="up-status"></div>
             <div class="profile-bio" id="up-bio">Bio goes here...</div>
             <div class="profile-links" id="up-links"></div>
+            <div class="profile-skills" id="up-skills"></div>
+            <div class="profile-section-label">Skill Trees</div>
+            <div class="profile-skilltree" id="up-skilltree"></div>
             <div class="profile-badges" id="up-badges"></div>
             <div class="profile-rep" id="up-rep"></div>
+            <div class="profile-follow-stats" id="up-follow-stats"></div>
+            <div class="profile-mutual" id="up-mutual"></div>
+            <div class="profile-spotlight" id="up-spotlight">
+                <button id="up-spotlight-btn" class="ai-btn ai-btn-ghost"><i class="ph-bold ph-sparkle"></i> AI Spotlight</button>
+            </div>
+            <div class="profile-activity-wrap" id="up-activity-wrap">
+                <div class="profile-section-label">Activity</div>
+                <div class="profile-heatmap" id="up-heatmap"></div>
+                <ul class="profile-activity" id="up-activity"></ul>
+            </div>
             <div class="profile-joined-date" id="up-joined">Joined: Loading...</div>
             <div class="profile-actions">
                 <button id="up-message-btn">Message</button>
+                <button id="up-follow-btn" class="up-follow">Follow</button>
                 <button id="up-kudos-btn" class="up-kudos"><i class="ph-bold ph-hand-heart"></i> Kudos <span id="up-kudos-count">0</span></button>
+                <button id="up-share-btn" class="up-share" title="Copy profile link"><i class="ph-bold ph-link"></i></button>
             </div>
         </div>
     </div>
@@ -692,7 +723,38 @@
         </div>
     </div>
 
-<script type="module" src="js/app.js?v=19"></script>
+    <!-- First-time onboarding / welcome tour -->
+    <div id="welcome-tour" class="hidden">
+        <div class="wt-card">
+            <div class="wt-emoji" id="wt-emoji">👋</div>
+            <h2 id="wt-title">Welcome to Rooms!</h2>
+            <p id="wt-text"></p>
+            <div class="wt-dots" id="wt-dots"></div>
+            <div class="wt-actions">
+                <button type="button" id="wt-skip" class="wt-skip">Skip</button>
+                <button type="button" id="wt-next" class="wt-next">Take a quick tour</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account deletion confirmation -->
+    <div id="delete-account-modal" class="hidden modal-overlay" style="z-index: 6500; display: flex; align-items: center; justify-content: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 420px; padding: 2rem; text-align: center;">
+            <div style="font-size: 2.5rem; line-height: 1;">⚠️</div>
+            <h2 style="margin: 0.4rem 0 0.3rem; color: red;">Delete Account?</h2>
+            <p style="font-weight: 600; color: #666;">This permanently deletes your account and profile. You'll be signed out immediately. This can't be undone.</p>
+            <div class="input-group" style="text-align: left; margin-top: 1rem;">
+                <label>Type <strong>DELETE</strong> to confirm</label>
+                <input type="text" id="delete-confirm-input" placeholder="DELETE" autocomplete="off">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="delete-cancel-btn" style="flex: 1; background: transparent; color: var(--text-color); border: 3px solid var(--text-color); box-shadow: none; margin: 0;">Cancel</button>
+                <button id="delete-confirm-btn" style="flex: 1; background: red; color: #fff; border: 3px solid #000; box-shadow: none; margin: 0;">Delete Forever</button>
+            </div>
+        </div>
+    </div>
+
+<script type="module" src="js/app.js?v=30"></script>
     <div id="brutalist-toast" class="toast-hidden">
         <span id="toast-icon">⚠️</span>
         <span id="toast-message">Error message goes here</span>

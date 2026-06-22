@@ -16,15 +16,15 @@
     <meta name="theme-color" content="#FFD700">
     <link rel="apple-touch-icon" href="icon-192.png">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
-    <link rel="stylesheet" href="base.css?v=split3">
+    <link rel="stylesheet" href="base.css?v=split14">
     <link rel="stylesheet" href="desktop.css?v=split1">
     <link rel="stylesheet" href="mobile.css?v=split1">
 </head>
-<body>
+<body class="marketing">
     <div class="shape yellow-circle"></div>
     <div class="shape outline-square"></div>
 
-   <nav>
+    <nav>
         <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
@@ -32,44 +32,54 @@
             </div>
             <span class="logo-text">MINIMALIST</span>
         </a>
-
-        <!-- DESKTOP LEFT RAIL -->
         <div class="desktop-nav">
-            <a href="/" class="rail-icon" title="Home"><i class="ph-bold ph-house"></i></a>
-            <a href="/story" class="rail-icon" title="Story"><i class="ph-bold ph-book-open"></i></a>
-            <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
-            
-            <div style="flex-grow: 1; width: 100%; min-height: 20px;"></div>
-
-            <a href="#" id="open-updates-btn-desktop" class="rail-icon auth-only hidden" title="Updates"><i class="ph-bold ph-bell"></i></a>
-            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
-            <button class="rail-icon auth-only hidden" id="open-settings-btn" title="Settings"><i class="ph-bold ph-gear"></i></button>
-            <a href="/login" class="rail-icon guest-only" title="Login"><i class="ph-bold ph-sign-in"></i></a>
+            <a href="/" class="active">Home</a>
+            <a href="/features">Features</a>
+            <a href="/download">Download</a>
+            <a href="/story">Story</a>
+            <a href="/chat" class="auth-only hidden">Chat</a>
+            <a href="/login" class="guest-only">Login</a>
+            <a href="/login" class="nav-cta guest-only">Sign Up</a>
         </div>
-        
-        <!-- MOBILE BOTTOM NAV -->
-        <div id="mobile-nav-links" class="mobile-only">
-            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">
-                <i class="ph-bold ph-chats"></i><span>ROOMS</span>
-            </button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">
-                <i class="ph-bold ph-users"></i><span>CONTACTS</span>
-            </button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">
-                <i class="ph-bold ph-bell"></i><span>UPDATES</span>
-            </button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">
-                <i class="ph-bold ph-gear"></i><span>SETTINGS</span>
-            </button>
+        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
+        <div id="mobile-nav-links" class="mobile-only hidden">
+            <a href="/" class="mobile-link">HOME</a>
+            <a href="/features" class="mobile-link">FEATURES</a>
+            <a href="/download" class="mobile-link">DOWNLOAD</a>
+            <a href="/story" class="mobile-link">STORY</a>
+            <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
+            <a href="/login" class="mobile-link guest-only">LOGIN</a>
+            <a href="/login" class="mobile-link guest-only">SIGN UP</a>
         </div>
     </nav>
-    <div class="container fade-in-up">
-        <h1>Less is <span>More.</span></h1>
-        <p class="fade-in-up delay-1">Welcome to a space unburdened by noise. Connect deeply, speak freely, and experience communication in its purest form.</p>
-        
-        <div class="image-grid fade-in-up delay-2">
-            <img src="https://picsum.photos/seed/street/800/600" alt="Street scene">
-            <img src="https://picsum.photos/seed/city/800/600" alt="Cityscape">
+    <div class="container fade-in-up lp-hero">
+        <div class="lp-hero-text">
+            <h1>Less is <span>More.</span></h1>
+            <p class="fade-in-up delay-1">Welcome to a space unburdened by noise. Connect deeply, speak freely, and experience communication in its purest form.</p>
+            <div class="lp-cta fade-in-up delay-2">
+                <a href="/chat" class="lp-btn lp-btn-primary">Get Started <i class="ph-bold ph-arrow-right"></i></a>
+                <a href="/download" class="lp-btn lp-btn-secondary"><i class="ph-bold ph-download-simple"></i> Download</a>
+            </div>
+        </div>
+
+        <!-- Self-contained animated chat preview (no external images) -->
+        <div class="lp-preview fade-in-up delay-2" aria-hidden="true">
+            <div class="cp-card">
+                <div class="cp-head">
+                    <div class="cp-ava">M</div>
+                    <div class="cp-meta">
+                        <span class="cp-name">Maya Chen</span>
+                        <span class="cp-status"><span class="cp-dot"></span> online</span>
+                    </div>
+                    <div class="cp-actions"><i class="ph-bold ph-phone"></i><i class="ph-bold ph-video-camera"></i></div>
+                </div>
+                <div class="cp-body">
+                    <div class="cp-msg cp-in cp-a1">Hey! Did you see the new AI summaries? 🎉</div>
+                    <div class="cp-msg cp-out cp-a2">Yes — it recapped the whole thread instantly 🔥</div>
+                    <div class="cp-msg cp-in cp-a3">Hop on a quick call?<span class="cp-react">👍 3</span></div>
+                    <div class="cp-typing cp-a4"><span></span><span></span><span></span></div>
+                </div>
+            </div>
         </div>
     </div>
     <footer>
@@ -82,11 +92,19 @@
         </div>
         <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
     </footer>
-<script type="module" src="js/app.js?v=19"></script>
+<script type="module" src="js/app.js?v=30"></script>
     <div id="brutalist-toast" class="toast-hidden">
     <span id="toast-icon">⚠️</span>
     <span id="toast-message">Error message goes here</span>
     <button id="toast-close">✖</button>
 </div>
+<script>
+    // Download CTA — apps not published yet; show a friendly notice via the existing toast.
+    document.getElementById('lp-download-btn')?.addEventListener('click', () => {
+        const t = document.getElementById('brutalist-toast'), m = document.getElementById('toast-message'), ic = document.getElementById('toast-icon');
+        if (t && m) { if (ic) ic.textContent = '📦'; m.textContent = 'Desktop & mobile apps are coming soon!'; t.classList.remove('toast-hidden'); setTimeout(() => t.classList.add('toast-hidden'), 3500); }
+    });
+    document.getElementById('toast-close')?.addEventListener('click', () => document.getElementById('brutalist-toast')?.classList.add('toast-hidden'));
+</script>
 </body>
 </html>

@@ -3,9 +3,9 @@
 // merged with the signed-in user's Google Calendar events (read-only import).
 //   window.GCAL_CLIENT_ID       — Google OAuth client id (Calendar API enabled)
 //   window.AI_CALENDAR_ENDPOINT — Cloud Function URL that runs the vision extraction
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get, push, set, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 
 const EV_ACCENTS = ['#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#60a5fa'];
 const DOW = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];

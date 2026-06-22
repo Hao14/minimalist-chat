@@ -1,6 +1,6 @@
 ﻿// js/chat.js
-import { db, storage } from './firebase-core.js?v=19';
-import { escapeHtml, renderMessageText } from './utils.js?v=19';
+import { db, storage } from './firebase-core.js?v=30';
+import { escapeHtml, renderMessageText } from './utils.js?v=30';
 import { ref, set, get, push, update, remove, onValue, onDisconnect, off, serverTimestamp, query, limitToLast, orderByKey, endBefore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 import { ref as sRef, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
@@ -109,6 +109,7 @@ if (chatForm) {
                 const fileRef = sRef(storage, `chat_images/${Date.now()}_${file.name}`);
                 await uploadBytesResumable(fileRef, file);
                 uploadedImageUrl = await getDownloadURL(fileRef);
+                window.awardXP?.(window.currentUser.uid, 'creativity', 3); // sharing images builds Creativity
             }
             
             if(imageInput) imageInput.value = ''; 
@@ -126,6 +127,8 @@ if (chatForm) {
             // Notify anyone @mentioned by name in this room, and bump the sender's contribution count.
             if (text) window.notifyMentions?.(text, window.activeRoomId);
             window.bumpMessageCount?.(window.currentUser.uid);
+            window.awardXP?.(window.currentUser.uid, 'technical', 2);
+            window.trackQuest?.('message');
 
             if (window.activeRoomId !== 'global') {
                 let pText = text ? `${window.userProfileName}: ${text}` : `${window.userProfileName} sent an image`;
@@ -211,6 +214,26 @@ window.displayMessage = function(messageId, msg, prepend = false) {
 
     if (prepend) messagesList.prepend(item);
     else { messagesList.appendChild(item); setTimeout(() => { messagesList.scrollTo(0, messagesList.scrollHeight); }, 50); }
+    renderReactions(messageId, msg.reactions);
+}
+
+// Aggregate { uid: emoji } into emoji pills with counts; click a pill to toggle your own reaction.
+function renderReactions(messageId, reactions) {
+    const el = document.getElementById(`reactions-${messageId}`);
+    if (!el) return;
+    const counts = {};
+    Object.entries(reactions || {}).forEach(([uid, emoji]) => {
+        if (!emoji) return;
+        counts[emoji] = counts[emoji] || { n: 0, mine: false };
+        counts[emoji].n++;
+        if (uid === window.currentUser.uid) counts[emoji].mine = true;
+    });
+    const entries = Object.entries(counts);
+    if (!entries.length) { el.innerHTML = ''; return; }
+    el.innerHTML = entries.map(([emoji, info]) =>
+        `<button class="reaction-pill ${info.mine ? 'mine' : ''}" data-emoji="${escapeHtml(emoji)}">${escapeHtml(emoji)} ${info.n}</button>`).join('');
+    el.querySelectorAll('.reaction-pill').forEach(b =>
+        b.addEventListener('click', () => window.reactToMessage(messageId, b.dataset.emoji)));
 }
 
 // Resolve the DB ref for a message in the currently active room.
@@ -231,6 +254,7 @@ window.updateMessageEl = function(messageId, msg) {
     if (li) li.classList.toggle('msg-important', !!msg.important);
     const flag = document.getElementById(`flag-${messageId}`);
     if (flag) flag.style.display = msg.important ? '' : 'none';
+    renderReactions(messageId, msg.reactions);
     if (window.msgCache) window.msgCache[messageId] = { id: messageId, ...msg };
 };
 
@@ -302,7 +326,11 @@ window.reactToMessage = async function(messageId, emoji) {
     const msgsRef = window.activeRoomId === 'global' ? ref(db, `messages/${messageId}/reactions/${window.currentUser.uid}`) : ref(db, `rooms_data/${window.activeRoomId}/messages/${messageId}/reactions/${window.currentUser.uid}`);
     const snap = await get(msgsRef);
     if (snap.exists() && snap.val() === emoji) await remove(msgsRef);
-    else await set(msgsRef, emoji);
+    else {
+        await set(msgsRef, emoji);
+        window.awardXP?.(window.currentUser.uid, 'creativity', 2);
+        window.trackQuest?.('react');
+    }
 };
 
 window.toggleEmojiPicker = function(event, messageId) {
@@ -322,6 +350,38 @@ window.addReaction = function(emoji) {
 const contextMenu = document.getElementById('custom-context-menu');
 
 // Opens the Profile Page
+// Inline profile-card preview rendered *inside* the Settings pane (no separate popup that gets clipped).
+window.renderSettingsCardPreview = async function () {
+    const el = document.getElementById('settings-card-inline-preview');
+    if (!el) return;
+    const uid = window.currentUser.uid;
+    let user = {};
+    try { user = (await get(ref(db, 'users/' + uid))).val() || {}; } catch {}
+    const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, "");
+    const bannerStyle = user.bannerUrl
+        ? `background-image:url("${encodeURI(user.bannerUrl)}");background-size:cover;background-position:center;`
+        : `background:${user.themeColor || 'var(--accent-color)'};`;
+    el.innerHTML = `
+        <div class="scp-card">
+            <div class="scp-banner" style="${bannerStyle}"><img class="scp-avatar" src="${escapeHtml(avatar)}" alt=""></div>
+            <div class="scp-body">
+                <div class="scp-name-row">
+                    <span class="profile-display-name">${escapeHtml(user.displayName || 'You')}</span>
+                    ${user.pronouns ? `<span class="profile-pronouns">${escapeHtml(user.pronouns)}</span>` : ''}
+                    ${user.flair ? `<span class="profile-flair">${escapeHtml(user.flair)}</span>` : ''}
+                </div>
+                <div><span class="profile-short-id">#${escapeHtml(user.shortId || '')}</span></div>
+                ${user.status ? `<div class="profile-status">${escapeHtml(user.status)}</div>` : ''}
+                <div class="profile-bio">${escapeHtml(user.bio || 'No bio yet.')}</div>
+                <div class="profile-links">${window.renderProfileLinks ? window.renderProfileLinks(user.links) : ''}</div>
+                <div class="profile-section-label">Skill Trees</div>
+                ${window.renderSkillTree ? window.renderSkillTree(user) : ''}
+                <div class="profile-badges">${window.renderBadges ? window.renderBadges(user.badges) : ''}</div>
+                <div class="profile-rep"><i class="ph-bold ph-trophy"></i> ${window.computeRep ? window.computeRep(user) : 0} reputation</div>
+            </div>
+        </div>`;
+};
+
 window.viewUserProfile = async function(targetUid) {
     try {
         const snapshot = await get(ref(db, 'users/' + targetUid));
@@ -346,13 +406,85 @@ window.viewUserProfile = async function(targetUid) {
         document.getElementById('up-bio').textContent = user.bio || "No bio yet.";
         const upLinks = document.getElementById('up-links');
         if (upLinks) upLinks.innerHTML = window.renderProfileLinks ? window.renderProfileLinks(user.links) : "";
+        const upFlair = document.getElementById('up-flair');
+        if (upFlair) { upFlair.textContent = user.flair || ""; upFlair.style.display = user.flair ? "" : "none"; }
+        // Skills + endorsements
+        const upSkills = document.getElementById('up-skills');
+        if (upSkills && window.renderSkills) {
+            upSkills.innerHTML = window.renderSkills(user.skills);
+            const selfSkills = targetUid === window.currentUser.uid;
+            upSkills.querySelectorAll('.skill-endorse').forEach(b => {
+                b.disabled = selfSkills;
+                if (!selfSkills) b.onclick = async () => {
+                    b.disabled = true;
+                    const res = await window.endorseSkill(targetUid, b.dataset.skill);
+                    if (res.ok) b.textContent = '+' + res.count;
+                    else { b.disabled = res.reason === 'already'; if (res.reason === 'already') window.showToast('Already endorsed.'); }
+                };
+            });
+        }
+        const upTree = document.getElementById('up-skilltree');
+        if (upTree && window.renderSkillTree) upTree.innerHTML = window.renderSkillTree(user);
         const upBadges = document.getElementById('up-badges');
         if (upBadges) upBadges.innerHTML = window.renderBadges ? window.renderBadges(user.badges) : "";
         const upJoined = document.getElementById('up-joined');
         if (upJoined) upJoined.textContent = "Joined: " + (user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : "Unknown");
         const upRep = document.getElementById('up-rep');
         if (upRep && window.computeRep) upRep.innerHTML = `<i class="ph-bold ph-trophy"></i> ${window.computeRep(user)} reputation`;
-        document.getElementById('up-banner').style.backgroundColor = user.themeColor || "var(--accent-color)";
+        const upHeat = document.getElementById('up-heatmap');
+        if (upHeat && window.renderHeatmap) upHeat.innerHTML = window.renderHeatmap(user.activityByDay);
+        const upAct = document.getElementById('up-activity');
+        if (upAct && window.buildActivityFeed) { const feed = window.buildActivityFeed(user); upAct.innerHTML = feed || `<li class="act-empty">No activity yet.</li>`; }
+
+        // --- Discovery & networking (Batch 5) ---
+        const isMe = targetUid === window.currentUser.uid;
+
+        // Follow button + follower/following counts
+        const followBtn = document.getElementById('up-follow-btn');
+        if (followBtn) {
+            followBtn.style.display = isMe ? 'none' : '';
+            if (!isMe && window.isFollowing) {
+                const following = await window.isFollowing(targetUid);
+                followBtn.textContent = following ? 'Following' : 'Follow';
+                followBtn.classList.toggle('is-following', following);
+                followBtn.onclick = async () => {
+                    followBtn.disabled = true;
+                    const now = await window.toggleFollow(targetUid);
+                    followBtn.textContent = now ? 'Following' : 'Follow';
+                    followBtn.classList.toggle('is-following', !!now);
+                    followBtn.disabled = false;
+                    if (window.getFollowCounts) { const c = await window.getFollowCounts(targetUid); document.getElementById('up-follow-stats').textContent = `${c.followers} followers · ${c.following} following`; }
+                };
+            }
+        }
+        if (window.getFollowCounts) { const c = await window.getFollowCounts(targetUid); document.getElementById('up-follow-stats').textContent = `${c.followers} followers · ${c.following} following`; }
+
+        // Mutual rooms
+        const upMutual = document.getElementById('up-mutual');
+        if (upMutual) {
+            if (isMe) { upMutual.style.display = 'none'; }
+            else if (window.getMutualRooms) {
+                const rooms = await window.getMutualRooms(targetUid);
+                upMutual.style.display = rooms.length ? '' : 'none';
+                if (rooms.length) upMutual.innerHTML = `<i class="ph-bold ph-door-open"></i> ${rooms.length} mutual room${rooms.length > 1 ? 's' : ''}: ${escapeHtml(rooms.slice(0, 3).join(', '))}${rooms.length > 3 ? '…' : ''}`;
+            }
+        }
+
+        // AI spotlight (reset + wire)
+        const spot = document.getElementById('up-spotlight');
+        if (spot) spot.innerHTML = `<button id="up-spotlight-btn" class="ai-btn ai-btn-ghost"><i class="ph-bold ph-sparkle"></i> AI Spotlight</button>`;
+        document.getElementById('up-spotlight-btn')?.addEventListener('click', () => window.generateSpotlight(targetUid, user));
+
+        // Share / copy profile link
+        const shareBtn = document.getElementById('up-share-btn');
+        if (shareBtn) shareBtn.onclick = async () => {
+            try { await navigator.clipboard.writeText(window.profileShareLink(targetUid)); window.showToast('Profile link copied!', false); }
+            catch { window.showToast('Link: ' + window.profileShareLink(targetUid)); }
+        };
+        const upBanner = document.getElementById('up-banner');
+        upBanner.style.backgroundColor = user.themeColor || "var(--accent-color)";
+        if (user.bannerUrl) { upBanner.style.backgroundImage = `url("${encodeURI(user.bannerUrl)}")`; upBanner.style.backgroundSize = 'cover'; upBanner.style.backgroundPosition = 'center'; }
+        else { upBanner.style.backgroundImage = 'none'; }
 
         // Kudos count + give-kudos button (hidden on your own profile)
         const isSelf = targetUid === window.currentUser.uid;

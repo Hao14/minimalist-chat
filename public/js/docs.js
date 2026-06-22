@@ -1,6 +1,6 @@
 ﻿// js/docs.js
 // Collaborative documents (Google Docs-lite), scoped per room.
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, push, set, update, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const DOC_EMOJIS = ['📄', '📝', '☕', '🧘', '🌅', '📌', '💡', '🚀', '🔬', '📚'];
@@ -139,6 +139,8 @@ async function newDoc() {
     };
     const newRef = push(docsRef);
     await set(newRef, docObj);
+    window.awardXP?.(window.currentUser.uid, 'technical', 5);
+    window.awardXP?.(window.currentUser.uid, 'creativity', 5);
     docsData[newRef.key] = docObj;
     openDoc(newRef.key);
     $('doc-title-input').focus();

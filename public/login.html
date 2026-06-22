@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minimalist | Enter</title>
-    <link rel="stylesheet" href="base.css?v=split3">
+    <link rel="stylesheet" href="base.css?v=split14">
     <link rel="stylesheet" href="desktop.css?v=split1">
     <link rel="stylesheet" href="mobile.css?v=split1">
 </head>
-<body style="display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0;">
+<body class="marketing" style="display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 2rem 0;">
     
     <div class="shape yellow-circle bottom-left"></div>
     <div class="shape" style="position: absolute; width: 120px; height: 120px; border: 8px solid var(--text-color); top: 12%; right: 8%; animation: float 7s infinite ease-in-out;"></div>
@@ -37,8 +37,12 @@
                 <div id="login-step-2" class="hidden">
                     <div class="input-group mt-1">
                         <label>PASSWORD</label>
-                        <input type="password" id="login-password" placeholder="••••••••" required>
+                        <div class="pw-wrap">
+                            <input type="password" id="login-password" placeholder="••••••••" required>
+                            <button type="button" class="pw-toggle" data-target="login-password">Show</button>
+                        </div>
                     </div>
+                    <label class="remember-me"><input type="checkbox" id="remember-me" checked> Remember me</label>
                     <button type="submit" class="auth-submit-btn">Sign In</button>
                     <button type="button" class="action-btn mt-1" id="login-back-btn" style="width: 100%; margin-top: 0.5rem;">Back</button>
                     <a href="#" id="forgot-password-link" class="text-link">Forgot Password?</a>
@@ -65,8 +69,12 @@
                         <input type="text" id="signup-username" placeholder="ChatName" required>
                     </div>
                     <div class="input-group">
-                        <label>PHONE NUMBER</label>
-                        <input type="tel" id="signup-phone" placeholder="+1... (Optional)">
+                        <label>BIRTHDAY <span style="font-weight:400; text-transform:none;">(optional)</span></label>
+                        <input type="date" id="signup-birthday">
+                    </div>
+                    <div class="input-group">
+                        <label>PHONE NUMBER <span style="font-weight:400; text-transform:none;">(optional)</span></label>
+                        <input type="tel" id="signup-phone" placeholder="+1...">
                     </div>
                     <button type="button" class="auth-submit-btn" id="signup-next-2-btn">Next</button>
                     <button type="button" class="action-btn mt-1" id="signup-back-1-btn" style="width: 100%; margin-top: 0.5rem;">Back</button>
@@ -75,7 +83,20 @@
                 <div id="signup-step-3" class="hidden">
                     <div class="input-group mt-1">
                         <label>PASSWORD</label>
-                        <input type="password" id="signup-password" placeholder="Min. 6 characters" required>
+                        <div class="pw-wrap">
+                            <input type="password" id="signup-password" placeholder="Min. 6 characters" required>
+                            <button type="button" class="pw-toggle" data-target="signup-password">Show</button>
+                        </div>
+                        <div class="pw-strength"><div class="pw-strength-bar" id="pw-strength-bar"></div></div>
+                        <div class="pw-strength-label" id="pw-strength-label"></div>
+                    </div>
+                    <div class="input-group">
+                        <label>CONFIRM PASSWORD</label>
+                        <div class="pw-wrap">
+                            <input type="password" id="signup-confirm" placeholder="Re-enter password" required>
+                            <button type="button" class="pw-toggle" data-target="signup-confirm">Show</button>
+                        </div>
+                        <div class="pw-match" id="pw-match"></div>
                     </div>
                     <button type="submit" class="auth-submit-btn">Create Account</button>
                     <button type="button" class="action-btn mt-1" id="signup-back-2-btn" style="width: 100%; margin-top: 0.5rem;">Back</button>
@@ -88,7 +109,35 @@
         </div>
     </div>
 
-<script type="module" src="js/app.js?v=19"></script>
+<script>
+    // Show/hide password toggles
+    document.querySelectorAll('.pw-toggle').forEach(b => b.addEventListener('click', () => {
+        const inp = document.getElementById(b.dataset.target); if (!inp) return;
+        const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; b.textContent = show ? 'Hide' : 'Show';
+    }));
+    // Password strength meter
+    const pw = document.getElementById('signup-password');
+    const cf = document.getElementById('signup-confirm');
+    const STR_LABELS = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+    const STR_COLORS = ['#ccc', '#e53935', '#e53935', '#fb8c00', '#fdd835', '#43a047'];
+    function refreshStrength() {
+        if (!pw) return; const v = pw.value; let s = 0;
+        if (v.length >= 6) s++; if (v.length >= 10) s++;
+        if (/[A-Z]/.test(v) && /[a-z]/.test(v)) s++; if (/\d/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
+        s = Math.min(s, 5);
+        const bar = document.getElementById('pw-strength-bar'), lab = document.getElementById('pw-strength-label');
+        if (bar) { bar.style.width = (v ? [0,20,40,60,80,100][s] : 0) + '%'; bar.style.background = STR_COLORS[s]; }
+        if (lab) { lab.textContent = v ? STR_LABELS[s] : ''; lab.style.color = STR_COLORS[s]; }
+    }
+    function refreshMatch() {
+        const m = document.getElementById('pw-match'); if (!m || !cf || !pw) return;
+        if (!cf.value) { m.textContent = ''; return; }
+        const ok = cf.value === pw.value; m.textContent = ok ? '✓ Passwords match' : '✗ Passwords do not match'; m.style.color = ok ? '#43a047' : '#e53935';
+    }
+    pw?.addEventListener('input', () => { refreshStrength(); refreshMatch(); });
+    cf?.addEventListener('input', refreshMatch);
+</script>
+<script type="module" src="js/app.js?v=30"></script>
     <div id="brutalist-toast" class="toast-hidden">
     <span id="toast-icon">⚠️</span>
     <span id="toast-message">Error message goes here</span>

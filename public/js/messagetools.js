@@ -1,9 +1,9 @@
 ﻿// js/messagetools.js
 // Per-message actions: Forward, Bookmark (+ Collections), Importance flag, Impact.
 // Hangs off the "⋮" icon added to each message (see chat.js displayMessage).
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get, set, update, push, remove, onValue, off, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 
 const $ = (id) => document.getElementById(id);
 const msgRef = (id) => window.activeRoomId === 'global'

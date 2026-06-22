@@ -1,25 +1,26 @@
 ﻿// js/app.js
 // 1. IMPORT FIREBASE CORE & DB
-import { db, auth } from './firebase-core.js?v=19';
+import { db, auth } from './firebase-core.js?v=30';
 import { ref, set, get, onValue, onChildAdded, onChildChanged, remove, serverTimestamp, onDisconnect, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 // 2. IMPORT YOUR MODULES TO ACTIVATE THEM
-import './auth.js?v=19';
-import './rooms.js?v=19';
-import './chat.js?v=19';
-import './docs.js?v=19';
-import './whiteboard.js?v=19';
-import './roomhome.js?v=19';
-import './dragdrop.js?v=19';
-import './pages.js?v=19';
-import './tasks.js?v=19';
-import './events.js?v=19';
-import './calendar.js?v=19';
-import './ai.js?v=19';
-import './social.js?v=19';
-import './billing.js?v=19';
-import './search.js?v=19';
-import './messagetools.js?v=19';
+import './auth.js?v=30';
+import './rooms.js?v=30';
+import './chat.js?v=30';
+import './docs.js?v=30';
+import './whiteboard.js?v=30';
+import './roomhome.js?v=30';
+import './dragdrop.js?v=30';
+import './pages.js?v=30';
+import './tasks.js?v=30';
+import './events.js?v=30';
+import './calendar.js?v=30';
+import './ai.js?v=30';
+import './social.js?v=30';
+import './gamify.js?v=30';
+import './billing.js?v=30';
+import './search.js?v=30';
+import './messagetools.js?v=30';
 
 // --- GLOBAL STATE (Shared across files) ---
 window.activeRoomId = 'global';
@@ -90,6 +91,66 @@ document.querySelectorAll('.theme-select-btn').forEach(btn => {
     });
 });
 
+// --- CENTRALIZED GUEST NAV (single source of truth for all marketing pages) ---
+(function buildGuestNav() {
+    if (!document.body.classList.contains('marketing')) return;
+    const navEl = document.querySelector('nav');
+    if (!navEl) return;
+    const path = (location.pathname.replace(/\.html$/, '').replace(/\/$/, '')) || '/';
+    const links = [['/', 'Home'], ['/features', 'Features'], ['/download', 'Download'], ['/story', 'Story']];
+    const active = (h) => (h === '/' ? (path === '/' || path === '/index') : path === h) ? 'active' : '';
+    navEl.innerHTML = `
+        <a href="/" id="nav-logo">
+            <div class="mascot-blip"><div class="blip-eye left"></div><div class="blip-eye right"></div></div>
+            <span class="logo-text">MINIMALIST</span>
+        </a>
+        <div class="desktop-nav">
+            ${links.map(([h, l]) => `<a href="${h}" class="${active(h)}">${l}</a>`).join('')}
+            <a href="/chat" class="auth-only hidden">Chat</a>
+            <a href="/login" class="guest-only">Login</a>
+            <a href="/login" class="nav-cta guest-only">Sign Up</a>
+        </div>
+        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
+        <div id="mobile-nav-links" class="mobile-only hidden">
+            ${links.map(([h, l]) => `<a href="${h}" class="mobile-link ${active(h)}">${l.toUpperCase()}</a>`).join('')}
+            <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
+            <a href="/login" class="mobile-link guest-only">LOGIN</a>
+            <a href="/login" class="mobile-link guest-only">SIGN UP</a>
+        </div>`;
+    document.getElementById('mobile-menu-btn')?.addEventListener('click', () =>
+        document.getElementById('mobile-nav-links')?.classList.toggle('hidden'));
+    // Re-apply auth/guest visibility now that the nav was rebuilt.
+    const loggedIn = !!window.currentUser;
+    navEl.querySelectorAll('.auth-only').forEach(el => el.classList.toggle('hidden', !loggedIn));
+    navEl.querySelectorAll('.guest-only').forEach(el => el.classList.toggle('hidden', loggedIn));
+})();
+
+// --- FIRST-TIME ONBOARDING / WELCOME TOUR ---
+window.WELCOME_STEPS = [
+    { emoji: '👋', title: 'Welcome to Rooms!', text: "A calm space to chat, collaborate, and connect. Here's a 20-second tour." },
+    { emoji: '💬', title: 'Rooms & chat', text: 'Create or join rooms from the sidebar. Each room has chat, docs, a whiteboard, tasks, a calendar, and an AI assistant.' },
+    { emoji: '🏆', title: 'Level up', text: 'Earn XP across four skill trees, finish daily quests, and climb the leaderboard.' },
+    { emoji: '✨', title: "You're all set", text: 'Personalize your profile any time from Settings. Enjoy the calm!' },
+];
+let wtStep = 0;
+function renderWtStep() {
+    const s = window.WELCOME_STEPS[wtStep]; if (!s) return;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    set('wt-emoji', s.emoji); set('wt-title', s.title); set('wt-text', s.text);
+    const last = wtStep === window.WELCOME_STEPS.length - 1;
+    const next = document.getElementById('wt-next'); if (next) next.textContent = last ? 'Enter Rooms' : (wtStep === 0 ? 'Take a quick tour' : 'Next');
+    const skip = document.getElementById('wt-skip'); if (skip) skip.style.display = last ? 'none' : '';
+    const dots = document.getElementById('wt-dots'); if (dots) dots.innerHTML = window.WELCOME_STEPS.map((_, i) => `<span class="wt-dot ${i === wtStep ? 'on' : ''}"></span>`).join('');
+}
+function closeWelcomeTour() { document.getElementById('welcome-tour')?.classList.add('hidden'); localStorage.setItem('tourSeen', '1'); }
+window.showWelcomeTour = function () { const ov = document.getElementById('welcome-tour'); if (!ov) return; wtStep = 0; renderWtStep(); ov.classList.remove('hidden'); };
+document.getElementById('wt-next')?.addEventListener('click', () => { if (wtStep < window.WELCOME_STEPS.length - 1) { wtStep++; renderWtStep(); } else closeWelcomeTour(); });
+document.getElementById('wt-skip')?.addEventListener('click', closeWelcomeTour);
+// Show once, right after a fresh sign-up.
+window.maybeShowWelcomeTour = function () {
+    if (sessionStorage.getItem('showWelcomeTour')) { sessionStorage.removeItem('showWelcomeTour'); setTimeout(() => window.showWelcomeTour(), 700); }
+};
+
 // --- NOTIFICATIONS ---
 let blinkInterval;
 let originalTitle = "Minimalist | Chat";
@@ -147,7 +208,9 @@ window.openSettings = function() {
     safeSetValue('edit-bio', window.userBio);
     safeSetValue('edit-theme-color', window.userThemeColor);
     safeSetValue('edit-status', window.userStatus || '');
+    safeSetValue('edit-flair', window.userFlair || '');
     safeSetValue('edit-links', window.linksToText ? window.linksToText(window.userLinks) : '');
+    safeSetValue('edit-skills', window.skillsToText ? window.skillsToText(window.userSkills) : '');
     if (window.renderProfileCompleteness) window.renderProfileCompleteness();
 
     const preview = document.getElementById('settings-photo-preview');
@@ -235,6 +298,7 @@ document.getElementById('toggle-edit-btn')?.addEventListener('click', () => {
     formFields.style.opacity = isEditing ? '0.7' : '1';
     document.querySelectorAll('#profile-form-fields input, #profile-form-fields textarea').forEach(el => el.readOnly = isEditing);
     document.getElementById('edit-photo-file').disabled = isEditing;
+    const bannerFile = document.getElementById('edit-banner-file'); if (bannerFile) bannerFile.disabled = isEditing;
     
     document.getElementById('toggle-edit-btn').textContent = isEditing ? 'Edit Profile' : 'Cancel';
     saveBtn.classList.toggle('hidden', isEditing);
@@ -261,9 +325,13 @@ window.enterChat = function() {
         const launchChatUI = () => {
             window.showScreen('chat-wrapper'); 
 
-            document.getElementById('preview-profile-btn')?.addEventListener('click', () => {
-                document.getElementById('user-profile-popup').classList.add('preview-layout');
-                if (window.viewUserProfile) window.viewUserProfile(window.currentUser.uid); 
+            document.getElementById('preview-profile-btn')?.addEventListener('click', async (e) => {
+                const box = document.getElementById('settings-card-inline-preview');
+                const btn = e.currentTarget;
+                if (!box) return;
+                const show = box.classList.contains('hidden');
+                if (show) { if (window.renderSettingsCardPreview) await window.renderSettingsCardPreview(); box.classList.remove('hidden'); btn.textContent = 'Hide Card'; }
+                else { box.classList.add('hidden'); btn.textContent = 'Preview Card'; }
             });
             
             if (!window.chatInitialized) {
@@ -273,6 +341,7 @@ window.enterChat = function() {
                 if (window.initializePresence) window.initializePresence();
                 if (window.initMessageTools) window.initMessageTools();
                 window.chatInitialized = true;
+                if (window.maybeShowWelcomeTour) window.maybeShowWelcomeTour();
 
                 const pendingJoin = sessionStorage.getItem('pendingJoinUrl');
                 const currentPath = window.location.pathname;
@@ -289,9 +358,16 @@ window.enterChat = function() {
                         
                         sessionStorage.removeItem('pendingJoinUrl');
                         if (currentPath.includes('/join/')) {
-                            window.history.pushState({}, '', '/chat'); 
+                            window.history.pushState({}, '', '/chat');
                         }
                     }
+                }
+
+                // Public profile deep link: /chat?profile=<uid|shortId>
+                const profileRef = new URLSearchParams(window.location.search).get('profile');
+                if (profileRef && window.openProfileByRef) {
+                    setTimeout(() => window.openProfileByRef(profileRef), 900);
+                    window.history.replaceState({}, '', '/chat');
                 }
             }
         };
@@ -475,12 +551,14 @@ document.addEventListener('click', (e) => {
         if (roomSearch) roomSearch.value = '';
     }
     // 4. Handle Updates Panel Tabs
-    if (e.target.id === 'tab-notifications' || e.target.id === 'tab-changelog' || e.target.id === 'tab-leaderboard') {
-        ['tab-notifications', 'tab-changelog', 'tab-leaderboard'].forEach(id => document.getElementById(id)?.classList.toggle('active', id === e.target.id));
+    if (['tab-notifications', 'tab-changelog', 'tab-leaderboard', 'tab-quests'].includes(e.target.id)) {
+        ['tab-notifications', 'tab-changelog', 'tab-leaderboard', 'tab-quests'].forEach(id => document.getElementById(id)?.classList.toggle('active', id === e.target.id));
         document.getElementById('notifications-list').classList.toggle('hidden', e.target.id !== 'tab-notifications');
         document.getElementById('updates-list').classList.toggle('hidden', e.target.id !== 'tab-changelog');
         document.getElementById('leaderboard-list').classList.toggle('hidden', e.target.id !== 'tab-leaderboard');
+        document.getElementById('quests-list').classList.toggle('hidden', e.target.id !== 'tab-quests');
         if (e.target.id === 'tab-leaderboard' && window.renderLeaderboard) window.renderLeaderboard();
+        if (e.target.id === 'tab-quests' && window.renderQuests) window.renderQuests();
     }
 });
 // 3. Live Search Filter Logic

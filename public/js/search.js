@@ -1,9 +1,9 @@
 ﻿// js/search.js
 // Global omni-search: rooms, people, and messages in one box.
 // Messages are searched across Global + the currently open room (recent history).
-import { db } from './firebase-core.js?v=19';
+import { db } from './firebase-core.js?v=30';
 import { ref, get, query, limitToLast } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-import { escapeHtml } from './utils.js?v=19';
+import { escapeHtml } from './utils.js?v=30';
 
 const $ = (id) => document.getElementById(id);
 let wired = false;
