@@ -1,5 +1,5 @@
 ﻿// js/auth.js
-import { auth, db } from './firebase-core.js';
+import { auth, db } from '../../lib/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
 

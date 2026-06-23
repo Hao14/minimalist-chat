@@ -1,5 +1,5 @@
 import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../../legacy-engine/firebase-core.js';
+import { auth } from '../../lib/firebase.js';
 
 const DEFAULT_STRIPE_ENDPOINTS = {
   checkout: 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeCreateCheckoutSession',

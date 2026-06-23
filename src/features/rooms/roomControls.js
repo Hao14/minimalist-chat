@@ -1,8 +1,8 @@
 ﻿// js/rooms.js
-import { db } from './firebase-core.js';
-import { escapeHtml } from './utils.js';
+import { db } from '../../lib/firebase.js';
+import { escapeHtml } from '../../lib/text.js';
 import { ref, set, get, push, remove, serverTimestamp } from 'firebase/database';
-import { mountChatCore, switchChatRoom } from '../features/chat-core/mountChatCore.js';
+import { mountChatCore, switchChatRoom } from '../chat-core/mountChatCore.js';
 
 window.initializeRooms = function() {
     mountChatCore({ user: window.currentUser });
@@ -265,9 +265,6 @@ document.getElementById('rs-save-permissions-btn')?.addEventListener('click', as
     });
     window.showToast('Room permissions saved.', false);
 });
-
-const leaveRoomModal = document.getElementById('leave-room-modal');
-const deleteRoomModal = document.getElementById('delete-room-modal');
 
 document.getElementById('rs-leave-room-btn')?.addEventListener('click', () => document.getElementById('leave-room-modal')?.classList.remove('hidden'));
 document.getElementById('cancel-leave-btn')?.addEventListener('click', () => document.getElementById('leave-room-modal')?.classList.add('hidden'));
