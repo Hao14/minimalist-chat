@@ -327,3 +327,61 @@
         border-bottom: 1px solid var(--m-line, rgba(20,24,40,0.08)) !important;
     }
 }
+
+@media (max-width: 768px) {
+    body.dark-mode div#mobile-nav-links.mobile-only {
+        background:
+            radial-gradient(circle at 18% 0%, rgba(34, 211, 238, 0.10), transparent 36%),
+            rgba(8, 11, 18, 0.90) !important;
+        border-top: 1px solid var(--d-line, rgba(226, 232, 240, 0.09)) !important;
+        box-shadow: 0 -24px 55px -34px rgba(0, 0, 0, 0.95) !important;
+        backdrop-filter: blur(22px) saturate(1.25) !important;
+        -webkit-backdrop-filter: blur(22px) saturate(1.25) !important;
+    }
+
+    body.dark-mode .mobile-link,
+    body.dark-mode .mobile-link-btn {
+        color: var(--d-muted-2, #aab4c6) !important;
+        border-right: none !important;
+        border-radius: 16px !important;
+        margin: 0.28rem !important;
+        width: auto !important;
+        background: transparent !important;
+        box-shadow: none !important;
+    }
+
+    body.dark-mode .mobile-link:active,
+    body.dark-mode .mobile-link-btn:active {
+        background: rgba(34, 211, 238, 0.11) !important;
+        color: #bff7ff !important;
+    }
+
+    body.dark-mode .mobile-link::after,
+    body.dark-mode .mobile-link-btn::after {
+        height: 3px !important;
+        border-radius: 999px !important;
+        left: 20% !important;
+        width: 60% !important;
+        background: linear-gradient(90deg, var(--d-cyan, #22d3ee), var(--d-violet, #8b5cf6)) !important;
+    }
+
+    body.dark-mode #contacts-panel,
+    body.dark-mode #updates-panel,
+    body.dark-mode #personal-ai-agent-panel {
+        background:
+            radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.12), transparent 32%),
+            var(--bg-color, #080b12) !important;
+        border-left: none !important;
+        box-shadow: none !important;
+    }
+
+    body.dark-mode #pm-popup {
+        border-top: 1px solid var(--d-line, rgba(226, 232, 240, 0.09)) !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+    }
+
+    body.dark-mode .pm-sidebar {
+        border-bottom: 1px solid var(--d-line, rgba(226, 232, 240, 0.09)) !important;
+    }
+}

@@ -992,3 +992,283 @@ body.modern-mode .kb-field > span {
     color: #8b92a4;
     font-weight: 550;
 }
+
+/* Dark theme feature polish: aurora utility surfaces across docs, whiteboard, calendar, search, and tasks. */
+body.dark-mode #wb-toolbar,
+body.dark-mode .docs-editor-bar,
+body.dark-mode .events-head,
+body.dark-mode .search-input-row,
+body.dark-mode .mt-head,
+body.dark-mode .mt-side-head {
+    background: rgba(15, 20, 32, 0.88);
+    border-bottom: 1px solid var(--d-line);
+    box-shadow: none;
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+body.dark-mode #wb-canvas {
+    background-color: #090d16;
+    background-image:
+        radial-gradient(circle, rgba(34, 211, 238, 0.16) 1px, transparent 1px),
+        radial-gradient(720px 420px at 90% 0%, rgba(139, 92, 246, 0.12), transparent 60%);
+}
+
+body.dark-mode #wb-world {
+    background-image:
+        linear-gradient(rgba(34, 211, 238, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139, 92, 246, 0.055) 1px, transparent 1px);
+}
+
+body.dark-mode .wb-tool-group,
+body.dark-mode #wb-colors {
+    background: transparent;
+    border-right: 1px solid var(--d-line);
+}
+
+body.dark-mode .wb-tool-btn,
+body.dark-mode .wb-zoom-btn,
+body.dark-mode .wb-zoom-readout,
+body.dark-mode #wb-clear {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    color: var(--d-muted-2);
+    box-shadow: none;
+}
+
+body.dark-mode .wb-tool-btn:hover,
+body.dark-mode .wb-zoom-btn:hover,
+body.dark-mode #wb-clear:hover {
+    background: rgba(34, 211, 238, 0.10);
+    color: #bff7ff;
+}
+
+body.dark-mode .wb-tool-btn.active,
+body.dark-mode .wb-swatch.active {
+    background: rgba(148, 163, 184, 0.10);
+    border-color: var(--d-line-2);
+    box-shadow: none;
+}
+
+body.dark-mode .wb-item {
+    border-width: 1px;
+    border-radius: 16px;
+    box-shadow: 0 24px 52px -36px rgba(0,0,0,0.95);
+}
+
+body.dark-mode .wb-item.selected {
+    outline: 2px solid var(--d-cyan);
+    outline-offset: 4px;
+}
+
+body.dark-mode .wb-note,
+body.dark-mode .wb-text {
+    color: #061018;
+}
+
+body.dark-mode .docs-toolbar,
+body.dark-mode .docs-tags,
+body.dark-mode .cal-nav,
+body.dark-mode .kb-topbar {
+    gap: 0.65rem;
+}
+
+body.dark-mode #docs-list-view,
+body.dark-mode .docs-editor-body,
+body.dark-mode .events-page-scroll,
+body.dark-mode .cal-wrap,
+body.dark-mode .rh-scroll,
+body.dark-mode .kb-root {
+    background: transparent;
+}
+
+body.dark-mode #docs-search,
+body.dark-mode #doc-tags-input,
+body.dark-mode #doc-title-input,
+body.dark-mode #doc-content-input,
+body.dark-mode .msg-edit-area,
+body.dark-mode .kb-add-input,
+body.dark-mode .kb-detail-desc,
+body.dark-mode .kb-field select,
+body.dark-mode .kb-field input[type="date"] {
+    background: rgba(15, 20, 32, 0.84);
+    border: 1px solid var(--d-line-2);
+    border-radius: 14px;
+    color: var(--text-color);
+    box-shadow: none;
+}
+
+body.dark-mode #doc-title-input,
+body.dark-mode #doc-content-input {
+    background: transparent;
+}
+
+body.dark-mode .docs-new-btn,
+body.dark-mode .docs-icon-btn,
+body.dark-mode .docs-tag-chip,
+body.dark-mode .rh-edit-btn,
+body.dark-mode .rh-add-btn,
+body.dark-mode .rh-save-btn,
+body.dark-mode .msg-edit-actions button,
+body.dark-mode .cal-nav-btn,
+body.dark-mode .cal-today-btn,
+body.dark-mode .cal-add-btn,
+body.dark-mode .kb-filter,
+body.dark-mode .kb-add-save,
+body.dark-mode .kb-add-cancel,
+body.dark-mode .kb-cat-add-btn {
+    background: rgba(148, 163, 184, 0.08);
+    border: 1px solid var(--d-line-2);
+    border-radius: 999px;
+    color: #dbe4f2;
+    box-shadow: none;
+    font-weight: 650;
+}
+
+body.dark-mode .docs-new-btn,
+body.dark-mode .rh-save-btn,
+body.dark-mode .kb-add-save,
+body.dark-mode .cal-add-btn {
+    background: linear-gradient(135deg, var(--d-cyan), var(--d-violet));
+    color: #061018;
+    border-color: transparent;
+}
+
+body.dark-mode .docs-tag-chip.active,
+body.dark-mode .kb-filter.active,
+body.dark-mode .cal-day.active {
+    background: linear-gradient(135deg, rgba(34, 211, 238, 0.95), rgba(139, 92, 246, 0.88));
+    color: #061018;
+    border-color: transparent;
+    box-shadow: 0 22px 46px -34px rgba(34, 211, 238, 0.82);
+}
+
+body.dark-mode .doc-card,
+body.dark-mode .rh-stat,
+body.dark-mode .rh-analytics div,
+body.dark-mode .rh-resource,
+body.dark-mode .rh-rule,
+body.dark-mode .cal-day,
+body.dark-mode .cal-connect,
+body.dark-mode .cal-ev-card,
+body.dark-mode .event-card,
+body.dark-mode .poll-card,
+body.dark-mode .reminder-card,
+body.dark-mode .msg-file-card,
+body.dark-mode .kb-col,
+body.dark-mode .kb-card,
+body.dark-mode .kb-detail {
+    background: rgba(15, 20, 32, 0.80);
+    border: 1px solid var(--d-line);
+    border-radius: 18px;
+    box-shadow: var(--d-shadow-1);
+}
+
+body.dark-mode .doc-card:hover,
+body.dark-mode .rh-resource:hover,
+body.dark-mode .kb-card:hover {
+    background: rgba(21, 27, 42, 0.90);
+    border-color: rgba(34, 211, 238, 0.20);
+    box-shadow: 0 26px 58px -42px rgba(0,0,0,0.95);
+    transform: translateY(-1px);
+}
+
+body.dark-mode .rh-stats,
+body.dark-mode .rh-head,
+body.dark-mode .events-head,
+body.dark-mode .kb-detail-head,
+body.dark-mode .kb-detail-foot {
+    border-color: var(--d-line);
+}
+
+body.dark-mode .rh-rule {
+    border-left: 3px solid var(--d-cyan);
+}
+
+body.dark-mode .cal-nav-btn:hover,
+body.dark-mode .docs-icon-btn:hover,
+body.dark-mode .rh-edit-btn:hover,
+body.dark-mode .rh-add-btn:hover,
+body.dark-mode .msg-edit-actions button:hover,
+body.dark-mode .kb-cat-add-btn:hover,
+body.dark-mode .kb-add-cancel:hover {
+    background: rgba(34, 211, 238, 0.11);
+    border-color: rgba(34, 211, 238, 0.28);
+    color: #bff7ff;
+}
+
+body.dark-mode .cal-day.active .cal-day-num,
+body.dark-mode .cal-day.active .cal-day-mon,
+body.dark-mode .cal-day.active .cal-day-dow {
+    color: #061018;
+}
+
+body.dark-mode .cal-day.active .cal-day-dot {
+    background: #061018;
+}
+
+body.dark-mode .search-box,
+body.dark-mode .mt-box,
+body.dark-mode .msg-menu {
+    background: rgba(12, 16, 26, 0.96);
+    border: 1px solid var(--d-line);
+    border-radius: 22px;
+    box-shadow: var(--d-shadow-2);
+}
+
+body.dark-mode #search-modal,
+body.dark-mode .mt-modal,
+body.dark-mode .kb-detail-backdrop {
+    background: rgba(2, 6, 23, 0.58);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+body.dark-mode .search-item,
+body.dark-mode .mt-row,
+body.dark-mode .msg-menu button,
+body.dark-mode .mt-bookmark {
+    border-radius: 14px;
+    color: #dbe4f2;
+    font-weight: 560;
+}
+
+body.dark-mode .search-item:hover,
+body.dark-mode .mt-row:hover,
+body.dark-mode .msg-menu button:hover {
+    background: rgba(34, 211, 238, 0.10);
+    color: #bff7ff;
+}
+
+body.dark-mode .mt-side-panel {
+    border-left: 1px solid var(--d-line);
+    box-shadow: -28px 0 70px -42px rgba(0,0,0,0.95);
+}
+
+body.dark-mode .mt-coll-title,
+body.dark-mode .search-section,
+body.dark-mode .doc-card-preview,
+body.dark-mode .doc-card-meta,
+body.dark-mode .cal-empty,
+body.dark-mode .rh-muted,
+body.dark-mode .kb-empty,
+body.dark-mode .kb-field > span,
+body.dark-mode .task-meta,
+body.dark-mode .reminder-meta,
+body.dark-mode .poll-meta {
+    color: var(--d-muted);
+    font-weight: 550;
+}
+
+body.dark-mode .kb-root {
+    --kb-surface: rgba(15, 20, 32, 0.86);
+    --kb-col-bg: rgba(148, 163, 184, 0.06);
+    --kb-line: var(--d-line);
+    --kb-line-strong: var(--d-line-2);
+    --kb-muted: var(--d-muted);
+}
+
+body.dark-mode .kb-prio-low { background: rgba(148, 163, 184, 0.13); color: #cbd5e1; }
+body.dark-mode .kb-prio-medium { background: rgba(251, 146, 60, 0.16); color: #fdba74; }
+body.dark-mode .kb-prio-high { background: rgba(248, 113, 113, 0.16); color: #fca5a5; }
