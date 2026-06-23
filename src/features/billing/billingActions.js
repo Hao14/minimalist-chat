@@ -151,6 +151,12 @@ function embeddedCheckoutContainer() {
   return document.getElementById('stripe-embedded-checkout');
 }
 
+function portalEmbeddedCard() {
+  const card = embeddedCard();
+  if (card && card.parentElement !== document.body) document.body.appendChild(card);
+  return card;
+}
+
 function setEmbeddedStatus(message, isError = false) {
   const status = document.getElementById('stripe-embedded-status');
   if (!status) return;
@@ -169,7 +175,7 @@ function destroyEmbeddedCheckout() {
 }
 
 function showEmbeddedPanel(plan) {
-  const card = embeddedCard();
+  const card = portalEmbeddedCard();
   const title = document.getElementById('stripe-embedded-title');
   const container = embeddedCheckoutContainer();
   if (!card || !container) return;
@@ -179,13 +185,18 @@ function showEmbeddedPanel(plan) {
   container.innerHTML = '';
   container.classList.add('is-loading');
   setEmbeddedStatus('Stripe is loading securely inside this page…');
+  card.setAttribute('role', 'dialog');
+  card.setAttribute('aria-modal', 'true');
+  card.setAttribute('aria-labelledby', 'stripe-embedded-title');
+  document.body.classList.add('stripe-checkout-open');
   card.classList.remove('hidden');
-  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('stripe-embedded-close')?.focus();
 }
 
 function hideEmbeddedPanel() {
   destroyEmbeddedCheckout();
   embeddedCard()?.classList.add('hidden');
+  document.body.classList.remove('stripe-checkout-open');
   setEmbeddedStatus('');
 }
 
