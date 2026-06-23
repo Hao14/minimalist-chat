@@ -474,15 +474,15 @@ function PrivateMessagesDock() {
             <small>{callActive ? `${callParticipants.length} in voice call` : 'Multi-PM chat view'}</small>
           </div>
           <div className="pm-header-actions">
-            <button type="button" className={`pm-action-btn ${encrypted ? 'active' : ''}`} id="pm-e2e-btn" title="Encrypted messages" onClick={toggleEncryption}>
+            <button type="button" className={`pm-action-btn ${encrypted ? 'active' : ''}`} id="pm-e2e-btn" title={encrypted ? 'Encrypted messages on' : 'Enable encrypted messages'} aria-label={encrypted ? 'Encrypted messages on' : 'Enable encrypted messages'} onClick={toggleEncryption}>
               <i className="ph-bold ph-lock-key" />
             </button>
             {joinedCall ? (
-              <button type="button" className="pm-action-btn active" id="pm-call-btn" title="Leave voice call" onClick={leaveVoiceCall}>
+              <button type="button" className="pm-action-btn active" id="pm-call-btn" title="Leave voice call" aria-label="Leave voice call" onClick={leaveVoiceCall}>
                 <i className="ph-bold ph-phone-disconnect" />
               </button>
             ) : (
-              <button type="button" className="pm-action-btn" id="pm-call-btn" title="Start voice call" onClick={joinVoiceCall}>
+              <button type="button" className="pm-action-btn" id="pm-call-btn" title="Start voice call" aria-label="Start voice call" onClick={joinVoiceCall}>
                 <i className="ph-bold ph-phone-call" />
               </button>
             )}
@@ -490,7 +490,7 @@ function PrivateMessagesDock() {
           </div>
         </header>
 
-        <div id="pm-e2e-status" className="pm-e2e-status">
+        <div id="pm-e2e-status" className={`pm-e2e-status ${encrypted ? 'active' : ''}`}>
           {encrypted ? 'Encrypted on · messages are protected before upload' : 'Standard PM · tap the lock to enable encrypted messages'}
         </div>
 
