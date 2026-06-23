@@ -236,6 +236,36 @@ function updateMessageCache(messages) {
   }, {});
 }
 
+function roomInitials(name) {
+  return String(name || 'Room')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0] || '')
+    .join('')
+    .toUpperCase() || 'R';
+}
+
+function RoomIcon({ room }) {
+  if (room.id === 'global') {
+    return (
+      <span className="room-icon room-icon-globe" aria-hidden="true">
+        <i className="ph-bold ph-globe-hemisphere-west" />
+      </span>
+    );
+  }
+
+  if (room.photoUrl) {
+    return (
+      <span className="room-icon">
+        <img src={room.photoUrl} alt="" />
+      </span>
+    );
+  }
+
+  return <span className="room-icon room-icon-fallback" aria-hidden="true">{roomInitials(room.name)}</span>;
+}
+
 function RoomList({ rooms, activeRoomId, onSwitchRoom }) {
   return (
     <>
@@ -243,10 +273,14 @@ function RoomList({ rooms, activeRoomId, onSwitchRoom }) {
         <li
           key={room.id}
           className={`room-item ${room.id === activeRoomId ? 'active' : ''}`}
+          title={room.name}
           onClick={() => onSwitchRoom(room.id, room.name, room.shortId)}
         >
-          <span className="room-name">{room.name}</span>
-          <span className="room-preview">{room.lastMessage || 'No messages yet...'}</span>
+          <RoomIcon room={room} />
+          <span className="room-copy">
+            <span className="room-name">{room.name}</span>
+            <span className="room-preview">{room.lastMessage || 'No messages yet...'}</span>
+          </span>
         </li>
       ))}
     </>

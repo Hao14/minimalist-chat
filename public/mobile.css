@@ -246,6 +246,27 @@
         padding: 1rem !important;
     }
 
+    .rs-room-picture-card {
+        grid-template-columns: 64px minmax(0, 1fr) !important;
+        gap: 0.75rem !important;
+        padding: 0.75rem !important;
+    }
+
+    .rs-room-picture-preview {
+        width: 58px !important;
+        height: 58px !important;
+        border-radius: 18px !important;
+        font-size: 1.45rem !important;
+    }
+
+    .rs-room-picture-actions {
+        flex-direction: column !important;
+    }
+
+    .rs-room-picture-actions .mini-btn {
+        width: 100% !important;
+    }
+
     .cal-import-progress {
         right: calc(1rem + env(safe-area-inset-right, 0px)) !important;
         bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px)) !important;

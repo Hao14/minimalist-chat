@@ -1,7 +1,8 @@
 ﻿// js/rooms.js
-import { db } from '../../lib/firebase.js';
+import { db, storage } from '../../lib/firebase.js';
 import { escapeHtml } from '../../lib/text.js';
 import { ref, set, get, push, remove, serverTimestamp } from 'firebase/database';
+import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
 import { mountChatCore, switchChatRoom } from '../chat-core/mountChatCore.js';
 
 window.initializeRooms = function() {
@@ -17,6 +18,41 @@ window.switchRoom = switchChatRoom;
 // --- CREATE & JOIN ROOM LOGIC ---
 let currentRoomActionMode = 'join'; 
 const roomActionModal = document.getElementById('room-action-modal');
+const ROOM_PICTURE_MAX_BYTES = 5 * 1024 * 1024;
+
+function roomInitials(name) {
+    return String(name || 'Room')
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map(part => part[0] || '')
+        .join('')
+        .toUpperCase() || 'R';
+}
+
+function renderRoomPicturePreview(url, name) {
+    const preview = document.getElementById('rs-room-picture-preview');
+    if (!preview) return;
+
+    if (url) {
+        preview.innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
+        return;
+    }
+
+    preview.innerHTML = `<span>${escapeHtml(roomInitials(name))}</span>`;
+}
+
+function setRoomPictureBusy(isBusy) {
+    const saveBtn = document.getElementById('rs-save-room-picture-btn');
+    const removeBtn = document.getElementById('rs-remove-room-picture-btn');
+    const input = document.getElementById('rs-room-picture-input');
+    if (saveBtn) {
+        saveBtn.disabled = isBusy;
+        saveBtn.textContent = isBusy ? 'Saving…' : 'Save Picture';
+    }
+    if (removeBtn) removeBtn.disabled = isBusy;
+    if (input) input.disabled = isBusy;
+}
 
 function roomCreationLimitForTier(tier) {
     if (tier === 'pro') return Infinity;
@@ -143,6 +179,21 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
         
         document.getElementById('rs-delete-room-btn')?.classList.toggle('hidden', !isCreator);
         document.getElementById('rs-leave-room-btn')?.classList.toggle('hidden', isCreator);
+
+        const pictureInput = document.getElementById('rs-room-picture-input');
+        if (pictureInput) pictureInput.value = '';
+        renderRoomPicturePreview(data.photoUrl || '', data.name);
+
+        const pictureHelp = document.getElementById('rs-room-picture-help');
+        if (pictureHelp) {
+            pictureHelp.textContent = isCreator
+                ? 'Upload a square image for the collapsed room rail. Images can be up to 5MB.'
+                : 'Only the room creator can change this room picture.';
+        }
+
+        document.getElementById('rs-save-room-picture-btn')?.toggleAttribute('disabled', !isCreator);
+        document.getElementById('rs-remove-room-picture-btn')?.toggleAttribute('disabled', !isCreator || !data.photoUrl);
+        pictureInput?.toggleAttribute('disabled', !isCreator);
         
         const memList = document.getElementById('rs-members-list');
         if (memList) {
@@ -233,6 +284,85 @@ document.getElementById('close-room-settings-x')?.addEventListener('click', clos
 document.getElementById('room-settings-modal')?.addEventListener('click', (event) => {
     if (event.target?.id === 'room-settings-modal') closeRoomSettings();
 });
+
+document.getElementById('rs-room-picture-input')?.addEventListener('change', (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type?.startsWith('image/')) {
+        event.target.value = '';
+        window.showToast('Choose an image file for the room picture.');
+        return;
+    }
+
+    if (file.size > ROOM_PICTURE_MAX_BYTES) {
+        event.target.value = '';
+        window.showToast('Room picture must be 5MB or smaller.');
+        return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    renderRoomPicturePreview(previewUrl, window.activeRoomId);
+    setTimeout(() => URL.revokeObjectURL(previewUrl), 2500);
+});
+
+document.getElementById('rs-save-room-picture-btn')?.addEventListener('click', async () => {
+    if (!window.activeRoomId || window.activeRoomId === 'global') return;
+
+    const roomSnap = await get(ref(db, `rooms_meta/${window.activeRoomId}`));
+    const roomData = roomSnap.val() || {};
+    const isCreator = roomData.creatorId === window.currentUser?.uid || (!roomData.creatorId && Object.keys(roomData.members || {})[0] === window.currentUser?.uid);
+    if (!isCreator) return window.showToast('Only the room creator can change the room picture.');
+
+    const input = document.getElementById('rs-room-picture-input');
+    const file = input?.files?.[0];
+    if (!file) return window.showToast('Choose a room picture first.');
+    if (!file.type?.startsWith('image/')) return window.showToast('Choose an image file for the room picture.');
+    if (file.size > ROOM_PICTURE_MAX_BYTES) return window.showToast('Room picture must be 5MB or smaller.');
+
+    setRoomPictureBusy(true);
+    try {
+        const safeName = file.name.replace(/[^a-z0-9_.-]/gi, '_').slice(-80);
+        const target = storageRef(storage, `room_pictures/${window.activeRoomId}/${Date.now()}_${safeName}`);
+        await uploadBytesResumable(target, file);
+        const photoUrl = await getDownloadURL(target);
+        await set(ref(db, `rooms_meta/${window.activeRoomId}/photoUrl`), photoUrl);
+        await set(ref(db, `rooms_meta/${window.activeRoomId}/logs/${Date.now()}`), { text: `${window.userProfileName} updated the room picture.`, timestamp: Date.now() });
+        renderRoomPicturePreview(photoUrl, roomData.name);
+        if (input) input.value = '';
+        document.getElementById('rs-remove-room-picture-btn')?.removeAttribute('disabled');
+        window.showToast('Room picture updated.', false);
+    } catch (error) {
+        window.showToast(`Room picture failed: ${error.message}`);
+    } finally {
+        setRoomPictureBusy(false);
+    }
+});
+
+document.getElementById('rs-remove-room-picture-btn')?.addEventListener('click', async () => {
+    if (!window.activeRoomId || window.activeRoomId === 'global') return;
+    let removedPicture = false;
+
+    const roomSnap = await get(ref(db, `rooms_meta/${window.activeRoomId}`));
+    const roomData = roomSnap.val() || {};
+    const isCreator = roomData.creatorId === window.currentUser?.uid || (!roomData.creatorId && Object.keys(roomData.members || {})[0] === window.currentUser?.uid);
+    if (!isCreator) return window.showToast('Only the room creator can change the room picture.');
+
+    setRoomPictureBusy(true);
+    try {
+        await remove(ref(db, `rooms_meta/${window.activeRoomId}/photoUrl`));
+        await set(ref(db, `rooms_meta/${window.activeRoomId}/logs/${Date.now()}`), { text: `${window.userProfileName} removed the room picture.`, timestamp: Date.now() });
+        renderRoomPicturePreview('', roomData.name);
+        removedPicture = true;
+        window.showToast('Room picture removed.', false);
+    } catch (error) {
+        window.showToast(`Could not remove room picture: ${error.message}`);
+    } finally {
+        setRoomPictureBusy(false);
+        if (removedPicture) document.getElementById('rs-remove-room-picture-btn')?.setAttribute('disabled', '');
+    }
+});
+
 document.getElementById('rs-save-webhook')?.addEventListener('click', async () => {
     await set(ref(db, `rooms_meta/${window.activeRoomId}/webhook`), document.getElementById('rs-webhook-input').value.trim());
     window.showToast("Webhook integration saved!", false);

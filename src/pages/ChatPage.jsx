@@ -3920,6 +3920,79 @@ function renderChatShell() {
             },
             "\n                    ",
             h(
+              "div",
+              {
+                className: "rs-room-picture-card",
+              },
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "rs-room-picture-preview",
+                  id: "rs-room-picture-preview",
+                  "aria-hidden": "true",
+                },
+                h("i", {
+                    className: "ph-bold ph-chats",
+                  })
+              ),
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "rs-room-picture-body",
+                },
+                "\n                            ",
+                h(
+                  "h2",
+                  null,
+                  "Room Picture"
+                ),
+                "\n                            ",
+                h(
+                  "p",
+                  {
+                    id: "rs-room-picture-help",
+                  },
+                  "Add a square image for the collapsed room rail. Global Chat uses the built-in globe."
+                ),
+                "\n                            ",
+                h("input", {
+                    type: "file",
+                    id: "rs-room-picture-input",
+                    accept: "image/*",
+                  }),
+                "\n                            ",
+                h(
+                  "div",
+                  {
+                    className: "rs-room-picture-actions",
+                  },
+                  h(
+                    "button",
+                    {
+                      id: "rs-save-room-picture-btn",
+                      className: "mini-btn",
+                      type: "button",
+                    },
+                    "Save Picture"
+                  ),
+                  h(
+                    "button",
+                    {
+                      id: "rs-remove-room-picture-btn",
+                      className: "mini-btn danger",
+                      type: "button",
+                    },
+                    "Remove"
+                  )
+                ),
+                "\n                        "
+              ),
+              "\n                    "
+            ),
+            "\n                    ",
+            h(
               "h2",
               {
                 style: { borderBottom: "3px solid var(--text-color)", paddingBottom: "0.5rem", marginBottom: "1rem" },
