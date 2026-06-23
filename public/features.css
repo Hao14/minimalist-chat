@@ -1010,14 +1010,14 @@ body.dark-mode .mt-side-head {
 body.dark-mode #wb-canvas {
     background-color: #090d16;
     background-image:
-        radial-gradient(circle, rgba(34, 211, 238, 0.16) 1px, transparent 1px),
-        radial-gradient(720px 420px at 90% 0%, rgba(139, 92, 246, 0.12), transparent 60%);
+        radial-gradient(circle, rgba(245, 158, 11, 0.14) 1px, transparent 1px),
+        radial-gradient(720px 420px at 90% 0%, rgba(245, 158, 11, 0.10), transparent 60%);
 }
 
 body.dark-mode #wb-world {
     background-image:
-        linear-gradient(rgba(34, 211, 238, 0.055) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(139, 92, 246, 0.055) 1px, transparent 1px);
+        linear-gradient(rgba(245, 158, 11, 0.052) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(245, 158, 11, 0.045) 1px, transparent 1px);
 }
 
 body.dark-mode .wb-tool-group,
@@ -1040,8 +1040,8 @@ body.dark-mode #wb-clear {
 body.dark-mode .wb-tool-btn:hover,
 body.dark-mode .wb-zoom-btn:hover,
 body.dark-mode #wb-clear:hover {
-    background: rgba(34, 211, 238, 0.10);
-    color: #bff7ff;
+    background: rgba(245, 158, 11, 0.10);
+    color: #fde68a;
 }
 
 body.dark-mode .wb-tool-btn.active,
@@ -1138,10 +1138,10 @@ body.dark-mode .cal-add-btn {
 body.dark-mode .docs-tag-chip.active,
 body.dark-mode .kb-filter.active,
 body.dark-mode .cal-day.active {
-    background: linear-gradient(135deg, rgba(34, 211, 238, 0.95), rgba(139, 92, 246, 0.88));
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.96), rgba(251, 146, 60, 0.86));
     color: #061018;
     border-color: transparent;
-    box-shadow: 0 22px 46px -34px rgba(34, 211, 238, 0.82);
+    box-shadow: 0 22px 46px -34px rgba(245, 158, 11, 0.72);
 }
 
 body.dark-mode .doc-card,
@@ -1169,7 +1169,7 @@ body.dark-mode .doc-card:hover,
 body.dark-mode .rh-resource:hover,
 body.dark-mode .kb-card:hover {
     background: rgba(21, 27, 42, 0.90);
-    border-color: rgba(34, 211, 238, 0.20);
+    border-color: rgba(245, 158, 11, 0.20);
     box-shadow: 0 26px 58px -42px rgba(0,0,0,0.95);
     transform: translateY(-1px);
 }
@@ -1193,9 +1193,9 @@ body.dark-mode .rh-add-btn:hover,
 body.dark-mode .msg-edit-actions button:hover,
 body.dark-mode .kb-cat-add-btn:hover,
 body.dark-mode .kb-add-cancel:hover {
-    background: rgba(34, 211, 238, 0.11);
-    border-color: rgba(34, 211, 238, 0.28);
-    color: #bff7ff;
+    background: rgba(245, 158, 11, 0.11);
+    border-color: rgba(245, 158, 11, 0.28);
+    color: #fde68a;
 }
 
 body.dark-mode .cal-day.active .cal-day-num,
@@ -1237,8 +1237,8 @@ body.dark-mode .mt-bookmark {
 body.dark-mode .search-item:hover,
 body.dark-mode .mt-row:hover,
 body.dark-mode .msg-menu button:hover {
-    background: rgba(34, 211, 238, 0.10);
-    color: #bff7ff;
+    background: rgba(245, 158, 11, 0.10);
+    color: #fde68a;
 }
 
 body.dark-mode .mt-side-panel {
