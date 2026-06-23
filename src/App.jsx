@@ -1,18 +1,7 @@
 import { createElement, lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
-import LegacyPage from './components/LegacyPage.jsx';
 
-function lazyPage(loader, options = {}) {
-  return lazy(() =>
-    loader().then(({ default: source }) => ({
-      default: function LoadedLegacyPage() {
-        return <LegacyPage source={source} {...options} />;
-      },
-    })),
-  );
-}
-
-const ChatPage = lazyPage(() => import('../legacy/chat.html?raw'), { needsConfig: true });
+const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const marketingPage = (name) => lazy(() => import('./pages/MarketingPages.jsx').then((module) => ({ default: module[name] })));
 const NativeHomePage = marketingPage('HomePage');
