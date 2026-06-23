@@ -14,12 +14,13 @@
     }
   ],
   "hosting": {
-    "public": "public",
+    "site": "chat-app-356c1",
+    "public": "dist",
     "cleanUrls": true,
     "rewrites": [
       {
-        "source": "/join/**",
-        "destination": "/chat.html"
+        "source": "**",
+        "destination": "/index.html"
       }
     ],
     "ignore": [

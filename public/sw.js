@@ -1,10 +1,60 @@
-// A simple service worker to allow PWA installation
+const CACHE_NAME = 'minimalist-offline-v11';
+const APP_SHELL = [
+  '/',
+  '/chat',
+  '/index.html',
+  '/base.css',
+  '/desktop.css',
+  '/mobile.css',
+  '/features.css',
+  '/manifest.json',
+  '/config.js',
+];
+
 self.addEventListener('install', (event) => {
-    console.log('Minimalist Service Worker installing.');
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(APP_SHELL))
+      .then(() => self.skipWaiting()),
+  );
 });
 
-// We must include this listener to pass PWA requirements, 
-// but we leave it EMPTY so it stops breaking Firebase Auth!
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then(() => self.clients.claim()),
+  );
+});
+
 self.addEventListener('fetch', (event) => {
-    return; 
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith('/__/auth')) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
+          return response;
+        })
+        .catch(() => caches.match('/index.html')),
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
+      if (response.ok) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+      }
+      return response;
+    })),
+  );
 });

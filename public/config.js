@@ -19,7 +19,14 @@ window.AI_CALENDAR_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions
 //   https://us-central1-chat-app-356c1.cloudfunctions.net/aiChat
 window.AI_CHAT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/aiChat';
 
-// LemonSqueezy billing — checkout + customer-portal URLs (optional).
-window.LS_ADVANCED_URL = '';
-window.LS_PRO_URL = '';
-window.LS_PORTAL_URL = '';
+// Pro personal AI agent — authenticated and tier-checked in Firebase Functions.
+window.PERSONAL_AI_AGENT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/personalAiAgent';
+
+// Stripe billing — deployed Firebase Cloud Function URLs.
+// Set these after deploying functions:
+//   firebase deploy --only functions:stripeCreateCheckoutSession,functions:stripeCreatePortalSession,functions:stripeSyncCheckoutSession,functions:stripeWebhook
+// Paste your Stripe publishable key here to enable embedded checkout. Publishable keys are browser-safe.
+window.STRIPE_PUBLISHABLE_KEY = 'pk_test_51QgFVBK2lNxMjmQ44C7NfSmjFWmuSO7sPu34n6zksVcpCNrE6BznJHm9jmoqK3I7hMzg2KvnXRiELMUVVAPioUq900u7pMPSxj';
+window.STRIPE_CHECKOUT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeCreateCheckoutSession';
+window.STRIPE_PORTAL_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeCreatePortalSession';
+window.STRIPE_SYNC_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeSyncCheckoutSession';

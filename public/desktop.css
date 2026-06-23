@@ -30,6 +30,7 @@
     }
     
     .rail-icon:hover { transform: scale(1.15) !important; background: rgba(0,0,0,0.05) !important; }
+    #open-personal-agent-btn { font-size: 1.35rem !important; }
     
     /* 2. BULLETPROOF HIDDEN FIX: Forces Login/Auth icons to obey JavaScript visibility */
     .rail-icon.hidden, .guest-only.hidden, .auth-only.hidden { display: none !important; }
