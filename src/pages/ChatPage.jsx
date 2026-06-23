@@ -2826,19 +2826,21 @@ function renderChatShell() {
           h(
             "div",
             {
-              className: "settings-card",
+              className: "settings-card billing-current-card",
               style: { border: "4px solid var(--text-color)", boxShadow: "6px 6px 0px var(--accent-color)" },
             },
             "\n                    ",
             h(
               "div",
               {
+                className: "billing-current-body",
                 style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 2rem", background: "var(--accent-color)", color: "var(--text-color)" },
               },
               "\n                        ",
               h(
                 "div",
                 {
+                  className: "billing-current-info",
                   style: { display: "flex", flexDirection: "column", gap: "0.3rem" },
                 },
                 "\n                            ",
@@ -2959,19 +2961,20 @@ function renderChatShell() {
           h(
             "div",
             {
+              className: "billing-plan-grid",
               style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" },
             },
             "\n                    ",
             h(
               "div",
               {
-                className: "settings-card",
+                className: "settings-card billing-plan-card",
               },
               "\n                        ",
               h(
                 "div",
                 {
-                  className: "settings-card-body",
+                  className: "settings-card-body billing-plan-body",
                 },
                 "\n                            ",
                 h(
@@ -3048,13 +3051,13 @@ function renderChatShell() {
             h(
               "div",
               {
-                className: "settings-card",
+                className: "settings-card billing-plan-card",
               },
               "\n                        ",
               h(
                 "div",
                 {
-                  className: "settings-card-body",
+                  className: "settings-card-body billing-plan-body",
                 },
                 "\n                            ",
                 h(

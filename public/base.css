@@ -464,6 +464,113 @@ body.gray-mode .btn-light { background: #444; color: #e0e0e0; }
 .settings-card-header img { width: 60px; height: 60px; border-radius: 50%; border: 3px solid var(--text-color); background: var(--bg-color); object-fit: cover; }
 .settings-card-title { flex: 1; }
 .title-name { font-size: 1.3rem; font-weight: 800; } 
+#pane-billing.settings-pane { max-width: 760px; }
+#settings-modal:has(#pane-billing:not(.hidden)) .settings-content {
+    padding: 2rem 2rem 1.25rem;
+}
+#pane-billing.settings-pane h2 { font-size: 1.55rem; margin-bottom: 0.85rem; padding-bottom: 0.35rem; }
+#pane-billing .settings-card { margin-bottom: 0.9rem; }
+#pane-billing .billing-current-card {
+    border-width: 3px !important;
+    box-shadow: 4px 4px 0 var(--accent-color) !important;
+    overflow: hidden;
+}
+#pane-billing .billing-current-body {
+    padding: 0.68rem 0.95rem !important;
+    gap: 1rem !important;
+}
+#pane-billing .billing-current-info { gap: 0.08rem !important; }
+#pane-billing .billing-current-info > span:first-child {
+    font-size: 0.62rem !important;
+    letter-spacing: 0.16em !important;
+}
+#pane-billing #billing-plan-name {
+    font-size: clamp(1.05rem, 2.2vw, 1.35rem) !important;
+    line-height: 1.05 !important;
+}
+#pane-billing #billing-tier-badge {
+    padding: 0.18rem 0.55rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1 !important;
+}
+#pane-billing #billing-plan-limits {
+    font-size: 0.72rem !important;
+}
+#pane-billing #manage-billing-btn {
+    padding: 0.45rem 1rem !important;
+    font-size: 0.86rem !important;
+    box-shadow: 3px 3px 0 var(--text-color) !important;
+}
+#pane-billing .billing-plan-grid {
+    gap: 0.8rem !important;
+    margin-top: 0.75rem !important;
+}
+#pane-billing .billing-plan-card {
+    box-shadow: 4px 4px 0 var(--text-color);
+}
+#pane-billing .billing-plan-body {
+    padding: 0.72rem 0.82rem !important;
+    gap: 0.34rem !important;
+}
+#pane-billing .billing-plan-body h3 {
+    margin: 0;
+    font-size: 0.98rem;
+}
+#pane-billing .billing-plan-body h2 {
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: clamp(1.45rem, 3.4vw, 1.85rem);
+    line-height: 1;
+}
+#pane-billing .billing-plan-body h2 span {
+    font-size: 0.78rem;
+}
+#pane-billing .billing-plan-body ul {
+    display: grid;
+    gap: 0.04rem;
+    margin: 0.28rem 0 0.35rem !important;
+    font-size: 0.72rem !important;
+    line-height: 1.22;
+}
+#pane-billing .billing-plan-body .action-btn {
+    margin-top: auto !important;
+    padding: 0.46rem 0.7rem !important;
+    font-size: 0.8rem !important;
+}
+@media (max-width: 768px) {
+    #pane-billing.settings-pane {
+        max-width: none;
+    }
+
+    #pane-billing.settings-pane h2 {
+        font-size: 1.35rem;
+        margin-bottom: 0.65rem;
+    }
+
+    #pane-billing .billing-current-body {
+        align-items: flex-start !important;
+        flex-direction: column !important;
+        padding: 0.85rem !important;
+        gap: 0.7rem !important;
+    }
+
+    #pane-billing #manage-billing-btn {
+        width: 100% !important;
+    }
+
+    #pane-billing .billing-plan-grid {
+        grid-template-columns: 1fr !important;
+        gap: 0.65rem !important;
+    }
+
+    #pane-billing .billing-plan-body {
+        padding: 0.82rem 0.88rem !important;
+    }
+
+    #pane-billing .billing-plan-body h2 {
+        font-size: 1.55rem;
+    }
+}
 .stripe-embedded-card { border-width: 4px; box-shadow: 8px 8px 0 var(--accent-color); overflow: hidden; }
 .stripe-embedded-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 3px solid var(--text-color); background: #fafafa; }
 .stripe-embedded-header h3 { margin: 0; font-size: 1.3rem; }
