@@ -2799,20 +2799,22 @@ body.stripe-checkout-open {
 }
 
 .stripe-embedded-card:not(.hidden) {
+    --checkout-rail-offset: 80px;
+    --checkout-panel-width: 920px;
     position: fixed;
-    inset: 0;
+    inset: 0 0 0 var(--checkout-rail-offset);
     z-index: 7600;
     display: grid;
-    grid-template-columns: minmax(0, 1040px);
+    grid-template-columns: minmax(0, min(var(--checkout-panel-width), calc(100vw - var(--checkout-rail-offset) - 2rem)));
     grid-auto-rows: max-content;
     justify-content: center;
-    align-content: start;
+    align-content: center;
     gap: 0;
     margin: 0;
-    padding: clamp(1rem, 3vw, 2rem);
+    padding: clamp(0.75rem, 2vw, 1.25rem);
     border: 0;
     border-radius: 0;
-    overflow: auto;
+    overflow: hidden;
     background: rgba(255, 255, 255, 0.82);
     box-shadow: none;
     backdrop-filter: blur(18px) saturate(1.08);
@@ -2823,65 +2825,68 @@ body.stripe-checkout-open {
 .stripe-embedded-card:not(.hidden) .stripe-embedded-status,
 .stripe-embedded-card:not(.hidden) .stripe-embedded-checkout {
     width: 100%;
-    max-width: 1040px;
+    max-width: var(--checkout-panel-width);
     margin: 0 auto;
 }
 
 .stripe-embedded-card:not(.hidden) .stripe-embedded-header {
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
     z-index: 2;
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: 1rem;
-    padding: 1.15rem clamp(1rem, 2.5vw, 1.7rem);
+    gap: 0.85rem;
+    padding: 0.85rem clamp(0.9rem, 2vw, 1.2rem);
     border: 3px solid var(--text-color);
     border-bottom: 0;
-    border-radius: 24px 24px 0 0;
+    border-radius: 20px 20px 0 0;
     background: var(--bg-color);
     box-shadow: none;
 }
 
 .stripe-embedded-card:not(.hidden) .stripe-embedded-header h3 {
     margin: 0;
-    max-width: 18rem;
-    font-size: clamp(1.55rem, 3vw, 2.25rem);
+    max-width: none;
+    font-size: clamp(1.35rem, 2vw, 1.9rem);
     line-height: 1.08;
 }
 
 .stripe-embedded-card:not(.hidden) .stripe-embedded-kicker {
     color: #666;
-    font-size: 0.78rem;
+    font-size: 0.68rem;
     letter-spacing: 0.14em;
 }
 
 .stripe-embedded-card:not(.hidden) #stripe-embedded-close {
     width: auto;
-    min-width: 148px;
+    min-width: 112px;
     margin: 0;
-    padding: 0.8rem 1.4rem;
+    padding: 0.62rem 1rem;
     border-radius: 999px;
 }
 
 .stripe-embedded-card:not(.hidden) .stripe-embedded-status {
     border: 3px solid var(--text-color);
     border-bottom: 0;
-    padding: 0.9rem clamp(1rem, 2.5vw, 1.7rem);
+    padding: 0.68rem clamp(0.9rem, 2vw, 1.2rem);
     background: var(--accent-color);
+    font-size: 0.95rem;
 }
 
 .stripe-embedded-card:not(.hidden) .stripe-embedded-checkout {
-    min-height: min(680px, calc(100vh - 13rem));
-    padding: clamp(1rem, 2.5vw, 1.7rem);
+    height: min(620px, calc(100vh - 10.5rem));
+    min-height: 420px;
+    overflow: auto;
+    padding: 0.85rem;
     border: 3px solid var(--text-color);
-    border-radius: 0 0 24px 24px;
+    border-radius: 0 0 20px 20px;
     background: #fff;
 }
 
 .stripe-embedded-card:not(.hidden) .stripe-embedded-checkout.is-loading::before {
-    min-height: 420px;
-    border-radius: 18px;
+    min-height: 360px;
+    border-radius: 16px;
 }
 
 body.modern-mode .stripe-embedded-card:not(.hidden),
@@ -2957,6 +2962,10 @@ body.dark-mode .stripe-embedded-card:not(.hidden) .stripe-embedded-checkout {
 
 @media (max-width: 768px) {
     .stripe-embedded-card:not(.hidden) {
+        --checkout-rail-offset: 0px;
+        inset: 0;
+        align-content: start;
+        overflow: auto;
         padding: 0;
     }
 
@@ -2971,7 +2980,8 @@ body.dark-mode .stripe-embedded-card:not(.hidden) .stripe-embedded-checkout {
     }
 
     .stripe-embedded-card:not(.hidden) .stripe-embedded-checkout {
-        min-height: calc(100vh - 12.5rem);
+        height: calc(100vh - 11rem);
+        min-height: 0;
         border-radius: 0;
         padding: 0.75rem;
     }
