@@ -1,4 +1,133 @@
-import { useLayoutEffect, useMemo } from 'react';
+import { createElement, useLayoutEffect, useMemo } from 'react';
+
+const VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'param',
+  'source',
+  'track',
+  'wbr',
+]);
+
+const ATTRIBUTE_ALIASES = {
+  acceptcharset: 'acceptCharset',
+  autocomplete: 'autoComplete',
+  autofocus: 'autoFocus',
+  class: 'className',
+  colspan: 'colSpan',
+  contenteditable: 'contentEditable',
+  crossorigin: 'crossOrigin',
+  for: 'htmlFor',
+  maxlength: 'maxLength',
+  minlength: 'minLength',
+  readonly: 'readOnly',
+  rowspan: 'rowSpan',
+  spellcheck: 'spellCheck',
+  tabindex: 'tabIndex',
+};
+
+const BOOLEAN_ATTRIBUTES = new Set([
+  'allowFullScreen',
+  'async',
+  'autoFocus',
+  'checked',
+  'controls',
+  'default',
+  'defer',
+  'disabled',
+  'hidden',
+  'loop',
+  'multiple',
+  'muted',
+  'open',
+  'readOnly',
+  'required',
+  'selected',
+]);
+
+function toStyleObject(styleText) {
+  if (!styleText) return undefined;
+
+  return styleText
+    .split(';')
+    .map((rule) => rule.trim())
+    .filter(Boolean)
+    .reduce((style, rule) => {
+      const divider = rule.indexOf(':');
+      if (divider === -1) return style;
+
+      const property = rule.slice(0, divider).trim();
+      const value = rule.slice(divider + 1).trim();
+      if (!property || !value) return style;
+
+      const reactProperty = property.startsWith('--')
+        ? property
+        : property.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+      style[reactProperty] = value;
+      return style;
+    }, {});
+}
+
+function propsFromAttributes(element) {
+  const props = {};
+
+  Array.from(element.attributes).forEach((attr) => {
+    const rawName = attr.name;
+    const lowerName = rawName.toLowerCase();
+    const propName = ATTRIBUTE_ALIASES[lowerName] || rawName;
+
+    if (lowerName === 'style') {
+      const style = toStyleObject(attr.value);
+      if (style && Object.keys(style).length) props.style = style;
+      return;
+    }
+
+    if (lowerName === 'value') {
+      props.defaultValue = attr.value;
+      return;
+    }
+
+    if (lowerName === 'checked') {
+      props.defaultChecked = true;
+      return;
+    }
+
+    props[propName] = BOOLEAN_ATTRIBUTES.has(propName) && attr.value === '' ? true : attr.value;
+  });
+
+  return props;
+}
+
+function renderDomNode(node, key) {
+  if (node.nodeType === 3) return node.textContent;
+  if (node.nodeType !== 1) return null;
+
+  const tagName = node.tagName.toLowerCase();
+  const props = { ...propsFromAttributes(node), key };
+
+  if (tagName === 'textarea') {
+    props.defaultValue = node.textContent || props.defaultValue || '';
+    return createElement(tagName, props);
+  }
+
+  if (VOID_ELEMENTS.has(tagName)) {
+    return createElement(tagName, props);
+  }
+
+  return createElement(
+    tagName,
+    props,
+    Array.from(node.childNodes).map((child, childIndex) => renderDomNode(child, `${key}-${childIndex}`)),
+  );
+}
 
 function readPage(source) {
   const bodyMatch = source.match(/<body([^>]*)>([\s\S]*?)<\/body>/i);
@@ -18,7 +147,7 @@ function readPage(source) {
     title: source.match(/<title>(.*?)<\/title>/i)?.[1] || 'Minimalist',
     bodyClass: documentNode.body.className,
     bodyStyle: documentNode.body.getAttribute('style') || '',
-    html: documentNode.body.innerHTML,
+    nodes: Array.from(documentNode.body.childNodes),
     scripts,
   };
 }
@@ -102,5 +231,9 @@ export default function LegacyPage({ source, needsConfig = false, loadApp = true
     };
   }, [loadApp, needsConfig, page]);
 
-  return <div className="react-page" dangerouslySetInnerHTML={{ __html: page.html }} />;
+  return (
+    <div className="react-page">
+      {page.nodes.map((node, index) => renderDomNode(node, index))}
+    </div>
+  );
 }

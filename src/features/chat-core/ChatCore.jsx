@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   endBefore,
@@ -129,6 +129,56 @@ function formatTime(timestamp) {
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+const MESSAGE_TEXT_TAGS = new Set(['a', 'br', 'code', 'del', 'em', 'pre', 'span', 'strong']);
+
+function propsForMessageTextElement(element, key) {
+  const tagName = element.tagName.toLowerCase();
+  const props = { key };
+
+  if (tagName === 'a') {
+    const href = element.getAttribute('href') || '#';
+    props.href = /^https?:\/\//i.test(href) ? href : '#';
+    props.target = '_blank';
+    props.rel = 'noopener noreferrer';
+  }
+
+  const className = element.getAttribute('class') || '';
+  const allowedClasses = className
+    .split(/\s+/)
+    .filter((name) => /^msg-/.test(name))
+    .join(' ');
+  if (allowedClasses) props.className = allowedClasses;
+
+  return props;
+}
+
+function renderMessageTextNode(node, key) {
+  if (node.nodeType === 3) return node.textContent;
+  if (node.nodeType !== 1) return null;
+
+  const tagName = node.tagName.toLowerCase();
+  if (!MESSAGE_TEXT_TAGS.has(tagName)) return node.textContent;
+
+  const props = propsForMessageTextElement(node, key);
+  if (tagName === 'br') return createElement('br', props);
+
+  return createElement(
+    tagName,
+    props,
+    Array.from(node.childNodes).map((child, childIndex) => renderMessageTextNode(child, `${key}-${childIndex}`)),
+  );
+}
+
+function MessageText({ text }) {
+  const nodes = useMemo(() => {
+    const html = renderMessageText(text || '');
+    const parsed = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    return Array.from(parsed.body.firstChild?.childNodes || []).map((node, index) => renderMessageTextNode(node, index));
+  }, [text]);
+
+  return nodes;
 }
 
 function messageSearchText(message) {
@@ -470,7 +520,7 @@ function MessageItem({
             </div>
           </>
         ) : (
-          <span dangerouslySetInnerHTML={{ __html: renderMessageText(message.text || '') }} />
+          <MessageText text={message.text} />
         )}
       </div>
 
