@@ -1667,6 +1667,267 @@ body.dark-mode .update-tab.active { color: var(--text-color); border-color: var(
     min-width: 0 !important;
 }
 
+/* Modern theme final polish: this lives late in the cascade so older brutalist rules cannot leak back in. */
+body.modern-mode #main-chat-area {
+    background:
+        radial-gradient(820px 500px at 100% 0%, color-mix(in srgb, var(--accent-color) 8%, transparent), transparent 58%),
+        var(--bg-color);
+}
+
+body.modern-mode #active-room-header {
+    min-height: 64px;
+    background: color-mix(in srgb, var(--m-surface) 88%, transparent);
+    backdrop-filter: blur(18px) saturate(1.2);
+    -webkit-backdrop-filter: blur(18px) saturate(1.2);
+}
+
+body.modern-mode #desktop-room-sidebar .sidebar-header {
+    padding: 1.35rem 1.35rem 1rem;
+}
+
+body.modern-mode #desktop-room-sidebar .sidebar-header h3 {
+    font-size: 1rem;
+}
+
+body.modern-mode #rooms-list {
+    padding: 0.45rem;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item {
+    margin: 0.22rem 0;
+    padding: 0.82rem 0.9rem;
+    border: 1px solid transparent;
+    border-radius: 16px;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item:hover {
+    border-color: var(--m-side-line);
+    transform: translateX(1px);
+}
+
+body.modern-mode #desktop-room-sidebar .room-item.active {
+    background: linear-gradient(135deg, rgba(255,255,255,0.16), rgba(255,255,255,0.08));
+    border-color: rgba(255,255,255,0.12);
+}
+
+body.modern-mode .sidebar-actions {
+    padding: 1rem 1.15rem 1.25rem;
+    gap: 0.65rem;
+}
+
+body.modern-mode .room-action-btn {
+    border: 1px solid transparent;
+    border-radius: 14px;
+    padding: 0.72rem 0.85rem;
+    font-size: 0.85rem;
+    box-shadow: none !important;
+}
+
+body.modern-mode .room-action-btn.btn-dark {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color) 90%, #fff), var(--accent-color));
+}
+
+body.modern-mode #room-sub-nav {
+    background: color-mix(in srgb, var(--m-surface) 86%, transparent);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+body.modern-mode #room-channel-bar {
+    background: color-mix(in srgb, var(--m-surface) 82%, transparent);
+    border-bottom: 1px solid var(--m-line);
+    padding: 0.55rem 1.35rem;
+}
+
+body.modern-mode .channel-kicker,
+body.modern-mode .smart-replies-label {
+    color: #8b92a4;
+    font-weight: 650;
+    letter-spacing: 0.3px;
+}
+
+body.modern-mode .channel-chip,
+body.modern-mode .smart-reply-chip {
+    border: 1px solid var(--m-line-2);
+    border-radius: 999px;
+    background: var(--m-surface);
+    color: var(--text-color);
+    font-weight: 600;
+    box-shadow: none;
+}
+
+body.modern-mode .channel-chip:hover,
+body.modern-mode .smart-reply-chip:hover {
+    background: var(--m-accent-soft);
+    border-color: color-mix(in srgb, var(--accent-color) 28%, transparent);
+    color: var(--accent-color);
+}
+
+body.modern-mode .channel-chip.active {
+    background: var(--accent-color);
+    color: #ffffff;
+    border-color: transparent;
+}
+
+body.modern-mode .smart-replies {
+    background: color-mix(in srgb, var(--m-surface) 86%, transparent);
+    border-top: 1px solid var(--m-line);
+}
+
+body.modern-mode #contacts-panel,
+body.modern-mode #updates-panel,
+body.modern-mode #personal-ai-agent-panel,
+body.modern-mode .mt-side-panel {
+    background: color-mix(in srgb, var(--m-surface) 86%, transparent);
+    border-left: 1px solid var(--m-line);
+    box-shadow: -28px 0 62px -34px rgba(16, 24, 40, 0.42);
+    backdrop-filter: blur(22px) saturate(1.35);
+    -webkit-backdrop-filter: blur(22px) saturate(1.35);
+}
+
+body.modern-mode .contacts-header,
+body.modern-mode .mt-side-head {
+    padding: 1.15rem 1.25rem;
+    background: color-mix(in srgb, var(--m-surface) 90%, transparent);
+    border-bottom: 1px solid var(--m-line);
+}
+
+body.modern-mode .contact-item,
+body.modern-mode .modern-notif,
+body.modern-mode .mt-bookmark {
+    margin: 0.35rem 0.65rem;
+    border: 1px solid transparent !important;
+    border-radius: 16px;
+    background: transparent;
+}
+
+body.modern-mode .contact-item:hover,
+body.modern-mode .modern-notif:hover,
+body.modern-mode .mt-bookmark:hover {
+    background: color-mix(in srgb, var(--accent-color) 8%, var(--m-surface));
+    border-color: color-mix(in srgb, var(--accent-color) 18%, transparent) !important;
+}
+
+body.modern-mode .section-title,
+body.modern-mode .mt-coll-title,
+body.modern-mode .update-date {
+    color: #8b92a4;
+    letter-spacing: 0.3px;
+}
+
+body.modern-mode .close-panel,
+body.modern-mode .notif-close-btn,
+body.modern-mode .mt-bookmark-del {
+    border-radius: 999px;
+}
+
+body.modern-mode #pm-popup {
+    border: 1px solid var(--m-line);
+    border-radius: 22px;
+    box-shadow: var(--m-shadow-3);
+}
+
+body.modern-mode #pm-dock-root,
+body.modern-mode .pm-shell {
+    background: var(--m-surface);
+}
+
+body.modern-mode .pm-sidebar {
+    background: var(--m-surface-2);
+    border-right: 1px solid var(--m-line);
+}
+
+body.modern-mode .pm-session {
+    border: 1px solid transparent !important;
+    border-radius: 14px !important;
+}
+
+body.modern-mode .pm-session:hover,
+body.modern-mode .pm-session.active {
+    background: var(--m-surface) !important;
+    border-color: var(--m-line-2) !important;
+    box-shadow: var(--m-shadow-1) !important;
+}
+
+body.modern-mode .pm-header {
+    background: var(--m-surface);
+    border-bottom: 1px solid var(--m-line);
+}
+
+body.modern-mode .pm-title-wrap small,
+body.modern-mode .pm-e2e-status,
+body.modern-mode .pm-message-meta {
+    color: #8b92a4;
+}
+
+body.modern-mode .pm-e2e-status,
+body.modern-mode #pm-form {
+    border-color: var(--m-line);
+    background: var(--m-surface-2);
+}
+
+body.modern-mode .pm-search-row input,
+body.modern-mode #pm-form input {
+    border: 1px solid var(--m-line-2) !important;
+    background: var(--m-surface) !important;
+    border-radius: 13px !important;
+}
+
+body.modern-mode .pm-call-strip {
+    border: 1px solid color-mix(in srgb, var(--accent-color) 24%, transparent);
+    background: var(--m-accent-soft);
+    box-shadow: none;
+}
+
+body.modern-mode #pm-popup .pm-call-strip button,
+body.modern-mode #pm-popup #pm-form button {
+    border: 1px solid transparent !important;
+    background: var(--accent-color) !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings,
+body.modern-mode #room-settings-modal .brutalist-auth-card,
+body.modern-mode #room-action-modal .brutalist-auth-card,
+body.modern-mode .brutalist-auth-card {
+    background: var(--m-surface);
+    border: 1px solid var(--m-line);
+    border-radius: 22px;
+    box-shadow: var(--m-shadow-3);
+}
+
+body.modern-mode .brutalist-close,
+body.modern-mode .room-settings-x {
+    background: color-mix(in srgb, var(--m-surface) 88%, transparent);
+    color: #6b7280;
+    border: 1px solid var(--m-line);
+    border-radius: 999px;
+    box-shadow: var(--m-shadow-1);
+}
+
+body.modern-mode .brutalist-close:hover,
+body.modern-mode .room-settings-x:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    box-shadow: var(--m-shadow-2);
+}
+
+body.modern-mode .settings-content {
+    background: var(--m-surface);
+}
+
+body.modern-mode .settings-card,
+body.modern-mode .profile-summary-compact div,
+body.modern-mode .permission-grid label,
+body.modern-mode .rs-simple-list li,
+body.modern-mode .custom-theme-panel {
+    border: 1px solid var(--m-line);
+    border-radius: 16px;
+    box-shadow: var(--m-shadow-1);
+}
+
 /* Hide inactive views completely */
 .room-view.hidden {
     display: none !important;

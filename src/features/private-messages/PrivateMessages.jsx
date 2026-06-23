@@ -39,14 +39,26 @@ function snapshotSessions() {
 
 function upsertSession(targetUid, patch = {}) {
   if (!targetUid) return;
-  sessions.set(targetUid, {
+  const previous = sessions.get(targetUid);
+  const nextSession = {
     targetUid,
-    targetName: patch.targetName || sessions.get(targetUid)?.targetName || patch.fromName || 'User',
-    photoUrl: patch.photoUrl || sessions.get(targetUid)?.photoUrl || '',
-    unread: patch.unread ?? sessions.get(targetUid)?.unread ?? false,
-    lastText: patch.lastText ?? sessions.get(targetUid)?.lastText ?? '',
-    timestamp: patch.timestamp ?? sessions.get(targetUid)?.timestamp ?? Date.now(),
-  });
+    targetName: patch.targetName || previous?.targetName || patch.fromName || 'User',
+    photoUrl: patch.photoUrl || previous?.photoUrl || '',
+    unread: patch.unread ?? previous?.unread ?? false,
+    lastText: patch.lastText ?? previous?.lastText ?? '',
+    timestamp: patch.timestamp ?? previous?.timestamp ?? Date.now(),
+  };
+
+  if (
+    previous
+    && previous.targetName === nextSession.targetName
+    && previous.photoUrl === nextSession.photoUrl
+    && previous.unread === nextSession.unread
+    && previous.lastText === nextSession.lastText
+    && previous.timestamp === nextSession.timestamp
+  ) return;
+
+  sessions.set(targetUid, nextSession);
   emitSessions();
 }
 
@@ -212,6 +224,7 @@ function PrivateMessagesDock() {
     [currentActiveUid, openSessions],
   );
   const myUid = window.currentUser?.uid || '';
+  const activeTargetUid = activeSession?.targetUid || '';
   const roomId = activeSession && myUid ? roomIdFor(myUid, activeSession.targetUid) : '';
   const callPath = roomId ? `pm_calls/${roomId}` : '';
   const encrypted = Boolean(roomId && pmKeys.has(roomId));
@@ -242,14 +255,14 @@ function PrivateMessagesDock() {
   }, [myUid]);
 
   useEffect(() => {
-    if (!activeSession || !myUid) return;
-    activeUid = activeSession.targetUid;
-    window.currentPmTargetUid = activeSession.targetUid;
+    if (!activeTargetUid || !myUid) return;
+    activeUid = activeTargetUid;
+    window.currentPmTargetUid = activeTargetUid;
     window.currentPmRoomId = roomId;
-    upsertSession(activeSession.targetUid, { unread: false });
-    set(ref(db, `inbox/${myUid}/${activeSession.targetUid}/read`), true).catch(() => {});
-    remove(ref(db, `notifications/${myUid}/message_${activeSession.targetUid}`)).catch(() => {});
-  }, [activeSession, myUid, roomId]);
+    upsertSession(activeTargetUid, { unread: false });
+    set(ref(db, `inbox/${myUid}/${activeTargetUid}/read`), true).catch(() => {});
+    remove(ref(db, `notifications/${myUid}/message_${activeTargetUid}`)).catch(() => {});
+  }, [activeTargetUid, myUid, roomId]);
 
   useEffect(() => {
     if (!roomId || !myUid) return undefined;
