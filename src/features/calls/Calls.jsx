@@ -47,7 +47,7 @@ export function Calls({ adminUid, roomId, user }) {
   const myParticipant = user?.uid ? call?.participants?.[user.uid] : null;
   const isJoined = Boolean(myParticipant);
   const canEnd = Boolean(user?.uid && (call?.hostUid === user.uid || user.uid === adminUid));
-  const canUseCalls = Boolean(user?.uid && ((window.userTier || 'free') === 'pro' || user.uid === adminUid));
+  const canUseVideoCalls = Boolean(user?.uid && ((window.userTier || 'free') === 'pro' || user.uid === adminUid));
   const callPath = `room_calls/${roomId}`;
 
   useEffect(() => {
@@ -77,9 +77,9 @@ export function Calls({ adminUid, roomId, user }) {
     screenStream?.getTracks().forEach((track) => track.stop());
   }, [screenStream]);
 
-  const joinCall = async () => {
+  const joinCall = async (callType = 'voice') => {
     if (!user?.uid) return;
-    if (!canUseCalls) return window.showToast?.('Video calls are a Pro feature.');
+    if (callType === 'video' && !canUseVideoCalls) return window.showToast?.('Video calls are a Pro feature. Voice calls are available on Base.');
     const allowed = roomId === 'global' || (await get(ref(db, `rooms_meta/${roomId}/permissions/calls`)).catch(() => null))?.val() !== false;
     if (!allowed) return window.showToast?.('Calls and screen sharing are disabled in this room.');
     const callRef = ref(db, callPath);
@@ -90,16 +90,19 @@ export function Calls({ adminUid, roomId, user }) {
       await update(callRef, {
         status: 'active',
         roomId,
+        type: callType,
         hostUid: existing.hostUid || user.uid,
         hostName: existing.hostName || user.displayName || 'Anonymous',
         startedAt: existing.startedAt || serverTimestamp(),
       });
+    } else if (callType === 'video' && existing.type !== 'video') {
+      await update(callRef, { type: 'video', upgradedAt: Date.now(), upgradedBy: user.uid });
     }
 
     const meRef = ref(db, `${callPath}/participants/${user.uid}`);
     await set(meRef, participantFor(user));
     onDisconnect(meRef).remove();
-    window.showToast?.('Call space joined.', false);
+    window.showToast?.(`${callType === 'video' ? 'Video' : 'Voice'} call joined.`, false);
   };
 
   const leaveCall = async () => {
@@ -136,14 +139,14 @@ export function Calls({ adminUid, roomId, user }) {
 
   const startScreenShare = async () => {
     if (!user?.uid) return;
-    if (!canUseCalls) return window.showToast?.('Screen sharing is included with Pro video calls.');
+    if (!canUseVideoCalls) return window.showToast?.('Screen sharing is included with Pro video calls.');
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setScreenState('unsupported');
       return;
     }
 
     try {
-      if (!isJoined) await joinCall();
+      if (!isJoined) await joinCall('video');
       setScreenState('checking');
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
       const screenReady = stream.getVideoTracks().length > 0;
@@ -173,25 +176,25 @@ export function Calls({ adminUid, roomId, user }) {
 
   const checkDevices = async () => {
     if (!user?.uid) return;
-    if (!canUseCalls) return window.showToast?.('Video calls are a Pro feature.');
     if (!navigator.mediaDevices?.getUserMedia) {
       setPermissionState('unsupported');
       return;
     }
 
     try {
-      if (!isJoined) await joinCall();
+      if (!isJoined) await joinCall('voice');
       setPermissionState('checking');
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: canUseVideoCalls });
       const micReady = stream.getAudioTracks().length > 0;
       const cameraReady = stream.getVideoTracks().length > 0;
       stream.getTracks().forEach((track) => track.stop());
       await update(ref(db, `${callPath}/participants/${user.uid}`), {
         micReady,
         cameraReady,
+        videoAllowed: canUseVideoCalls,
         checkedAt: Date.now(),
       });
-      setPermissionState(micReady && cameraReady ? 'ready' : 'partial');
+      setPermissionState(micReady && (canUseVideoCalls ? cameraReady : true) ? 'ready' : 'partial');
     } catch (error) {
       setPermissionState('blocked');
       window.showToast?.(`Device check failed: ${error.message}`);
@@ -203,15 +206,13 @@ export function Calls({ adminUid, roomId, user }) {
       <div className="calls-hero">
         <div>
           <div className="calls-kicker"><i className="ph-bold ph-phone-call" /> Room calls foundation</div>
-          <h3>{canUseCalls ? (isActive ? 'Call space is open' : 'Start a room call space') : 'Video calls are a Pro feature'}</h3>
+          <h3>{isActive ? 'Call space is open' : 'Start a room call space'}</h3>
           <p>
-            {canUseCalls
-              ? 'This prepares the room for voice/video: shared call state, live participants, safe mic/camera checks, and screen-share status with a local preview.'
-              : 'Upgrade to Pro to unlock room video calls, screen sharing, and call readiness tools.'}
+            Voice calls are available to everyone. Pro unlocks camera checks, video call upgrades, and screen sharing.
           </p>
         </div>
         <div className={`call-status-pill ${isActive ? 'active' : ''}`}>
-          <span className="call-dot" /> {isActive ? `Live since ${formatStartedAt(call.startedAt)}` : 'No active call'}
+          <span className="call-dot" /> {isActive ? `${call.type === 'video' ? 'Video' : 'Voice'} · live since ${formatStartedAt(call.startedAt)}` : 'No active call'}
         </div>
       </div>
 
@@ -245,7 +246,7 @@ export function Calls({ adminUid, roomId, user }) {
           <div className={`call-device-state state-${permissionState}`}>
             {permissionState === 'idle' ? 'Devices not checked in this browser.' : null}
             {permissionState === 'checking' ? 'Checking devices…' : null}
-            {permissionState === 'ready' ? 'Mic and camera are ready.' : null}
+            {permissionState === 'ready' ? (canUseVideoCalls ? 'Mic and camera are ready.' : 'Mic is ready for voice calls.') : null}
             {permissionState === 'partial' ? 'One device is ready; check browser/device settings.' : null}
             {permissionState === 'blocked' ? 'Permission was blocked or no device was found.' : null}
             {permissionState === 'unsupported' ? 'This browser does not expose media device checks.' : null}
@@ -275,13 +276,14 @@ export function Calls({ adminUid, roomId, user }) {
 
       <div className="call-control-bar">
         {!isActive ? (
-          <button type="button" className="call-primary" onClick={joinCall}><i className="ph-bold ph-phone-call" /> {canUseCalls ? 'Start call space' : 'Unlock Pro calls'}</button>
+          <button type="button" className="call-primary" onClick={() => joinCall('voice')}><i className="ph-bold ph-phone-call" /> Start voice call</button>
         ) : isJoined ? (
           <button type="button" className="call-secondary" onClick={leaveCall}><i className="ph-bold ph-phone-disconnect" /> Leave</button>
         ) : (
-          <button type="button" className="call-primary" onClick={joinCall}><i className="ph-bold ph-phone-call" /> {canUseCalls ? 'Join call space' : 'Unlock Pro calls'}</button>
+          <button type="button" className="call-primary" onClick={() => joinCall('voice')}><i className="ph-bold ph-phone-call" /> Join voice call</button>
         )}
-        <button type="button" className="call-secondary" onClick={checkDevices}><i className="ph-bold ph-video-camera" /> Check mic/camera</button>
+        <button type="button" className="call-secondary" onClick={checkDevices}><i className="ph-bold ph-microphone" /> Check mic{canUseVideoCalls ? '/camera' : ''}</button>
+        <button type="button" className="call-secondary" onClick={() => joinCall('video')}><i className="ph-bold ph-video-camera" /> {canUseVideoCalls ? 'Upgrade to video' : 'Video is Pro'}</button>
         {screenStream ? (
           <button type="button" className="call-danger" onClick={() => stopScreenShare()}><i className="ph-bold ph-monitor-x" /> Stop sharing</button>
         ) : (

@@ -20,6 +20,7 @@ import '../community/gamify.js';
 import '../message-tools/messageTools.js';
 import '../notifications/notificationService.js';
 import '../presence/presenceService.js';
+import '../private-messages/PrivateMessages.jsx';
 import '../private-messages/pmInboxService.js';
 import '../updates/githubUpdates.js';
 import { initializeBillingActions } from '../billing/billingActions.js';
