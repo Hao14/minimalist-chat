@@ -7,7 +7,6 @@ import { mountChatCore, switchChatRoom } from '../chat-core/mountChatCore.js';
 
 window.initializeRooms = function() {
     mountChatCore({ user: window.currentUser });
-    switchChatRoom(window.activeRoomId || 'global', 'Global Chat', 'GLOBAL');
 
     if (window.innerWidth <= 768) {
         document.getElementById('desktop-room-sidebar')?.classList.add('open');

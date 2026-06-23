@@ -30,6 +30,8 @@ const GLOBAL_ROOM = {
   shortId: 'GLOBAL',
 };
 
+const LAST_ROOM_STORAGE_PREFIX = 'minimalist:last-room';
+
 const uploadLimits = {
   free: {
     label: 'Base',
@@ -234,6 +236,51 @@ function updateMessageCache(messages) {
     acc[message.id] = message;
     return acc;
   }, {});
+}
+
+function lastRoomStorageKey(uid) {
+  return `${LAST_ROOM_STORAGE_PREFIX}:${uid || 'guest'}`;
+}
+
+function readLastRoomPreference(uid) {
+  try {
+    const raw = localStorage.getItem(lastRoomStorageKey(uid));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.roomId) return null;
+    return {
+      roomId: String(parsed.roomId),
+      roomName: String(parsed.roomName || ''),
+      shortId: String(parsed.shortId || ''),
+      channelId: String(parsed.channelId || 'general'),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeLastRoomPreference(room, channelId = 'general', uid) {
+  if (!room?.id) return;
+  try {
+    localStorage.setItem(lastRoomStorageKey(uid), JSON.stringify({
+      roomId: room.id,
+      roomName: room.name || (room.id === 'global' ? GLOBAL_ROOM.name : 'Room'),
+      shortId: room.shortId || (room.id === 'global' ? GLOBAL_ROOM.shortId : room.id),
+      channelId: room.id === 'global' ? 'general' : (channelId || 'general'),
+      savedAt: Date.now(),
+    }));
+  } catch {
+    // Local persistence is a convenience only; chat still works without it.
+  }
+}
+
+function roomFromPreference(preference) {
+  if (!preference?.roomId) return GLOBAL_ROOM;
+  return {
+    id: preference.roomId,
+    name: preference.roomName || (preference.roomId === 'global' ? GLOBAL_ROOM.name : 'Room'),
+    shortId: preference.shortId || (preference.roomId === 'global' ? GLOBAL_ROOM.shortId : preference.roomId),
+  };
 }
 
 function roomInitials(name) {
@@ -564,12 +611,15 @@ function MessageItem({
 }
 
 export function ChatCore({ user, registerApi }) {
+  const initialRoomPreferenceRef = useRef(readLastRoomPreference(user?.uid));
+  const initialRoom = roomFromPreference(initialRoomPreferenceRef.current);
+  const initialChannelId = initialRoom.id === 'global' ? 'general' : (initialRoomPreferenceRef.current?.channelId || 'general');
   const [roomListHost, setRoomListHost] = useState(null);
   const [channelHost, setChannelHost] = useState(null);
   const [rooms, setRooms] = useState([GLOBAL_ROOM]);
-  const [activeRoom, setActiveRoom] = useState(GLOBAL_ROOM);
+  const [activeRoom, setActiveRoom] = useState(initialRoom);
   const [channels, setChannels] = useState([{ id: 'general', name: 'general' }]);
-  const [activeChannelId, setActiveChannelId] = useState('general');
+  const [activeChannelId, setActiveChannelId] = useState(initialChannelId);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [reply, setReply] = useState(null);
@@ -584,8 +634,8 @@ export function ChatCore({ user, registerApi }) {
   const [isSending, setIsSending] = useState(false);
 
   const roomsRef = useRef([GLOBAL_ROOM]);
-  const activeRoomRef = useRef(GLOBAL_ROOM);
-  const activeChannelRef = useRef('general');
+  const activeRoomRef = useRef(initialRoom);
+  const activeChannelRef = useRef(initialChannelId);
   const messagesRef = useRef([]);
   const oldestMessageKeyRef = useRef(null);
   const isFetchingHistoryRef = useRef(false);
@@ -615,6 +665,10 @@ export function ChatCore({ user, registerApi }) {
   useEffect(() => {
     activeRoomRef.current = activeRoom;
   }, [activeRoom]);
+
+  useEffect(() => {
+    writeLastRoomPreference(activeRoom, activeChannelId, user?.uid);
+  }, [activeChannelId, activeRoom, user?.uid]);
 
   useEffect(() => {
     const bar = document.getElementById('room-channel-bar');
@@ -654,21 +708,25 @@ export function ChatCore({ user, registerApi }) {
     }
   }, []);
 
-  const switchRoom = useCallback((roomId, roomName, shortId = '') => {
+  const switchRoom = useCallback((roomId, roomName, shortId = '', options = {}) => {
     const knownRoom = roomsRef.current.find((room) => room.id === roomId);
     const nextRoom = {
       id: roomId || 'global',
       name: roomName || knownRoom?.name || (roomId === 'global' ? GLOBAL_ROOM.name : 'Room'),
       shortId: shortId || knownRoom?.shortId || (roomId === 'global' ? GLOBAL_ROOM.shortId : roomId),
     };
+    const nextChannelId = nextRoom.id === 'global' ? 'general' : (options.channelId || 'general');
 
     window.activeRoomId = nextRoom.id;
     window.activeRoomShortId = nextRoom.shortId;
-    window.activeChannelId = 'general';
+    window.activeChannelId = nextChannelId;
     window.oldestMessageKey = null;
     window.isFetchingHistory = false;
     window.activeReplyData = null;
 
+    activeRoomRef.current = nextRoom;
+    activeChannelRef.current = nextChannelId;
+    writeLastRoomPreference(nextRoom, nextChannelId, user?.uid);
     setHeaderRoom(nextRoom.id, nextRoom.name);
     clearRoomSearch();
     document.getElementById('desktop-room-sidebar')?.classList.remove('open');
@@ -677,7 +735,7 @@ export function ChatCore({ user, registerApi }) {
     isFetchingHistoryRef.current = false;
     shouldStickToBottomRef.current = true;
     setActiveRoom(nextRoom);
-    setActiveChannelId('general');
+    setActiveChannelId(nextChannelId);
     setMessages([]);
     setReply(null);
     setEditingId(null);
@@ -689,7 +747,7 @@ export function ChatCore({ user, registerApi }) {
     setFileSelected(false);
 
     setTimeout(() => window.onRoomChanged?.(), 0);
-  }, []);
+  }, [user?.uid]);
 
   const prepareReply = useCallback((id, name, text) => {
     const nextReply = { id, name, text };
@@ -704,11 +762,14 @@ export function ChatCore({ user, registerApi }) {
   }, []);
 
   const switchChannel = useCallback((channelId) => {
+    const nextChannelId = channelId || 'general';
     clearRoomSearch();
-    setActiveChannelId(channelId || 'general');
-    window.activeChannelId = channelId || 'general';
+    setActiveChannelId(nextChannelId);
+    activeChannelRef.current = nextChannelId;
+    window.activeChannelId = nextChannelId;
+    writeLastRoomPreference(activeRoomRef.current, nextChannelId, user?.uid);
     shouldStickToBottomRef.current = true;
-  }, []);
+  }, [user?.uid]);
 
   const addChannel = useCallback(async () => {
     if (activeRoomRef.current.id === 'global') return;
@@ -871,8 +932,18 @@ export function ChatCore({ user, registerApi }) {
       roomsRef.current = nextRooms;
       setRooms(nextRooms);
 
-      if (!nextRooms.some((room) => room.id === activeRoomRef.current.id)) {
+      const currentRoom = nextRooms.find((room) => room.id === activeRoomRef.current.id);
+      if (!currentRoom) {
         switchRoom('global', GLOBAL_ROOM.name, GLOBAL_ROOM.shortId);
+      } else if (currentRoom.name !== activeRoomRef.current.name || currentRoom.shortId !== activeRoomRef.current.shortId) {
+        const updatedRoom = {
+          id: currentRoom.id,
+          name: currentRoom.name,
+          shortId: currentRoom.shortId,
+        };
+        activeRoomRef.current = updatedRoom;
+        setActiveRoom(updatedRoom);
+        setHeaderRoom(updatedRoom.id, updatedRoom.name);
       }
 
       Promise.allSettled(missingShortIdWrites);
@@ -882,6 +953,12 @@ export function ChatCore({ user, registerApi }) {
   }, [switchRoom, user?.uid]);
 
   useEffect(() => {
+    const savedRoom = initialRoomPreferenceRef.current;
+    if (savedRoom?.roomId) {
+      switchRoom(savedRoom.roomId, savedRoom.roomName, savedRoom.shortId, { channelId: savedRoom.channelId || 'general' });
+      return;
+    }
+
     switchRoom(window.activeRoomId || GLOBAL_ROOM.id, activeRoom.name || GLOBAL_ROOM.name, window.activeRoomShortId || GLOBAL_ROOM.shortId);
     // The first room boot should happen once after this React island mounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
