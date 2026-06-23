@@ -51,8 +51,14 @@ function upsertSession(targetUid, patch = {}) {
 }
 
 function ensurePmDock() {
-  const host = document.getElementById('pm-popup');
-  if (!host) return;
+  const popup = document.getElementById('pm-popup');
+  if (!popup) return;
+  let host = document.getElementById('pm-dock-root');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'pm-dock-root';
+    popup.replaceChildren(host);
+  }
   if (!pmRoot) pmRoot = createRoot(host);
   pmRoot.render(<PrivateMessagesDock />);
 }
