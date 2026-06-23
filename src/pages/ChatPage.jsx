@@ -38,7 +38,7 @@ function useChatBoot() {
       if (!window.GCAL_CLIENT_ID || !window.STRIPE_CHECKOUT_ENDPOINT) {
         await loadConfigScript();
       }
-      if (!cancelled) await import('../legacy-engine/app.js');
+      if (!cancelled) await import('../features/shell/chatApp.js');
     };
 
     boot().catch((error) => {
