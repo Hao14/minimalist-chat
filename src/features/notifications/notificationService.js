@@ -1,6 +1,10 @@
 import { get, onValue, push, ref, remove, set } from 'firebase/database';
+import { createElement, useMemo } from 'react';
+import { createRoot } from 'react-dom/client';
 import { db } from '../../lib/firebase.js';
-import { escapeHtml } from '../../lib/text.js';
+
+const h = createElement;
+let notificationsRoot = null;
 
 window.createNotification = async function createNotification(targetUid, type, text, opts = {}) {
   try {
@@ -87,7 +91,7 @@ function groupNotifications(rawNotifications) {
   return [...groups.values()].sort((a, b) => b.timestamp - a.timestamp);
 }
 
-function renderNotification(group, today, yesterday) {
+function NotificationItem({ group, today, yesterday }) {
   let [title, icon] = notificationTitle(group.type);
   const time = notificationTime(group.timestamp, today, yesterday);
   const count = group.count || 1;
@@ -98,25 +102,184 @@ function renderNotification(group, today, yesterday) {
     mainText = `${count} new messages${group.from ? ` from ${group.from}` : ''}`;
   }
 
-  const countBadge = count > 1
-    ? `<span style="background: #FF3B30; color: #fff; font-size: 0.7rem; font-weight: 800; padding: 1px 7px; border-radius: 10px; flex-shrink: 0;">${count}</span>`
-    : '';
+  return h(
+    'li',
+    {
+      className: 'modern-notif',
+      style: {
+        padding: '1.2rem 1.5rem',
+        borderBottom: '2px solid var(--text-color)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 15,
+      },
+    },
+    h('i', {
+      className: icon,
+      style: {
+        fontSize: '1.8rem',
+        color: 'var(--text-color)',
+        flexShrink: 0,
+      },
+    }),
+    h(
+      'div',
+      {
+        style: {
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+        },
+      },
+      h(
+        'div',
+        {
+          style: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'baseline',
+            marginBottom: 4,
+            gap: 10,
+          },
+        },
+        h(
+          'span',
+          {
+            style: {
+              fontSize: '0.9rem',
+              fontWeight: 800,
+              color: 'var(--text-color)',
+              letterSpacing: '0.5px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            },
+          },
+          title,
+          count > 1
+            ? h(
+              'span',
+              {
+                style: {
+                  background: '#FF3B30',
+                  color: '#fff',
+                  fontSize: '0.7rem',
+                  fontWeight: 800,
+                  padding: '1px 7px',
+                  borderRadius: 10,
+                  flexShrink: 0,
+                },
+              },
+              count,
+            )
+            : null,
+        ),
+        h(
+          'span',
+          {
+            style: {
+              fontSize: '0.75rem',
+              fontWeight: 800,
+              color: '#888',
+              flexShrink: 0,
+            },
+          },
+          time,
+        ),
+      ),
+      h(
+        'span',
+        {
+          style: {
+            fontSize: '0.95rem',
+            fontWeight: 600,
+            color: 'var(--text-color)',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          },
+        },
+        mainText,
+      ),
+    ),
+    h(
+      'button',
+      {
+        type: 'button',
+        className: 'notif-close-btn',
+        'aria-label': 'Clear notification',
+        onClick: () => window.clearNotificationGroup(group.ids.join(',')),
+        style: {
+          fontSize: '1.5rem',
+          cursor: 'pointer',
+          color: 'var(--text-color)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+          width: 35,
+          height: 35,
+          transition: 'color 0.2s',
+          border: 0,
+          background: 'transparent',
+          boxShadow: 'none',
+          margin: 0,
+          padding: 0,
+        },
+      },
+      h('i', { className: 'ph-bold ph-x' }),
+    ),
+  );
+}
 
-  return `
-    <li class="modern-notif" style="padding: 1.2rem 1.5rem; border-bottom: 2px solid var(--text-color); display: flex; align-items: center; gap: 15px;">
-      <i class="${icon}" style="font-size: 1.8rem; color: var(--text-color); flex-shrink: 0;"></i>
-      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; gap: 10px;">
-          <span style="font-size: 0.9rem; font-weight: 800; color: var(--text-color); letter-spacing: 0.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 8px;">${title} ${countBadge}</span>
-          <span style="font-size: 0.75rem; font-weight: 800; color: #888; flex-shrink: 0;">${time}</span>
-        </div>
-        <span style="font-size: 0.95rem; font-weight: 600; color: var(--text-color); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(mainText)}</span>
-      </div>
-      <span onclick="clearNotificationGroup('${group.ids.join(',')}')" class="notif-close-btn" style="font-size: 1.5rem; cursor: pointer; color: var(--text-color); display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 35px; height: 35px; transition: color 0.2s;">
-        <i class="ph-bold ph-x"></i>
-      </span>
-    </li>
-  `;
+function EmptyNotifications() {
+  return h(
+    'li',
+    {
+      style: {
+        textAlign: 'center',
+        color: '#888',
+        marginTop: '2rem',
+        fontWeight: 'bold',
+        listStyle: 'none',
+      },
+    },
+    h('i', {
+      className: 'ph-bold ph-bell-slash',
+      style: {
+        fontSize: '3rem',
+        marginBottom: '1rem',
+        display: 'block',
+        color: 'var(--text-color)',
+      },
+    }),
+    "You're all caught up!",
+  );
+}
+
+function NotificationList({ rawNotifications }) {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const groups = useMemo(() => (rawNotifications ? groupNotifications(rawNotifications) : []), [rawNotifications]);
+
+  if (!groups.length) return h(EmptyNotifications);
+
+  return groups.map((group) => h(NotificationItem, {
+    group,
+    key: group.ids.join(','),
+    today,
+    yesterday,
+  }));
+}
+
+function renderNotifications(list, rawNotifications) {
+  notificationsRoot ||= createRoot(list);
+  notificationsRoot.render(h(NotificationList, { rawNotifications }));
 }
 
 window.listenForNotifications = function listenForNotifications() {
@@ -132,7 +295,7 @@ window.listenForNotifications = function listenForNotifications() {
       if (desktopBell) desktopBell.style.color = 'var(--text-color)';
       if (mobileBell) mobileBell.style.color = 'var(--text-color)';
       list.style.padding = '1.5rem';
-      list.innerHTML = `<div style="text-align: center; color: #888; margin-top: 2rem; font-weight: bold;"><i class="ph-bold ph-bell-slash" style="font-size: 3rem; margin-bottom: 1rem; display: block; color: var(--text-color);"></i>You're all caught up!</div>`;
+      renderNotifications(list, null);
       return;
     }
 
@@ -141,11 +304,6 @@ window.listenForNotifications = function listenForNotifications() {
     list.style.padding = '0';
     list.style.gap = '0';
 
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    list.innerHTML = groupNotifications(snapshot.val())
-      .map((group) => renderNotification(group, today, yesterday))
-      .join('');
+    renderNotifications(list, snapshot.val());
   });
 };
