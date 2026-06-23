@@ -363,7 +363,7 @@ function renderChatShell() {
     h(
       "div",
       {
-        className: "app-screen hidden",
+        className: "app-screen hidden boot-loader-screen",
         id: "loading-screen",
         style: { display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-start", flex: "1", height: "100vh", padding: "3rem", position: "fixed", top: "0", left: "0", width: "100vw", zIndex: "9999", background: "var(--bg-color)", transition: "opacity 0.5s ease", boxSizing: "border-box" },
       },
@@ -371,13 +371,14 @@ function renderChatShell() {
       h(
         "div",
         {
+          className: "boot-brand",
           style: { display: "flex", alignItems: "center", gap: "15px" },
         },
         "\n            ",
         h(
           "div",
           {
-            className: "mascot-blip",
+            className: "mascot-blip boot-logo-blip",
             style: { margin: "0", cursor: "default", width: "44px", height: "36px", borderWidth: "3px", boxShadow: "3px 3px 0px var(--text-color)" },
           },
           "\n                ",
@@ -394,8 +395,9 @@ function renderChatShell() {
         ),
         "\n            ",
         h(
-          "span",
+        "span",
           {
+            className: "boot-logo-word",
             style: { fontWeight: "800", fontSize: "1.4rem", letterSpacing: "2px", color: "var(--text-color)" },
           },
           "MINIMALIST"
@@ -404,9 +406,10 @@ function renderChatShell() {
       ),
       "\n\n        ",
       h(
-        "div",
+      "div",
         {
           id: "boot-sequence",
+          className: "boot-terminal",
           style: { display: "flex", flexDirection: "column", gap: "10px", fontFamily: "monospace", fontSize: "1rem", fontWeight: "700", color: "var(--text-color)", textTransform: "uppercase" },
         },
         "\n            "

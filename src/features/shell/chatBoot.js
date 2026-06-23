@@ -49,15 +49,15 @@ window.enterChat = function enterChat() {
     if (desktopNavActions) desktopNavActions.innerHTML = '';
 
     const bootLines = [
-      'Initializing core system...',
-      'Mounting secure protocols...',
-      'Establishing socket connection...',
-      'Verifying user identity...',
-      'Loading module: auth.js...',
-      'Loading module: rooms.js...',
-      'Loading module: chat.js...',
-      'Syncing realtime database...',
-      'System ready.',
+      { scope: 'core', action: 'init', target: 'runtime', note: 'hydrate shell' },
+      { scope: 'security', action: 'mount', target: 'protocols', note: 'attach guards' },
+      { scope: 'socket', action: 'connect', target: 'realtime', note: 'open channel' },
+      { scope: 'auth', action: 'verify', target: 'identity', note: 'check session' },
+      { scope: 'module', action: 'load', target: 'auth.js', note: 'resolve user' },
+      { scope: 'module', action: 'load', target: 'rooms.js', note: 'map rooms' },
+      { scope: 'module', action: 'load', target: 'chat.js', note: 'bind composer' },
+      { scope: 'database', action: 'sync', target: 'firebase', note: 'merge state' },
+      { scope: 'system', action: 'ready', target: 'minimalist', note: 'handoff ui' },
     ];
 
     const seqContainer = document.getElementById('boot-sequence');
@@ -76,16 +76,27 @@ window.enterChat = function enterChat() {
       if (currentLine > 0) {
         const prev = document.getElementById(`boot-line-${currentLine - 1}`);
         if (prev) {
-          prev.querySelector('.boot-prefix').textContent = '✓';
+          const status = prev.querySelector('.boot-status');
+          if (status) status.textContent = 'ok';
+          prev.classList.add('is-complete');
           prev.querySelector('.boot-cursor')?.remove();
         }
       }
 
       if (currentLine < bootLines.length) {
+        const line = bootLines[currentLine];
+        const lineNumber = String(currentLine + 1).padStart(2, '0');
         const li = document.createElement('div');
         li.id = `boot-line-${currentLine}`;
         li.className = 'boot-line';
-        li.innerHTML = `<span class="boot-prefix">›</span><span class="boot-text">${bootLines[currentLine]}</span><span class="boot-cursor"></span>`;
+        li.innerHTML = `
+          <span class="boot-line-no">${lineNumber}</span>
+          <span class="boot-status">run</span>
+          <span class="boot-code">
+            <span class="boot-key">${line.scope}</span><span class="boot-punc">.</span><span class="boot-fn">${line.action}</span><span class="boot-punc">(</span><span class="boot-string">"${line.target}"</span><span class="boot-punc">)</span><span class="boot-muted"> // ${line.note}</span>
+          </span>
+          <span class="boot-cursor"></span>
+        `;
         seqContainer.appendChild(li);
 
         const isLast = currentLine === bootLines.length - 1;
