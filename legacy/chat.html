@@ -1,0 +1,889 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minimalist | Chat</title>
+    <link rel="shortcut icon" href="#">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FFD700">
+    <link rel="apple-touch-icon" href="icon-192.png">
+<link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
+        <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="config.js?v=6"></script>
+<link rel="stylesheet" href="base.css?v=split21">
+<link rel="stylesheet" href="desktop.css?v=split2">
+<link rel="stylesheet" href="mobile.css?v=split8">
+<link rel="stylesheet" href="features.css?v=13">
+</head>
+<body>
+    <div class="shape yellow-circle bottom-left"></div>
+
+    <nav>
+        <a href="/" id="nav-logo">
+            <div class="mascot-blip">
+                <div class="blip-eye left"></div>
+                <div class="blip-eye right"></div>
+            </div>
+            <span class="logo-text">MINIMALIST</span>
+        </a>
+
+        <!-- DESKTOP LEFT RAIL -->
+        <div class="desktop-nav">
+            <a href="/" class="rail-icon guest-only" title="Home"><i class="ph-bold ph-house"></i></a>
+            <a href="/story" class="rail-icon guest-only" title="Story"><i class="ph-bold ph-book-open"></i></a>
+            <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
+            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-personal-agent-btn" title="Personal AI Agent"><i class="ph ph-sparkle"></i></button>
+
+            <div style="flex-grow: 1; width: 100%; min-height: 20px;"></div>
+
+            <a href="#" id="open-updates-btn-desktop" class="rail-icon auth-only hidden" title="Updates"><i class="ph-bold ph-bell"></i></a>
+            <button class="rail-icon auth-only hidden" id="open-bookmarks-btn" title="Saved"><i class="ph-bold ph-bookmark-simple"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-search-btn" title="Search"><i class="ph-bold ph-magnifying-glass"></i></button>
+            <button class="rail-icon auth-only hidden" id="open-settings-btn" title="Settings"><i class="ph-bold ph-gear"></i></button>
+            <a href="/login" class="rail-icon guest-only" title="Login"><i class="ph-bold ph-sign-in"></i></a>
+        </div>
+        
+        <!-- MOBILE BOTTOM NAV -->
+        <div id="mobile-nav-links" class="mobile-only">
+            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">
+                <i class="ph-bold ph-chats"></i><span>ROOMS</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">
+                <i class="ph-bold ph-users"></i><span>CONTACTS</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">
+                <i class="ph-bold ph-bell"></i><span>UPDATES</span>
+            </button>
+            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">
+                <i class="ph-bold ph-gear"></i><span>SETTINGS</span>
+            </button>
+        </div>
+    </nav>
+    
+    <div class="container fade-in-up app-screen hidden" id="profile-setup-container">
+        <h1>Who are <span>you?</span></h1>
+        <input type="text" id="new-display-name" placeholder="Enter your display name">
+        <input type="url" id="new-photo-url" placeholder="Image URL (Leave blank for auto)">
+        <button id="save-new-profile-btn">Enter Chat</button>
+    </div>
+
+    <div class="app-screen hidden" id="loading-screen" style="display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; flex: 1; height: 100vh; padding: 3rem; position: fixed; top: 0; left: 0; width: 100vw; z-index: 9999; background: var(--bg-color); transition: opacity 0.5s ease; box-sizing: border-box;">
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="mascot-blip" style="margin: 0; cursor: default; width: 44px; height: 36px; border-width: 3px; box-shadow: 3px 3px 0px var(--text-color);">
+                <div class="blip-eye left" style="width: 6px; height: 6px;"></div>
+                <div class="blip-eye right" style="width: 6px; height: 6px;"></div>
+            </div>
+            <span style="font-weight: 800; font-size: 1.4rem; letter-spacing: 2px; color: var(--text-color);">MINIMALIST</span>
+        </div>
+
+        <div id="boot-sequence" style="display: flex; flex-direction: column; gap: 10px; font-family: monospace; font-size: 1rem; font-weight: 700; color: var(--text-color); text-transform: uppercase;">
+            </div>
+
+    </div>
+
+    <div class="chat-container-full app-screen hidden" id="chat-wrapper">
+        <div id="chat-interface" class="fade-in-up" style="flex-direction: row; position: relative;">
+            
+            <div id="desktop-room-sidebar">
+                <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3>Rooms</h3>
+                    <div style="display:flex; align-items:center; gap:0.35rem;">
+                        <button class="room-collapse-btn" id="toggle-rooms-collapse-btn" title="Collapse rooms" aria-label="Collapse rooms"><i class="ph-bold ph-sidebar"></i></button>
+                        <button class="close-panel mobile-only" id="close-mobile-rooms-btn" style="background:none; border:none; font-size:1.5rem; margin:0; padding:0; box-shadow:none;">✖</button>
+                    </div>
+                </div>
+                <ul id="room-list"></ul>
+                <div class="sidebar-actions">
+                    <button id="create-room-btn" class="room-action-btn btn-dark">+ New room</button>
+                    <button id="join-room-btn" class="room-action-btn btn-light">→] Join</button>
+                </div>
+            </div>
+
+            <div id="main-chat-area">
+                
+                <div id="active-room-header" style="position: relative; z-index: 100; display: flex; align-items: center; padding: 0.8rem 1.5rem; border-bottom: 3px solid var(--text-color); background: var(--bg-color); min-height: 60px;">
+                    
+                    <button id="mobile-back-to-rooms" class="mobile-only action-btn" style="border: none; box-shadow: none; padding: 0; margin: 0; margin-right: 15px; font-size: 1.5rem; background: transparent; cursor: pointer;"><i class="ph-bold ph-arrow-left"></i></button>
+                    
+                    <div id="room-name-wrapper" style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 4px; border-radius: 4px; transition: background 0.2s;">
+                        <span id="active-room-name-display" style="font-weight: 800; font-size: 1.1rem; letter-spacing: 0.5px;">Global Chat</span>
+                        <span id="active-room-tag" class="tier-badge advanced">PUBLIC</span>
+                        <i class="ph-bold ph-caret-down" style="font-size: 1rem; color: #888;"></i>
+                    </div>
+
+                    <div style="margin-left: auto; display: flex; align-items: center; position: relative;">
+                        <input type="text" id="room-search-input" class="header-search-input" placeholder="Search..." autocomplete="off">
+                        <div id="toggle-room-search-btn" title="Search Messages" style="background: transparent; border: none; box-shadow: none; font-size: 1.5rem; cursor: pointer; color: var(--text-color); padding: 0; margin: 0; display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; line-height: 1; outline: none;">
+                            <i class="ph-bold ph-magnifying-glass"></i>
+                        </div>
+                    </div>
+
+                    <div id="room-settings-dropdown" class="hidden brutalist-dropdown" style="top: 60px; left: 1.5rem;">
+                        <button id="room-drop-invite">Invite to Room</button>
+                        <button id="room-drop-settings">Room Settings</button>
+                        <button id="room-drop-notifications">Notification Options</button>
+                    </div>
+                    <!-- Lives here (not in #room-sub-nav) so the nav's horizontal scroll/overflow can't clip it -->
+                    <div id="room-add-page-menu" class="hidden brutalist-dropdown" style="top:96px; left:1.5rem;"></div>
+                </div>
+               <div id="room-sub-nav" style="display: flex; gap: 2rem; padding: 0 1.5rem; background: var(--bg-color); align-items: center;">
+                    <button class="room-tab" data-target="home">Home</button>
+                    <button class="room-tab active" data-target="chat">Chat</button>
+                    <!-- Optional pages (Docs, Whiteboard, Tasks, Events, Calendar) are injected here per room -->
+                    <span id="room-pages-dynamic" style="display: contents;"></span>
+                    <button id="room-add-page-btn" class="hidden" title="Add a page">+</button>
+                </div>
+                <div id="room-channel-bar" class="hidden">
+                    <span class="channel-kicker">Channels</span>
+                    <div id="room-channel-list"></div>
+                </div>
+
+                <div id="room-view-chat" class="room-view active" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+                    <div id="loading-history" class="hidden">Loading history...</div>
+                    <ul id="messages"></ul>
+                    
+                    <div id="typing-status-container" class="hidden">
+                        <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <span id="typing-text">Someone is typing...</span>
+                    </div>
+
+                    <div id="active-reply-box" class="hidden">
+                        <div>
+                            <strong>Replying to <span id="replying-to-name"></span>:</strong>
+                            <span id="replying-to-text"></span>
+                        </div>
+                        <span class="cancel-reply" id="cancel-reply-btn">✖</span>
+                    </div>
+
+                    <form id="chat-form" action="">
+                        <input type="file" id="image-input" class="hidden">
+                        <div class="composer-input-row">
+                            <textarea id="message-input" rows="1" placeholder="Message Room..."></textarea>
+                            <button type="submit" id="mobile-send-btn" class="composer-send-btn" title="Send message" aria-label="Send message">
+                                <i class="ph-bold ph-arrow-right"></i>
+                            </button>
+                        </div>
+                        <div class="composer-toolbar">
+                            <div class="composer-tool-group" aria-label="Message tools">
+                                <button type="button" id="attach-btn" class="composer-icon-btn" title="Attach file" aria-label="Attach file">
+                                    <i class="ph-bold ph-paperclip"></i>
+                                </button>
+                            </div>
+                            <span class="composer-hint">Enter ↵ send · Shift+Enter new line</span>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="room-view-home" class="room-view hidden">
+                    <div class="rh-scroll">
+                        <div class="rh-stats">
+                            <div class="rh-stat"><i class="ph-bold ph-chats"></i> <span id="rh-msg-count">~</span> Messages</div>
+                            <div class="rh-stat"><i class="ph-bold ph-users"></i> <span id="rh-member-count">1</span> Members</div>
+                            <div style="flex: 1;"></div>
+                            <div class="rh-created">Created <span id="rh-created-date">Loading...</span></div>
+                        </div>
+
+                        <div class="rh-grid">
+                            <div class="rh-col">
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-info"></i> About This Room</h3><span id="rh-desc-head"></span></div>
+                                    <div id="rh-description-wrap"></div>
+                                </section>
+
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-list-checks"></i> Room Rules</h3><span id="rh-rules-head"></span></div>
+                                    <div id="rh-rules-wrap"></div>
+                                </section>
+
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-activity"></i> Recent Activity</h3></div>
+                                    <ul id="rh-activity-list" class="rh-activity"><li class="rh-muted">Loading activity...</li></ul>
+                                </section>
+                            </div>
+
+                            <div class="rh-col">
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-push-pin"></i> Resources</h3><span id="rh-resources-head"></span></div>
+                                    <div id="rh-resources-wrap"></div>
+                                </section>
+
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-calendar-dots"></i> Upcoming Events</h3><span id="rh-events-head"></span></div>
+                                    <div id="rh-events-wrap"></div>
+                                </section>
+
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-trophy"></i> Top Contributors</h3></div>
+                                    <div id="rh-contributors-wrap"><div class="rh-muted">Loading...</div></div>
+                                </section>
+
+                                <section class="rh-section">
+                                    <div class="rh-head"><h3><i class="ph-bold ph-users-three"></i> Members</h3></div>
+                                    <div id="rh-members-list" class="rh-members"><span>Loading...</span></div>
+                                </section>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="room-view-docs" class="room-view hidden">
+                    <div id="docs-list-view">
+                        <div class="docs-toolbar">
+                            <input type="text" id="docs-search" placeholder="Search docs...">
+                            <button class="docs-new-btn" id="docs-new-btn"><i class="ph-bold ph-plus"></i> New doc</button>
+                        </div>
+                        <div class="docs-tags" id="docs-tags"></div>
+                        <div class="docs-grid" id="docs-grid"></div>
+                    </div>
+
+                    <div id="docs-editor-view" class="hidden">
+                        <div class="docs-editor-bar">
+                            <button class="docs-icon-btn" id="doc-back-btn"><i class="ph-bold ph-arrow-left"></i> Back</button>
+                            <div class="doc-emoji-pick" id="doc-emoji-pick"></div>
+                            <span class="doc-save-status" id="doc-save-status">Saved</span>
+                            <button class="docs-icon-btn danger" id="doc-delete-btn"><i class="ph-bold ph-trash"></i></button>
+                        </div>
+                        <div class="docs-editor-body">
+                            <input type="text" id="doc-title-input" placeholder="Untitled document">
+                            <input type="text" id="doc-tags-input" placeholder="Tags (comma separated)">
+                            <textarea id="doc-content-input" placeholder="Start writing... everyone in the room sees changes live."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="room-view-whiteboard" class="room-view hidden">
+                    <div id="wb-toolbar">
+                        <div class="wb-tool-group">
+                            <button class="wb-tool-btn active" aria-label="Select"><i class="ph-bold ph-cursor"></i></button>
+                            <button class="wb-tool-btn" id="wb-add-note" aria-label="Add note"><i class="ph-bold ph-file"></i></button>
+                            <button class="wb-tool-btn" aria-label="Rectangle"><i class="ph-bold ph-square"></i></button>
+                            <button class="wb-tool-btn" aria-label="Circle"><i class="ph-bold ph-circle"></i></button>
+                            <button class="wb-tool-btn" aria-label="Text"><i class="ph-bold ph-text-t"></i></button>
+                        </div>
+                        <div id="wb-colors"></div>
+                        <div class="wb-zoom-controls">
+                            <button class="wb-zoom-btn" aria-label="Zoom out"><i class="ph-bold ph-magnifying-glass-minus"></i></button>
+                            <button class="wb-zoom-readout">100%</button>
+                            <button class="wb-zoom-btn" aria-label="Zoom in"><i class="ph-bold ph-magnifying-glass-plus"></i></button>
+                            <button class="wb-zoom-btn" aria-label="Undo"><i class="ph-bold ph-arrow-counter-clockwise"></i></button>
+                        </div>
+                        <span id="wb-hint">Middle-click to pan · Scroll to zoom</span>
+                        <button id="wb-clear">Clear</button>
+                    </div>
+                    <div id="wb-canvas"></div>
+                </div>
+
+                <!-- TASKS PAGE -->
+                <div id="room-view-tasks" class="room-view hidden">
+                    <div class="tasks-toolbar">
+                        <input type="text" id="task-input" placeholder="Add a task and press Enter...">
+                        <button id="task-add-btn">Add</button>
+                    </div>
+                    <div id="tasks-board"></div>
+                </div>
+
+                <!-- EVENTS PAGE -->
+                <div id="room-view-events" class="room-view hidden">
+                    <div class="events-page-scroll">
+                        <div class="events-head">
+                            <h3><i class="ph-bold ph-calendar-dots"></i> Events</h3>
+                            <button id="ev-page-add-btn" class="rh-add-btn hidden"><i class="ph-bold ph-plus"></i> New event</button>
+                        </div>
+                        <div id="ev-page-form" class="rh-add-form hidden">
+                            <input type="text" id="ev-page-title" placeholder="Event title...">
+                            <div class="rh-form-row">
+                                <input type="date" id="ev-page-date">
+                                <input type="time" id="ev-page-time">
+                            </div>
+                            <input type="text" id="ev-page-desc" placeholder="Details (optional)">
+                            <button class="rh-save-btn" id="ev-page-save">Add Event</button>
+                        </div>
+                        <div id="events-page-list"></div>
+                    </div>
+                </div>
+
+                <!-- CALENDAR PAGE -->
+                <div id="room-view-calendar" class="room-view hidden">
+                    <div class="cal-wrap">
+                        <div class="cal-nav">
+                            <button class="cal-nav-btn" id="cal-prev-month" title="Previous month"><i class="ph-bold ph-caret-double-left"></i></button>
+                            <button class="cal-nav-btn" id="cal-prev-week" title="Previous week"><i class="ph-bold ph-caret-left"></i></button>
+                            <div class="cal-nav-label" id="cal-nav-label"></div>
+                            <button class="cal-nav-btn" id="cal-next-week" title="Next week"><i class="ph-bold ph-caret-right"></i></button>
+                            <button class="cal-nav-btn" id="cal-next-month" title="Next month"><i class="ph-bold ph-caret-double-right"></i></button>
+                            <button class="cal-nav-btn cal-today-btn" id="cal-today" title="Jump to today">Today</button>
+                        </div>
+                        <div class="cal-top">
+                            <div class="cal-daystrip" id="cal-daystrip"></div>
+                            <button id="cal-photo-btn" class="cal-photo-btn" title="Import events from a photo (AI)"><i class="ph-bold ph-camera"></i></button>
+                        </div>
+
+                        <div class="cal-connect-banner" id="cal-connect-banner">
+                            <div class="cal-connect-left">
+                                <i class="ph-bold ph-warning-circle"></i>
+                                <span>Connect Google Calendar to sync your real events.</span>
+                            </div>
+                            <button id="cal-gcal-btn" class="cal-connect-link">Connect</button>
+                        </div>
+
+                        <div class="cal-agenda" id="cal-agenda"></div>
+
+                        <div class="cal-add-row" id="cal-add-row">
+                            <button id="cal-add-btn" class="cal-add-btn"><i class="ph-bold ph-plus"></i> Add New Event</button>
+                            <button id="cal-import-btn" class="cal-add-btn hidden"><i class="ph-bold ph-arrows-clockwise"></i> Import from Google</button>
+                        </div>
+                        <input type="file" id="cal-photo-input" accept="image/*" class="hidden">
+                    </div>
+                </div>
+
+                <!-- AI PAGE -->
+                <div id="room-view-ai" class="room-view hidden">
+                    <div class="ai-wrap">
+                        <div class="ai-head">
+                            <h3><i class="ph-bold ph-sparkle"></i> AI Summary</h3>
+                            <button id="ai-refresh-btn" class="rh-add-btn" title="Re-read the room"><i class="ph-bold ph-arrows-clockwise"></i> Refresh</button>
+                        </div>
+                        <div id="ai-output" class="ai-output"></div>
+                    </div>
+                </div>
+
+                <!-- CALLS PAGE -->
+                <div id="room-view-calls" class="room-view hidden"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="updates-panel">
+        <div class="contacts-header" style="flex-direction: column; align-items: flex-start; gap: 10px; padding-bottom: 0;">
+            <div style="display: flex; justify-content: space-between; width: 100%; align-items: center;">
+                <span style="font-size: 1.2rem; font-weight: 800;">Inbox</span>
+                <span class="close-panel" id="close-updates-btn">✖</span>
+            </div>
+            
+            <div class="update-tabs">
+                <button class="update-tab active" id="tab-notifications">Activity</button>
+                <button class="update-tab" id="tab-quests">Quests</button>
+                <button class="update-tab" id="tab-leaderboard">Leaderboard</button>
+                <button class="update-tab" id="tab-changelog">Changelog</button>
+            </div>
+        </div>
+        
+        <ul id="notifications-list" style="list-style: none; overflow-y: auto; flex: 1; padding: 1.5rem; margin: 0; display: flex; flex-direction: column; gap: 0.8rem;">
+            <div style="text-align: center; color: #888; margin-top: 2rem; font-weight: bold;">
+                <i class="ph-bold ph-bell-slash" style="font-size: 3rem; margin-bottom: 1rem; display: block; color: var(--text-color);"></i>
+                You're all caught up!
+            </div>
+        </ul>
+
+        <ul id="updates-list" class="hidden"></ul>
+        <ul id="leaderboard-list" class="hidden" style="list-style:none; overflow-y:auto; flex:1; padding:1rem; margin:0; display:flex; flex-direction:column; gap:0.5rem;"></ul>
+        <ul id="quests-list" class="hidden" style="list-style:none; overflow-y:auto; flex:1; padding:1rem; margin:0; display:flex; flex-direction:column; gap:0.6rem;"></ul>
+    </div>
+
+    <div id="contacts-panel">
+        <div class="contacts-header">
+            <span>Contacts</span><span class="close-panel" id="close-contacts-btn">✖</span>
+        </div>
+        
+        <div style="padding: 1rem; border-bottom: 4px solid var(--text-color); background: var(--bg-color); flex-shrink: 0;">
+            <input type="text" id="contact-search-input" autocomplete="off" placeholder="Search for users..." style="width: 100%; margin: 0; padding: 0.6rem 0.8rem; border: 3px solid var(--text-color); border-radius: 6px; font-size: 0.95rem; font-weight: 700; font-family: inherit; background: var(--bg-color); color: var(--text-color);">
+        </div>
+        
+        <ul id="contacts-list"></ul>
+    </div>
+
+    <div id="personal-ai-agent-panel">
+        <div class="contacts-header">
+            <span>Personal AI</span><span class="close-panel" id="close-personal-agent-btn">✖</span>
+        </div>
+        <div id="personal-ai-agent-root"></div>
+    </div>
+
+    <div id="pm-popup" class="hidden">
+        <div class="pm-header">
+            <span id="pm-target-name">User</span>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span class="pm-action-btn" id="pm-e2e-btn" title="Encrypted messages">🔒</span>
+                <span class="pm-action-btn" id="pm-call-btn" title="Call User">📞</span>
+                <span class="pm-close" id="pm-close-btn" title="Close">✖</span>
+            </div>
+        </div>
+        <div id="pm-e2e-status" class="pm-e2e-status">Standard PM · tap 🔒 to enable encrypted messages</div>
+        <div style="padding: 0.5rem; border-bottom: 2px solid var(--text-color); background: var(--bg-color);">
+            <input type="text" id="pm-search-input" placeholder="Search PMs..." style="width: 100%; margin: 0; padding: 0.4rem 0.8rem; border: 2px solid var(--text-color); border-radius: 4px; font-size: 0.85rem; font-family: inherit; background: var(--bg-color); color: var(--text-color);">
+        </div>
+        <ul id="pm-messages"></ul>
+        <form id="pm-form" action=""><input id="pm-input" autocomplete="off" placeholder="Message..." /><button type="submit">Send</button></form>
+    </div>
+
+    <div class="modal-overlay hidden" id="modal-overlay"></div>
+    
+    <div id="settings-modal" class="hidden brutalist-settings">
+        <button id="close-settings-btn" class="brutalist-close" title="Close">✖</button>
+        <div class="settings-sidebar">
+            <h3 class="sidebar-header">USER SETTINGS</h3>
+            <div class="settings-tab active" id="tab-btn-profile">My Account</div>
+            <div class="settings-tab" id="tab-btn-billing">Billing</div>
+            <div class="settings-tab" id="tab-btn-app">Appearance</div>
+            <div class="settings-divider"></div>
+            <div class="settings-tab danger" id="logout-btn">Log Out</div>
+        </div>
+
+        <div class="settings-content">
+            <div class="settings-pane active" id="pane-profile">
+                <h2 id="profile-pane-title">My Account</h2>
+                <div class="settings-card profile-view-section">
+                    <div class="settings-card-header">
+                        <img id="settings-photo-preview" src="">
+                        <div class="settings-card-title">
+                            <div class="title-name" id="settings-display-name-title">User</div>
+                        </div>
+                        <button id="preview-profile-btn" class="action-btn" style="width: auto; margin:0;">Preview Card</button>
+                    </div>
+                    <div id="settings-card-inline-preview" class="hidden"></div>
+                </div>
+
+                <div class="settings-card profile-view-section">
+                    <div class="settings-card-body">
+                        <h3 class="sidebar-header" style="border:none; margin-bottom: 0.5rem; padding:0;">Account Safety</h3>
+                        <p id="settings-joined-date" style="font-weight: 600; color: #666; font-size: 0.9rem; margin-bottom: 0.2rem;">Joined: Loading...</p>
+                        <p id="settings-user-email" style="font-weight: 600; color: #666; font-size: 0.9rem; margin-bottom: 0.2rem;">Email: Loading...</p>
+                        <p id="settings-user-phone" style="font-weight: 600; color: #666; font-size: 0.9rem;">Phone: Loading...</p>
+                    </div>
+                </div>
+
+                <div class="settings-card profile-view-section" id="public-profile-card">
+                    <div class="settings-card-body">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <h3 class="sidebar-header" style="border:none; margin:0; padding:0;">Public Profile</h3>
+                            <button id="toggle-edit-btn" style="width: auto; margin:0; padding: 0.4rem 1rem;">Edit Profile</button>
+                        </div>
+                        <div id="profile-completeness" class="profile-completeness"></div>
+                        <div id="profile-summary-compact" class="profile-summary-compact">
+                            <div><span>Name</span><strong id="profile-summary-name">User</strong></div>
+                            <div><span>Status</span><strong id="profile-summary-status">—</strong></div>
+                            <div><span>Pronouns</span><strong id="profile-summary-pronouns">—</strong></div>
+                            <div><span>Flair</span><strong id="profile-summary-flair">—</strong></div>
+                            <p id="profile-summary-bio">No bio yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card hidden" id="profile-edit-page">
+                    <div class="settings-card-body">
+                        <div class="profile-edit-page-head">
+                            <div>
+                                <span class="profile-edit-kicker">Public Profile</span>
+                                <h3>Edit Public Profile</h3>
+                            </div>
+                            <button id="cancel-profile-edit-btn" type="button" class="action-btn">Back</button>
+                        </div>
+                        <div id="profile-form-fields" class="profile-edit-card">
+                            <div class="input-group">
+                                <label>DISPLAY NAME</label>
+                                <input type="text" id="edit-display-name">
+                            </div>
+                            <div class="input-group">
+                                <label>PRONOUNS</label>
+                                <input type="text" id="edit-pronouns">
+                            </div>
+                            <div class="input-group">
+                                <label>STATUS</label>
+                                <input type="text" id="edit-status" maxlength="80" placeholder="🟢 Available">
+                            </div>
+                            <div class="input-group">
+                                <label>ROLE / FLAIR</label>
+                                <input type="text" id="edit-flair" maxlength="24" placeholder="e.g. Designer, Mod">
+                            </div>
+                            <div class="input-group">
+                                <label>AVATAR IMAGE</label>
+                                <input type="file" id="edit-photo-file" accept="image/*" style="padding: 0.4rem;">
+                            </div>
+                            <div class="input-group">
+                                <label>BANNER IMAGE</label>
+                                <input type="file" id="edit-banner-file" accept="image/*" style="padding: 0.4rem;">
+                            </div>
+                            <div class="input-group profile-edit-wide">
+                                <label>ABOUT ME</label>
+                                <textarea id="edit-bio"></textarea>
+                            </div>
+                            <div class="input-group profile-edit-wide">
+                                <label>LINKS <span style="font-weight:400; text-transform:none;">(one per line: Label | https://url)</span></label>
+                                <textarea id="edit-links" placeholder="GitHub | https://github.com/me"></textarea>
+                            </div>
+                            <div class="input-group">
+                                <label>SKILLS <span style="font-weight:400; text-transform:none;">(comma separated)</span></label>
+                                <input type="text" id="edit-skills" placeholder="JavaScript, Design, Writing">
+                            </div>
+                            <div class="input-group">
+                                <label>THEME COLOR</label>
+                                <input type="color" id="edit-theme-color" class="color-input">
+                            </div>
+                            <div class="profile-edit-actions">
+                                <button id="update-profile-btn" style="margin-top: 1rem; width: 100%;">Save Changes</button>
+                                <button id="cancel-profile-edit-inline-btn" type="button" class="action-btn">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card profile-view-section">
+                    <div class="settings-card-body">
+                        <h3 class="sidebar-header" style="border:none; margin-bottom: 0.5rem; padding:0; color: red;">Account Management</h3>
+                        <p style="font-weight: 600; color: #666; font-size: 0.9rem;">Account deletion is permanent. Once you delete your account, there is no going back.</p>
+                        <button id="delete-account-btn" style="background: transparent; color: red; border-color: red; width: auto; padding: 0.8rem 1.5rem; margin-top: 1rem; box-shadow: 4px 4px 0px red;">Delete Account</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-pane hidden" id="pane-billing">
+                <h2>Billing</h2>
+                <div class="settings-card" style="border: 4px solid var(--text-color); box-shadow: 6px 6px 0px var(--accent-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem 2rem; background: var(--accent-color); color: var(--text-color);">
+                        <div style="display: flex; flex-direction: column; gap: 0.3rem;">
+                            <span style="font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;">Current Plan</span>
+                            <span id="billing-plan-name" style="font-size: 1.8rem; font-weight: 800; line-height: 1;">Minimalist Base</span>
+                            <span id="billing-tier-badge" class="tier-badge base" style="width: fit-content;">BASE</span>
+                            <span id="billing-plan-limits" style="font-size: 0.85rem; font-weight: 800;">10MB per file · 500MB/day</span>
+                        </div>
+                        <button id="manage-billing-btn" style="width: auto; margin: 0; padding: 0.6rem 1.5rem; background: var(--bg-color); color: var(--text-color); box-shadow: 4px 4px 0px var(--text-color); font-size: 1rem;">Manage</button>            
+                    </div>
+                </div>
+
+                <div class="settings-card hidden stripe-embedded-card" id="stripe-embedded-checkout-card">
+                    <div class="stripe-embedded-header">
+                        <div>
+                            <span class="stripe-embedded-kicker">Secure Stripe Checkout</span>
+                            <h3 id="stripe-embedded-title">Upgrade</h3>
+                        </div>
+                        <button id="stripe-embedded-close" class="mini-btn" type="button">Close</button>
+                    </div>
+                    <p id="stripe-embedded-status" class="stripe-embedded-status">Stripe is loading securely inside this page…</p>
+                    <div id="stripe-embedded-checkout" class="stripe-embedded-checkout"></div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div class="settings-card">
+                        <div class="settings-card-body">
+                            <h3>Advanced</h3>
+                            <h2 style="border:none; margin:0;">$1.99<span>/mo</span></h2>
+                            <ul style="list-style: none; margin: 1rem 0; font-weight: 600; font-size: 0.9rem;">
+                                <li>✓ 700MB per file</li>
+                                <li>✓ 1.5GB daily upload cap</li>
+                                <li>✓ Create up to 5 rooms</li>
+                                <li>✓ Advanced tier badge</li>
+                                <li>✓ Everything in Base</li>
+                            </ul>
+                            <button id="upgrade-advanced-btn" class="action-btn" style="width: 100%;">Upgrade</button>
+                        </div>
+                    </div>
+                    <div class="settings-card">
+                        <div class="settings-card-body">
+                            <h3>Pro</h3>
+                            <h2 style="border:none; margin:0;">$3.99<span>/mo</span></h2>
+                            <ul style="list-style: none; margin: 1rem 0; font-weight: 600; font-size: 0.9rem;">
+                                <li>✓ 3GB per file</li>
+                                <li>✓ 9GB daily upload cap</li>
+                                <li>✓ Unlimited room creation</li>
+                                <li>✓ Room analytics</li>
+                                <li>✓ Video calls</li>
+                                <li>✓ Pro tier badge</li>
+                                <li>✓ Personal AI Agent</li>
+                                <li>✓ Offline Viewing</li>
+                            </ul>
+                            <button id="upgrade-pro-btn" class="action-btn" style="width: 100%;">Upgrade</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-pane hidden" id="pane-app">
+                <h2>Appearance</h2>
+                <div class="settings-card" style="padding: 2rem;">
+                    <span style="font-weight: 700; font-size: 1.2rem; display: block; margin-bottom: 1rem;">Theme Selection</span>
+                    <div class="theme-selection-row" style="display: flex; gap: 1rem;">
+                        <button class="action-btn theme-select-btn" data-theme="light" style="flex: 1; margin: 0;">Light ☀️</button>
+                        <button class="action-btn theme-select-btn" data-theme="dark" style="flex: 1; margin: 0;">Dark 🌙</button>
+                        <button class="action-btn theme-select-btn" data-theme="gray" style="flex: 1; margin: 0;">Gray ☁️</button>
+                        <button class="action-btn theme-select-btn" data-theme="modern" style="flex: 1; margin: 0;">Modern ✨</button>
+                    </div>
+                    <div class="custom-theme-panel" id="custom-theme-panel">
+                        <div>
+                            <span class="custom-theme-title">Custom Accent Theme</span>
+                            <span class="custom-theme-note" id="custom-theme-note">Free for everyone — pick any accent color for this device.</span>
+                        </div>
+                        <div class="custom-theme-controls">
+                            <input type="color" id="custom-accent-color" class="color-input" value="#FFD700">
+                            <button class="action-btn" id="apply-custom-theme-btn" type="button">Apply</button>
+                            <button class="action-btn" id="reset-custom-theme-btn" type="button">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div> 
+    </div> 
+
+    <div id="user-profile-popup" class="hidden">
+        <div class="profile-banner" id="up-banner">
+            <div class="profile-popup-more" id="more-profile-btn"><i class="ph-bold ph-dots-three"></i></div>
+            <div id="profile-more-dropdown" class="hidden brutalist-dropdown">
+                <button id="up-mute-btn" style="font-weight: 600;">Mute User</button>
+                <button id="up-remove-friend-btn" class="danger-btn">Remove Friend</button>
+            </div>
+            <div class="profile-avatar-wrapper">
+                <img id="up-avatar" src="" alt="Avatar">
+                <span class="up-presence status-dot" id="up-presence" title=""></span>
+            </div>
+        </div>
+        <div class="profile-content">
+            <div class="profile-name-row">
+                <span class="profile-display-name" id="up-name">Name</span>
+                <span class="profile-pronouns" id="up-pronouns">Pronouns</span>
+                <span class="profile-flair" id="up-flair"></span>
+            </div>
+            <div style="margin-top: -5px; margin-bottom: 10px;">
+                <span class="profile-short-id" id="up-shortid">#000000</span>
+            </div>
+            <div class="profile-status" id="up-status"></div>
+            <div class="profile-bio" id="up-bio">Bio goes here...</div>
+            <div class="profile-links" id="up-links"></div>
+            <div class="profile-skills" id="up-skills"></div>
+            <div class="profile-section-label">Skill Trees</div>
+            <div class="profile-skilltree" id="up-skilltree"></div>
+            <div class="profile-badges" id="up-badges"></div>
+            <div class="profile-rep" id="up-rep"></div>
+            <div class="profile-follow-stats" id="up-follow-stats"></div>
+            <div class="profile-mutual" id="up-mutual"></div>
+            <div class="profile-spotlight" id="up-spotlight">
+                <button id="up-spotlight-btn" class="ai-btn ai-btn-ghost"><i class="ph-bold ph-sparkle"></i> AI Spotlight</button>
+            </div>
+            <div class="profile-activity-wrap" id="up-activity-wrap">
+                <div class="profile-section-label">Activity</div>
+                <div class="profile-heatmap" id="up-heatmap"></div>
+                <ul class="profile-activity" id="up-activity"></ul>
+            </div>
+            <div class="profile-joined-date" id="up-joined">Joined: Loading...</div>
+            <div class="profile-actions">
+                <button id="up-message-btn">Message</button>
+                <button id="up-follow-btn" class="up-follow">Follow</button>
+                <button id="up-kudos-btn" class="up-kudos"><i class="ph-bold ph-hand-heart"></i> Kudos <span id="up-kudos-count">0</span></button>
+                <button id="up-share-btn" class="up-share" title="Copy profile link"><i class="ph-bold ph-link"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <div id="admin-dashboard-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid red; padding-bottom: 0.5rem; color: red; margin-top: 0;">RESTRICTED: ADMIN</h2>
+            <div class="input-group mt-1" style="text-align: left;">
+                <label>TARGET USER ID (UID)</label>
+                <input type="text" id="admin-target-id" placeholder="Enter precise UID...">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="admin-mute-btn" style="background: #FF9800; color: #000; border-color: #000; flex: 1;">Mute 24h</button>
+                <button id="admin-ban-btn" style="background: red; color: white; border-color: #000; flex: 1;">Permaban</button>
+            </div>
+            <button id="admin-wipe-btn" style="background: transparent; color: var(--text-color); margin-top: 2rem;">Wipe Ghost Connections</button>
+            <button id="close-admin-dashboard-btn" style="background: var(--text-color); color: var(--bg-color); margin-top: 0.5rem;">Close Dashboard</button>
+        </div>
+    </div>
+    <div id="room-action-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 id="room-action-title" style="border-bottom: 4px solid var(--text-color); padding-bottom: 0.5rem; margin-top: 0;">Join Room</h2>
+            <div class="input-group mt-1" style="text-align: left;">
+                <label id="room-action-label">ROOM ID</label>
+                <input type="text" id="room-action-input" placeholder="Enter Room ID...">
+            </div>
+            <button id="room-action-submit" style="background: var(--text-color); color: var(--bg-color); margin-top: 1rem;">Join</button>
+            <button id="close-room-action-btn" style="background: transparent; color: var(--text-color); margin-top: 0.5rem; border: 2px solid var(--text-color); box-shadow: none;">Cancel</button>
+        </div>
+    </div>
+
+    <div id="room-settings-modal" class="hidden modal-overlay" style="z-index: 6000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card room-settings-card" id="room-settings-card" style="width: 90%; max-width: 700px; height: 70vh; padding: 0; text-align: left; display: flex; flex-direction: row; overflow: hidden; background: var(--bg-color);">
+            <button id="close-room-settings-x" class="room-settings-x" type="button" aria-label="Close room settings"><i class="ph-bold ph-x"></i></button>
+            
+            <div class="settings-sidebar" style="width: 30%; min-width: 180px; padding: 1.5rem; border-right: 4px solid var(--text-color);">
+                
+                <h3 class="sidebar-header" style="font-size: 0.9rem;">ROOM SETTINGS</h3>
+                <div class="settings-tab active" id="rs-tab-members" style="padding: 0.6rem; font-size: 0.9rem;">Members</div>
+                <div class="settings-tab" id="rs-tab-channels" style="padding: 0.6rem; font-size: 0.9rem;">Channels</div>
+                <div class="settings-tab" id="rs-tab-permissions" style="padding: 0.6rem; font-size: 0.9rem;">Permissions</div>
+                <div class="settings-tab" id="rs-tab-webhooks" style="padding: 0.6rem; font-size: 0.9rem;">Webhooks</div>
+                <div class="settings-tab" id="rs-tab-logs" style="padding: 0.6rem; font-size: 0.9rem;">Audit Logs</div>
+                
+                <div style="flex-grow: 1;"></div>
+                
+                <div class="settings-divider"></div>
+                <button id="rs-delete-room-btn" class="mini-btn danger hidden" style="width: 100%; padding: 0.8rem; margin-bottom: 0.5rem; border: 2px solid red;">Delete Room</button>
+                <button id="rs-leave-room-btn" class="mini-btn danger hidden" style="width: 100%; padding: 0.8rem; margin-bottom: 0.5rem; border: 2px solid red;">Leave Room</button>
+
+                <button id="close-room-settings-btn" class="mini-btn" style="width: 100%; padding: 0.8rem; background: transparent; color: var(--text-color); border: 2px solid var(--text-color);">Close Menu</button>
+            </div>
+
+            <div style="flex: 1; padding: 2rem; overflow-y: auto;">
+                <div id="rs-pane-members" class="rs-pane">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Member List</h2>
+                    <ul id="rs-members-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;"></ul>
+                </div>
+
+                <div id="rs-pane-channels" class="rs-pane hidden">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Channels</h2>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: #666; margin-bottom: 1rem;">Create focused chat channels inside this room. #general keeps the original room chat.</p>
+                    <ul id="rs-channel-list" class="rs-simple-list"></ul>
+                    <div class="input-group" style="margin-top:1rem;">
+                        <label>NEW CHANNEL NAME</label>
+                        <input type="text" id="rs-channel-input" placeholder="design, announcements, bugs...">
+                    </div>
+                    <button id="rs-add-channel-btn" class="action-btn" style="width: 100%;">Add Channel</button>
+                </div>
+
+                <div id="rs-pane-permissions" class="rs-pane hidden">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Permissions</h2>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: #666; margin-bottom: 1rem;">Fine-grained controls for what members can do in this room.</p>
+                    <div class="permission-grid">
+                        <label><input type="checkbox" id="perm-chat" checked> Members can send chat messages</label>
+                        <label><input type="checkbox" id="perm-files" checked> Members can upload files</label>
+                        <label><input type="checkbox" id="perm-docs" checked> Members can edit docs</label>
+                        <label><input type="checkbox" id="perm-whiteboard" checked> Members can use whiteboard</label>
+                        <label><input type="checkbox" id="perm-calls" checked> Members can join calls/screen share</label>
+                    </div>
+                    <button id="rs-save-permissions-btn" class="action-btn" style="width: 100%; margin-top:1rem;">Save Permissions</button>
+                </div>
+                
+                <div id="rs-pane-webhooks" class="rs-pane hidden">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Webhooks</h2>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: #666; margin-bottom: 1rem;">Integrate with Discord, Slack, or automated bots.</p>
+                    <div class="input-group">
+                        <label>WEBHOOK URL</label>
+                        <input type="text" id="rs-webhook-input" placeholder="https://...">
+                    </div>
+                    <button id="rs-save-webhook" class="action-btn" style="width: 100%;">Save Integration</button>
+                </div>
+                
+                <div id="rs-pane-logs" class="rs-pane hidden">
+                    <h2 style="border-bottom: 3px solid var(--text-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">Audit Logs</h2>
+                    <ul id="rs-logs-list" style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem;"></ul>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+    <div id="leave-room-modal" class="hidden modal-overlay" style="z-index: 7000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 0.5rem; margin-top: 0;">Leave Room</h2>
+            <p style="margin: 1.5rem 0; font-weight: 600; font-size: 1.1rem;">Are you sure you want to leave this room?</p>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="cancel-leave-btn" class="action-btn" style="flex: 1; margin: 0; padding: 0.8rem; box-shadow: none;">Cancel</button>
+                <button id="confirm-leave-btn" style="background: var(--text-color); color: var(--bg-color); border: 2px solid var(--text-color); flex: 1; padding: 0.8rem; margin: 0; font-weight: bold;">Leave</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-room-modal" class="hidden modal-overlay" style="z-index: 7000; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid red; padding-bottom: 0.5rem; margin-top: 0; color: red;">Delete Room</h2>
+            <p style="margin: 1rem 0; font-weight: 600; font-size: 0.95rem;">This action is permanent. Type <strong style="color: red;">confirm</strong> to proceed.</p>
+            <input type="text" id="delete-room-input" placeholder="Type confirm..." style="width: 100%; text-align: center; font-weight: bold; padding: 0.8rem; border: 3px solid var(--text-color);">
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="cancel-delete-btn" class="action-btn" style="flex: 1; margin: 0; padding: 0.8rem; box-shadow: none;">Cancel</button>
+                <button id="confirm-delete-btn" style="background: red; color: white; border: 2px solid var(--text-color); flex: 1; padding: 0.8rem; margin: 0; font-weight: bold;">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-context-menu" class="hidden brutalist-dropdown" style="position: fixed; z-index: 10000; min-width: 160px;">
+        <button id="ctx-mute-btn" style="font-weight: 600;">Mute User</button>
+        <button id="ctx-friend-btn" style="font-weight: 600;">Add Friend</button>
+        <button id="ctx-copy-btn" style="font-weight: 600;">Copy User ID</button>
+    </div>
+    <div id="mute-user-modal" class="hidden modal-overlay" style="z-index: 7500; display: flex; justify-content: center; align-items: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 400px; padding: 2rem; text-align: center;">
+            <h2 style="border-bottom: 4px solid var(--text-color); padding-bottom: 0.5rem; margin-top: 0;">Mute User</h2>
+            <p style="margin: 1rem 0; font-weight: 600;">Select mute duration for <span id="mute-target-name">User</span>:</p>
+            
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; justify-content: center;">
+                <button class="mini-btn outline mute-duration-btn" data-time="5">5m</button>
+                <button class="mini-btn outline mute-duration-btn" data-time="15">15m</button>
+                <button class="mini-btn outline mute-duration-btn" data-time="60">1h</button>
+                <button class="mini-btn outline mute-duration-btn" data-time="1440">24h</button>
+            </div>
+            
+            <div class="input-group" style="text-align: left;">
+                <label>CUSTOM TIME (MINUTES)</label>
+                <input type="number" id="mute-custom-time" placeholder="e.g. 30" min="1" style="width: 100%;">
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                <button id="cancel-mute-btn" class="action-btn" style="flex: 1; margin: 0; padding: 0.8rem; box-shadow: none;">Cancel</button>
+                <button id="confirm-mute-btn" style="background: red; color: white; border: 2px solid var(--text-color); flex: 1; padding: 0.8rem; margin: 0; font-weight: bold;">Mute</button>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <div class="footer-links">
+            <a href="/faq">FAQ</a>
+            <a href="/terms">Terms of Service</a>
+            <a href="/privacy">Privacy Policy</a>
+            <a href="mailto:support@minimalist.com">Contact</a>
+            <a href="https://github.com/Hao14/minimalist-chat/issues" target="_blank" rel="noopener noreferrer">Bug Report</a>
+        </div>
+        <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
+    </footer>
+    <div id="emoji-picker" class="hidden"></div>
+
+    <!-- GLOBAL OMNI-SEARCH -->
+    <div id="search-modal" class="hidden">
+        <div class="search-box">
+            <div class="search-input-row">
+                <i class="ph-bold ph-magnifying-glass"></i>
+                <input type="text" id="global-search-input" placeholder="Search messages, rooms, people..." autocomplete="off">
+                <button id="close-search-btn">✖</button>
+            </div>
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+    <!-- First-time onboarding / welcome tour -->
+    <div id="welcome-tour" class="hidden">
+        <div class="wt-card">
+            <div class="wt-emoji" id="wt-emoji">👋</div>
+            <h2 id="wt-title">Welcome to Rooms!</h2>
+            <p id="wt-text"></p>
+            <div class="wt-dots" id="wt-dots"></div>
+            <div class="wt-actions">
+                <button type="button" id="wt-skip" class="wt-skip">Skip</button>
+                <button type="button" id="wt-next" class="wt-next">Take a quick tour</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Account deletion confirmation -->
+    <div id="delete-account-modal" class="hidden modal-overlay" style="z-index: 6500; display: flex; align-items: center; justify-content: center;">
+        <div class="brutalist-auth-card" style="width: 90%; max-width: 420px; padding: 2rem; text-align: center;">
+            <div style="font-size: 2.5rem; line-height: 1;">⚠️</div>
+            <h2 style="margin: 0.4rem 0 0.3rem; color: red;">Delete Account?</h2>
+            <p style="font-weight: 600; color: #666;">This permanently deletes your account and profile. You'll be signed out immediately. This can't be undone.</p>
+            <div class="input-group" style="text-align: left; margin-top: 1rem;">
+                <label>Type <strong>DELETE</strong> to confirm</label>
+                <input type="text" id="delete-confirm-input" placeholder="DELETE" autocomplete="off">
+            </div>
+            <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="delete-cancel-btn" style="flex: 1; background: transparent; color: var(--text-color); border: 3px solid var(--text-color); box-shadow: none; margin: 0;">Cancel</button>
+                <button id="delete-confirm-btn" style="flex: 1; background: red; color: #fff; border: 3px solid #000; box-shadow: none; margin: 0;">Delete Forever</button>
+            </div>
+        </div>
+    </div>
+
+<script type="module" src="js/app.js?v=30"></script>
+    <div id="brutalist-toast" class="toast-hidden">
+        <span id="toast-icon">⚠️</span>
+        <span id="toast-message">Error message goes here</span>
+        <button id="toast-close">✖</button>
+    </div>
+</body>
+</html>
