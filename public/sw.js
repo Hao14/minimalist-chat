@@ -1,4 +1,4 @@
-const CACHE_NAME = 'minimalist-offline-v11';
+const CACHE_NAME = 'minimalist-offline-v13';
 const APP_SHELL = [
   '/',
   '/chat',

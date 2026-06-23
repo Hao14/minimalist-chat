@@ -126,11 +126,12 @@
         display: none !important;
     }
 
-    /* 2. Style the Room Header to sit flush at the top of the phone */
+    /* 2. Keep the Room Header below the phone status/notch area */
     #active-room-header {
-        padding: 0.8rem 1rem !important;
+        padding: calc(env(safe-area-inset-top, 0px) + 1.4rem) 1rem 0.75rem !important;
         border-bottom: 3px solid var(--text-color) !important;
         background: var(--bg-color) !important;
+        min-height: calc(74px + env(safe-area-inset-top, 0px)) !important;
     }
 
     /* 3. Perfect the Back Button alignment next to the room name */
