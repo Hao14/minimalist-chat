@@ -39,6 +39,7 @@ async function checkUserProfile(uid) {
         const snapshot = await get(ref(db, 'users/' + uid));
         if (snapshot.exists()) {
             const data = snapshot.val();
+            window.applyPerformanceSettingsFromProfile?.(data.performanceSettings);
             window.userProfileName = data.displayName || "Anonymous";
             window.userPhotoUrl = data.photoUrl || "";
             window.userPronouns = data.pronouns || "";
@@ -88,8 +89,11 @@ async function checkUserProfile(uid) {
         } else if (isGoogleAuthUser(auth.currentUser)) {
             await ensureAuthProfile(auth.currentUser, { welcome: true });
             return checkUserProfile(uid);
-        } else { 
-            if (typeof window.showScreen === 'function') window.showScreen('profile-setup-container'); 
+        } else {
+            // No profile yet (e.g. fresh email/password signup): auto-create one
+            // from the account details and head straight into chat — no setup panel.
+            await ensureAuthProfile(auth.currentUser, { welcome: true });
+            return checkUserProfile(uid);
         }
     } catch (error) {
         if (window.showToast) window.showToast("Database Error loading profile: " + error.message);

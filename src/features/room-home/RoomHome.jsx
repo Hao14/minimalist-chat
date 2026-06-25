@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { get, limitToLast, push, query, ref, remove, set, update } from 'firebase/database';
+import { limitToLast, onValue, push, query, ref, remove, set, update } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
 
 const defaultDescription = 'A dedicated space for communication, sharing resources, and connecting with the group. Everyone is welcome.';
@@ -136,6 +136,7 @@ function RoomScores({ insights }) {
           <span>Health score</span>
           <strong>{insights.health}%</strong>
           <div className="rh-meter"><i style={{ width: `${insights.health}%` }} /></div>
+          <small className="rh-live-note">Live from messages, members, channels, events, resources, rules, and recent activity.</small>
         </div>
         <div className="rh-score-card">
           <span>Room reputation</span>
@@ -193,8 +194,8 @@ function Timeline({ insights }) {
   return (
     <Section icon="ph-timeline" title="Room Timeline">
       <div className="rh-timeline">
-        {insights.timeline.length ? insights.timeline.map((item) => (
-          <div key={`${item.ts}-${item.label}`}>
+        {insights.timeline.length ? insights.timeline.map((item, index) => (
+          <div key={`${item.ts}-${item.label}-${index}`}>
             <i className={`ph-bold ${item.icon}`} />
             <span>{item.label}</span>
             <small>{new Date(item.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>
@@ -357,45 +358,44 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   const insights = useMemo(() => computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }), [contributors, data, isGlobal, memberCount, messageCount]);
 
   useEffect(() => {
-    let active = true;
-    const load = async () => {
-      let roomData = {};
-      if (!isGlobal) {
-        try { roomData = (await get(ref(db, `rooms_meta/${roomId}`))).val() || {}; } catch { roomData = {}; }
-      }
-      await Promise.resolve();
-      if (!active) return;
+    if (isGlobal) {
+      setData({});
+      setCanEdit(Boolean(user.uid === adminUid));
+      return undefined;
+    }
+
+    const unsubscribe = onValue(ref(db, `rooms_meta/${roomId}`), (snapshot) => {
+      const roomData = snapshot.val() || {};
       setData(roomData);
-      setCanEdit(Boolean(user.uid === adminUid || (!isGlobal && roomData.creatorId === user.uid)));
-    };
-    load();
-    return () => { active = false; };
+      setCanEdit(Boolean(user.uid === adminUid || roomData.creatorId === user.uid));
+    }, () => {
+      setData({});
+      setCanEdit(Boolean(user.uid === adminUid));
+    });
+
+    return unsubscribe;
   }, [adminUid, isGlobal, roomId, user.uid]);
 
   useEffect(() => {
-    let active = true;
-    const loadContributors = async () => {
-      const messagesRef = isGlobal ? ref(db, 'messages') : ref(db, `rooms_data/${roomId}/messages`);
-      try {
-        const snapshot = await get(query(messagesRef, limitToLast(300)));
-        if (!active) return;
-        const tally = {};
-        let total = 0;
-        snapshot.forEach((child) => {
-          const message = child.val();
-          total += 1;
-          if (!message.uid) return;
-          if (!tally[message.uid]) tally[message.uid] = { name: message.name || 'Unknown', photo: message.photoUrl || '', count: 0 };
-          tally[message.uid].count += 1;
-        });
-        setMessageCount(total >= 300 ? '300+' : String(total));
-        setContributors(Object.values(tally).sort((a, b) => b.count - a.count).slice(0, 5).map((item) => ({ ...item, avatar: getAvatarUrl?.(item.name, item.photo) || '' })));
-      } catch {
-        if (active) setContributors([]);
-      }
-    };
-    loadContributors();
-    return () => { active = false; };
+    const messagesRef = isGlobal ? ref(db, 'messages') : ref(db, `rooms_data/${roomId}/messages`);
+    const unsubscribe = onValue(query(messagesRef, limitToLast(300)), (snapshot) => {
+      const tally = {};
+      let total = 0;
+      snapshot.forEach((child) => {
+        const message = child.val();
+        total += 1;
+        if (!message.uid) return;
+        if (!tally[message.uid]) tally[message.uid] = { name: message.name || 'Unknown', photo: message.photoUrl || '', count: 0 };
+        tally[message.uid].count += 1;
+      });
+      setMessageCount(total >= 300 ? '300+' : String(total));
+      setContributors(Object.values(tally).sort((a, b) => b.count - a.count).slice(0, 5).map((item) => ({ ...item, avatar: getAvatarUrl?.(item.name, item.photo) || '' })));
+    }, () => {
+      setMessageCount('0');
+      setContributors([]);
+    });
+
+    return unsubscribe;
   }, [getAvatarUrl, isGlobal, roomId]);
 
   const patchRoom = async (patch) => {

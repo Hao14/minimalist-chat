@@ -420,13 +420,13 @@ function Toast({ message, onClose, icon = '📦' }) {
 }
 
 const homepageUseCases = [
-  ['Friends', 'ph-smiley', 'A quieter place for group plans, memories, and daily check-ins.'],
-  ['Clubs', 'ph-users-three', 'Keep announcements, events, files, and decisions in one shared room.'],
-  ['Teams', 'ph-briefcase', 'Chat, docs, reminders, and calls without turning everything into noise.'],
-  ['Creators', 'ph-broadcast', 'Build a community that feels close, organized, and easy to moderate.'],
-  ['Students', 'ph-graduation-cap', 'Study rooms with files, notes, calendars, polls, and summaries.'],
-  ['Gaming groups', 'ph-game-controller', 'Channels, calls, clips, events, and room lore for your squad.'],
-  ['Support groups', 'ph-heart', 'Private, calmer spaces with reporting, permissions, and care.'],
+  ['Friend groups', 'ph-smiley', 'Plans, photos, and daily check-ins in one calm place — not five scattered threads.'],
+  ['Study groups', 'ph-graduation-cap', 'Share notes, schedule sessions, pin resources, and keep discussions organized.'],
+  ['Creator communities', 'ph-broadcast', 'Give fans a close, organized home with channels, events, and easy moderation.'],
+  ['Startup teams', 'ph-rocket-launch', 'Chat, docs, tasks, and decisions together — without drowning in noise.'],
+  ['Gaming communities', 'ph-game-controller', 'Squad up with channels, calls, clips, events, and room lore.'],
+  ['Clubs', 'ph-users-three', 'Keep announcements, events, files, and votes tidy for every member.'],
+  ['Support groups', 'ph-heart', 'A private, gentle space with reporting, permissions, and care built in.'],
 ];
 
 const demoRooms = [
@@ -453,25 +453,17 @@ const demoRooms = [
   },
 ];
 
-const demoQuickActions = [
-  {
-    label: 'Capture task',
-    icon: 'ph-check-square',
-    notice: 'Task captured',
-    message: 'Turned “share notes” into a room task.',
-  },
-  {
-    label: 'Start poll',
-    icon: 'ph-chart-bar',
-    notice: 'Poll drafted',
-    message: 'Poll ready: “When should we meet?”',
-  },
-  {
-    label: 'Set reminder',
-    icon: 'ph-alarm',
-    notice: 'Reminder set',
-    message: 'Reminder added for tonight at 7 PM.',
-  },
+const guidedRoomSeed = [
+  { from: 'Maya', text: 'I added the notes to the pinboard.' },
+  { from: 'Alex', text: 'Meeting at 7?' },
+  { from: 'Jordan', text: 'Can someone make a checklist?' },
+];
+
+const guidedSteps = [
+  { key: 'send', label: 'Send a message', icon: 'ph-paper-plane-tilt' },
+  { key: 'pin', label: 'Pin it', icon: 'ph-push-pin' },
+  { key: 'task', label: 'Make it a task', icon: 'ph-check-square' },
+  { key: 'memory', label: 'Save to memory', icon: 'ph-brain' },
 ];
 
 const simpleFeatures = [
@@ -625,138 +617,137 @@ const homeStoryChapters = [
 ];
 
 function InteractiveChatPreview() {
-  const [activeRoom, setActiveRoom] = useState(demoRooms[0]);
+  const idRef = useRef(0);
+  const windowRef = useRef(null);
+  const [messages, setMessages] = useState(() => guidedRoomSeed.map((m, i) => ({ id: `seed-${i}`, ...m })));
   const [draft, setDraft] = useState('');
-  const [demoNotice, setDemoNotice] = useState(`${demoRooms[0].mood} · room stays tidy`);
-  const [typing, setTyping] = useState(false);
-  const replyTimerRef = useRef(null);
-  const [messages, setMessages] = useState([
-    { from: 'Mina', text: 'Can someone turn this thread into a checklist?' },
-    { from: 'Minimalist AI', text: 'Captured: read chapter 8, share notes, meet at 7 PM.' },
-    { from: 'Jay', text: 'Perfect. Pinning this.' },
-  ]);
+  const [activeId, setActiveId] = useState(null);
+  const [pinned, setPinned] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [memorySaved, setMemorySaved] = useState(false);
+  const [done, setDone] = useState({ send: false, pin: false, task: false, memory: false });
+  const [notice, setNotice] = useState('Try it live — send a message, then act on it.');
+
+  const activeMessage = messages.find((m) => m.id === activeId) || null;
+  const allDone = done.send && done.pin && done.task && done.memory;
+  const currentStep = guidedSteps.find((s) => !done[s.key])?.key;
 
   useEffect(() => {
-    return () => {
-      if (replyTimerRef.current) {
-        window.clearTimeout(replyTimerRef.current);
-        replyTimerRef.current = null;
-      }
-    };
-  }, []);
+    if (windowRef.current) windowRef.current.scrollTop = windowRef.current.scrollHeight;
+  }, [messages, tasks, memorySaved, pinned]);
 
-  const appendPreviewMessage = (message) => {
-    setMessages((current) => [...current, message].slice(-6));
-  };
-
-  const queueAiReply = (message) => {
-    if (replyTimerRef.current) window.clearTimeout(replyTimerRef.current);
-    setTyping(true);
-    replyTimerRef.current = window.setTimeout(() => {
-      setTyping(false);
-      appendPreviewMessage({ from: 'Minimalist AI', text: message });
-      replyTimerRef.current = null;
-    }, 820);
-  };
-
-  const resetRoomMessages = (room) => {
-    if (replyTimerRef.current) {
-      window.clearTimeout(replyTimerRef.current);
-      replyTimerRef.current = null;
-    }
-    setActiveRoom(room);
-    setDemoNotice(`${room.name} loaded`);
-    setTyping(false);
-    setMessages(room.lines.map((line, index) => ({
-      from: index === 2 ? 'Minimalist AI' : index === 1 ? 'Member' : 'Room',
-      text: line,
-    })));
-  };
-
-  const triggerQuickAction = (action) => {
-    setDemoNotice(action.notice);
-    setMessages((current) => [
-      ...current.slice(-4),
-      { from: 'You', text: action.label, self: true },
-    ]);
-    queueAiReply(action.message);
-  };
-
-  const sendFakeMessage = (event) => {
+  const sendMessage = (event) => {
     event.preventDefault();
     const clean = draft.trim();
     if (!clean) return;
-    setDemoNotice('Message organized');
-    setMessages((current) => [
-      ...current.slice(-4),
-      { from: 'You', text: clean, self: true },
-    ]);
+    const id = `you-${idRef.current++}`;
+    setMessages((cur) => [...cur, { id, from: 'You', text: clean, self: true }].slice(-7));
+    setActiveId(id);
     setDraft('');
-    queueAiReply('Noted. This room stays organized.');
+    setDone((d) => ({ ...d, send: true }));
+    setNotice('Nice — now pin it, make it a task, or save it to memory.');
   };
 
+  const withActive = (run) => () => {
+    if (!activeMessage) {
+      setNotice('Send a message first — then the room tools light up.');
+      return;
+    }
+    run(activeMessage);
+  };
+
+  const actions = [
+    { key: 'pin', label: 'Pin', icon: 'ph-push-pin', run: withActive((m) => {
+      setPinned(m.text);
+      setDone((d) => ({ ...d, pin: true }));
+      setNotice('Pinned to the room — everyone sees it up top.');
+    }) },
+    { key: 'task', label: 'Task', icon: 'ph-check-square', run: withActive((m) => {
+      setTasks((cur) => [...cur.filter((t) => t.text !== m.text), { id: m.id, text: m.text }].slice(-3));
+      setDone((d) => ({ ...d, task: true }));
+      setNotice('Turned into a task on the room board.');
+    }) },
+    { key: 'memory', label: 'Memory', icon: 'ph-brain', run: withActive((m) => {
+      setMemorySaved(true);
+      setDone((d) => ({ ...d, memory: true }));
+      setNotice('Saved to Room Memory — the room will remember this.');
+    }) },
+    { key: 'poll', label: 'Poll', icon: 'ph-chart-bar', run: () => setNotice('Poll drafted: “When should we meet?”') },
+    { key: 'invite', label: 'Invite', icon: 'ph-user-plus', run: () => setNotice('Invite link copied for the room.') },
+  ];
+
   return (
-    <div className="home-preview-card" aria-label="Interactive chat preview">
-      <div className="home-preview-orbits">
-        <span />
-        <span />
-        <span />
-      </div>
-      <div className="home-preview-top">
-        <div>
-          <span className="home-preview-kicker">Try a room</span>
-          <strong>{activeRoom.name}</strong>
+    <div className="idemo-card" id="home-live-demo" aria-label="Interactive room demo">
+      <span className="idemo-glow" aria-hidden="true" />
+      <div className="idemo-top">
+        <div className="idemo-room">
+          <span className="idemo-live-dot" aria-hidden="true" />
+          <strong>Study Room</strong>
+          <span className="idemo-room-meta">24 online</span>
         </div>
-        <span className="home-live-pill"><i className="ph-bold ph-sparkle" /> {demoNotice}</span>
+        <span className="idemo-live"><i className="ph-bold ph-broadcast" /> Live demo</span>
       </div>
-      <div className="home-room-tabs" aria-label="Demo rooms">
-        {demoRooms.map((room) => (
-          <button
-            type="button"
-            className={room.name === activeRoom.name ? 'active' : ''}
-            onClick={() => resetRoomMessages(room)}
-            key={room.name}
-          >
-            <i className={`ph-bold ${room.icon}`} /> {room.name}
+
+      <ol className="idemo-steps" aria-label="Demo walkthrough">
+        {guidedSteps.map((step) => (
+          <li key={step.key} className={done[step.key] ? 'done' : (step.key === currentStep ? 'current' : '')}>
+            <span className="idemo-step-ico"><i className={`ph-bold ${done[step.key] ? 'ph-check' : step.icon}`} /></span>
+            <em>{step.label}</em>
+          </li>
+        ))}
+      </ol>
+
+      {pinned ? (
+        <div className="idemo-pinned" role="status">
+          <i className="ph-bold ph-push-pin" />
+          <span>{pinned}</span>
+          <small>Pinned</small>
+        </div>
+      ) : null}
+
+      <div className="idemo-window" ref={windowRef}>
+        {messages.map((m) => (
+          <div className={`idemo-msg ${m.self ? 'self' : ''} ${m.id === activeId ? 'active' : ''}`} key={m.id}>
+            <span className="idemo-from">{m.from}</span>
+            <p>{m.text}</p>
+          </div>
+        ))}
+        {tasks.length ? (
+          <div className="idemo-tasks" aria-label="Tasks created">
+            {tasks.map((t) => (
+              <div className="idemo-task" key={t.id}>
+                <i className="ph-bold ph-check-square" />
+                <span>{t.text}</span>
+                <small>Task</small>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {memorySaved ? (
+          <div className="idemo-memory" role="status">
+            <i className="ph-bold ph-brain" />
+            <span>Saved to Room Memory</span>
+          </div>
+        ) : null}
+      </div>
+
+      <div className={`idemo-actions ${activeMessage ? '' : 'idle'}`} aria-label="Room tools">
+        {actions.map((a) => (
+          <button type="button" key={a.key} className={`idemo-act ${done[a.key] ? 'done' : ''}`} onClick={a.run}>
+            <i className={`ph-bold ${a.icon}`} /> {a.label}
           </button>
         ))}
       </div>
-      <div className="home-chat-window">
-        {messages.map((message, index) => (
-          <div className={`home-chat-bubble ${message.self ? 'self' : ''}`} key={`${message.from}-${message.text}-${index}`}>
-            <span>{message.from}</span>
-            {message.text}
-          </div>
-        ))}
-        {typing && (
-          <div className="home-chat-bubble ai-typing">
-            <span className="home-typing-label">Minimalist AI</span>
-            <span className="home-typing-dots" aria-hidden="true">
-              <em />
-              <em />
-              <em />
-            </span>
-          </div>
-        )}
-      </div>
-      <div className="home-demo-actions" aria-label="Demo quick actions">
-        {demoQuickActions.map((action) => (
-          <button type="button" onClick={() => triggerQuickAction(action)} key={action.label}>
-            <i className={`ph-bold ${action.icon}`} />
-            {action.label}
-          </button>
-        ))}
-      </div>
-      <form className="home-chat-form" onSubmit={sendFakeMessage}>
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          placeholder={`Message ${activeRoom.name}…`}
-          aria-label="Try sending a fake message"
-        />
-        <button type="submit"><i className="ph-bold ph-arrow-right" /></button>
+
+      <form className="idemo-form" onSubmit={sendMessage}>
+        <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a message…" aria-label="Type a demo message" />
+        <button type="submit" aria-label="Send"><i className="ph-bold ph-paper-plane-tilt" /></button>
       </form>
-      <p className="home-preview-note">No signup. No data sent. Just a feel for the room.</p>
+
+      <p className={`idemo-note ${allDone ? 'win' : ''}`}>
+        {allDone ? '🎉 That’s a whole room running itself — ready to make yours?' : notice}
+      </p>
+      {allDone ? <a href="/chat" className="lp-btn lp-btn-primary idemo-cta">Create your first room <i className="ph-bold ph-arrow-right" /></a> : null}
     </div>
   );
 }
@@ -803,7 +794,7 @@ export function HomePage() {
             <p className="fade-in-up delay-1">Minimalist.chat turns group chat into a shared room for messages, files, events, decisions, and memory — without making the first screen feel like a cockpit.</p>
             <div className="lp-cta fade-in-up delay-2">
               <a href="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></a>
-              <a href="#room-story" className="lp-btn lp-btn-secondary">Watch the room grow</a>
+              <a href="#home-live-demo" className="lp-btn lp-btn-secondary">Try demo room</a>
             </div>
             <div className="home-proof-row" aria-label="Platform highlights">
               <span>Simple by default</span>

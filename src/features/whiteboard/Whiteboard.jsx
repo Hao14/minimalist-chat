@@ -23,6 +23,13 @@ function isRoomManager(roomData = {}, user) {
   return Object.keys(roomData.members || {})[0] === user.uid;
 }
 
+function permissionAllowed(roomData = {}, key, user) {
+  const overrides = user?.uid ? roomData.memberPermissions?.[user.uid] : null;
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key] !== false;
+  if (Object.prototype.hasOwnProperty.call(roomData.permissions || {}, key)) return roomData.permissions[key] !== false;
+  return true;
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -186,10 +193,17 @@ function WhiteboardItem({
             onFinishEditing();
           }}
           onKeyDown={(event) => {
+            event.stopPropagation();
             if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+              event.preventDefault();
               event.currentTarget.blur();
+              return;
+            }
+            if (event.key === 'Enter') {
+              return;
             }
             if (event.key === 'Escape') {
+              event.preventDefault();
               setDraftText(item.text || '');
               onFinishEditing();
             }
@@ -257,7 +271,7 @@ export function Whiteboard({ roomId, user }) {
     if (roomId === 'global') return true;
     const snap = await get(ref(db, `rooms_meta/${roomId}`)).catch(() => null);
     const roomData = snap?.val() || {};
-    if (!isRoomManager(roomData, user) && roomData.permissions?.whiteboard === false) {
+    if (!isRoomManager(roomData, user) && !permissionAllowed(roomData, 'whiteboard', user)) {
       window.showToast?.('Whiteboard editing is disabled in this room.');
       return false;
     }

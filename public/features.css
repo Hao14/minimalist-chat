@@ -259,11 +259,11 @@
 
 .msg-codeblock::before {
     content: attr(data-lang);
-    position: sticky;
-    left: 0;
-    display: inline-flex;
+    position: static;
+    display: flex;
+    align-items: center;
     width: fit-content;
-    margin: -0.28rem 0 0.42rem;
+    margin: 0 0 0.5rem;
     padding: 0.14rem 0.42rem;
     border-radius: 999px;
     background: rgba(255,255,255,0.08);
@@ -272,6 +272,10 @@
     font-weight: 950;
     letter-spacing: 0.12em;
     text-transform: uppercase;
+}
+
+.msg-codeblock code {
+    display: block;
 }
 
 .msg-inline-code .tok-comment,
@@ -1355,7 +1359,7 @@ body.modern-mode #wb-clear { border-radius: 12px; box-shadow: none; }
     border-radius: 6px; padding: 0.7rem 0.9rem; margin: 0.4rem 0; overflow-x: auto;
     white-space: pre; line-height: 1.45;
 }
-.msg-codeblock code { background: none; padding: 0; font-family: inherit; }
+.msg-codeblock code { display: block; background: none; padding: 0; font-family: inherit; }
 
 .msg-edited { font-size: 0.62rem; color: #888; font-style: italic; }
 
@@ -13730,4 +13734,2597 @@ body.modern-mode #settings-modal.brutalist-settings .settings-content {
 
 body.modern-mode #settings-modal.brutalist-settings :is(h1, h2, h3, strong, .settings-tab.active) {
     color: #f8fafc !important;
+}
+
+/* Changelog layout guard: keep update cards readable at desktop/tablet widths. */
+#updates-panel #updates-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: clamp(0.72rem, 1.2vw, 0.95rem) !important;
+    padding: clamp(0.85rem, 1.45vw, 1.15rem) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    min-height: 0 !important;
+    contain: none !important;
+}
+
+#updates-panel #updates-list.hidden {
+    display: none !important;
+}
+
+#updates-panel #updates-list > .updates-overview,
+#updates-panel #updates-list > .updates-state,
+#updates-panel #updates-list > .update-card-modern {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+    overflow: visible !important;
+}
+
+#updates-panel #updates-list > .updates-overview {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    gap: 0.8rem !important;
+    align-items: center !important;
+    padding: clamp(0.9rem, 1.25vw, 1.12rem) !important;
+}
+
+#updates-panel #updates-list > .update-card-modern {
+    display: grid !important;
+    grid-template-rows: auto auto auto auto !important;
+    gap: 0.52rem !important;
+    padding: clamp(0.82rem, 1.12vw, 1rem) !important;
+    border-radius: 20px !important;
+    isolation: isolate;
+}
+
+#updates-panel #updates-list .update-card-top {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 0.72rem !important;
+    min-height: 28px !important;
+    margin: 0 !important;
+}
+
+#updates-panel #updates-list .update-date,
+#updates-panel #updates-list .update-sha {
+    flex: 0 1 auto !important;
+    max-width: 48% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+#updates-panel #updates-list .update-title {
+    display: block !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.28 !important;
+}
+
+#updates-panel #updates-list .update-desc {
+    display: block !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.38 !important;
+}
+
+#updates-panel #updates-list .update-author {
+    min-width: 0 !important;
+    min-height: 28px !important;
+    margin: 0.08rem 0 0 !important;
+    overflow: hidden !important;
+}
+
+@media (min-width: 821px) {
+    #updates-panel #updates-list {
+        gap: 0.88rem !important;
+    }
+
+    #updates-panel #updates-list .update-title {
+        font-size: 0.96rem !important;
+    }
+}
+
+@media (max-width: 520px) {
+    #updates-panel #updates-list {
+        gap: 0.66rem !important;
+        padding: 0.72rem !important;
+    }
+
+    #updates-panel #updates-list > .updates-overview {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    #updates-panel #updates-list > .updates-overview > i {
+        display: none !important;
+    }
+
+    #updates-panel #updates-list .update-card-top {
+        gap: 0.5rem !important;
+    }
+
+    #updates-panel #updates-list .update-title {
+        font-size: 0.88rem !important;
+    }
+}
+
+/* ============================================================
+   MODERN THEME PRO · Aurora violet system
+   A final cascade pass for Modern mode: high-contrast dark glass,
+   violet-first accents, readable billing/settings/vault surfaces,
+   and motion that feels polished instead of noisy.
+   ============================================================ */
+body.modern-mode {
+    --bg-color: #080b16 !important;
+    --text-color: #f8fafc !important;
+    --accent-color: #8b5cf6 !important;
+    --modern-bg: #080b16;
+    --modern-bg-2: #0b1020;
+    --modern-panel: rgba(15, 23, 42, 0.88);
+    --modern-panel-2: rgba(20, 27, 45, 0.92);
+    --modern-card: rgba(18, 25, 42, 0.86);
+    --modern-card-strong: rgba(24, 32, 52, 0.96);
+    --modern-ink: #f8fafc;
+    --modern-muted: #a9b4ca;
+    --modern-faint: rgba(226, 232, 240, 0.58);
+    --modern-line: rgba(167, 139, 250, 0.22);
+    --modern-line-soft: rgba(226, 232, 240, 0.09);
+    --modern-purple: #8b5cf6;
+    --modern-purple-2: #a78bfa;
+    --modern-fuchsia: #d946ef;
+    --modern-indigo: #6366f1;
+    --modern-amber: #f59e0b;
+    --modern-good: #34d399;
+    --modern-radius: 22px;
+    --modern-radius-sm: 15px;
+    --modern-shadow: 0 28px 80px -44px rgba(0, 0, 0, 0.88), 0 0 0 1px rgba(255, 255, 255, 0.035);
+    --modern-shadow-soft: 0 18px 52px -36px rgba(0, 0, 0, 0.72);
+    --modern-ring: 0 0 0 4px rgba(139, 92, 246, 0.22);
+    --m-surface: var(--modern-panel);
+    --m-surface-2: var(--modern-panel-2);
+    --m-surface-3: var(--modern-card-strong);
+    --m-ink: var(--modern-ink);
+    --m-muted: var(--modern-muted);
+    --m-line: var(--modern-line-soft);
+    --m-line-2: var(--modern-line);
+    --m-accent-soft: rgba(139, 92, 246, 0.16);
+    --m-ring: var(--modern-ring);
+    background:
+        radial-gradient(900px 560px at 15% -10%, rgba(139, 92, 246, 0.28), transparent 62%),
+        radial-gradient(760px 500px at 102% 8%, rgba(217, 70, 239, 0.18), transparent 58%),
+        radial-gradient(760px 540px at 80% 110%, rgba(245, 158, 11, 0.11), transparent 56%),
+        linear-gradient(135deg, #070914 0%, #0b1020 52%, #111827 100%) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #chat-wrapper,
+body.modern-mode #main-chat-area,
+body.modern-mode .app-screen {
+    background:
+        radial-gradient(900px 620px at 70% 0%, rgba(139, 92, 246, 0.16), transparent 60%),
+        linear-gradient(180deg, #080b16 0%, #0b1020 58%, #090d18 100%) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode :is(#main-chat-area, #settings-modal, #vault-panel, #updates-panel, #contacts-panel) {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode :is(p, span, small, label, li, div) {
+    text-shadow: none;
+}
+
+/* Modern chrome and navigation */
+body.modern-mode nav,
+body.modern-mode #desktop-room-sidebar {
+    background:
+        radial-gradient(360px 420px at 0% 0%, rgba(139, 92, 246, 0.16), transparent 70%),
+        linear-gradient(180deg, #111827, #0a0e19 78%) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.modern-mode #desktop-room-sidebar {
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06) !important;
+}
+
+body.modern-mode .sidebar-header h3,
+body.modern-mode .room-name,
+body.modern-mode .settings-sidebar .sidebar-header {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .room-preview,
+body.modern-mode .sidebar-header,
+body.modern-mode .settings-tab {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode .room-item {
+    border: 1px solid transparent !important;
+    border-radius: 20px !important;
+    margin: 0.35rem 0.72rem !important;
+    background: transparent !important;
+    transition:
+        transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+        background 0.22s ease,
+        border-color 0.22s ease,
+        box-shadow 0.22s ease !important;
+}
+
+body.modern-mode .room-item:hover {
+    transform: translateY(-1px) !important;
+    background: rgba(139, 92, 246, 0.10) !important;
+    border-color: rgba(167, 139, 250, 0.18) !important;
+}
+
+body.modern-mode .room-item.active {
+    background:
+        linear-gradient(135deg, rgba(139, 92, 246, 0.20), rgba(245, 158, 11, 0.08)),
+        rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(167, 139, 250, 0.30) !important;
+    box-shadow: inset 3px 0 0 var(--modern-purple), var(--modern-shadow-soft) !important;
+}
+
+body.modern-mode .room-item.active .room-name {
+    color: #ffffff !important;
+}
+
+body.modern-mode .room-icon,
+body.modern-mode .rail-icon {
+    transition:
+        transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+        background 0.22s ease,
+        color 0.22s ease,
+        border-color 0.22s ease !important;
+}
+
+body.modern-mode .rail-icon:hover,
+body.modern-mode .room-icon:hover {
+    transform: translateY(-1px) scale(1.035) !important;
+}
+
+body.modern-mode #active-room-header {
+    min-height: 68px !important;
+    background:
+        radial-gradient(420px 140px at 22% 0%, rgba(139, 92, 246, 0.42), transparent 68%),
+        linear-gradient(90deg, rgba(12, 17, 32, 0.98), rgba(24, 26, 48, 0.96) 54%, rgba(38, 28, 65, 0.96)) !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.20) !important;
+    box-shadow: 0 14px 34px -28px rgba(0, 0, 0, 0.78) !important;
+}
+
+body.modern-mode #active-room-name-display,
+body.modern-mode #toggle-room-search-btn,
+body.modern-mode #room-name-wrapper i {
+    color: #ffffff !important;
+}
+
+body.modern-mode #active-room-tag.tier-badge {
+    border-radius: 999px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    box-shadow: 0 8px 26px -18px rgba(0, 0, 0, 0.8) !important;
+    font-weight: 900 !important;
+}
+
+body.modern-mode #active-room-tag.base,
+body.modern-mode #active-room-tag.advanced {
+    background: linear-gradient(135deg, var(--modern-amber), #fbbf24) !important;
+    color: #1f1300 !important;
+}
+
+body.modern-mode #active-room-tag.pro {
+    background: linear-gradient(135deg, var(--modern-purple), var(--modern-fuchsia)) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #room-sub-nav {
+    min-height: 58px !important;
+    background:
+        radial-gradient(circle at var(--room-nav-active-center, 120px) 0%, rgba(139, 92, 246, 0.30), transparent 10rem),
+        linear-gradient(90deg, rgba(8, 11, 22, 0.94), rgba(17, 24, 39, 0.92)) !important;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.18) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab {
+    min-height: 40px !important;
+    padding: 0.58rem 0.82rem !important;
+    border: 1px solid transparent !important;
+    border-radius: 14px !important;
+    color: rgba(226, 232, 240, 0.62) !important;
+    background: transparent !important;
+    transition:
+        transform 0.20s cubic-bezier(0.16, 1, 0.3, 1),
+        background 0.20s ease,
+        color 0.20s ease,
+        border-color 0.20s ease !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab:hover {
+    transform: translateY(-1px) !important;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab.active {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.34), rgba(217, 70, 239, 0.18)) !important;
+    color: #ffffff !important;
+    border-color: rgba(167, 139, 250, 0.42) !important;
+    box-shadow: 0 12px 32px -20px rgba(139, 92, 246, 0.88) !important;
+}
+
+body.modern-mode #room-add-page-btn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(167, 139, 250, 0.26) !important;
+    color: #ffffff !important;
+}
+
+/* Room home surfaces */
+body.modern-mode .rh-scroll {
+    background:
+        radial-gradient(760px 420px at 82% 6%, rgba(139, 92, 246, 0.15), transparent 64%),
+        radial-gradient(640px 420px at 20% 100%, rgba(245, 158, 11, 0.07), transparent 62%),
+        #080b16 !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .rh-identity {
+    background:
+        radial-gradient(520px 260px at 100% 0%, rgba(217, 70, 239, 0.20), transparent 62%),
+        linear-gradient(135deg, rgba(139, 92, 246, 0.26), rgba(15, 23, 42, 0.92) 46%, rgba(245, 158, 11, 0.10)) !important;
+    border: 1px solid rgba(167, 139, 250, 0.28) !important;
+    color: #ffffff !important;
+    box-shadow: var(--modern-shadow) !important;
+    animation: modernCardIn 0.48s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body.modern-mode .rh-identity :is(.rh-kicker, h2, p),
+body.modern-mode .rh-desc-text,
+body.modern-mode .rh-head h3,
+body.modern-mode .rh-event-title,
+body.modern-mode .rh-res-title,
+body.modern-mode .rh-act-text {
+    color: #ffffff !important;
+}
+
+body.modern-mode .rh-identity p,
+body.modern-mode .rh-muted,
+body.modern-mode .rh-res-url,
+body.modern-mode .rh-event-desc,
+body.modern-mode .rh-act-time {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode .rh-chip-row span,
+body.modern-mode .rh-stat,
+body.modern-mode .rh-score-card,
+body.modern-mode .rh-discovery-grid > div,
+body.modern-mode .rh-snapshots > div,
+body.modern-mode .rh-milestones > div,
+body.modern-mode .rh-timeline > div,
+body.modern-mode .rh-event,
+body.modern-mode .rh-resource,
+body.modern-mode .rh-rule,
+body.modern-mode .rh-contributor,
+body.modern-mode .rh-members span,
+body.modern-mode .rh-analytics div {
+    background: rgba(18, 25, 42, 0.78) !important;
+    border: 1px solid rgba(167, 139, 250, 0.16) !important;
+    border-radius: 18px !important;
+    color: var(--modern-ink) !important;
+    box-shadow: 0 14px 44px -34px rgba(0, 0, 0, 0.70) !important;
+}
+
+body.modern-mode .rh-section {
+    animation: modernCardIn 0.44s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body.modern-mode .rh-score-card strong,
+body.modern-mode .rh-snapshots strong,
+body.modern-mode .rh-analytics strong {
+    color: #ffffff !important;
+}
+
+body.modern-mode .rh-score-card span,
+body.modern-mode .rh-score-card small,
+body.modern-mode .rh-snapshots span,
+body.modern-mode .rh-discovery-grid span,
+body.modern-mode .rh-milestones span,
+body.modern-mode .rh-created {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode .rh-meter {
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+body.modern-mode .rh-meter i {
+    background: linear-gradient(90deg, var(--modern-purple), var(--modern-amber)) !important;
+}
+
+/* Settings shell and readable cards */
+body.modern-mode #settings-modal.brutalist-settings {
+    --settings-ink: var(--modern-ink);
+    --settings-muted: var(--modern-muted);
+    --settings-line: rgba(167, 139, 250, 0.18);
+    --settings-surface: rgba(10, 15, 29, 0.96);
+    --settings-surface-strong: rgba(18, 25, 42, 0.96);
+    background:
+        radial-gradient(760px 460px at 96% -8%, rgba(139, 92, 246, 0.26), transparent 60%),
+        radial-gradient(620px 420px at 0% 100%, rgba(245, 158, 11, 0.10), transparent 58%),
+        rgba(8, 11, 22, 0.98) !important;
+    border: 1px solid rgba(167, 139, 250, 0.20) !important;
+    box-shadow: 0 34px 120px -48px rgba(0, 0, 0, 0.95) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-sidebar,
+body.modern-mode #settings-modal.brutalist-settings .settings-content {
+    background: transparent !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-sidebar {
+    border-right: 1px solid rgba(167, 139, 250, 0.16) !important;
+    background:
+        radial-gradient(320px 420px at 0% 0%, rgba(139, 92, 246, 0.16), transparent 74%),
+        rgba(8, 11, 22, 0.72) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-pane h2,
+body.modern-mode #settings-modal.brutalist-settings :is(h1, h2, h3, h4, strong, .settings-card-title) {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings :is(p, label, small, li, .settings-feature-mode-note, .custom-theme-note, .profile-completion-hint, .settings-card-body span) {
+    color: var(--modern-muted) !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-tab {
+    color: rgba(226, 232, 240, 0.74) !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    transition:
+        transform 0.20s cubic-bezier(0.16, 1, 0.3, 1),
+        background 0.20s ease,
+        border-color 0.20s ease,
+        color 0.20s ease !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-tab:hover {
+    transform: translateX(2px) !important;
+    color: #ffffff !important;
+    background: rgba(139, 92, 246, 0.10) !important;
+    border-color: rgba(167, 139, 250, 0.15) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-tab.active {
+    color: #ffffff !important;
+    background:
+        linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(217, 70, 239, 0.10)) !important;
+    border-color: rgba(167, 139, 250, 0.38) !important;
+    box-shadow: inset 3px 0 0 var(--modern-purple) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings :is(.settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-summary-compact > div, .profile-edit-card) {
+    background:
+        linear-gradient(180deg, rgba(21, 29, 49, 0.88), rgba(12, 17, 31, 0.92)) !important;
+    border: 1px solid rgba(167, 139, 250, 0.18) !important;
+    box-shadow: var(--modern-shadow-soft) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-card {
+    animation: modernCardIn 0.42s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-card-body,
+body.modern-mode #settings-modal.brutalist-settings .billing-plan-body {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings input,
+body.modern-mode #settings-modal.brutalist-settings textarea,
+body.modern-mode #settings-modal.brutalist-settings select {
+    background: rgba(8, 11, 22, 0.84) !important;
+    border: 1px solid rgba(167, 139, 250, 0.24) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: var(--modern-purple-2) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings input::placeholder,
+body.modern-mode #settings-modal.brutalist-settings textarea::placeholder {
+    color: rgba(226, 232, 240, 0.40) !important;
+    -webkit-text-fill-color: rgba(226, 232, 240, 0.40) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings input:focus,
+body.modern-mode #settings-modal.brutalist-settings textarea:focus,
+body.modern-mode #settings-modal.brutalist-settings select:focus {
+    border-color: rgba(167, 139, 250, 0.75) !important;
+    box-shadow: var(--modern-ring), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings input[type="file"]::file-selector-button {
+    border: 0 !important;
+    border-radius: 10px !important;
+    background: rgba(139, 92, 246, 0.20) !important;
+    color: #ffffff !important;
+    padding: 0.42rem 0.66rem !important;
+    margin-right: 0.65rem !important;
+}
+
+/* Billing contrast */
+body.modern-mode #pane-billing .billing-current-card {
+    border: 1px solid rgba(167, 139, 250, 0.22) !important;
+    box-shadow: var(--modern-shadow) !important;
+    overflow: hidden !important;
+}
+
+body.modern-mode #pane-billing .billing-current-body {
+    background:
+        radial-gradient(420px 180px at 100% 0%, rgba(245, 158, 11, 0.32), transparent 64%),
+        linear-gradient(135deg, #6d28d9, #8b5cf6 45%, #d946ef) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #pane-billing :is(#billing-plan-name, #billing-plan-limits, .billing-current-info span) {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode #pane-billing #billing-tier-badge {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #4c1d95 !important;
+    border: 0 !important;
+}
+
+body.modern-mode #pane-billing #manage-billing-btn,
+body.modern-mode #pane-billing .billing-plan-card .action-btn {
+    background: linear-gradient(135deg, var(--modern-purple), var(--modern-indigo)) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    box-shadow: 0 16px 36px -24px rgba(139, 92, 246, 0.90) !important;
+}
+
+body.modern-mode #pane-billing .billing-plan-body h3,
+body.modern-mode #pane-billing .billing-plan-body h2,
+body.modern-mode #pane-billing .billing-plan-body h2 span {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode #pane-billing .billing-plan-body ul {
+    border-top: 1px solid rgba(167, 139, 250, 0.14) !important;
+    padding-top: 1rem !important;
+}
+
+body.modern-mode #pane-billing .billing-plan-body li {
+    color: #d8e0ef !important;
+    opacity: 1 !important;
+    line-height: 1.55 !important;
+}
+
+body.modern-mode #pane-billing .billing-plan-card:hover {
+    transform: translateY(-3px) !important;
+    border-color: rgba(167, 139, 250, 0.38) !important;
+}
+
+/* Appearance controls */
+body.modern-mode #pane-app .theme-select-btn,
+body.modern-mode #pane-app .feature-mode-select-btn,
+body.modern-mode #settings-modal.brutalist-settings .custom-theme-controls .action-btn {
+    background: rgba(255, 255, 255, 0.055) !important;
+    border: 1px solid rgba(167, 139, 250, 0.14) !important;
+    color: #d8e0ef !important;
+}
+
+body.modern-mode #pane-app .theme-select-btn:hover,
+body.modern-mode #pane-app .feature-mode-select-btn:hover {
+    background: rgba(139, 92, 246, 0.14) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+body.modern-mode #pane-app .theme-select-btn[data-theme="modern"],
+body.modern-mode #pane-app .feature-mode-select-btn.active,
+body.modern-mode #pane-app .feature-mode-select-btn[aria-selected="true"] {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.34), rgba(217, 70, 239, 0.18)) !important;
+    border-color: rgba(167, 139, 250, 0.52) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #pane-app .feature-mode-select-btn strong {
+    color: #ffffff !important;
+}
+
+body.modern-mode #pane-app .feature-mode-select-btn span,
+body.modern-mode #pane-app .settings-feature-mode-summary {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode #pane-app .settings-card > span:first-child,
+body.modern-mode #pane-app .custom-theme-title,
+body.modern-mode #pane-app .settings-feature-mode-title,
+body.modern-mode #settings-modal.brutalist-settings .profile-display-name,
+body.modern-mode #settings-modal.brutalist-settings .profile-completion-text,
+body.modern-mode #settings-modal.brutalist-settings .profile-field-label {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+/* Edit profile readability */
+body.modern-mode #profile-edit-page .profile-edit-page-head,
+body.modern-mode #profile-edit-page .profile-edit-card,
+body.modern-mode #profile-edit-page .input-group {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #profile-edit-page .profile-edit-kicker,
+body.modern-mode #profile-edit-page .input-group label,
+body.modern-mode #profile-edit-page small {
+    color: #c7d2fe !important;
+}
+
+body.modern-mode #cancel-profile-edit-btn,
+body.modern-mode #cancel-profile-edit-inline-btn {
+    color: #d8e0ef !important;
+    background: rgba(255, 255, 255, 0.055) !important;
+    border-color: rgba(167, 139, 250, 0.18) !important;
+}
+
+/* Vault: dark readable workspace */
+body.modern-mode #vault-panel {
+    background:
+        radial-gradient(760px 480px at 0% 0%, rgba(139, 92, 246, 0.18), transparent 64%),
+        radial-gradient(680px 420px at 100% 20%, rgba(217, 70, 239, 0.12), transparent 60%),
+        #080b16 !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #vault-panel .contacts-header {
+    background:
+        linear-gradient(90deg, rgba(12, 17, 32, 0.98), rgba(30, 27, 75, 0.92)) !important;
+    border-bottom: 1px solid rgba(167, 139, 250, 0.18) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #vault-root {
+    background: transparent !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .vault-redesign :is(.vault-hero, .vault-library, .vault-note-form, .vault-file-drop, .vault-item, .vault-empty, .vault-stats span, .vault-secondary-action) {
+    background:
+        linear-gradient(180deg, rgba(18, 25, 42, 0.88), rgba(10, 15, 29, 0.92)) !important;
+    border: 1px solid rgba(167, 139, 250, 0.18) !important;
+    box-shadow: var(--modern-shadow-soft) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .vault-redesign .vault-primary-action {
+    background: linear-gradient(135deg, var(--modern-purple), var(--modern-fuchsia)) !important;
+    color: #ffffff !important;
+    border: 0 !important;
+    box-shadow: 0 18px 42px -26px rgba(139, 92, 246, 0.9) !important;
+}
+
+body.modern-mode .vault-redesign :is(.vault-kicker, .vault-library-head span, .vault-item-meta span, .vault-code-line span, .vault-empty span, .vault-hero p, .vault-file-drop span) {
+    color: var(--modern-muted) !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode .vault-redesign :is(.vault-hero h3, .vault-library-head strong, .vault-item-head strong, .vault-empty strong, .vault-stats strong, .vault-file-drop strong) {
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode .vault-redesign .vault-item p {
+    color: #d8e0ef !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode .vault-search-wrap,
+body.modern-mode .vault-search,
+body.modern-mode .vault-note-form input,
+body.modern-mode .vault-note-form textarea,
+body.modern-mode .vault-share-url input {
+    background: rgba(8, 11, 22, 0.74) !important;
+    border-color: rgba(167, 139, 250, 0.20) !important;
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+body.modern-mode .vault-filter.active {
+    background: linear-gradient(135deg, var(--modern-purple), var(--modern-fuchsia)) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode .vault-filter:not(.active) {
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: var(--modern-muted) !important;
+}
+
+/* General modern buttons and motion */
+body.modern-mode button,
+body.modern-mode .action-btn,
+body.modern-mode .mini-btn,
+body.modern-mode .room-action-btn {
+    transition:
+        transform 0.20s cubic-bezier(0.16, 1, 0.3, 1),
+        background 0.20s ease,
+        border-color 0.20s ease,
+        box-shadow 0.20s ease,
+        color 0.20s ease !important;
+}
+
+body.modern-mode button:hover,
+body.modern-mode .action-btn:hover,
+body.modern-mode .mini-btn:hover {
+    transform: translateY(-1px) !important;
+}
+
+body.modern-mode :is(.settings-card, .billing-plan-card, .vault-item, .vault-hero, .rh-score-card, .rh-discovery-grid > div, .rh-snapshots > div):hover {
+    border-color: rgba(167, 139, 250, 0.34) !important;
+}
+
+@keyframes modernCardIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.985);
+        filter: blur(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.modern-mode *,
+    body.modern-mode *::before,
+    body.modern-mode *::after {
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* Notification switch geometry lock: keep DND/schedule thumbs inside track. */
+.notif-mode-pill.notif-dnd-pill,
+.notif-mode-pill.notif-schedule-pill,
+#settings-modal .notif-schedule-row .notif-mode-pill.notif-schedule-pill,
+#updates-panel .notif-schedule-row .notif-mode-pill.notif-schedule-pill {
+    position: relative !important;
+    min-height: 46px !important;
+    padding: 0.7rem 3.75rem 0.7rem 0.9rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.62rem !important;
+    overflow: hidden !important;
+}
+
+.notif-mode-pill.notif-dnd-pill::before,
+.notif-mode-pill.notif-schedule-pill::before,
+.notif-mode-pill.notif-dnd-pill::after,
+.notif-mode-pill.notif-schedule-pill::after {
+    content: "" !important;
+    position: absolute !important;
+    pointer-events: none !important;
+    box-sizing: border-box !important;
+}
+
+.notif-mode-pill.notif-dnd-pill::before,
+.notif-mode-pill.notif-schedule-pill::before {
+    right: 0.72rem !important;
+    top: 50% !important;
+    width: 42px !important;
+    height: 24px !important;
+    border-radius: 999px !important;
+    border: 1px solid rgba(148, 163, 184, 0.22) !important;
+    background: rgba(148, 163, 184, 0.20) !important;
+    transform: translateY(-50%) !important;
+    transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease !important;
+}
+
+.notif-mode-pill.notif-dnd-pill::after,
+.notif-mode-pill.notif-schedule-pill::after {
+    right: calc(0.72rem + 3px) !important;
+    top: 50% !important;
+    width: 18px !important;
+    height: 18px !important;
+    border-radius: 999px !important;
+    background: #f8fafc !important;
+    box-shadow: 0 7px 14px -8px rgba(0, 0, 0, 0.75) !important;
+    transform: translate(-18px, -50%) !important;
+    transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), background 180ms ease !important;
+}
+
+.notif-mode-pill.notif-dnd-pill.active::before,
+.notif-mode-pill.notif-schedule-pill.active::before {
+    border-color: color-mix(in srgb, var(--accent-color, #8b5cf6) 70%, transparent) !important;
+    background: linear-gradient(135deg, var(--accent-color, #8b5cf6), color-mix(in srgb, var(--accent-color, #8b5cf6) 64%, #111827)) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.10) !important;
+}
+
+.notif-mode-pill.notif-dnd-pill.active::after,
+.notif-mode-pill.notif-schedule-pill.active::after {
+    background: #0f172a !important;
+    transform: translate(0, -50%) !important;
+}
+
+#settings-modal .notif-schedule-row .notif-mode-pill.notif-schedule-pill input[type="checkbox"],
+#updates-panel .notif-schedule-row .notif-mode-pill.notif-schedule-pill input[type="checkbox"],
+.notif-mode-pill.notif-schedule-pill input[type="checkbox"] {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    margin: 0 !important;
+}
+
+/* ============================================================
+   MODERN THEME LUMINOUS PASS
+   Modern should feel premium and purple-forward, not like a
+   second dark mode. This final layer intentionally overrides
+   the earlier aurora-dark experiment while leaving Dark mode.
+   ============================================================ */
+body.modern-mode {
+    --bg-color: #f7f4ff !important;
+    --text-color: #171321 !important;
+    --accent-color: #8b5cf6 !important;
+    --modern-bg: #f7f4ff;
+    --modern-bg-2: #ffffff;
+    --modern-panel: rgba(255, 255, 255, 0.88);
+    --modern-panel-2: rgba(249, 247, 255, 0.94);
+    --modern-card: rgba(255, 255, 255, 0.92);
+    --modern-card-strong: #ffffff;
+    --modern-ink: #171321;
+    --modern-muted: #6f687d;
+    --modern-faint: rgba(23, 19, 33, 0.48);
+    --modern-line: rgba(124, 58, 237, 0.18);
+    --modern-line-soft: rgba(23, 19, 33, 0.08);
+    --modern-purple: #8b5cf6;
+    --modern-purple-2: #a855f7;
+    --modern-fuchsia: #d946ef;
+    --modern-indigo: #6d5dfc;
+    --modern-amber: #f59e0b;
+    --modern-good: #10b981;
+    --modern-radius: 22px;
+    --modern-radius-sm: 15px;
+    --modern-shadow: 0 26px 80px -54px rgba(76, 29, 149, 0.34), 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+    --modern-shadow-soft: 0 18px 54px -42px rgba(76, 29, 149, 0.28);
+    --modern-ring: 0 0 0 4px rgba(139, 92, 246, 0.18);
+    --m-surface: var(--modern-panel);
+    --m-surface-2: var(--modern-panel-2);
+    --m-surface-3: var(--modern-card-strong);
+    --m-ink: var(--modern-ink);
+    --m-muted: var(--modern-muted);
+    --m-line: var(--modern-line-soft);
+    --m-line-2: var(--modern-line);
+    --m-accent-soft: rgba(139, 92, 246, 0.12);
+    --m-ring: var(--modern-ring);
+    background:
+        radial-gradient(760px 520px at 10% -10%, rgba(139, 92, 246, 0.16), transparent 64%),
+        radial-gradient(760px 520px at 100% 0%, rgba(217, 70, 239, 0.10), transparent 62%),
+        linear-gradient(135deg, #ffffff 0%, #f7f4ff 48%, #fffaf0 100%) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #chat-wrapper,
+body.modern-mode #main-chat-area,
+body.modern-mode .app-screen {
+    background:
+        radial-gradient(820px 520px at 80% 0%, rgba(139, 92, 246, 0.12), transparent 64%),
+        radial-gradient(640px 420px at 20% 100%, rgba(245, 158, 11, 0.08), transparent 62%),
+        linear-gradient(180deg, #ffffff 0%, #fbf9ff 56%, #f7f4ff 100%) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode :is(#main-chat-area, #settings-modal, #vault-panel, #updates-panel, #contacts-panel, #room-settings-card) {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode :is(h1, h2, h3, h4, strong, .room-name, .msg-name, .settings-card-title) {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode :is(p, label, small, li, .room-preview, .rh-muted, .settings-tab, .settings-card-body span) {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode nav,
+body.modern-mode #desktop-room-sidebar {
+    background:
+        radial-gradient(320px 420px at 0% 0%, rgba(139, 92, 246, 0.12), transparent 70%),
+        linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,247,255,0.92)) !important;
+    border-color: rgba(23, 19, 33, 0.08) !important;
+    box-shadow: inset -1px 0 0 rgba(23, 19, 33, 0.07) !important;
+}
+
+body.modern-mode .rail-icon,
+body.modern-mode #desktop-room-sidebar .room-collapse-btn {
+    color: #6f687d !important;
+}
+
+body.modern-mode .rail-icon:hover,
+body.modern-mode .rail-icon.active,
+body.modern-mode #desktop-room-sidebar .room-collapse-btn:hover {
+    color: var(--modern-purple) !important;
+    background: rgba(139, 92, 246, 0.10) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .sidebar-header {
+    background: transparent !important;
+    border-color: rgba(23, 19, 33, 0.08) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .sidebar-header h3 {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .room-item {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode .room-item:hover {
+    background: rgba(139, 92, 246, 0.08) !important;
+    border-color: rgba(139, 92, 246, 0.14) !important;
+}
+
+body.modern-mode .room-item.active {
+    background:
+        linear-gradient(135deg, rgba(139, 92, 246, 0.14), rgba(245, 158, 11, 0.08)),
+        rgba(255, 255, 255, 0.86) !important;
+    border-color: rgba(139, 92, 246, 0.22) !important;
+    box-shadow: inset 3px 0 0 var(--modern-purple), 0 18px 52px -42px rgba(76, 29, 149, 0.42) !important;
+}
+
+body.modern-mode .room-item.active .room-name {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .room-icon {
+    background: rgba(255, 255, 255, 0.82) !important;
+    border-color: rgba(23, 19, 33, 0.12) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .room-icon-globe {
+    background: linear-gradient(135deg, #f59e0b, #fed7aa) !important;
+    color: #3b2200 !important;
+    border-color: rgba(146, 64, 14, 0.18) !important;
+}
+
+body.modern-mode #chat-wrapper.rooms-collapsed #desktop-room-sidebar .room-item.favorited .room-icon::after {
+    content: "★" !important;
+    right: -2px !important;
+    top: -4px !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--modern-purple) !important;
+    font-size: 0.74rem !important;
+    line-height: 1 !important;
+    text-shadow: 0 2px 10px rgba(124, 58, 237, 0.34) !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode .room-favorite-mark {
+    color: var(--modern-purple) !important;
+    margin-left: 0.25rem !important;
+    text-shadow: 0 2px 10px rgba(124, 58, 237, 0.24);
+}
+
+body.modern-mode #active-room-header {
+    min-height: 68px !important;
+    background:
+        radial-gradient(460px 180px at 18% 0%, rgba(139, 92, 246, 0.18), transparent 70%),
+        linear-gradient(90deg, rgba(255,255,255,0.98), rgba(247,244,255,0.94) 58%, rgba(255,250,240,0.95)) !important;
+    border-bottom: 1px solid rgba(23, 19, 33, 0.12) !important;
+    box-shadow: 0 14px 38px -34px rgba(76, 29, 149, 0.34) !important;
+}
+
+body.modern-mode #active-room-name-display,
+body.modern-mode #toggle-room-search-btn,
+body.modern-mode #room-name-wrapper i {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #active-room-tag.tier-badge {
+    border-radius: 999px !important;
+    border: 1px solid rgba(23, 19, 33, 0.08) !important;
+    box-shadow: 0 10px 28px -20px rgba(76, 29, 149, 0.40) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #active-room-tag.advanced {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+    color: #231300 !important;
+}
+
+body.modern-mode #active-room-tag.pro {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #room-sub-nav {
+    background:
+        radial-gradient(circle at var(--room-nav-active-center, 120px) 0%, rgba(139, 92, 246, 0.14), transparent 10rem),
+        rgba(255, 255, 255, 0.78) !important;
+    border-bottom: 1px solid rgba(23, 19, 33, 0.08) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.9) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab {
+    color: #777184 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab:hover {
+    color: var(--modern-ink) !important;
+    background: rgba(139, 92, 246, 0.08) !important;
+    border-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab.active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    border-color: rgba(124, 58, 237, 0.22) !important;
+    box-shadow: 0 14px 34px -24px rgba(124, 58, 237, 0.64) !important;
+}
+
+body.modern-mode #room-add-page-btn {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-color: rgba(139, 92, 246, 0.20) !important;
+    color: var(--modern-purple) !important;
+}
+
+/* Modern chat: lighter bubbles and working syntax color */
+body.modern-mode #room-view-chat {
+    --chat-panel: rgba(255, 255, 255, 0.78);
+    --chat-panel-strong: rgba(255, 255, 255, 0.96);
+    --chat-bubble: rgba(255, 255, 255, 0.94);
+    --chat-bubble-mine: linear-gradient(135deg, rgba(139, 92, 246, 0.16), rgba(255,255,255,0.96));
+    --chat-ink: #171321;
+    --chat-muted: rgba(23, 19, 33, 0.54);
+    --chat-line: rgba(23, 19, 33, 0.10);
+    --chat-line-strong: rgba(124, 58, 237, 0.20);
+    --chat-shadow: 0 20px 54px -42px rgba(76, 29, 149, 0.42);
+    --chat-shadow-hover: 0 28px 72px -44px rgba(76, 29, 149, 0.52);
+    background:
+        radial-gradient(720px 460px at 100% 0%, rgba(139, 92, 246, 0.08), transparent 64%),
+        radial-gradient(560px 360px at 0% 100%, rgba(245, 158, 11, 0.06), transparent 68%),
+        #fbf9ff !important;
+}
+
+body.modern-mode #room-view-chat #messages li.chat-message {
+    background: var(--chat-bubble) !important;
+    color: var(--chat-ink) !important;
+    border-color: rgba(23, 19, 33, 0.10) !important;
+}
+
+body.modern-mode #room-view-chat #messages li.chat-message.my-message {
+    background: var(--chat-bubble-mine) !important;
+    border-color: rgba(124, 58, 237, 0.24) !important;
+}
+
+body.modern-mode #room-view-chat .msg-name,
+body.modern-mode #room-view-chat .msg-text,
+body.modern-mode #room-view-chat .reply-quote-name {
+    color: #171321 !important;
+}
+
+body.modern-mode #room-view-chat .msg-time,
+body.modern-mode #room-view-chat .msg-edited {
+    color: rgba(23, 19, 33, 0.50) !important;
+}
+
+body.modern-mode .msg-inline-code {
+    background: rgba(124, 58, 237, 0.10) !important;
+    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    color: #31214f !important;
+    border-radius: 7px !important;
+    padding: 0.06rem 0.24rem !important;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
+body.modern-mode .msg-codeblock {
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,241,255,0.96)) !important;
+    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    color: #171321 !important;
+    border-radius: 15px !important;
+    box-shadow: 0 18px 48px -38px rgba(76, 29, 149, 0.34) !important;
+}
+
+body.modern-mode .msg-codeblock::before {
+    background: rgba(124, 58, 237, 0.10) !important;
+    color: #6d28d9 !important;
+}
+
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-comment { color: #64748b !important; font-style: italic; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-string { color: #047857 !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-keyword { color: #7c3aed !important; font-weight: 900; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-function { color: #2563eb !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-number { color: #c2410c !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-tag { color: #be123c !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-attr,
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-property { color: #0f766e !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-selector { color: #9333ea !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-punctuation { color: #475569 !important; }
+
+/* Room home and live health clarity */
+body.modern-mode .rh-scroll {
+    background:
+        radial-gradient(760px 420px at 82% 6%, rgba(139, 92, 246, 0.10), transparent 64%),
+        radial-gradient(640px 420px at 20% 100%, rgba(245, 158, 11, 0.07), transparent 62%),
+        #fbf9ff !important;
+}
+
+body.modern-mode .rh-identity {
+    background:
+        radial-gradient(520px 260px at 100% 0%, rgba(139, 92, 246, 0.18), transparent 62%),
+        linear-gradient(135deg, rgba(255,255,255,0.96), rgba(245,240,255,0.94) 52%, rgba(255,250,240,0.92)) !important;
+    border-color: rgba(124, 58, 237, 0.18) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .rh-identity :is(.rh-kicker, h2, p),
+body.modern-mode .rh-desc-text,
+body.modern-mode .rh-head h3,
+body.modern-mode .rh-event-title,
+body.modern-mode .rh-res-title,
+body.modern-mode .rh-act-text {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .rh-chip-row span,
+body.modern-mode .rh-stat,
+body.modern-mode .rh-score-card,
+body.modern-mode .rh-discovery-grid > div,
+body.modern-mode .rh-snapshots > div,
+body.modern-mode .rh-milestones > div,
+body.modern-mode .rh-timeline > div,
+body.modern-mode .rh-event,
+body.modern-mode .rh-resource,
+body.modern-mode .rh-rule,
+body.modern-mode .rh-contributor,
+body.modern-mode .rh-members span,
+body.modern-mode .rh-analytics div {
+    background: rgba(255,255,255,0.86) !important;
+    border-color: rgba(23, 19, 33, 0.08) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .rh-live-note {
+    display: block;
+    margin-top: 0.5rem;
+    color: #7c3aed !important;
+    font-size: 0.72rem;
+    line-height: 1.35;
+}
+
+/* Settings: bright panels and moving shapes instead of moving lines */
+body.modern-mode #settings-modal.brutalist-settings {
+    --settings-ink: var(--modern-ink);
+    --settings-muted: var(--modern-muted);
+    --settings-line: rgba(124, 58, 237, 0.16);
+    --settings-surface: rgba(255,255,255,0.94);
+    --settings-surface-strong: #ffffff;
+    overflow: hidden !important;
+    background:
+        radial-gradient(740px 460px at 98% -8%, rgba(139, 92, 246, 0.14), transparent 62%),
+        radial-gradient(620px 420px at 0% 100%, rgba(245, 158, 11, 0.08), transparent 58%),
+        rgba(255, 255, 255, 0.98) !important;
+    border-color: rgba(23, 19, 33, 0.10) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings::before,
+body.modern-mode #settings-modal.brutalist-settings::after {
+    content: "" !important;
+    position: absolute !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    border-radius: 999px !important;
+    filter: blur(0.5px);
+}
+
+body.modern-mode #settings-modal.brutalist-settings::before {
+    width: 14rem !important;
+    height: 14rem !important;
+    right: 8% !important;
+    top: 8% !important;
+    background:
+        radial-gradient(circle at 35% 35%, rgba(139, 92, 246, 0.22), transparent 55%),
+        radial-gradient(circle at 68% 72%, rgba(245, 158, 11, 0.14), transparent 58%) !important;
+    animation: modernSettingsBlobA 11s ease-in-out infinite alternate !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings::after {
+    width: 9rem !important;
+    height: 9rem !important;
+    left: 7% !important;
+    bottom: 10% !important;
+    background:
+        radial-gradient(circle at 50% 50%, rgba(217, 70, 239, 0.15), transparent 58%),
+        radial-gradient(circle at 30% 74%, rgba(139, 92, 246, 0.12), transparent 58%) !important;
+    animation: modernSettingsBlobB 13s ease-in-out infinite alternate !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings > * {
+    position: relative !important;
+    z-index: 1 !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-sidebar {
+    background: rgba(255, 255, 255, 0.62) !important;
+    border-right-color: rgba(23, 19, 33, 0.08) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-content {
+    background: transparent !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-pane h2,
+body.modern-mode #settings-modal.brutalist-settings :is(h1, h2, h3, h4, strong, .settings-card-title, .settings-tab.active) {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings :is(p, label, small, li, .settings-feature-mode-note, .custom-theme-note, .profile-completion-hint, .settings-card-body span) {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-tab {
+    color: #777184 !important;
+    background: transparent !important;
+    border-color: transparent !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-tab:hover,
+body.modern-mode #settings-modal.brutalist-settings .settings-tab.active {
+    color: var(--modern-ink) !important;
+    background: rgba(139, 92, 246, 0.10) !important;
+    border-color: rgba(139, 92, 246, 0.18) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-tab.active {
+    box-shadow: inset 3px 0 0 var(--modern-purple), 0 16px 44px -36px rgba(76,29,149,0.34) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings :is(.settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-summary-compact > div, .profile-edit-card) {
+    background: rgba(255,255,255,0.88) !important;
+    border-color: rgba(23, 19, 33, 0.08) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings input,
+body.modern-mode #settings-modal.brutalist-settings textarea,
+body.modern-mode #settings-modal.brutalist-settings select {
+    background: rgba(255, 255, 255, 0.86) !important;
+    border-color: rgba(23, 19, 33, 0.10) !important;
+    color: var(--modern-ink) !important;
+    -webkit-text-fill-color: var(--modern-ink) !important;
+    caret-color: var(--modern-purple) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings input::placeholder,
+body.modern-mode #settings-modal.brutalist-settings textarea::placeholder {
+    color: rgba(23, 19, 33, 0.42) !important;
+    -webkit-text-fill-color: rgba(23, 19, 33, 0.42) !important;
+}
+
+body.modern-mode #pane-billing .billing-current-body {
+    background: linear-gradient(135deg, #7c3aed, #a855f7 55%, #f59e0b) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #pane-billing :is(#billing-plan-name, #billing-plan-limits, .billing-current-info span) {
+    color: #ffffff !important;
+}
+
+body.modern-mode #pane-billing .billing-plan-body h3,
+body.modern-mode #pane-billing .billing-plan-body h2,
+body.modern-mode #pane-billing .billing-plan-body h2 span,
+body.modern-mode #pane-billing .billing-plan-body li {
+    color: var(--modern-ink) !important;
+}
+
+/* Vault: page alignment and light modern surface */
+@media (min-width: 769px) {
+    body.modern-mode #vault-panel {
+        --vault-rail-offset: 84px;
+        left: var(--vault-rail-offset) !important;
+        right: auto !important;
+        top: 0 !important;
+        width: calc(100vw - var(--vault-rail-offset)) !important;
+        max-width: calc(100vw - var(--vault-rail-offset)) !important;
+        margin-left: 0 !important;
+        border-left: 0 !important;
+    }
+}
+
+body.modern-mode #vault-panel {
+    background:
+        radial-gradient(760px 480px at 0% 0%, rgba(139, 92, 246, 0.12), transparent 64%),
+        radial-gradient(680px 420px at 100% 20%, rgba(217, 70, 239, 0.08), transparent 60%),
+        #fbf9ff !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #vault-panel .contacts-header {
+    margin-left: 0 !important;
+    background: rgba(255,255,255,0.90) !important;
+    border-bottom-color: rgba(23, 19, 33, 0.08) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #vault-root {
+    background: transparent !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .vault-redesign :is(.vault-hero, .vault-library, .vault-note-form, .vault-file-drop, .vault-item, .vault-empty, .vault-stats span, .vault-secondary-action) {
+    background: rgba(255,255,255,0.90) !important;
+    border-color: rgba(23, 19, 33, 0.08) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .vault-redesign :is(.vault-hero h3, .vault-library-head strong, .vault-item-head strong, .vault-empty strong, .vault-stats strong, .vault-file-drop strong, .vault-item p) {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .vault-redesign :is(.vault-kicker, .vault-library-head span, .vault-item-meta span, .vault-code-line span, .vault-empty span, .vault-hero p, .vault-file-drop span) {
+    color: var(--modern-muted) !important;
+}
+
+body.modern-mode .vault-search-wrap,
+body.modern-mode .vault-search,
+body.modern-mode .vault-note-form input,
+body.modern-mode .vault-note-form textarea,
+body.modern-mode .vault-share-url input {
+    background: rgba(255,255,255,0.88) !important;
+    border-color: rgba(23, 19, 33, 0.10) !important;
+    color: var(--modern-ink) !important;
+    -webkit-text-fill-color: var(--modern-ink) !important;
+}
+
+/* Room settings: non-clipped close button, light modern panels, and user overrides */
+body.modern-mode #room-settings-card.room-settings-modern {
+    --rs-panel: rgba(255,255,255,0.96);
+    --rs-panel-strong: #ffffff;
+    --rs-card: rgba(255,255,255,0.86);
+    --rs-line: rgba(23, 19, 33, 0.10);
+    --rs-line-strong: rgba(124, 58, 237, 0.20);
+    --rs-muted: #6f687d;
+    background:
+        radial-gradient(circle at 14% 0%, rgba(139, 92, 246, 0.13), transparent 22rem),
+        linear-gradient(135deg, #ffffff, #fbf9ff 64%, #fffaf0) !important;
+    color: var(--modern-ink) !important;
+    overflow: hidden !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern::before {
+    background:
+        radial-gradient(circle at 12% 16%, rgba(139, 92, 246, 0.15), transparent 25%),
+        radial-gradient(circle at 86% 8%, rgba(245, 158, 11, 0.10), transparent 22%) !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern .room-settings-x {
+    position: absolute !important;
+    top: 1rem !important;
+    left: 1rem !important;
+    right: auto !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,0.90) !important;
+    color: #5f5a6c !important;
+    border-color: rgba(23, 19, 33, 0.10) !important;
+    box-shadow: 0 14px 36px -28px rgba(76,29,149,0.34) !important;
+    display: grid !important;
+    place-items: center !important;
+    z-index: 8 !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern .room-settings-x:hover {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    transform: translateY(-1px) scale(1.03) !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern .settings-sidebar {
+    padding-top: 4.6rem !important;
+    background: rgba(255,255,255,0.66) !important;
+    border-right-color: rgba(23, 19, 33, 0.08) !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern :is(.settings-tab, .rs-room-picture-card, .rs-room-identity-card, .rs-simple-list li, .rs-list-row, .rs-empty-row, .rs-log-row, .bot-market-card, .webhook-card, .permission-grid, .member-permissions-card) {
+    background: rgba(255,255,255,0.82) !important;
+    border-color: rgba(23, 19, 33, 0.08) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern .settings-tab.active {
+    background: rgba(139, 92, 246, 0.12) !important;
+    border-color: rgba(139, 92, 246, 0.22) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #room-settings-card.room-settings-modern input,
+body.modern-mode #room-settings-card.room-settings-modern textarea,
+body.modern-mode #room-settings-card.room-settings-modern select {
+    background: rgba(255,255,255,0.88) !important;
+    border-color: rgba(23, 19, 33, 0.10) !important;
+    color: var(--modern-ink) !important;
+    -webkit-text-fill-color: var(--modern-ink) !important;
+}
+
+.member-permissions-card {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--rs-line, rgba(17, 24, 39, 0.12));
+    border-radius: 22px;
+    background: var(--rs-card, rgba(255,255,255,0.82));
+}
+
+.member-permissions-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.7rem;
+}
+
+.member-permissions-head h3 {
+    margin: 0.12rem 0 0;
+    font-size: 1.05rem;
+}
+
+.member-permissions-head > span,
+.member-permissions-copy {
+    color: var(--rs-muted, rgba(17,24,39,0.58));
+    font-size: 0.86rem;
+}
+
+.member-permissions-list {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 0.9rem;
+}
+
+.member-permission-row {
+    display: grid;
+    gap: 0.8rem;
+    padding: 0.85rem;
+    border: 1px solid var(--rs-line, rgba(17,24,39,0.10));
+    border-radius: 18px;
+    background: rgba(255,255,255,0.62);
+}
+
+.member-permission-row-head {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.member-permission-row-head strong {
+    display: block;
+    line-height: 1.1;
+}
+
+.member-permission-row-head small {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--rs-muted, rgba(17,24,39,0.58));
+    font-size: 0.76rem;
+}
+
+.member-permission-avatar {
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--accent-color, #8b5cf6) 15%, #fff);
+    color: color-mix(in srgb, var(--accent-color, #8b5cf6) 82%, #111827);
+    font-weight: 950;
+}
+
+.member-permission-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(154px, 1fr));
+    gap: 0.62rem;
+}
+
+.member-permission-select {
+    display: grid;
+    gap: 0.32rem;
+    min-width: 0;
+    color: inherit;
+    font-weight: 850;
+    font-size: 0.78rem;
+}
+
+.member-permission-select select {
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    border-radius: 13px;
+    font-size: 0.84rem;
+}
+
+@keyframes modernSettingsBlobA {
+    0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+    100% { transform: translate3d(-2.6rem, 1.8rem, 0) scale(1.08) rotate(14deg); }
+}
+
+@keyframes modernSettingsBlobB {
+    0% { transform: translate3d(0, 0, 0) scale(1) rotate(0deg); }
+    100% { transform: translate3d(2.2rem, -1.4rem, 0) scale(0.94) rotate(-10deg); }
+}
+
+@media (max-width: 768px) {
+    body.modern-mode #room-settings-card.room-settings-modern .room-settings-x {
+        top: calc(0.72rem + env(safe-area-inset-top, 0px)) !important;
+        left: 0.92rem !important;
+        right: auto !important;
+    }
+
+    body.modern-mode #room-settings-card.room-settings-modern .settings-sidebar {
+        padding: calc(0.85rem + env(safe-area-inset-top, 0px)) 0.9rem 0.72rem 4.4rem !important;
+    }
+
+    .member-permissions-head {
+        flex-direction: column;
+        gap: 0.35rem;
+    }
+
+    .member-permission-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
+   Docs: Google Docs inspired workspace
+   ============================================================ */
+#docs-editor-view.docs-google-editor {
+    background:
+        radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent-color) 10%, transparent), transparent 22rem),
+        color-mix(in srgb, var(--bg-color) 94%, #eef2f7) !important;
+}
+
+.docs-file-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.72rem clamp(0.85rem, 2vw, 1.4rem);
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+    background: color-mix(in srgb, var(--bg-color) 94%, white);
+    box-shadow: 0 10px 34px -32px rgba(15, 23, 42, 0.55);
+    flex: 0 0 auto;
+    z-index: 3;
+}
+
+.docs-file-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.docs-back-btn {
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    border-radius: 14px !important;
+    display: grid !important;
+    place-items: center !important;
+}
+
+.docs-back-btn i {
+    margin: 0 !important;
+}
+
+.docs-file-icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--accent-color) 18%, var(--bg-color));
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-color) 10%, transparent);
+    font-size: 1.35rem;
+}
+
+.docs-title-stack {
+    min-width: 0;
+    display: grid;
+    gap: 0.2rem;
+}
+
+#docs-editor-view.docs-google-editor #doc-title-input {
+    width: min(520px, 100%);
+    min-height: 0;
+    margin: 0;
+    padding: 0.12rem 0.35rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-color);
+    font-size: clamp(1rem, 1.65vw, 1.25rem);
+    font-weight: 850;
+    line-height: 1.15;
+}
+
+#docs-editor-view.docs-google-editor #doc-title-input:focus {
+    border-color: color-mix(in srgb, var(--accent-color) 58%, transparent);
+    background: color-mix(in srgb, var(--bg-color) 88%, white);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 14%, transparent);
+}
+
+.docs-meta-line {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    color: #777;
+    font-size: 0.76rem;
+    font-weight: 800;
+}
+
+.docs-meta-line .doc-save-status {
+    margin: 0;
+    color: inherit;
+}
+
+.docs-meta-line .doc-collaborators {
+    max-width: min(42vw, 420px);
+}
+
+.docs-google-toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex !important;
+    gap: 0.45rem !important;
+    padding: 0.55rem clamp(0.85rem, 2vw, 1.4rem) !important;
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent) !important;
+    background: color-mix(in srgb, var(--bg-color) 88%, white) !important;
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    box-shadow: 0 14px 34px -32px rgba(15, 23, 42, 0.45);
+}
+
+.docs-menu-row {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.docs-menu-row button {
+    width: auto;
+    margin: 0;
+    padding: 0.36rem 0.58rem;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: color-mix(in srgb, var(--text-color) 74%, transparent);
+    box-shadow: none;
+    font-size: 0.78rem;
+    font-weight: 850;
+    text-transform: none;
+}
+
+.docs-menu-row button:hover,
+.docs-toolbar-menu button:hover,
+.doc-emoji-pick button:hover {
+    background: color-mix(in srgb, var(--accent-color) 18%, transparent) !important;
+    color: var(--text-color) !important;
+    transform: translateY(-1px);
+    box-shadow: none !important;
+}
+
+#docs-editor-view.docs-google-editor .docs-editor-body {
+    align-items: center;
+    max-width: none;
+    padding: clamp(1rem, 2.5vw, 2rem);
+    gap: 0;
+    background:
+        linear-gradient(90deg, color-mix(in srgb, var(--text-color) 4%, transparent) 1px, transparent 1px),
+        linear-gradient(color-mix(in srgb, var(--text-color) 3%, transparent) 1px, transparent 1px);
+    background-size: 44px 44px;
+}
+
+.docs-page-shell {
+    width: min(8.5in, 100%);
+    min-height: min(11in, 980px);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: clamp(1.1rem, 4vw, 3.25rem);
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 6px;
+    background: #fff;
+    color: #111827;
+    box-shadow:
+        0 26px 70px -48px rgba(15, 23, 42, 0.60),
+        0 1px 0 rgba(15, 23, 42, 0.04);
+}
+
+.docs-ruler {
+    height: 18px;
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 0;
+    margin: -1.1rem -0.5rem 0.15rem;
+    opacity: 0.36;
+}
+
+.docs-ruler span {
+    border-left: 1px solid #94a3b8;
+    background:
+        linear-gradient(to right, transparent calc(50% - 0.5px), #cbd5e1 calc(50% - 0.5px), #cbd5e1 calc(50% + 0.5px), transparent calc(50% + 0.5px));
+}
+
+.docs-tags-field {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    color: #6b7280;
+    font-size: 0.72rem;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#docs-editor-view.docs-google-editor #doc-tags-input {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f8fafc;
+    color: #111827;
+    font-size: 0.82rem;
+    font-weight: 750;
+}
+
+#docs-editor-view.docs-google-editor #doc-tags-input:focus {
+    border-color: color-mix(in srgb, var(--accent-color) 70%, #94a3b8);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 14%, transparent);
+}
+
+#docs-editor-view.docs-google-editor #doc-content-input {
+    flex: 1;
+    min-height: 620px;
+    padding: 0;
+    background: transparent;
+    color: #111827;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 1.02rem;
+    font-weight: 500;
+    line-height: 1.72;
+    letter-spacing: 0;
+}
+
+#docs-editor-view.docs-google-editor #doc-content-input::placeholder {
+    color: #94a3b8;
+}
+
+body.dark-mode #docs-editor-view.docs-google-editor,
+body.modern-mode #docs-editor-view.docs-google-editor,
+body.gray-mode #docs-editor-view.docs-google-editor {
+    background:
+        radial-gradient(circle at 82% 0%, color-mix(in srgb, var(--accent-color) 16%, transparent), transparent 22rem),
+        color-mix(in srgb, var(--bg-color) 86%, #111827) !important;
+}
+
+body.dark-mode .docs-file-bar,
+body.modern-mode .docs-file-bar,
+body.gray-mode .docs-file-bar,
+body.dark-mode .docs-google-toolbar,
+body.modern-mode .docs-google-toolbar,
+body.gray-mode .docs-google-toolbar {
+    background: color-mix(in srgb, var(--bg-color) 86%, #111827) !important;
+}
+
+@media (max-width: 720px) {
+    .docs-file-bar {
+        align-items: start;
+        gap: 0.55rem;
+    }
+
+    .docs-file-left {
+        align-items: start;
+    }
+
+    .docs-google-toolbar {
+        overflow-x: auto;
+        flex-wrap: nowrap !important;
+    }
+
+    .docs-menu-row,
+    .docs-toolbar-menu,
+    .doc-emoji-pick {
+        flex: 0 0 auto;
+    }
+
+    .docs-page-shell {
+        width: 100%;
+        min-height: 72vh;
+        border-radius: 18px;
+        padding: 1rem;
+    }
+
+    .docs-ruler {
+        display: none;
+    }
+
+    #docs-editor-view.docs-google-editor #doc-content-input {
+        min-height: 58vh;
+    }
+}
+
+/* ============================================================
+   Channel creation dialog
+   ============================================================ */
+.channel-action-dialog {
+    width: min(92vw, 610px) !important;
+    border: 1px solid color-mix(in srgb, var(--text-color) 18%, transparent) !important;
+    border-radius: 28px !important;
+    overflow: hidden;
+    background:
+        radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--accent-color) 18%, transparent), transparent 18rem),
+        color-mix(in srgb, var(--bg-color) 94%, #111827) !important;
+    box-shadow:
+        16px 16px 0 color-mix(in srgb, var(--accent-color) 60%, transparent),
+        0 26px 90px -42px rgba(0, 0, 0, 0.76) !important;
+    animation: channelDialogIn 320ms cubic-bezier(.16, 1, .3, 1) both;
+}
+
+.channel-action-dialog .composer-dialog-head {
+    border-bottom: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent) !important;
+    padding: 1.1rem 1.25rem !important;
+}
+
+.channel-action-dialog .composer-dialog-head h2 {
+    font-size: clamp(1.55rem, 4vw, 2rem);
+}
+
+.channel-action-dialog .composer-dialog-close {
+    border-radius: 16px !important;
+    background: color-mix(in srgb, var(--bg-color) 82%, white) !important;
+    color: var(--text-color) !important;
+    border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent) !important;
+}
+
+.channel-action-dialog .composer-dialog-fields {
+    padding: 1.15rem 1.25rem 0.35rem !important;
+}
+
+.channel-action-dialog .composer-dialog-fields input {
+    min-height: 58px;
+    border-radius: 16px !important;
+    border: 1px solid color-mix(in srgb, var(--accent-color) 48%, transparent) !important;
+    background: color-mix(in srgb, var(--bg-color) 90%, #111827) !important;
+    box-shadow:
+        inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 18%, transparent),
+        0 0 0 4px color-mix(in srgb, var(--accent-color) 10%, transparent) !important;
+}
+
+.channel-dialog-preview-card {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--text-color) 10%, transparent);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+
+.channel-dialog-hash {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 14px;
+    background: var(--accent-color);
+    color: #111;
+    font-size: 1.25rem;
+    font-weight: 950;
+}
+
+.channel-dialog-preview-card strong {
+    display: block;
+    color: var(--text-color);
+    font-size: 1.02rem;
+}
+
+.channel-dialog-preview-card small {
+    display: block;
+    margin-top: 0.15rem;
+    color: color-mix(in srgb, var(--text-color) 58%, transparent);
+    font-size: 0.78rem;
+    font-weight: 760;
+    line-height: 1.35;
+}
+
+.channel-dialog-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+}
+
+.channel-dialog-suggestions button {
+    width: auto;
+    margin: 0;
+    padding: 0.42rem 0.68rem;
+    border: 1px solid color-mix(in srgb, var(--text-color) 12%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--bg-color) 86%, white);
+    color: color-mix(in srgb, var(--text-color) 78%, transparent);
+    box-shadow: none;
+    font-size: 0.78rem;
+    font-weight: 850;
+    text-transform: none;
+}
+
+.channel-dialog-suggestions button:hover {
+    transform: translateY(-1px);
+    background: color-mix(in srgb, var(--accent-color) 22%, transparent);
+    color: var(--text-color);
+    box-shadow: none;
+}
+
+@keyframes channelDialogIn {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.965);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 520px) {
+    .channel-action-dialog {
+        width: min(94vw, 420px) !important;
+        border-radius: 24px !important;
+        box-shadow:
+            8px 8px 0 color-mix(in srgb, var(--accent-color) 55%, transparent),
+            0 22px 70px -44px rgba(0, 0, 0, 0.7) !important;
+    }
+
+    .channel-action-dialog .composer-dialog-actions {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    .channel-action-dialog .composer-dialog-actions button {
+        width: 100% !important;
+    }
+}
+
+/* ============================================================
+   Modern guided onboarding (mode chooser + spotlight tour)
+   ============================================================ */
+#welcome-tour {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    background: transparent;
+    backdrop-filter: none;
+    padding: 0;
+    display: block;
+}
+#welcome-tour.hidden { display: none !important; }
+
+.wt-root {
+    position: fixed;
+    inset: 0;
+    font-family: inherit;
+    --wt-glass: color-mix(in srgb, var(--bg-color) 78%, transparent);
+    --wt-glass-strong: color-mix(in srgb, var(--bg-color) 90%, transparent);
+    --wt-border: color-mix(in srgb, var(--text-color) 12%, transparent);
+    --wt-shadow: 0 30px 80px -34px rgba(8, 11, 20, 0.55), 0 8px 24px -14px rgba(8, 11, 20, 0.3);
+    --wt-accent-grad: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), white 18%), var(--accent-color) 52%, color-mix(in srgb, var(--accent-color), black 14%));
+    --wt-accent-soft: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    --wt-on-accent: #181206;
+}
+/* The Modern theme is purple-accented, so flip on-accent text + use its signature sheen. */
+body.modern-mode .wt-root {
+    --wt-on-accent: #ffffff;
+    --wt-accent-grad: linear-gradient(135deg, #8b5cf6, #a855f7 52%, #f59e0b);
+}
+
+/* Shared buttons */
+.wt-primary {
+    margin: 0;
+    width: auto;
+    border: 0;
+    background: var(--wt-accent-grad);
+    color: var(--wt-on-accent);
+    font-weight: 800;
+    border-radius: 13px;
+    padding: 0.78rem 1.35rem;
+    cursor: pointer;
+    box-shadow: 0 14px 32px -14px color-mix(in srgb, var(--accent-color) 72%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.34);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, filter 0.2s ease;
+}
+.wt-primary:hover { transform: translateY(-2px); filter: brightness(1.05); box-shadow: 0 20px 42px -16px color-mix(in srgb, var(--accent-color) 78%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.42); }
+.wt-primary:active { transform: translateY(0); filter: none; }
+.wt-ghost {
+    margin: 0;
+    width: auto;
+    border: 1px solid var(--wt-border);
+    background: color-mix(in srgb, var(--text-color) 5%, transparent);
+    color: color-mix(in srgb, var(--text-color) 78%, transparent);
+    font-weight: 700;
+    border-radius: 11px;
+    padding: 0.64rem 1.05rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.wt-ghost:hover { background: color-mix(in srgb, var(--text-color) 11%, transparent); color: var(--text-color); }
+
+/* Centred backdrop for the mode chooser + completion screens */
+.wt-backdrop {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background:
+        radial-gradient(120% 90% at 50% -10%, color-mix(in srgb, var(--accent-color) 14%, transparent), transparent 60%),
+        rgba(8, 10, 18, 0.5);
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+    backdrop-filter: blur(10px) saturate(130%);
+    animation: wtFade 0.3s ease;
+}
+.wt-modal {
+    width: 100%;
+    background: var(--wt-glass);
+    -webkit-backdrop-filter: blur(26px) saturate(150%);
+    backdrop-filter: blur(26px) saturate(150%);
+    border: 1px solid var(--wt-border);
+    border-radius: 26px;
+    box-shadow: var(--wt-shadow), inset 0 1px 0 color-mix(in srgb, white 55%, transparent);
+    padding: 2rem;
+    animation: wtPopIn 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wt-mode { max-width: 720px; }
+.wt-done { max-width: 460px; text-align: center; }
+.wt-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    padding: 0.38rem 0.82rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent-color) 15%, transparent);
+    color: color-mix(in srgb, var(--accent-color) 88%, var(--text-color));
+    border: 1px solid color-mix(in srgb, var(--accent-color) 32%, transparent);
+}
+.wt-modal h2 { margin: 0.9rem 0 0.4rem; font-size: 1.8rem; line-height: 1.12; letter-spacing: -0.01em; }
+.wt-sub {
+    color: color-mix(in srgb, var(--text-color) 58%, transparent);
+    font-weight: 500;
+    line-height: 1.55;
+    margin: 0 0 1.5rem;
+}
+
+/* Mode cards */
+.wt-mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.wt-mode-card {
+    position: relative;
+    overflow: hidden;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 1.3rem;
+    border-radius: 18px;
+    cursor: pointer;
+    background: color-mix(in srgb, var(--text-color) 3%, transparent);
+    border: 1px solid var(--wt-border);
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+.wt-mode-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(120% 80% at 0% 0%, var(--wt-accent-soft), transparent 58%);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+}
+.wt-mode-card > * { position: relative; z-index: 1; }
+.wt-mode-card:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--text-color) 26%, transparent); box-shadow: 0 26px 52px -30px rgba(8, 11, 20, 0.45); }
+.wt-mode-card:hover::after { opacity: 0.7; }
+.wt-mode-card.selected {
+    border-color: transparent;
+    background: color-mix(in srgb, var(--accent-color) 9%, transparent);
+    box-shadow: 0 0 0 2px var(--accent-color), 0 24px 50px -28px color-mix(in srgb, var(--accent-color) 58%, transparent);
+    transform: translateY(-2px);
+}
+.wt-mode-card.selected::after { opacity: 1; }
+.wt-mode-emoji {
+    display: inline-grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 16px;
+    font-size: 1.7rem;
+    line-height: 1;
+    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color) 22%, transparent);
+}
+.wt-mode-tag {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: color-mix(in srgb, var(--accent-color) 78%, var(--text-color));
+}
+.wt-mode-card strong { font-size: 1.2rem; letter-spacing: -0.01em; }
+.wt-mode-blurb {
+    color: color-mix(in srgb, var(--text-color) 58%, transparent);
+    font-weight: 500;
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+.wt-mode-card ul { list-style: none; margin: 0.25rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.wt-mode-card li { font-size: 0.82rem; font-weight: 600; padding-left: 1.2rem; position: relative; color: color-mix(in srgb, var(--text-color) 78%, transparent); }
+.wt-mode-card li::before { content: '✓'; position: absolute; left: 0.1rem; color: var(--accent-color); font-weight: 900; font-size: 0.78rem; }
+.wt-mode-check {
+    position: absolute;
+    top: 0.95rem;
+    right: 0.95rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--wt-accent-grad);
+    color: var(--wt-on-accent);
+    border: 0;
+    box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--accent-color) 70%, transparent);
+    font-weight: 900;
+    font-size: 0.8rem;
+    opacity: 0;
+    transform: scale(0.4) rotate(-20deg);
+    transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 2;
+}
+.wt-mode-card.selected .wt-mode-check { opacity: 1; transform: scale(1) rotate(0); }
+.wt-modal-actions { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-top: 1.5rem; }
+
+/* Completion */
+.wt-done-emoji { font-size: 3rem; line-height: 1; animation: wtPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+/* Spotlight tour */
+.wt-blocker { position: fixed; inset: 0; background: transparent; }
+.wt-spotlight {
+    position: fixed;
+    border-radius: 16px;
+    box-shadow:
+        0 0 0 1.5px color-mix(in srgb, var(--accent-color) 60%, transparent),
+        0 0 34px 6px color-mix(in srgb, var(--accent-color) 28%, transparent),
+        0 0 0 9999px color-mix(in srgb, #05070f 58%, transparent);
+    transition: top 0.5s cubic-bezier(0.22, 1, 0.36, 1), left 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        width 0.5s cubic-bezier(0.22, 1, 0.36, 1), height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    pointer-events: none;
+}
+.wt-spotlight::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 19px;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 55%, transparent);
+    animation: wtPulse 2s ease-out infinite;
+}
+
+.wt-coachmark {
+    position: fixed;
+    width: min(348px, calc(100vw - 32px));
+    background: var(--wt-glass-strong);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid var(--wt-border);
+    border-radius: 20px;
+    box-shadow: var(--wt-shadow), inset 0 1px 0 color-mix(in srgb, white 50%, transparent);
+    padding: 1.35rem;
+    z-index: 2;
+    animation: wtCoachIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wt-coach-emoji {
+    display: inline-grid;
+    place-items: center;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 14px;
+    font-size: 1.45rem;
+    line-height: 1;
+    background: color-mix(in srgb, var(--accent-color) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent-color) 22%, transparent);
+}
+.wt-coach-kicker {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: color-mix(in srgb, var(--accent-color) 75%, var(--text-color));
+    margin: 0.55rem 0 0.1rem;
+}
+.wt-coachmark h3 { margin: 0.1rem 0 0.35rem; font-size: 1.2rem; letter-spacing: -0.01em; }
+.wt-coachmark p {
+    margin: 0 0 0.95rem;
+    color: color-mix(in srgb, var(--text-color) 60%, transparent);
+    font-weight: 500;
+    line-height: 1.5;
+    font-size: 0.92rem;
+}
+.wt-coach-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.wt-coach-nav { display: flex; gap: 0.5rem; }
+
+/* Coachmark arrow that points at the highlighted element */
+.wt-coachmark::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--wt-glass-strong);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid var(--wt-border);
+    transform: rotate(45deg);
+}
+.wt-place-bottom::before { top: -8px; left: var(--wt-arrow-x, 50%); margin-left: -8px; border-right: 0; border-bottom: 0; }
+.wt-place-top::before { bottom: -8px; left: var(--wt-arrow-x, 50%); margin-left: -8px; border-left: 0; border-top: 0; }
+.wt-place-right::before { left: -8px; top: var(--wt-arrow-y, 50%); margin-top: -8px; border-top: 0; border-right: 0; }
+.wt-place-left::before { right: -8px; top: var(--wt-arrow-y, 50%); margin-top: -8px; border-bottom: 0; border-left: 0; }
+
+/* Progress dots */
+.wt-dots { display: flex; gap: 6px; margin: 0 0 1rem; }
+.wt-dot { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in srgb, var(--text-color) 20%, transparent); transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1); }
+.wt-dot.on { background: var(--wt-accent-grad); width: 22px; border-radius: 99px; }
+
+@keyframes wtFade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wtPopIn { from { opacity: 0; transform: translateY(20px) scale(0.97); filter: blur(4px); } to { opacity: 1; transform: none; filter: blur(0); } }
+@keyframes wtCoachIn { from { opacity: 0; transform: scale(0.94) translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes wtPop { from { transform: scale(0.4); } to { transform: scale(1); } }
+@keyframes wtPulse { 0% { opacity: 0.85; transform: scale(1); } 70% { opacity: 0; transform: scale(1.05); } 100% { opacity: 0; transform: scale(1.05); } }
+
+@media (max-width: 640px) {
+    .wt-mode-grid { grid-template-columns: 1fr; }
+    .wt-modal { padding: 1.4rem; }
+    .wt-modal h2 { font-size: 1.45rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wt-backdrop, .wt-modal, .wt-coachmark, .wt-mode-card, .wt-primary, .wt-spotlight, .wt-done-emoji, .wt-dot { animation: none !important; transition: none !important; }
+    .wt-spotlight::after { animation: none; }
+}
+
+/* Runtime performance controls */
+.performance-settings-root {
+    display: grid;
+    gap: 1rem;
+}
+
+.performance-hero-card,
+.performance-suggestion,
+.performance-toggle-card,
+.performance-status-card,
+.performance-diagnostics-card {
+    border: 1px solid color-mix(in srgb, var(--border-color, #d8d8d8) 72%, transparent);
+    background: color-mix(in srgb, var(--bg-color, #fff) 88%, var(--accent-color, #ffd700) 12%);
+    border-radius: 1.35rem;
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+}
+
+.performance-hero-card {
+    padding: clamp(1.2rem, 2.6vw, 2rem);
+    overflow: hidden;
+    position: relative;
+}
+
+.performance-hero-card::after {
+    content: "";
+    position: absolute;
+    inset: auto -10% -55% 35%;
+    height: 180px;
+    pointer-events: none;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent-color, #ffd700) 34%, transparent), transparent 64%);
+    opacity: 0.7;
+}
+
+.performance-kicker {
+    display: block;
+    margin-bottom: 0.45rem;
+    color: var(--muted-text, #777);
+    font-size: 0.78rem;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.performance-hero-card h3 {
+    margin: 0;
+    color: var(--text-color, #1f2430);
+    font-size: clamp(1.45rem, 3vw, 2.35rem);
+    letter-spacing: -0.04em;
+}
+
+.performance-hero-card p,
+.performance-status-card p,
+.performance-suggestion span,
+.performance-toggle-copy small {
+    color: var(--muted-text, #777);
+    line-height: 1.55;
+}
+
+.performance-toggle-list {
+    display: grid;
+    gap: 0.8rem;
+}
+
+.performance-toggle-card {
+    align-items: center;
+    appearance: none;
+    border-radius: 1.2rem;
+    color: var(--text-color, #1f2430);
+    cursor: pointer;
+    display: grid;
+    gap: 0.95rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 1rem;
+    text-align: left;
+    transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    width: 100%;
+}
+
+.performance-toggle-card:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 42px rgba(15, 23, 42, 0.12);
+}
+
+.performance-toggle-card.is-on {
+    border-color: color-mix(in srgb, var(--accent-color, #ffd700) 72%, var(--border-color, #d8d8d8));
+    background: linear-gradient(135deg, color-mix(in srgb, var(--accent-color, #ffd700) 22%, var(--bg-color, #fff)), color-mix(in srgb, var(--accent-color, #ffd700) 8%, var(--bg-color, #fff)));
+}
+
+.performance-toggle-icon {
+    align-items: center;
+    background: color-mix(in srgb, var(--accent-color, #ffd700) 20%, var(--panel-bg, #f6f6f6));
+    border-radius: 1rem;
+    color: var(--accent-color, #ffd700);
+    display: inline-flex;
+    font-size: 1.25rem;
+    height: 3rem;
+    justify-content: center;
+    width: 3rem;
+}
+
+.performance-toggle-copy {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.performance-toggle-copy strong,
+.performance-status-card strong {
+    color: var(--text-color, #1f2430);
+    font-size: 1rem;
+}
+
+.performance-switch {
+    align-items: center;
+    background: color-mix(in srgb, var(--muted-text, #777) 22%, transparent);
+    border: 1px solid color-mix(in srgb, var(--border-color, #d8d8d8) 70%, transparent);
+    border-radius: 999px;
+    display: inline-flex;
+    height: 1.75rem;
+    padding: 0.2rem;
+    transition: background 180ms ease;
+    width: 3.15rem;
+}
+
+.performance-switch span {
+    background: var(--bg-color, #fff);
+    border-radius: 50%;
+    box-shadow: 0 3px 10px rgba(15, 23, 42, 0.24);
+    display: block;
+    height: 1.28rem;
+    transform: translateX(0);
+    transition: transform 180ms ease;
+    width: 1.28rem;
+}
+
+.performance-toggle-card.is-on .performance-switch {
+    background: var(--accent-color, #ffd700);
+}
+
+.performance-toggle-card.is-on .performance-switch span {
+    transform: translateX(1.35rem);
+}
+
+.performance-suggestion {
+    align-items: center;
+    display: grid;
+    gap: 0.9rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 1rem;
+}
+
+.performance-suggestion i {
+    align-items: center;
+    background: var(--accent-color, #ffd700);
+    border-radius: 1rem;
+    color: #111827;
+    display: inline-flex;
+    font-size: 1.25rem;
+    height: 3rem;
+    justify-content: center;
+    width: 3rem;
+}
+
+.performance-suggestion button,
+.performance-diagnostics-head button {
+    background: var(--text-color, #111827);
+    border: 0;
+    border-radius: 999px;
+    color: var(--bg-color, #fff);
+    cursor: pointer;
+    font-weight: 800;
+    padding: 0.72rem 1rem;
+}
+
+.performance-status-card,
+.performance-diagnostics-card {
+    padding: 1.1rem;
+}
+
+.performance-diagnostics-head {
+    align-items: center;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+}
+
+.performance-diagnostic-row {
+    align-items: center;
+    border-top: 1px solid color-mix(in srgb, var(--border-color, #d8d8d8) 62%, transparent);
+    display: flex;
+    justify-content: space-between;
+    padding: 0.72rem 0;
+}
+
+.performance-diagnostic-row span {
+    color: var(--muted-text, #777);
+}
+
+.performance-diagnostic-row strong {
+    color: var(--text-color, #1f2430);
+}
+
+html.performance-low,
+html.performance-low body {
+    scroll-behavior: auto !important;
+}
+
+html.performance-low *,
+html.prefers-reduced-motion * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 80ms !important;
+}
+
+html.performance-low :is(.floating-orb, .particle-layer, .parallax-layer, .motion-heavy, .modern-cursor-glow, .modern-ambient, .settings-motion-line) {
+    display: none !important;
+}
+
+html.performance-low .route-loading::before {
+    animation: none !important;
+    opacity: 0 !important;
+}
+
+html.performance-low :is(#contacts-panel, #updates-panel, #vault-panel, #personal-ai-agent-panel, #settings-modal, #room-settings-card, .search-pro-shell, .wt-modal, .wt-coachmark, .settings-card, .glass-card) {
+    backdrop-filter: none !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12) !important;
+}
+
+html.performance-gpu :is(#settings-modal, #room-settings-card, #contacts-panel, #updates-panel, #vault-panel, #personal-ai-agent-panel, .search-pro-shell, .wt-modal, .wt-coachmark, .chat-message, .room-list-item, .room-tab, .settings-pane-enter, .settings-modal-enter) {
+    backface-visibility: hidden;
+    transform-style: preserve-3d;
+    will-change: transform, opacity;
+}
+
+@media (pointer: coarse) {
+    button,
+    [role="button"],
+    input,
+    select,
+    textarea {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 720px) {
+    .performance-toggle-card,
+    .performance-suggestion {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .performance-switch,
+    .performance-suggestion button {
+        grid-column: 1 / -1;
+        justify-self: start;
+    }
+
+    .performance-diagnostics-head,
+    .performance-diagnostic-row {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.35rem;
+    }
 }

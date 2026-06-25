@@ -1,0 +1,36 @@
+/* ============================================================
+   Dark theme layer
+   The final scoped pass for the utilitarian dark theme.
+   ============================================================ */
+
+body.dark-mode:not(.marketing):not(.auth-screen) {
+    --bg-color: #05070b;
+    --text-color: #f8fafc;
+    --accent-color: var(--custom-accent-color, #f59e0b);
+    --theme-panel: #0d111a;
+    --theme-panel-2: #121826;
+    --theme-line: rgba(226, 232, 240, 0.12);
+    --theme-muted: #98a2b3;
+    background:
+        radial-gradient(920px 540px at 105% -8%, color-mix(in srgb, var(--accent-color) 12%, transparent), transparent 60%),
+        #05070b;
+}
+
+body.dark-mode:not(.marketing):not(.auth-screen) nav,
+body.dark-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar,
+body.dark-mode:not(.marketing):not(.auth-screen) #active-room-header,
+body.dark-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    background:
+        radial-gradient(520px 320px at 0% -10%, color-mix(in srgb, var(--accent-color) 12%, transparent), transparent 70%),
+        linear-gradient(180deg, #101622, #080b12) !important;
+    border-color: var(--theme-line) !important;
+    color: var(--text-color) !important;
+}
+
+body.dark-mode:not(.marketing):not(.auth-screen) #main-chat-area,
+body.dark-mode:not(.marketing):not(.auth-screen) .room-view {
+    background:
+        radial-gradient(820px 500px at 100% 0%, color-mix(in srgb, var(--accent-color) 8%, transparent), transparent 62%),
+        #070a11 !important;
+}
+

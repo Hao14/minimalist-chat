@@ -12,11 +12,18 @@ function isRoomManager(roomData = {}, user) {
   return Object.keys(roomData.members || {})[0] === user.uid;
 }
 
+function permissionAllowed(roomData = {}, key, user) {
+  const overrides = user?.uid ? roomData.memberPermissions?.[user.uid] : null;
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key] !== false;
+  if (Object.prototype.hasOwnProperty.call(roomData.permissions || {}, key)) return roomData.permissions[key] !== false;
+  return true;
+}
+
 async function docsAllowed(roomId, user) {
   if (roomId === 'global') return true;
   const snapshot = await get(ref(db, `rooms_meta/${roomId}`)).catch(() => null);
   const roomData = snapshot?.val() || {};
-  return isRoomManager(roomData, user) || roomData.permissions?.docs !== false;
+  return isRoomManager(roomData, user) || permissionAllowed(roomData, 'docs', user);
 }
 
 function timestamp() {
@@ -228,9 +235,35 @@ export function Docs({ roomId, user }) {
 
   if (activeId) {
     return (
-      <div id="docs-editor-view">
-        <div className="docs-editor-bar">
-          <button type="button" className="docs-icon-btn" id="doc-back-btn" onClick={closeEditor}><i className="ph-bold ph-arrow-left" /> Back</button>
+      <div id="docs-editor-view" className="docs-google-editor">
+        <header className="docs-file-bar">
+          <div className="docs-file-left">
+            <button type="button" className="docs-icon-btn docs-back-btn" id="doc-back-btn" onClick={closeEditor} aria-label="Back to documents">
+              <i className="ph-bold ph-arrow-left" />
+            </button>
+            <span className="docs-file-icon" aria-hidden="true">{editor.emoji || '📄'}</span>
+            <div className="docs-title-stack">
+              <input id="doc-title-input" value={editor.title} onChange={(event) => editDocument('title', event.target.value)} placeholder="Untitled document" aria-label="Document title" />
+              <div className="docs-meta-line">
+                <span className="doc-save-status" id="doc-save-status">{saveStatus}</span>
+                <span className="doc-collaborators" title="Real-time co-authors">
+                  <i className="ph-bold ph-users-three" />
+                  {collaborators.length ? collaborators.map((entry) => <span key={entry.uid}>{entry.name || 'Someone'}</span>) : <span>Just you</span>}
+                </span>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="docs-icon-btn danger" id="doc-delete-btn" aria-label="Delete document" onClick={deleteDocument}><i className="ph-bold ph-trash" /></button>
+        </header>
+
+        <div className="docs-editor-bar docs-google-toolbar">
+          <div className="docs-menu-row" aria-label="Document menus">
+            <button type="button">File</button>
+            <button type="button">Edit</button>
+            <button type="button">View</button>
+            <button type="button">Insert</button>
+            <button type="button">Format</button>
+          </div>
           <div className="docs-toolbar-menu" aria-label="Toolbar menu">
             <span>Toolbar</span>
             <button type="button" onClick={() => formatSelection('bold')}><strong>B</strong></button>
@@ -253,12 +286,6 @@ export function Docs({ roomId, user }) {
           <div className="doc-emoji-pick" id="doc-emoji-pick" aria-label="Document icon">
             {emojis.map((emoji) => <button key={emoji} type="button" className={emoji === editor.emoji ? 'active' : ''} aria-label={`Use ${emoji}`} onClick={() => editDocument('emoji', emoji)}>{emoji}</button>)}
           </div>
-          <div className="doc-collaborators" title="Real-time co-authors">
-            <i className="ph-bold ph-users-three" />
-            {collaborators.length ? collaborators.map((entry) => <span key={entry.uid}>{entry.name || 'Someone'}</span>) : <span>Just you</span>}
-          </div>
-          <span className="doc-save-status" id="doc-save-status">{saveStatus}</span>
-          <button type="button" className="docs-icon-btn danger" id="doc-delete-btn" aria-label="Delete document" onClick={deleteDocument}><i className="ph-bold ph-trash" /></button>
         </div>
         {deleteConfirmOpen ? (
           <div className="docs-confirm-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingDocument) setDeleteConfirmOpen(false); }}>
@@ -279,9 +306,16 @@ export function Docs({ roomId, user }) {
           </div>
         ) : null}
         <div className="docs-editor-body">
-          <input id="doc-title-input" value={editor.title} onChange={(event) => editDocument('title', event.target.value)} placeholder="Untitled document" aria-label="Document title" />
-          <input id="doc-tags-input" value={editor.tags} onChange={(event) => editDocument('tags', event.target.value)} placeholder="Tags (comma separated)" aria-label="Document tags" />
-          <textarea id="doc-content-input" ref={contentRef} value={editor.content} onChange={(event) => editDocument('content', event.target.value)} placeholder="Start writing... everyone in the room sees changes live." aria-label="Document content" />
+          <section className="docs-page-shell" aria-label="Document page">
+            <div className="docs-ruler" aria-hidden="true">
+              {Array.from({ length: 10 }).map((_, index) => <span key={index} />)}
+            </div>
+            <label className="docs-tags-field">
+              <span>Tags</span>
+              <input id="doc-tags-input" value={editor.tags} onChange={(event) => editDocument('tags', event.target.value)} placeholder="project, notes, decisions" aria-label="Document tags" />
+            </label>
+            <textarea id="doc-content-input" ref={contentRef} value={editor.content} onChange={(event) => editDocument('content', event.target.value)} placeholder="Start writing... everyone in the room sees changes live." aria-label="Document content" />
+          </section>
         </div>
       </div>
     );

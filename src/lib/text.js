@@ -135,8 +135,8 @@ const highlightJsonCode = (escapedCode) => {
 const highlightPythonCode = (escapedCode) => {
     const marker = makeCodeMarker();
     let code = String(escapedCode)
-        .replace(/(#[^\n]*)/g, (match) => marker.mark('comment', match))
-        .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;)/g, (match) => marker.mark('string', match));
+        .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;)/g, (match) => marker.mark('string', match))
+        .replace(/(#[^\n]*)/g, (match) => marker.mark('comment', match));
 
     code = code
         .replace(/\b(async|await|break|class|continue|def|elif|else|except|False|finally|for|from|if|import|in|is|lambda|None|not|or|pass|raise|return|True|try|while|with|yield)\b/g, (match) => marker.mark('keyword', match))
@@ -162,9 +162,10 @@ export const renderMessageText = (raw) => {
     const stash = [];
     const keep = (html) => `${STASH_OPEN}${stash.push(html) - 1}${STASH_CLOSE}`;
 
-    let s = escapeHtml(raw);
+    let s = String(raw);
 
-    // Fenced code blocks ```...```
+    // Pull code out before escaping the surrounding message. This keeps code
+    // literal while avoiding entity text like &#39; being parsed as syntax.
     s = s.replace(/```([\s\S]*?)```/g, (_, block) => {
         let code = block.replace(/^\n/, '').replace(/\n$/, '');
         let language = '';
@@ -173,12 +174,18 @@ export const renderMessageText = (raw) => {
             language = normalizeCodeLanguage(languageLine[1]);
             code = languageLine[2];
         } else {
-            language = inferCodeLanguage(code);
+            language = inferCodeLanguage(escapeHtml(code));
         }
-        return keep(`<pre class="msg-codeblock language-${language}" data-lang="${language === 'text' ? 'code' : language}"><code>${highlightCode(code, language)}</code></pre>`);
+        const escapedCode = escapeHtml(code);
+        return keep(`<pre class="msg-codeblock language-${language}" data-lang="${language === 'text' ? 'code' : language}"><code>${highlightCode(escapedCode, language)}</code></pre>`);
     });
-    // Inline code `...`
-    s = s.replace(/`([^`\n]+?)`/g, (_, code) => keep(`<code class="msg-inline-code">${highlightCode(code)}</code>`));
+    s = s.replace(/`([^`\n]+?)`/g, (_, code) => {
+        const escapedCode = escapeHtml(code);
+        const language = inferCodeLanguage(escapedCode);
+        return keep(`<code class="msg-inline-code language-${language}" data-lang="${language === 'text' ? 'code' : language}">${highlightCode(escapedCode, language)}</code>`);
+    });
+
+    s = escapeHtml(s);
 
     // Emphasis
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');

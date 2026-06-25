@@ -1,0 +1,30 @@
+/* ============================================================
+   Gray theme layer
+   The final scoped pass for neutral monochrome mode.
+   ============================================================ */
+
+body.gray-mode:not(.marketing):not(.auth-screen) {
+    --bg-color: #242424;
+    --text-color: #ececec;
+    --accent-color: var(--custom-accent-color, #6b7280);
+    --theme-panel: #2b2b2b;
+    --theme-panel-2: #343434;
+    --theme-line: rgba(255, 255, 255, 0.13);
+    --theme-muted: #b6b6b6;
+    background: #242424;
+}
+
+body.gray-mode:not(.marketing):not(.auth-screen) nav,
+body.gray-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar,
+body.gray-mode:not(.marketing):not(.auth-screen) #active-room-header,
+body.gray-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    background: linear-gradient(180deg, #2f2f2f, #242424) !important;
+    border-color: var(--theme-line) !important;
+    color: var(--text-color) !important;
+}
+
+body.gray-mode:not(.marketing):not(.auth-screen) #main-chat-area,
+body.gray-mode:not(.marketing):not(.auth-screen) .room-view {
+    background: #262626 !important;
+}
+

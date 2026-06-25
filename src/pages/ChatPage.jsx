@@ -1,4 +1,5 @@
 import { Fragment, createElement, useEffect } from 'react';
+import { initModernThemeMotion } from '../features/shell/modernThemeMotion.js';
 
 const h = createElement;
 
@@ -341,18 +342,6 @@ function renderChatShell() {
           "button",
           {
             className: "rail-icon auth-only hidden",
-            id: "open-bookmarks-btn",
-            title: "Saved",
-          },
-          h("i", {
-              className: "ph-bold ph-bookmark-simple",
-            })
-        ),
-        "\n            ",
-        h(
-          "button",
-          {
-            className: "rail-icon auth-only hidden",
             id: "open-search-btn",
             title: "Search",
           },
@@ -486,46 +475,6 @@ function renderChatShell() {
           "\n            "
         ),
         "\n        "
-      ),
-      "\n    "
-    ),
-    "\n    \n    ",
-    h(
-      "div",
-      {
-        className: "container fade-in-up app-screen hidden",
-        id: "profile-setup-container",
-      },
-      "\n        ",
-      h(
-        "h1",
-        null,
-        "Who are ",
-        h(
-          "span",
-          null,
-          "you?"
-        )
-      ),
-      "\n        ",
-      h("input", {
-          type: "text",
-          id: "new-display-name",
-          placeholder: "Enter your display name",
-        }),
-      "\n        ",
-      h("input", {
-          type: "url",
-          id: "new-photo-url",
-          placeholder: "Image URL (Leave blank for auto)",
-        }),
-      "\n        ",
-      h(
-        "button",
-        {
-          id: "save-new-profile-btn",
-        },
-        "Enter Chat"
       ),
       "\n    "
     ),
@@ -2482,6 +2431,15 @@ function renderChatShell() {
           "div",
           {
             className: "settings-tab",
+            id: "tab-btn-performance",
+          },
+          "Performance"
+        ),
+        "\n            ",
+        h(
+          "div",
+          {
+            className: "settings-tab",
             id: "tab-btn-notifications",
           },
           "Notifications"
@@ -3535,6 +3493,22 @@ function renderChatShell() {
           "div",
           {
             className: "settings-pane hidden",
+            id: "pane-performance",
+          },
+          "\n                ",
+          h("h2", null, "Performance"),
+          "\n                ",
+          h("div", {
+            className: "performance-settings-root",
+            id: "performance-settings-root",
+          }),
+          "\n            "
+        ),
+        "\n            \n            ",
+        h(
+          "div",
+          {
+            className: "settings-pane hidden",
             id: "pane-app",
           },
           "\n                ",
@@ -4457,6 +4431,17 @@ function renderChatShell() {
             "div",
             {
               className: "settings-tab active",
+              id: "rs-tab-overview",
+              style: { padding: "0.6rem", fontSize: "0.9rem" },
+            },
+            h("i", { className: "ph-bold ph-squares-four" }),
+            h("span", null, "Overview")
+          ),
+          "\n                ",
+          h(
+            "div",
+            {
+              className: "settings-tab",
               id: "rs-tab-members",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
             },
@@ -4569,7 +4554,7 @@ function renderChatShell() {
           h(
             "div",
             {
-              id: "rs-pane-members",
+              id: "rs-pane-overview",
               className: "rs-pane",
             },
             "\n                    ",
@@ -4799,6 +4784,15 @@ function renderChatShell() {
               ),
               "\n                    "
             ),
+            "\n                "
+          ),
+          "\n\n                ",
+          h(
+            "div",
+            {
+              id: "rs-pane-members",
+              className: "rs-pane hidden",
+            },
             "\n                    ",
             h(
               "h2",
@@ -4812,6 +4806,41 @@ function renderChatShell() {
                 id: "rs-members-list",
                 style: { listStyle: "none", padding: "0", display: "flex", flexDirection: "column", gap: "0.5rem" },
               }),
+            "\n                    ",
+            h(
+              "section",
+              {
+                className: "member-permissions-card",
+              },
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "member-permissions-head",
+                },
+                h(
+                  "div",
+                  null,
+                  h("p", { className: "rs-mini-kicker" }, "User overrides"),
+                  h("h3", null, "Individual user permissions")
+                ),
+                h("span", null, "Inherit, allow, or deny per member")
+              ),
+              "\n                        ",
+              h(
+                "p",
+                {
+                  className: "member-permissions-copy",
+                },
+                "Room permissions set the default. User overrides let you make exceptions for specific members without changing the whole room."
+              ),
+              "\n                        ",
+              h("div", {
+                id: "rs-member-permissions-list",
+                className: "member-permissions-list",
+              }),
+              "\n                    "
+            ),
             "\n                "
           ),
           "\n\n                ",
@@ -5942,5 +5971,6 @@ function renderChatShell() {
 export default function ChatPage() {
   useChatBoot();
   useRoomNavMotion();
+  useEffect(() => initModernThemeMotion(), []);
   return h('div', { className: 'react-page chat-react-page' }, renderChatShell());
 }

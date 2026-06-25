@@ -1,0 +1,1625 @@
+/* ============================================================
+   Modern theme layer
+   Final theme pass: dark navigation chrome + light room canvas.
+   Panels are separated with soft gradients instead of hard blocks.
+   ============================================================ */
+
+body.modern-mode:not(.marketing):not(.auth-screen) {
+    --bg-color: #f7f5ff;
+    --text-color: #151827;
+    --accent-color: var(--custom-accent-color, #8b5cf6);
+    --modern-purple: #8b5cf6;
+    --modern-violet: #a855f7;
+    --modern-amber: #f59e0b;
+    --modern-ink: #151827;
+    --modern-muted: #667085;
+    --modern-light: #fbfaff;
+    --modern-light-2: #f3f0ff;
+    --modern-card: rgba(255, 255, 255, 0.82);
+    --modern-card-solid: #ffffff;
+    --modern-line: rgba(31, 41, 55, 0.10);
+    --modern-line-strong: rgba(31, 41, 55, 0.16);
+    --modern-nav: #101522;
+    --modern-nav-2: #171b2d;
+    --modern-nav-3: #211b38;
+    --modern-nav-ink: rgba(248, 250, 252, 0.96);
+    --modern-nav-muted: rgba(226, 232, 240, 0.62);
+    --modern-radius: 22px;
+    --modern-shadow-soft: 0 18px 60px -42px rgba(76, 29, 149, 0.34);
+    --modern-shadow-card: 0 22px 58px -44px rgba(17, 24, 39, 0.38), 0 1px 0 rgba(255,255,255,0.84) inset;
+    background:
+        radial-gradient(900px 520px at 102% -8%, rgba(139, 92, 246, 0.14), transparent 60%),
+        radial-gradient(720px 460px at -12% 108%, rgba(245, 158, 11, 0.10), transparent 58%),
+        linear-gradient(180deg, #fbfaff 0%, #f7f5ff 46%, #ffffff 100%) !important;
+    color: var(--modern-ink) !important;
+}
+
+/* Modern app chrome: dark, consistent, and intentionally separate from chat. */
+body.modern-mode:not(.marketing):not(.auth-screen) nav,
+body.modern-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar,
+body.modern-mode:not(.marketing):not(.auth-screen) #active-room-header,
+body.modern-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    color: var(--modern-nav-ink) !important;
+    border-color: rgba(226, 232, 240, 0.12) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) nav {
+    background:
+        radial-gradient(360px 460px at 50% -8%, rgba(139, 92, 246, 0.34), transparent 72%),
+        linear-gradient(180deg, #15182a 0%, #0a0f1c 100%) !important;
+    box-shadow: inset -1px 0 0 rgba(226, 232, 240, 0.08) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar {
+    background:
+        radial-gradient(420px 420px at 10% 0%, rgba(139, 92, 246, 0.22), transparent 70%),
+        radial-gradient(360px 360px at 100% 100%, rgba(245, 158, 11, 0.10), transparent 72%),
+        linear-gradient(180deg, #171b2d 0%, #0e1422 100%) !important;
+    border-right: 1px solid rgba(226, 232, 240, 0.10) !important;
+    box-shadow: 18px 0 54px -46px rgba(15, 23, 42, 0.90) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #active-room-header {
+    background:
+        radial-gradient(560px 160px at 18% 0%, rgba(139, 92, 246, 0.24), transparent 68%),
+        linear-gradient(90deg, #171b2d 0%, #101625 58%, #201936 100%) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.12) !important;
+    box-shadow: 0 18px 54px -42px rgba(15, 23, 42, 0.72) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    background:
+        radial-gradient(circle at var(--room-nav-active-center, 120px) 0%, rgba(139, 92, 246, 0.30), transparent 11rem),
+        linear-gradient(90deg, #202335 0%, #171c2d 50%, #121827 100%) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.12) !important;
+}
+
+body.modern-mode #nav-logo .mascot-blip {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    border-color: rgba(255, 255, 255, 0.88) !important;
+    box-shadow: 0 16px 34px -22px rgba(139, 92, 246, 0.95) !important;
+}
+
+body.modern-mode .rail-icon,
+body.modern-mode nav a,
+body.modern-mode nav button,
+body.modern-mode #desktop-room-sidebar .sidebar-header h3,
+body.modern-mode #active-room-name-display,
+body.modern-mode #room-name-wrapper,
+body.modern-mode #room-name-wrapper i,
+body.modern-mode #toggle-room-search-btn {
+    color: var(--modern-nav-ink) !important;
+}
+
+body.modern-mode .rail-icon {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    opacity: 0.78;
+}
+
+body.modern-mode .rail-icon:hover,
+body.modern-mode .rail-icon.active {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #ffffff !important;
+    transform: translateY(-1px) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-preview,
+body.modern-mode #desktop-room-sidebar .room-meta,
+body.modern-mode #desktop-room-sidebar .room-copy,
+body.modern-mode #room-sub-nav .room-tab {
+    color: var(--modern-nav-muted) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .sidebar-header {
+    background: transparent !important;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.10) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    color: var(--modern-nav-ink) !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item:hover {
+    background: rgba(255, 255, 255, 0.055) !important;
+    border-color: rgba(226, 232, 240, 0.10) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item.active {
+    background:
+        linear-gradient(135deg, rgba(139, 92, 246, 0.22), rgba(245, 158, 11, 0.08)),
+        rgba(255, 255, 255, 0.055) !important;
+    border-color: rgba(167, 139, 250, 0.34) !important;
+    box-shadow:
+        inset 3px 0 0 var(--modern-purple),
+        0 18px 44px -34px rgba(8, 13, 24, 0.92) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-name {
+    color: var(--modern-nav-ink) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-action-icon,
+body.modern-mode #desktop-room-sidebar .room-collapse-btn,
+body.modern-mode #room-add-page-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--modern-nav-ink) !important;
+    border-color: rgba(226, 232, 240, 0.14) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-action-icon:hover,
+body.modern-mode #desktop-room-sidebar .room-collapse-btn:hover,
+body.modern-mode #room-add-page-btn:hover {
+    background: rgba(139, 92, 246, 0.20) !important;
+    border-color: rgba(167, 139, 250, 0.36) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #desktop-room-sidebar .sidebar-actions {
+    background:
+        linear-gradient(180deg, rgba(14, 20, 34, 0.54), rgba(10, 15, 28, 0.92)) !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.10) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-action-btn.btn-dark {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #ffffff !important;
+    border-color: rgba(216, 180, 254, 0.36) !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-action-btn.btn-light {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: var(--modern-nav-ink) !important;
+    border-color: rgba(226, 232, 240, 0.12) !important;
+}
+
+/* Modern room tabs */
+body.modern-mode #room-sub-nav .room-tab {
+    background: transparent !important;
+    border-color: transparent !important;
+    color: var(--modern-nav-muted) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(226, 232, 240, 0.10) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab.active {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    border-color: rgba(216, 180, 254, 0.42) !important;
+    color: #ffffff !important;
+    box-shadow:
+        0 16px 38px -24px rgba(139, 92, 246, 0.86),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab.active i,
+body.modern-mode #room-sub-nav .room-tab.active span {
+    color: #ffffff !important;
+}
+
+/* Light chat/content canvas */
+body.modern-mode #main-chat-area {
+    background:
+        radial-gradient(760px 420px at 96% 8%, rgba(139, 92, 246, 0.10), transparent 60%),
+        radial-gradient(640px 380px at 0% 100%, rgba(245, 158, 11, 0.08), transparent 64%),
+        linear-gradient(180deg, #fbfaff 0%, #f7f5ff 100%) !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .room-view,
+body.modern-mode #room-view-chat,
+body.modern-mode #room-view-home,
+body.modern-mode #room-view-docs,
+body.modern-mode #room-view-whiteboard,
+body.modern-mode #room-view-tasks,
+body.modern-mode #room-view-events,
+body.modern-mode #room-view-calendar,
+body.modern-mode #room-view-ai,
+body.modern-mode #room-view-calls {
+    background: transparent !important;
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode #messages {
+    background:
+        linear-gradient(90deg, rgba(139, 92, 246, 0.045), transparent 28%, rgba(245, 158, 11, 0.045)),
+        transparent !important;
+}
+
+body.modern-mode #messages li,
+body.modern-mode #pm-messages li {
+    background: rgba(255, 255, 255, 0.86) !important;
+    color: var(--modern-ink) !important;
+    border: 1px solid rgba(31, 41, 55, 0.10) !important;
+    box-shadow: 0 16px 38px -30px rgba(17, 24, 39, 0.38) !important;
+}
+
+body.modern-mode #messages li.my-message,
+body.modern-mode #pm-messages li.my-pm {
+    background:
+        linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(245, 158, 11, 0.10)),
+        rgba(255, 255, 255, 0.92) !important;
+    color: var(--modern-ink) !important;
+    border-color: rgba(139, 92, 246, 0.26) !important;
+}
+
+body.modern-mode #chat-form,
+body.modern-mode .smart-replies,
+body.modern-mode #active-reply-box {
+    background: rgba(255, 255, 255, 0.82) !important;
+    color: var(--modern-ink) !important;
+    border-color: rgba(31, 41, 55, 0.10) !important;
+    backdrop-filter: blur(18px) saturate(1.18);
+    -webkit-backdrop-filter: blur(18px) saturate(1.18);
+}
+
+body.modern-mode .composer-input-row,
+body.modern-mode #chat-form textarea#message-input,
+body.modern-mode input,
+body.modern-mode textarea,
+body.modern-mode select {
+    background: rgba(255, 255, 255, 0.88) !important;
+    color: var(--modern-ink) !important;
+    border-color: rgba(31, 41, 55, 0.12) !important;
+}
+
+body.modern-mode .composer-send-btn,
+body.modern-mode #mobile-send-btn,
+body.modern-mode #docs-new-btn,
+body.modern-mode .rh-add-btn,
+body.modern-mode .cal-add-btn,
+body.modern-mode .ev-page-primary,
+body.modern-mode .vault-action-primary {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #ffffff !important;
+    border-color: rgba(139, 92, 246, 0.36) !important;
+    box-shadow: 0 16px 34px -24px rgba(139, 92, 246, 0.85) !important;
+}
+
+/* Cards and feature panels get light surfaces with varied gradient corners. */
+body.modern-mode .rh-stat,
+body.modern-mode .rh-panel,
+body.modern-mode .rh-resource-box,
+body.modern-mode .rh-event,
+body.modern-mode .doc-card,
+body.modern-mode .docs-google-editor,
+body.modern-mode .task-column,
+body.modern-mode .event-card,
+body.modern-mode .cal-connect-banner,
+body.modern-mode .call-card,
+body.modern-mode .vault-card,
+body.modern-mode .vault-library,
+body.modern-mode .settings-card,
+body.modern-mode #settings-modal.brutalist-settings,
+body.modern-mode #room-settings-card,
+body.modern-mode #contacts-panel,
+body.modern-mode #updates-panel,
+body.modern-mode #personal-ai-agent-panel,
+body.modern-mode #vault-panel,
+body.modern-mode #search-modal .search-box {
+    background:
+        radial-gradient(520px 260px at 100% 0%, rgba(139, 92, 246, 0.08), transparent 70%),
+        radial-gradient(420px 260px at 0% 100%, rgba(245, 158, 11, 0.065), transparent 70%),
+        rgba(255, 255, 255, 0.88) !important;
+    color: var(--modern-ink) !important;
+    border-color: rgba(31, 41, 55, 0.10) !important;
+    box-shadow: var(--modern-shadow-card) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings .settings-sidebar,
+body.modern-mode #room-settings-card .settings-sidebar,
+body.modern-mode #room-settings-card .rs-sidebar {
+    background:
+        radial-gradient(420px 320px at 0% 0%, rgba(139, 92, 246, 0.10), transparent 70%),
+        #fbfaff !important;
+    color: var(--modern-ink) !important;
+    border-color: rgba(31, 41, 55, 0.10) !important;
+}
+
+body.modern-mode .settings-sidebar button,
+body.modern-mode .rs-sidebar button,
+body.modern-mode .updates-tabs button,
+body.modern-mode .vault-filter,
+body.modern-mode .docs-filter-chip {
+    color: var(--modern-ink) !important;
+}
+
+body.modern-mode .settings-sidebar button.active,
+body.modern-mode .rs-sidebar button.active,
+body.modern-mode .updates-tabs button.active,
+body.modern-mode .vault-filter.active,
+body.modern-mode .docs-filter-chip.active {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.18), rgba(245, 158, 11, 0.08)) !important;
+    color: var(--modern-ink) !important;
+    border-color: rgba(139, 92, 246, 0.26) !important;
+}
+
+body.modern-mode .tier-badge.advanced,
+body.modern-mode #active-room-tag {
+    background: linear-gradient(135deg, #8b5cf6, #a855f7) !important;
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.32) !important;
+}
+
+body.modern-mode .tier-badge.public,
+body.modern-mode #active-room-tag.public {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
+    color: #111827 !important;
+}
+
+body.modern-mode .msg-codeblock,
+body.modern-mode pre,
+body.modern-mode code {
+    border-color: rgba(139, 92, 246, 0.18) !important;
+}
+
+@media (max-width: 768px) {
+    body.modern-mode #active-room-header,
+    body.modern-mode #room-sub-nav {
+        background:
+            radial-gradient(420px 140px at 20% 0%, rgba(139, 92, 246, 0.24), transparent 70%),
+            linear-gradient(90deg, #171b2d, #101625) !important;
+    }
+
+    body.modern-mode #mobile-nav-links.mobile-only {
+        background:
+            linear-gradient(180deg, rgba(17, 21, 34, 0.98), rgba(10, 15, 28, 0.98)) !important;
+        border-top: 1px solid rgba(226, 232, 240, 0.12) !important;
+    }
+}
+
+/* ============================================================
+   Modern signature pass
+   Dark accent chrome + light canvas + JS-driven aurora motion.
+   This section intentionally only targets .modern-mode.
+   ============================================================ */
+
+body.modern-mode:not(.marketing):not(.auth-screen) {
+    --modern-bg: #f7f4ff;
+    --modern-bg-soft: #fcfbff;
+    --modern-canvas: rgba(255, 255, 255, 0.92);
+    --modern-canvas-strong: #ffffff;
+    --modern-text: #131722;
+    --modern-subtext: #687083;
+    --modern-dark: #080d18;
+    --modern-dark-2: #111827;
+    --modern-dark-3: #1a1730;
+    --modern-purple: #8b5cf6;
+    --modern-purple-2: #a855f7;
+    --modern-indigo: #6366f1;
+    --modern-amber: #f59e0b;
+    --modern-amber-2: #fbbf24;
+    --modern-cyan: #22d3ee;
+    --modern-border: rgba(99, 102, 241, 0.14);
+    --modern-border-strong: rgba(139, 92, 246, 0.24);
+    --modern-dark-border: rgba(226, 232, 240, 0.13);
+    --modern-panel-shadow: 0 28px 76px -58px rgba(31, 41, 55, 0.55), 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+    --modern-pop-shadow: 0 24px 54px -36px rgba(99, 102, 241, 0.58);
+    accent-color: var(--modern-purple);
+    background:
+        radial-gradient(900px 580px at var(--modern-pointer-x-pct, 70%) var(--modern-pointer-y-pct, 8%), rgba(139, 92, 246, 0.16), transparent 62%),
+        radial-gradient(780px 520px at 2% 104%, rgba(245, 158, 11, 0.12), transparent 58%),
+        linear-gradient(135deg, #fcfbff 0%, #f6f2ff 42%, #ffffff 100%) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen).modern-motion-ready {
+    cursor: default;
+}
+
+body.modern-mode .react-page.chat-react-page {
+    position: relative;
+    isolation: isolate;
+    background:
+        radial-gradient(820px 520px at var(--modern-pointer-x-pct, 74%) var(--modern-pointer-y-pct, 18%), rgba(139, 92, 246, 0.14), transparent 62%),
+        linear-gradient(135deg, #fbfaff 0%, #f6f2ff 45%, #ffffff 100%) !important;
+}
+
+body.modern-mode .react-page.chat-react-page::before,
+body.modern-mode .react-page.chat-react-page::after {
+    content: "";
+    position: fixed;
+    inset: -22vmax;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.48;
+    filter: blur(34px) saturate(1.16);
+    transform: translate3d(
+        calc(var(--modern-tilt-x, 0) * -14px),
+        calc(var(--modern-tilt-y, 0) * -12px),
+        0
+    ) rotate(var(--modern-aurora-angle, 0deg));
+    transition: transform 160ms linear;
+}
+
+body.modern-mode .react-page.chat-react-page::before {
+    background:
+        conic-gradient(from 0deg at 48% 44%,
+            rgba(139, 92, 246, 0.00),
+            rgba(139, 92, 246, 0.18),
+            rgba(34, 211, 238, 0.10),
+            rgba(245, 158, 11, 0.13),
+            rgba(139, 92, 246, 0.00));
+    mix-blend-mode: multiply;
+}
+
+body.modern-mode .react-page.chat-react-page::after {
+    inset: auto -10vw -20vh 36vw;
+    width: 46vw;
+    height: 46vw;
+    min-width: 520px;
+    min-height: 520px;
+    border-radius: 999px;
+    background:
+        radial-gradient(circle, rgba(168, 85, 247, 0.14), transparent 62%),
+        radial-gradient(circle at 72% 24%, rgba(245, 158, 11, 0.14), transparent 52%);
+    mix-blend-mode: multiply;
+}
+
+body.modern-mode .react-page.chat-react-page > * {
+    position: relative;
+    z-index: 1;
+}
+
+body.modern-mode nav,
+body.modern-mode #desktop-room-sidebar,
+body.modern-mode #active-room-header,
+body.modern-mode #room-sub-nav,
+body.modern-mode #mobile-nav-links.mobile-only {
+    background-color: var(--modern-dark) !important;
+    color: #f8fafc !important;
+}
+
+body.modern-mode nav {
+    background:
+        radial-gradient(340px 440px at 54% 0%, rgba(139, 92, 246, 0.42), transparent 72%),
+        linear-gradient(180deg, #19162b 0%, #0d1422 46%, #070b13 100%) !important;
+    box-shadow:
+        inset -1px 0 0 rgba(255, 255, 255, 0.08),
+        16px 0 42px -34px rgba(8, 13, 24, 0.88) !important;
+}
+
+body.modern-mode nav::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        radial-gradient(110px 140px at 50% var(--modern-pointer-y-pct, 20%), rgba(255, 255, 255, 0.10), transparent 72%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 28%);
+    opacity: calc(0.38 + var(--modern-pulse, 0.35) * 0.22);
+}
+
+body.modern-mode #desktop-room-sidebar {
+    background:
+        radial-gradient(460px 360px at 0% 0%, rgba(139, 92, 246, 0.28), transparent 76%),
+        radial-gradient(420px 420px at 100% 108%, rgba(245, 158, 11, 0.11), transparent 76%),
+        linear-gradient(180deg, #1a1f33 0%, #0d1422 46%, #080d18 100%) !important;
+    box-shadow:
+        inset -1px 0 0 rgba(255, 255, 255, 0.08),
+        30px 0 82px -70px rgba(8, 13, 24, 1) !important;
+}
+
+body.modern-mode #active-room-header {
+    background:
+        radial-gradient(520px 160px at var(--modern-pointer-x-pct, 28%) 0%, rgba(139, 92, 246, 0.25), transparent 68%),
+        linear-gradient(90deg, #171b2d 0%, #101827 54%, #201936 100%) !important;
+    color: #f8fafc !important;
+}
+
+body.modern-mode #active-room-name-display,
+body.modern-mode #room-name-wrapper {
+    color: #f8fafc !important;
+    text-shadow: 0 1px 18px rgba(139, 92, 246, 0.18);
+}
+
+body.modern-mode #active-room-tag,
+body.modern-mode .room-privacy-badge,
+body.modern-mode .tier-badge {
+    border-radius: 999px !important;
+    box-shadow: 0 10px 26px -18px rgba(0, 0, 0, 0.78), inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+body.modern-mode #active-room-tag.private,
+body.modern-mode .room-privacy-badge.private {
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #ffffff !important;
+}
+
+body.modern-mode #active-room-tag.public,
+body.modern-mode .room-privacy-badge.public {
+    background: linear-gradient(135deg, var(--modern-amber), var(--modern-amber-2)) !important;
+    color: #111827 !important;
+}
+
+body.modern-mode #room-sub-nav {
+    background:
+        radial-gradient(360px 150px at var(--room-nav-active-center, 160px) 0%, rgba(139, 92, 246, 0.42), transparent 72%),
+        radial-gradient(180px 90px at var(--modern-tab-pointer-x, -120px) var(--modern-tab-pointer-y, 50%), rgba(255, 255, 255, 0.11), transparent 76%),
+        linear-gradient(90deg, #252635 0%, #191f2f 46%, #111827 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 48px -42px rgba(8, 13, 24, 0.94) !important;
+}
+
+body.modern-mode #room-sub-nav::before {
+    opacity: 0.82 !important;
+    background:
+        linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.42), rgba(245, 158, 11, 0.22), transparent) !important;
+    transform:
+        translateX(calc(var(--room-nav-indicator-x, 0px) + (var(--room-nav-indicator-w, 60px) * 0.15)))
+        scaleX(0.72) !important;
+    transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 240ms ease !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab {
+    border-radius: 14px !important;
+    transition:
+        color 180ms ease,
+        background 220ms ease,
+        border-color 220ms ease,
+        transform 320ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 320ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab:hover {
+    transform: translateY(-2px) scale(1.015) !important;
+}
+
+body.modern-mode #room-sub-nav .room-tab.active {
+    transform: translateY(-2px) !important;
+    background:
+        radial-gradient(120px 90px at 20% 0%, rgba(255, 255, 255, 0.22), transparent 70%),
+        linear-gradient(135deg, #7c3aed, #a855f7 58%, #f59e0b 160%) !important;
+    box-shadow:
+        0 18px 38px -24px rgba(139, 92, 246, 0.95),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+body.modern-mode #main-chat-area {
+    position: relative;
+    overflow: hidden;
+    background:
+        radial-gradient(780px 460px at var(--modern-pointer-x-pct, 84%) var(--modern-pointer-y-pct, 8%), rgba(139, 92, 246, 0.11), transparent 64%),
+        radial-gradient(680px 460px at 8% 104%, rgba(245, 158, 11, 0.085), transparent 64%),
+        linear-gradient(180deg, #fbfaff 0%, #f7f4ff 52%, #ffffff 100%) !important;
+    color: var(--modern-text) !important;
+}
+
+body.modern-mode #main-chat-area::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+        linear-gradient(rgba(139, 92, 246, 0.055) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139, 92, 246, 0.045) 1px, transparent 1px);
+    background-size: 52px 52px;
+    mask-image: radial-gradient(circle at var(--modern-pointer-x-pct, 74%) var(--modern-pointer-y-pct, 20%), rgba(0, 0, 0, 0.62), transparent 62%);
+    opacity: 0.72;
+    transform: translate3d(calc(var(--modern-tilt-x, 0) * 6px), calc(var(--modern-tilt-y, 0) * 4px), 0);
+    transition: transform 160ms linear;
+}
+
+body.modern-mode #main-chat-area > * {
+    position: relative;
+    z-index: 1;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item,
+body.modern-mode #desktop-room-sidebar .room-action-btn,
+body.modern-mode .rail-icon,
+body.modern-mode .rh-stat,
+body.modern-mode .rh-panel,
+body.modern-mode .doc-card,
+body.modern-mode .event-card,
+body.modern-mode .task-column,
+body.modern-mode .vault-card,
+body.modern-mode .vault-library,
+body.modern-mode .settings-card,
+body.modern-mode #settings-modal.brutalist-settings,
+body.modern-mode #room-settings-card {
+    transition:
+        transform 360ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 360ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 240ms ease,
+        background 240ms ease,
+        opacity 240ms ease !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item:hover,
+body.modern-mode .rh-stat:hover,
+body.modern-mode .rh-panel:hover,
+body.modern-mode .doc-card:hover,
+body.modern-mode .event-card:hover,
+body.modern-mode .task-column:hover,
+body.modern-mode .vault-card:hover,
+body.modern-mode .vault-library:hover {
+    transform: translateY(-3px) !important;
+    box-shadow: 0 30px 70px -50px rgba(99, 102, 241, 0.62), 0 1px 0 rgba(255, 255, 255, 0.72) inset !important;
+}
+
+body.modern-mode #desktop-room-sidebar .room-item.active {
+    background:
+        radial-gradient(160px 120px at 16% 18%, rgba(255, 255, 255, 0.12), transparent 70%),
+        linear-gradient(135deg, rgba(139, 92, 246, 0.30), rgba(245, 158, 11, 0.14)),
+        rgba(255, 255, 255, 0.065) !important;
+    border-color: rgba(168, 85, 247, 0.46) !important;
+    box-shadow:
+        inset 4px 0 0 #a855f7,
+        0 22px 48px -34px rgba(8, 13, 24, 0.94),
+        0 0 0 1px rgba(255, 255, 255, 0.04) inset !important;
+}
+
+body.modern-mode .room-avatar,
+body.modern-mode .collapsed-room-icon,
+body.modern-mode .global-room-icon {
+    box-shadow:
+        0 14px 30px -22px rgba(139, 92, 246, 0.92),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+}
+
+body.modern-mode .room-item-favorite,
+body.modern-mode .room-favorite-icon {
+    filter: drop-shadow(0 0 10px rgba(168, 85, 247, 0.45));
+}
+
+body.modern-mode .rh-stat,
+body.modern-mode .rh-panel,
+body.modern-mode .rh-resource-box,
+body.modern-mode .rh-event,
+body.modern-mode .doc-card,
+body.modern-mode .docs-google-editor,
+body.modern-mode .task-column,
+body.modern-mode .event-card,
+body.modern-mode .cal-connect-banner,
+body.modern-mode .call-card,
+body.modern-mode .vault-card,
+body.modern-mode .vault-library,
+body.modern-mode #contacts-panel,
+body.modern-mode #updates-panel,
+body.modern-mode #personal-ai-agent-panel,
+body.modern-mode #search-modal .search-box {
+    background:
+        radial-gradient(480px 280px at 100% 0%, rgba(139, 92, 246, 0.09), transparent 70%),
+        radial-gradient(420px 260px at 0% 100%, rgba(245, 158, 11, 0.07), transparent 72%),
+        rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid var(--modern-border) !important;
+    color: var(--modern-text) !important;
+    box-shadow: var(--modern-panel-shadow) !important;
+    backdrop-filter: blur(18px) saturate(1.08);
+    -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+body.modern-mode #messages li,
+body.modern-mode #pm-messages li {
+    background:
+        radial-gradient(220px 140px at 0% 0%, rgba(139, 92, 246, 0.075), transparent 76%),
+        var(--modern-canvas-strong) !important;
+    border: 1px solid rgba(99, 102, 241, 0.13) !important;
+    color: var(--modern-text) !important;
+    box-shadow: 0 18px 40px -32px rgba(31, 41, 55, 0.48) !important;
+}
+
+body.modern-mode #messages li.my-message,
+body.modern-mode #pm-messages li.my-pm {
+    background:
+        radial-gradient(180px 120px at 0% 0%, rgba(255, 255, 255, 0.24), transparent 72%),
+        linear-gradient(135deg, rgba(139, 92, 246, 0.20), rgba(245, 158, 11, 0.12)),
+        rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(139, 92, 246, 0.30) !important;
+}
+
+body.modern-mode #chat-form,
+body.modern-mode .composer-input-row,
+body.modern-mode .smart-replies,
+body.modern-mode #active-reply-box {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 248, 255, 0.88)) !important;
+    border-color: rgba(99, 102, 241, 0.14) !important;
+    box-shadow: 0 -18px 54px -48px rgba(17, 24, 39, 0.62) !important;
+}
+
+body.modern-mode #chat-form textarea#message-input,
+body.modern-mode .composer-input-row textarea,
+body.modern-mode .composer-input-row input,
+body.modern-mode input,
+body.modern-mode textarea,
+body.modern-mode select {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: var(--modern-text) !important;
+    border-color: rgba(99, 102, 241, 0.16) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76) !important;
+}
+
+body.modern-mode .composer-send-btn,
+body.modern-mode #mobile-send-btn,
+body.modern-mode #docs-new-btn,
+body.modern-mode .rh-add-btn,
+body.modern-mode .cal-add-btn,
+body.modern-mode .ev-page-primary,
+body.modern-mode .vault-action-primary,
+body.modern-mode .action-btn.primary,
+body.modern-mode .btn-primary {
+    background:
+        radial-gradient(120px 80px at 20% 0%, rgba(255, 255, 255, 0.22), transparent 72%),
+        linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    color: #ffffff !important;
+    border-color: rgba(216, 180, 254, 0.42) !important;
+    box-shadow: 0 18px 40px -24px rgba(139, 92, 246, 0.88) !important;
+}
+
+body.modern-mode .composer-send-btn:hover,
+body.modern-mode #mobile-send-btn:hover,
+body.modern-mode .action-btn.primary:hover,
+body.modern-mode .btn-primary:hover {
+    transform: translateY(-2px) scale(1.015) !important;
+}
+
+body.modern-mode #settings-modal.brutalist-settings,
+body.modern-mode #room-settings-card {
+    overflow: hidden;
+}
+
+body.modern-mode #settings-modal.brutalist-settings::before,
+body.modern-mode #settings-modal.brutalist-settings::after,
+body.modern-mode #room-settings-card::before,
+body.modern-mode #room-settings-card::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 999px;
+    opacity: 0.42;
+    filter: blur(8px);
+    transform: translate3d(
+        calc(var(--modern-tilt-x, 0) * 18px),
+        calc(var(--modern-tilt-y, 0) * 12px),
+        0
+    );
+    transition: transform 180ms linear;
+}
+
+body.modern-mode #settings-modal.brutalist-settings::before,
+body.modern-mode #room-settings-card::before {
+    width: 220px;
+    height: 220px;
+    right: 7%;
+    top: 6%;
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.28), transparent 68%);
+}
+
+body.modern-mode #settings-modal.brutalist-settings::after,
+body.modern-mode #room-settings-card::after {
+    width: 180px;
+    height: 180px;
+    left: 18%;
+    bottom: 7%;
+    background: radial-gradient(circle, rgba(245, 158, 11, 0.16), transparent 68%);
+}
+
+body.modern-mode #settings-modal.brutalist-settings > *,
+body.modern-mode #room-settings-card > * {
+    position: relative;
+    z-index: 1;
+}
+
+body.modern-mode .msg-codeblock {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.58rem !important;
+    background:
+        linear-gradient(135deg, rgba(12, 18, 32, 0.96), rgba(31, 24, 54, 0.94)) !important;
+    border: 1px solid rgba(168, 85, 247, 0.26) !important;
+    color: #e5e7eb !important;
+    box-shadow: 0 18px 46px -34px rgba(8, 13, 24, 0.92) !important;
+}
+
+body.modern-mode .msg-codeblock::before {
+    position: static !important;
+    display: inline-flex !important;
+    align-self: flex-start !important;
+    width: fit-content !important;
+    margin: 0 !important;
+    padding: 0.18rem 0.52rem !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.10) !important;
+    color: #c4b5fd !important;
+    letter-spacing: 0.12em !important;
+}
+
+body.modern-mode .msg-codeblock code {
+    color: #e5e7eb !important;
+}
+
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-comment { color: #8da2c0 !important; font-style: italic; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-string { color: #facc15 !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-keyword { color: #c084fc !important; font-weight: 900; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-function { color: #67e8f9 !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-number { color: #fb923c !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-tag { color: #fb7185 !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-attr,
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-property { color: #34d399 !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-selector { color: #f0abfc !important; }
+body.modern-mode :is(.msg-inline-code, .msg-codeblock) .tok-punctuation { color: #cbd5e1 !important; }
+
+body.modern-mode .modern-reveal-target {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+}
+
+body.modern-mode .modern-reveal-target.modern-reveal-in {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    transition:
+        opacity 520ms ease var(--modern-reveal-delay, 0ms),
+        transform 680ms cubic-bezier(0.16, 1, 0.3, 1) var(--modern-reveal-delay, 0ms),
+        box-shadow 320ms ease,
+        background 240ms ease,
+        border-color 240ms ease !important;
+}
+
+@keyframes modernSoftFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+body.modern-mode.modern-motion-ready #nav-logo .mascot-blip,
+body.modern-mode.modern-motion-ready .composer-send-btn,
+body.modern-mode.modern-motion-ready #mobile-send-btn {
+    animation: modernSoftFloat 4.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.modern-mode .react-page.chat-react-page::before,
+    body.modern-mode .react-page.chat-react-page::after,
+    body.modern-mode #main-chat-area::before,
+    body.modern-mode #settings-modal.brutalist-settings::before,
+    body.modern-mode #settings-modal.brutalist-settings::after,
+    body.modern-mode #room-settings-card::before,
+    body.modern-mode #room-settings-card::after {
+        transform: none !important;
+        transition: none !important;
+        animation: none !important;
+    }
+
+    body.modern-mode .modern-reveal-target,
+    body.modern-mode .modern-reveal-target.modern-reveal-in {
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    body.modern-mode .react-page.chat-react-page::before,
+    body.modern-mode .react-page.chat-react-page::after {
+        opacity: 0.34;
+        filter: blur(28px) saturate(1.08);
+    }
+
+    body.modern-mode #active-room-header {
+        background:
+            radial-gradient(420px 160px at var(--modern-pointer-x-pct, 34%) 0%, rgba(139, 92, 246, 0.24), transparent 72%),
+            linear-gradient(90deg, #171b2d 0%, #111827 100%) !important;
+    }
+
+    body.modern-mode #room-sub-nav {
+        background:
+            linear-gradient(90deg, #252635 0%, #171b2d 100%) !important;
+    }
+
+    body.modern-mode #main-chat-area::before {
+        background-size: 40px 40px;
+        opacity: 0.46;
+    }
+}
+
+/* Specificity lock: keep the final Modern pass above older feature-level modern rules. */
+body.modern-mode:not(.marketing):not(.auth-screen) nav {
+    background:
+        radial-gradient(340px 440px at 54% 0%, rgba(139, 92, 246, 0.42), transparent 72%),
+        linear-gradient(180deg, #19162b 0%, #0d1422 46%, #070b13 100%) !important;
+    box-shadow:
+        inset -1px 0 0 rgba(255, 255, 255, 0.08),
+        16px 0 42px -34px rgba(8, 13, 24, 0.88) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar {
+    background:
+        radial-gradient(460px 360px at 0% 0%, rgba(139, 92, 246, 0.28), transparent 76%),
+        radial-gradient(420px 420px at 100% 108%, rgba(245, 158, 11, 0.11), transparent 76%),
+        linear-gradient(180deg, #1a1f33 0%, #0d1422 46%, #080d18 100%) !important;
+    box-shadow:
+        inset -1px 0 0 rgba(255, 255, 255, 0.08),
+        30px 0 82px -70px rgba(8, 13, 24, 1) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #active-room-header {
+    background:
+        radial-gradient(520px 160px at var(--modern-pointer-x-pct, 28%) 0%, rgba(139, 92, 246, 0.25), transparent 68%),
+        linear-gradient(90deg, #171b2d 0%, #101827 54%, #201936 100%) !important;
+    color: #f8fafc !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    background:
+        radial-gradient(360px 150px at var(--room-nav-active-center, 160px) 0%, rgba(139, 92, 246, 0.42), transparent 72%),
+        radial-gradient(180px 90px at var(--modern-tab-pointer-x, -120px) var(--modern-tab-pointer-y, 50%), rgba(255, 255, 255, 0.11), transparent 76%),
+        linear-gradient(90deg, #252635 0%, #191f2f 46%, #111827 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 48px -42px rgba(8, 13, 24, 0.94) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-sub-nav .room-tab.active {
+    background:
+        radial-gradient(120px 90px at 20% 0%, rgba(255, 255, 255, 0.22), transparent 70%),
+        linear-gradient(135deg, #7c3aed, #a855f7 58%, #f59e0b 160%) !important;
+    color: #ffffff !important;
+    border-color: rgba(216, 180, 254, 0.42) !important;
+    box-shadow:
+        0 18px 38px -24px rgba(139, 92, 246, 0.95),
+        inset 0 1px 0 rgba(255, 255, 255, 0.24) !important;
+}
+
+/* Modern readability revision: dark chrome, light readable work areas. */
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat {
+    --chat-panel: rgba(255, 255, 255, 0.94);
+    --chat-panel-strong: rgba(255, 255, 255, 0.985);
+    --chat-bubble: rgba(255, 255, 255, 0.96);
+    --chat-bubble-mine: linear-gradient(135deg, rgba(247, 239, 255, 0.98), rgba(255, 249, 239, 0.98));
+    --chat-ink: #151827;
+    --chat-muted: #6b7280;
+    --chat-line: rgba(124, 58, 237, 0.12);
+    --chat-line-strong: rgba(124, 58, 237, 0.20);
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    background:
+        radial-gradient(720px 480px at 88% 10%, rgba(168, 85, 247, 0.10), transparent 62%),
+        radial-gradient(620px 420px at 4% 100%, rgba(245, 158, 11, 0.08), transparent 64%),
+        linear-gradient(180deg, #fdfcff 0%, #f8f5ff 48%, #ffffff 100%) !important;
+    color: var(--chat-ink) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    background: transparent !important;
+    color: var(--chat-ink) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat.hidden {
+    display: none !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat:not(.hidden) {
+    display: flex !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages li.chat-message,
+body.modern-mode:not(.marketing):not(.auth-screen) #pm-messages li {
+    background:
+        radial-gradient(220px 140px at 100% 0%, rgba(168, 85, 247, 0.08), transparent 72%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(249, 247, 255, 0.96)) !important;
+    color: #151827 !important;
+    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    box-shadow: 0 18px 48px -40px rgba(76, 29, 149, 0.42) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages li.chat-message.my-message,
+body.modern-mode:not(.marketing):not(.auth-screen) #pm-messages li.my-pm {
+    background:
+        radial-gradient(240px 140px at 0% 0%, rgba(255, 255, 255, 0.52), transparent 72%),
+        linear-gradient(135deg, rgba(246, 235, 255, 0.98), rgba(255, 246, 230, 0.98)) !important;
+    color: #151827 !important;
+    border-color: rgba(168, 85, 247, 0.24) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.msg-name, .msg-text, .reply-quote-name, .reply-quote, .message-text, .message-body),
+body.modern-mode:not(.marketing):not(.auth-screen) #pm-messages :is(.msg-name, .msg-text, .message-text, .message-body) {
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.msg-time, .msg-edited, .msg-flag),
+body.modern-mode:not(.marketing):not(.auth-screen) #pm-messages :is(.msg-time, .msg-edited) {
+    color: #6b7280 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #chat-form {
+    display: grid !important;
+    grid-template-rows: auto auto !important;
+    flex: 0 0 auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    min-height: 116px !important;
+    margin: 0 !important;
+    padding: 0.72rem clamp(0.86rem, 2vw, 1.2rem) max(0.78rem, env(safe-area-inset-bottom)) !important;
+    gap: 0.44rem !important;
+    background:
+        radial-gradient(520px 160px at 94% 0%, rgba(168, 85, 247, 0.08), transparent 70%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(250, 248, 255, 0.99)) !important;
+    border-top: 1px solid rgba(124, 58, 237, 0.16) !important;
+    box-shadow: 0 -24px 64px -48px rgba(17, 24, 39, 0.66) !important;
+    backdrop-filter: blur(18px) saturate(1.08);
+    -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .composer-input-row {
+    min-height: 52px !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    border: 1px solid rgba(124, 58, 237, 0.20) !important;
+    border-radius: 18px !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.92),
+        0 18px 48px -42px rgba(76, 29, 149, 0.38) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #chat-form textarea#message-input {
+    min-height: 34px !important;
+    background: transparent !important;
+    color: #151827 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    font-weight: 750 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #chat-form textarea#message-input::placeholder {
+    color: #7b8497 !important;
+    opacity: 1 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.composer-toolbar, .composer-hint, .smart-replies-label) {
+    color: #667085 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .composer-icon-btn {
+    color: #515b70 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .smart-replies,
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #active-reply-box {
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: #151827 !important;
+    border-color: rgba(124, 58, 237, 0.12) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel {
+    background:
+        radial-gradient(520px 220px at 96% 0%, rgba(168, 85, 247, 0.10), transparent 72%),
+        linear-gradient(180deg, #fdfcff 0%, #f8f5ff 48%, #ffffff 100%) !important;
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .contacts-header {
+    background:
+        radial-gradient(340px 180px at 100% 0%, rgba(168, 85, 247, 0.20), transparent 72%),
+        linear-gradient(135deg, #171b2d, #22243a) !important;
+    color: #f8fafc !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-tabs {
+    background: rgba(10, 15, 28, 0.64) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-tab {
+    color: rgba(248, 250, 252, 0.72) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-tab.active {
+    color: #ffffff !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(#notifications-list, #updates-list, #leaderboard-list, #recognition-list, #quests-list) {
+    background: transparent !important;
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.modern-notif, .update-card-modern, .updates-overview, .updates-state, .q-state, .q-hero, .q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .changelog-item) {
+    background:
+        radial-gradient(260px 180px at 100% 0%, rgba(168, 85, 247, 0.07), transparent 72%),
+        rgba(255, 255, 255, 0.94) !important;
+    color: #151827 !important;
+    border-color: rgba(124, 58, 237, 0.14) !important;
+    box-shadow: 0 18px 54px -44px rgba(76, 29, 149, 0.36) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.modern-notif, .update-card-modern, .updates-overview, .updates-state, .q-state, .q-hero, .q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .changelog-item) :is(h1, h2, h3, h4, strong, p, span, small, em) {
+    color: inherit !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.q-sub, .q-meta, .lb-lvl, .lb-hero-copy p, .update-desc, .recognition-empty, .modern-notif small) {
+    color: #667085 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings,
+body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card {
+    background:
+        radial-gradient(680px 420px at 100% 0%, rgba(168, 85, 247, 0.10), transparent 70%),
+        linear-gradient(135deg, rgba(253, 252, 255, 0.985), rgba(248, 245, 255, 0.985)) !important;
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-sidebar, .settings-content, .settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-summary-compact > div, .profile-edit-card) {
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: #151827 !important;
+    border-color: rgba(124, 58, 237, 0.12) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(h1, h2, h3, h4, p, span, strong, label, small),
+body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card :is(h1, h2, h3, h4, p, span, strong, label, small) {
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-tab, .billing-plan-card li, .muted, .profile-completion-hint),
+body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card :is(.settings-tab, .muted) {
+    color: #667085 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-tab.active,
+body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card .settings-tab.active {
+    color: #151827 !important;
+    background: linear-gradient(135deg, rgba(243, 232, 255, 0.96), rgba(255, 247, 237, 0.96)) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-billing .billing-current-card {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(17, 24, 39, 0.32) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-billing :is(#billing-plan-name, #billing-plan-limits, .billing-current-info span) {
+    color: #ffffff !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-billing .billing-current-badge {
+    color: #6d28d9 !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal {
+    background: rgba(15, 23, 42, 0.50) !important;
+    backdrop-filter: blur(14px) saturate(1.08);
+    -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-box,
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell {
+    background:
+        radial-gradient(520px 280px at 100% 0%, rgba(168, 85, 247, 0.12), transparent 72%),
+        linear-gradient(135deg, rgba(253, 252, 255, 0.98), rgba(248, 245, 255, 0.98)) !important;
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(h1, h2, h3, h4, p, span, strong, small) {
+    color: #151827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-input-wrap {
+    background: #111827 !important;
+    color: #f8fafc !important;
+    border-color: rgba(168, 85, 247, 0.42) !important;
+    box-shadow: 0 18px 52px -40px rgba(76, 29, 149, 0.58) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal input {
+    background: transparent !important;
+    color: #f8fafc !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal input::placeholder {
+    color: #a8b0c1 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-empty, .search-results, .search-result, .search-filter-pill) {
+    background: rgba(255, 255, 255, 0.88) !important;
+    color: #151827 !important;
+    border-color: rgba(124, 58, 237, 0.14) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) .msg-inline-code {
+    background: rgba(124, 58, 237, 0.12) !important;
+    color: #4c1d95 !important;
+    border: 1px solid rgba(124, 58, 237, 0.14) !important;
+}
+
+@media (max-width: 768px) {
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #chat-form {
+        min-height: 128px !important;
+        padding: 0.64rem 0.78rem max(0.86rem, env(safe-area-inset-bottom)) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .composer-input-row {
+        min-height: 52px !important;
+        border-radius: 16px !important;
+    }
+}
+
+/* Modern stability pass: no cursor-follow glow, stronger contrast, centered room modals. */
+body.modern-mode:not(.marketing):not(.auth-screen) {
+    --modern-pointer-x-pct: 72% !important;
+    --modern-pointer-y-pct: 14% !important;
+    --modern-tilt-x: 0 !important;
+    --modern-tilt-y: 0 !important;
+    --modern-tab-pointer-x: -999px !important;
+    --modern-tab-pointer-y: 50% !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::before,
+body.modern-mode:not(.marketing):not(.auth-screen) .room-view::before {
+    transform: none !important;
+    transition: none !important;
+}
+
+/* Universal Search — light shell, dark input, readable empty/results panel. */
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal:not(.hidden) {
+    display: grid !important;
+    place-items: center !important;
+    padding: clamp(0.9rem, 2vw, 1.5rem) !important;
+    background: rgba(15, 23, 42, 0.46) !important;
+    backdrop-filter: blur(16px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(1.08) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell {
+    width: min(920px, calc(100vw - 2rem)) !important;
+    max-height: min(86dvh, 780px) !important;
+    grid-template-rows: auto auto auto minmax(210px, 1fr) auto !important;
+    border: 1px solid rgba(124, 58, 237, 0.22) !important;
+    background:
+        radial-gradient(520px 260px at 100% 0%, rgba(139, 92, 246, 0.16), transparent 72%),
+        linear-gradient(135deg, #ffffff 0%, #fbf8ff 54%, #ffffff 100%) !important;
+    color: #111827 !important;
+    box-shadow: 0 44px 120px -56px rgba(17, 24, 39, 0.66) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell::before {
+    opacity: 0.16 !important;
+    animation: none !important;
+    transform: none !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-kicker, .search-hero p, .search-hero-meta span) {
+    color: #5f6b80 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-hero h2, .search-item-title, .search-state-title),
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(h1, h2, h3, strong) {
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-input-row {
+    min-height: 58px !important;
+    border: 1px solid rgba(139, 92, 246, 0.34) !important;
+    background: #111827 !important;
+    color: #f8fafc !important;
+    box-shadow: 0 16px 48px -36px rgba(76, 29, 149, 0.74) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal #global-search-input {
+    color: #f8fafc !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal #global-search-input::placeholder {
+    color: #b9c1d1 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-scope-row {
+    margin-inline: 1rem !important;
+    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    border-radius: 18px !important;
+    background: rgba(245, 243, 255, 0.86) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-scope-pill {
+    color: #4b5565 !important;
+    background: rgba(255, 255, 255, 0.58) !important;
+    border-color: rgba(124, 58, 237, 0.12) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-scope-pill.active {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal #search-results {
+    margin: 0.72rem 1rem 0 !important;
+    border: 1px solid rgba(124, 58, 237, 0.13) !important;
+    border-radius: 24px !important;
+    background: rgba(255, 255, 255, 0.96) !important;
+    color: #111827 !important;
+    min-height: clamp(210px, 34vh, 380px) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-state, .search-result-section, .search-result-item) {
+    color: #111827 !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    border-color: rgba(124, 58, 237, 0.12) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-state p, .search-item-sub, .search-footer-hint, .search-footer-hint span) {
+    color: #667085 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-footer-hint {
+    background: rgba(17, 24, 39, 0.05) !important;
+    border-top: 1px solid rgba(17, 24, 39, 0.08) !important;
+}
+
+/* Room home — prevent white-on-white/washed-out text. */
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home {
+    background:
+        radial-gradient(740px 420px at 100% 0%, rgba(139, 92, 246, 0.09), transparent 70%),
+        linear-gradient(180deg, #fdfcff 0%, #faf8ff 50%, #ffffff 100%) !important;
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(h1, h2, h3, h4, strong, label, .rh-title, .rh-label) {
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(p, span, small, .rh-muted, .rh-section-title, .rh-kicker, .rh-copy, .rh-card-copy) {
+    color: #667085 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-hero, .rh-panel, .rh-card, .rh-stat, .rh-resource-box, .rh-event, .rh-score-card, .rh-discovery-card, .rh-snapshot-card, .rh-milestone, .rh-timeline-item, .rh-contributor-row) {
+    background: rgba(255, 255, 255, 0.96) !important;
+    color: #111827 !important;
+    border-color: rgba(124, 58, 237, 0.12) !important;
+    box-shadow: 0 18px 54px -44px rgba(76, 29, 149, 0.32) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-hero, .rh-panel, .rh-card, .rh-stat, .rh-resource-box, .rh-event, .rh-score-card, .rh-discovery-card, .rh-snapshot-card, .rh-milestone, .rh-timeline-item, .rh-contributor-row) :is(h1, h2, h3, h4, strong, span, p, small) {
+    color: inherit !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-hero, .rh-panel, .rh-card, .rh-stat, .rh-resource-box, .rh-event, .rh-score-card, .rh-discovery-card, .rh-snapshot-card, .rh-milestone, .rh-timeline-item, .rh-contributor-row) :is(p, small, .rh-muted, .rh-kicker) {
+    color: #667085 !important;
+}
+
+/* Create/join room must be a centered dialog, not a bottom sheet on desktop. */
+body.modern-mode:not(.marketing):not(.auth-screen) #room-action-modal:not(.hidden),
+body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal:not(.hidden) {
+    position: fixed !important;
+    inset: 0 !important;
+    display: grid !important;
+    place-items: center !important;
+    padding: clamp(1rem, 3vw, 2rem) !important;
+    background: rgba(15, 23, 42, 0.48) !important;
+    backdrop-filter: blur(14px) saturate(1.08) !important;
+    -webkit-backdrop-filter: blur(14px) saturate(1.08) !important;
+    z-index: 6000 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card,
+body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card {
+    width: min(540px, calc(100vw - 2rem)) !important;
+    max-height: min(86dvh, 760px) !important;
+    margin: 0 !important;
+    overflow: auto !important;
+    transform: none !important;
+    background: rgba(255, 255, 255, 0.985) !important;
+    color: #111827 !important;
+    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    box-shadow: 0 44px 120px -56px rgba(17, 24, 39, 0.66) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card :is(h1, h2, h3, p, span, strong, small, label),
+body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card :is(h1, h2, h3, p, span, strong, small, label) {
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card :is(input, textarea, select),
+body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card :is(input, textarea, select) {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: rgba(124, 58, 237, 0.20) !important;
+}
+
+/* Settings > Notifications — readable cards, consistent toggle controls. */
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications {
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications :is(.settings-notifications-hero, .notification-phone-card, .notif-settings-root, .notif-settings-shell, .notif-control-card, .notif-mode-pill, .notif-filter-row button, .notif-keyword-chips button, .notif-schedule-pill) {
+    background: rgba(255, 255, 255, 0.96) !important;
+    color: #111827 !important;
+    border-color: rgba(124, 58, 237, 0.14) !important;
+    box-shadow: 0 18px 54px -44px rgba(76, 29, 149, 0.30) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications :is(h1, h2, h3, h4, p, span, strong, small, label, em) {
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications :is(.notif-settings-kicker, .notif-control-head em, .settings-notifications-hero p, .notification-phone-card p, .notif-mode-pill small) {
+    color: #667085 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications :is(.notif-mode-pill.active, .notif-filter-row button.active, .notif-schedule-pill.active, .notif-dnd-pill.active) {
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+    border-color: rgba(124, 58, 237, 0.36) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications :is(input, textarea, select),
+body.modern-mode:not(.marketing):not(.auth-screen) #pane-notifications .notif-schedule-row input[type="time"] {
+    background: #ffffff !important;
+    color: #111827 !important;
+    border-color: rgba(124, 58, 237, 0.16) !important;
+}
+
+/* Updates — Quest hero, leaderboard, recognition, changelog contrast. */
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel {
+    --updates-ink: #111827;
+    --updates-muted: #667085;
+    --updates-panel: rgba(255, 255, 255, 0.965);
+    background:
+        radial-gradient(520px 260px at 100% 0%, rgba(139, 92, 246, 0.14), transparent 74%),
+        linear-gradient(180deg, #fdfcff 0%, #fbf8ff 48%, #ffffff 100%) !important;
+    color: var(--updates-ink) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(#notifications-list, #updates-list, #leaderboard-list, #recognition-list, #quests-list) {
+    color: var(--updates-ink) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero {
+    min-height: 122px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 96px !important;
+    align-items: center !important;
+    gap: 1rem !important;
+    overflow: visible !important;
+    padding: 1rem 1.05rem !important;
+    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    border-radius: 24px !important;
+    background:
+        radial-gradient(260px 180px at 100% 0%, rgba(139, 92, 246, 0.12), transparent 72%),
+        var(--updates-panel) !important;
+    color: var(--updates-ink) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-copy {
+    min-width: 0 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-copy strong {
+    color: var(--updates-ink) !important;
+    font-size: clamp(1.4rem, 2.4vw, 2rem) !important;
+    line-height: 1.02 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-kicker,
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-copy p,
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-section,
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-sub,
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-meta {
+    color: var(--updates-muted) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-ring {
+    position: relative !important;
+    width: 90px !important;
+    height: 90px !important;
+    flex: 0 0 90px !important;
+    display: grid !important;
+    place-items: center !important;
+    overflow: visible !important;
+    background: conic-gradient(#8b5cf6 var(--q-total-pct), rgba(124, 58, 237, 0.13) 0) !important;
+    color: #111827 !important;
+    box-shadow: 0 16px 40px -32px rgba(76, 29, 149, 0.54) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-ring::before {
+    content: "";
+    position: absolute;
+    inset: 11px;
+    border-radius: inherit;
+    background: #ffffff;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-ring span {
+    position: relative;
+    z-index: 1;
+    color: #111827 !important;
+    font-weight: 950 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .update-card-modern, .updates-overview, .updates-state, .modern-notif) {
+    background: var(--updates-panel) !important;
+    color: var(--updates-ink) !important;
+    border-color: rgba(124, 58, 237, 0.14) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.lb-empty, .recognition-empty) {
+    min-height: 90px !important;
+    display: grid !important;
+    align-content: center !important;
+    gap: 0.42rem !important;
+    padding: 1rem !important;
+    border: 1px solid rgba(124, 58, 237, 0.14) !important;
+    border-radius: 22px !important;
+    background: var(--updates-panel) !important;
+    color: var(--updates-muted) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.lb-empty, .recognition-empty) :is(i, strong) {
+    color: var(--updates-ink) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .update-card-modern, .updates-overview, .updates-state, .modern-notif) :is(h1, h2, h3, h4, strong, p, span, small, em) {
+    color: inherit !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.q-reward, .lb-rep, .update-sha, .update-date) {
+    color: #111827 !important;
+    background: rgba(245, 243, 255, 0.95) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-desc, .lb-lvl, .recognition-muted, .recognition-empty, .lb-hero-copy p, .modern-notif-destination, .modern-notif small) {
+    color: var(--updates-muted) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-title,
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .modern-notif-text {
+    color: #111827 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .changelog-item,
+body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-card-modern {
+    min-height: auto !important;
+    overflow: visible !important;
+    padding: 0.9rem 1rem !important;
+}
+
+@media (max-width: 768px) {
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal:not(.hidden),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-modal:not(.hidden),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal:not(.hidden) {
+        padding: max(0.6rem, env(safe-area-inset-top)) 0.6rem max(0.8rem, env(safe-area-inset-bottom)) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card {
+        width: min(100%, calc(100vw - 1.2rem)) !important;
+        max-height: calc(100dvh - 1.4rem) !important;
+        border-radius: 24px !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-hero {
+        grid-template-columns: minmax(0, 1fr) auto !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-hero-orb {
+        display: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero {
+        grid-template-columns: minmax(0, 1fr) 68px !important;
+        min-height: 96px !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-ring {
+        width: 64px !important;
+        height: 64px !important;
+        flex-basis: 64px !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-ring::before {
+        inset: 8px;
+    }
+}

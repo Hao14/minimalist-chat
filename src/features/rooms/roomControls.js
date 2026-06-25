@@ -175,6 +175,22 @@ const ROOM_PERMISSION_DEFAULTS = {
     webhooks: false,
 };
 
+const ROOM_PERMISSION_LABELS = {
+    chat: 'Chat',
+    files: 'Files',
+    polls: 'Polls',
+    reminders: 'Reminders',
+    docs: 'Docs',
+    whiteboard: 'Whiteboard',
+    calls: 'Voice calls',
+    video: 'Video calls',
+    screenShare: 'Screen share',
+    invites: 'Invites',
+    createChannels: 'Create channels',
+    manageChannels: 'Manage channels',
+    webhooks: 'Webhooks & bots',
+};
+
 const ROOM_SUBSCRIPTION_PLANS = {
     base: {
         label: 'Base room',
@@ -215,6 +231,12 @@ function permissionEnabled(permissions = {}, key) {
     return ROOM_PERMISSION_DEFAULTS[key] ?? true;
 }
 
+function userPermissionEnabled(roomData = {}, key, uid = window.currentUser?.uid) {
+    const overrides = uid ? roomData.memberPermissions?.[uid] : null;
+    if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key] !== false;
+    return permissionEnabled(roomData.permissions, key);
+}
+
 async function getActiveRoomMeta() {
     if (!window.activeRoomId || window.activeRoomId === 'global') return {};
     const snapshot = await get(ref(db, `rooms_meta/${window.activeRoomId}`));
@@ -225,7 +247,7 @@ async function canUseRoomPermission(key, deniedMessage) {
     if (!window.activeRoomId || window.activeRoomId === 'global') return true;
     const roomData = await getActiveRoomMeta();
     if (isCurrentRoomCreator(roomData)) return true;
-    if (!permissionEnabled(roomData.permissions, key)) {
+    if (!userPermissionEnabled(roomData, key)) {
         window.showToast(deniedMessage);
         return false;
     }
@@ -248,6 +270,97 @@ function setControlValue(id, value) {
     const element = document.getElementById(id);
     if (!element) return;
     element.value = value || '';
+}
+
+function renderMemberPermissionOverrides(roomData = {}, canEdit = false) {
+    const target = document.getElementById('rs-member-permissions-list');
+    if (!target) return;
+
+    const members = Object.entries(roomData.members || {})
+        .map(([uid, name]) => ({ uid, name: String(name || 'Member') }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    target.innerHTML = '';
+    if (!members.length) {
+        const empty = document.createElement('div');
+        empty.className = 'rs-empty-row';
+        empty.textContent = 'Members appear here after they join this room.';
+        target.appendChild(empty);
+        return;
+    }
+
+    members.forEach((member) => {
+        const overrides = roomData.memberPermissions?.[member.uid] || {};
+        const card = document.createElement('article');
+        card.className = 'member-permission-row';
+        card.dataset.uid = member.uid;
+
+        const head = document.createElement('div');
+        head.className = 'member-permission-row-head';
+
+        const avatar = document.createElement('span');
+        avatar.className = 'member-permission-avatar';
+        avatar.textContent = roomInitials(member.name);
+
+        const copy = document.createElement('div');
+        const name = document.createElement('strong');
+        name.textContent = member.name;
+        const status = document.createElement('small');
+        const overrideCount = Object.keys(overrides).length;
+        status.textContent = overrideCount ? `${overrideCount} custom permission${overrideCount === 1 ? '' : 's'}` : 'Using room defaults';
+        copy.append(name, status);
+        head.append(avatar, copy);
+
+        const grid = document.createElement('div');
+        grid.className = 'member-permission-grid';
+        ROOM_PERMISSION_KEYS.forEach((key) => {
+            const label = document.createElement('label');
+            label.className = 'member-permission-select';
+
+            const span = document.createElement('span');
+            span.textContent = ROOM_PERMISSION_LABELS[key] || key;
+
+            const select = document.createElement('select');
+            select.dataset.uid = member.uid;
+            select.dataset.key = key;
+            select.disabled = !canEdit;
+
+            const defaultValue = permissionEnabled(roomData.permissions, key);
+            [
+                ['', `Room default: ${defaultValue ? 'Allow' : 'Deny'}`],
+                ['true', 'Allow'],
+                ['false', 'Deny'],
+            ].forEach(([value, text]) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                select.appendChild(option);
+            });
+
+            if (Object.prototype.hasOwnProperty.call(overrides, key)) {
+                select.value = overrides[key] !== false ? 'true' : 'false';
+            }
+
+            label.append(span, select);
+            grid.appendChild(label);
+        });
+
+        card.append(head, grid);
+        target.appendChild(card);
+    });
+}
+
+function readMemberPermissionOverrides() {
+    return Array.from(document.querySelectorAll('#rs-member-permissions-list select[data-uid][data-key]'))
+        .reduce((acc, select) => {
+            if (!select.value) return acc;
+            const uid = select.dataset.uid;
+            const key = select.dataset.key;
+            if (!uid || !key) return acc;
+            if (!acc[uid]) acc[uid] = {};
+            acc[uid][key] = select.value === 'true';
+            return acc;
+        }, {});
 }
 
 function getSelectedRoomSubscriptionPlan() {
@@ -1167,6 +1280,7 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
             setControlDisabled(id, !isCreator);
         });
         setControlDisabled('rs-save-permissions-btn', !isCreator);
+        renderMemberPermissionOverrides(data, isCreator);
         
         const logList = document.getElementById('rs-logs-list');
         if (logList) {
@@ -1185,7 +1299,7 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
     }
 });
 
-const rsTabs = ['members', 'channels', 'permissions', 'webhooks', 'subscription', 'logs'];
+const rsTabs = ['overview', 'members', 'channels', 'permissions', 'webhooks', 'subscription', 'logs'];
 rsTabs.forEach(tab => {
     const btn = document.getElementById(`rs-tab-${tab}`);
     if(btn) {
@@ -1532,6 +1646,7 @@ document.getElementById('rs-save-permissions-btn')?.addEventListener('click', as
         updatedAt: Date.now(),
         updatedBy: window.currentUser.uid,
     });
+    await set(ref(db, `rooms_meta/${window.activeRoomId}/memberPermissions`), readMemberPermissionOverrides());
     await set(ref(db, `rooms_meta/${window.activeRoomId}/logs/${Date.now()}`), { text: `${window.userProfileName} updated room permissions.`, timestamp: Date.now() });
     window.showToast('Room permissions saved.', false);
 });
