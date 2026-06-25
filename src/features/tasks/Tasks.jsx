@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onValue, push, ref, remove, serverTimestamp, update } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
 
@@ -36,6 +36,12 @@ const initials = (name) => (name || '?').trim().split(/\s+/).map((word) => word[
 
 const statusOf = (task) => (task.status && STATUS_IDS.includes(task.status) ? task.status : (task.done ? 'done' : 'todo'));
 const categoriesOf = (task) => (task.categories ? Object.keys(task.categories).filter((key) => task.categories[key]) : []);
+const isArchivedTask = (task) => task.archived === true || task.status === 'archived';
+const startOfToday = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+};
 
 function formatDue(value) {
   if (!value) return null;
@@ -178,11 +184,41 @@ export function Tasks({ roomId, user }) {
   const [addingColumn, setAddingColumn] = useState(null);
   const [addDraft, setAddDraft] = useState('');
   const addInputRef = useRef(null);
+  const allTasksRef = useRef([]);
+
+  const archiveDoneTasks = useCallback((taskList = allTasksRef.current) => {
+    const cutoff = startOfToday();
+    taskList.forEach((task) => {
+      if (!task?.id || isArchivedTask(task) || statusOf(task) !== 'done') return;
+      const completedAt = Number(task.completedAt || 0);
+      if (!completedAt) {
+        update(ref(db, `room_tasks/${roomId}/${task.id}`), { completedAt: Date.now() }).catch(() => {});
+        return;
+      }
+      if (completedAt < cutoff) {
+        update(ref(db, `room_tasks/${roomId}/${task.id}`), {
+          archived: true,
+          archivedAt: Date.now(),
+          archivedReason: 'End-of-day Done sweep',
+          status: 'archived',
+        }).catch(() => {});
+        if (selectedId === task.id) setSelectedId(null);
+      }
+    });
+  }, [roomId, selectedId]);
 
   useEffect(() => onValue(ref(db, `room_tasks/${roomId}`), (snapshot) => {
     const value = snapshot.val() || {};
-    setTasks(Object.entries(value).map(([id, task]) => ({ id, ...task })));
-  }), [roomId]);
+    const nextTasks = Object.entries(value).map(([id, task]) => ({ id, ...task }));
+    allTasksRef.current = nextTasks;
+    setTasks(nextTasks.filter((task) => !isArchivedTask(task)));
+    archiveDoneTasks(nextTasks);
+  }), [archiveDoneTasks, roomId]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => archiveDoneTasks(), 60 * 1000);
+    return () => window.clearInterval(interval);
+  }, [archiveDoneTasks]);
 
   useEffect(() => { if (addingColumn && addInputRef.current) addInputRef.current.focus(); }, [addingColumn]);
 
@@ -219,6 +255,7 @@ export function Tasks({ roomId, user }) {
       byName: user.displayName,
       assignee: user.uid,
       assigneeName: user.displayName,
+      completedAt: status === 'done' ? Date.now() : null,
       createdAt: serverTimestamp(),
     });
     setAddDraft('');
@@ -229,7 +266,11 @@ export function Tasks({ roomId, user }) {
   const moveTask = (id, status) => {
     const task = tasks.find((item) => item.id === id);
     if (!task || statusOf(task) === status) return;
-    patchTask(id, { status, done: status === 'done' });
+    patchTask(id, {
+      status,
+      done: status === 'done',
+      completedAt: status === 'done' ? (task.completedAt || Date.now()) : null,
+    });
     if (status === 'done' && task.by === user.uid) window.awardXP?.(user.uid, 'technical', 3);
   };
 

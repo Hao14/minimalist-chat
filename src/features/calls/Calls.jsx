@@ -66,6 +66,12 @@ function permissionValue(permissions = {}, key) {
   return ROOM_PERMISSION_DEFAULTS[key] ?? true;
 }
 
+function userPermissionValue(roomData = {}, key, uid) {
+  const overrides = uid ? roomData.memberPermissions?.[uid] : null;
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key] !== false;
+  return permissionValue(roomData.permissions, key);
+}
+
 function isRoomManager(roomData = {}, user, adminUid) {
   if (!user?.uid) return false;
   if (user.uid === adminUid) return true;
@@ -78,7 +84,7 @@ async function canUseRoomPermission(roomId, user, adminUid, key, deniedMessage) 
   const snapshot = await get(ref(db, `rooms_meta/${roomId}`)).catch(() => null);
   const roomData = snapshot?.val() || {};
   if (isRoomManager(roomData, user, adminUid)) return true;
-  if (!permissionValue(roomData.permissions, key)) {
+  if (!userPermissionValue(roomData, key, user?.uid)) {
     window.showToast?.(deniedMessage);
     return false;
   }

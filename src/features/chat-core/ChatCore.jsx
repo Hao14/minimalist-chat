@@ -462,12 +462,18 @@ function permissionValue(permissions = {}, key) {
   return ROOM_PERMISSION_DEFAULTS[key] ?? true;
 }
 
+function userPermissionValue(roomData = {}, key, uid = window.currentUser?.uid) {
+  const overrides = uid ? roomData.memberPermissions?.[uid] : null;
+  if (overrides && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key] !== false;
+  return permissionValue(roomData.permissions, key);
+}
+
 async function canUseRoomPermission(roomId, key, deniedMessage) {
   if (!roomId || roomId === 'global') return true;
   const snapshot = await get(ref(db, `rooms_meta/${roomId}`)).catch(() => null);
   const roomData = snapshot?.val() || {};
   if (isRoomManager(roomData)) return true;
-  if (!permissionValue(roomData.permissions, key)) {
+  if (!userPermissionValue(roomData, key)) {
     window.showToast?.(deniedMessage);
     return false;
   }
@@ -497,9 +503,13 @@ function propsForMessageTextElement(element, key) {
   const className = element.getAttribute('class') || '';
   const allowedClasses = className
     .split(/\s+/)
-    .filter((name) => /^msg-/.test(name))
+    .filter((name) => /^(msg-|tok-|language-)/.test(name))
     .join(' ');
   if (allowedClasses) props.className = allowedClasses;
+
+  if ((tagName === 'pre' || tagName === 'code') && element.hasAttribute('data-lang')) {
+    props['data-lang'] = element.getAttribute('data-lang') || '';
+  }
 
   return props;
 }
@@ -1294,8 +1304,15 @@ function ComposerActionDialog({ mode, onClose, onSubmit, submitting }) {
 }
 
 function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
+  const [value, setValue] = useState('');
+  useEffect(() => {
+    setValue(dialog?.defaultValue || '');
+  }, [dialog]);
+
   if (!dialog) return null;
   const isConfirm = dialog.type === 'confirm';
+  const isChannelDialog = dialog.variant === 'channel';
+  const previewValue = isChannelDialog ? (slugChannel(value) || 'new-channel') : '';
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -1304,13 +1321,12 @@ function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
       return;
     }
 
-    const formData = new FormData(event.currentTarget);
-    onSubmit(String(formData.get('value') || '').trim());
+    onSubmit(String(value || '').trim());
   };
 
   return (
     <div className="composer-dialog-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onCancel(); }}>
-      <form className="composer-dialog simple-action-dialog" role="dialog" aria-modal="true" aria-labelledby="simple-action-title" onSubmit={handleSubmit}>
+      <form className={`composer-dialog simple-action-dialog ${isChannelDialog ? 'channel-action-dialog' : ''}`} role="dialog" aria-modal="true" aria-labelledby="simple-action-title" onSubmit={handleSubmit}>
         <div className="composer-dialog-head">
           <div>
             <span className="composer-dialog-kicker">{dialog.kicker || (isConfirm ? 'Confirm' : 'Input')}</span>
@@ -1329,11 +1345,30 @@ function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
               <input
                 autoFocus
                 name="value"
-                defaultValue={dialog.defaultValue || ''}
+                value={value}
                 maxLength={dialog.maxLength || 120}
                 placeholder={dialog.placeholder || ''}
+                onChange={(event) => setValue(event.target.value)}
               />
             </label>
+            {isChannelDialog ? (
+              <>
+                <div className="channel-dialog-preview-card" aria-live="polite">
+                  <span className="channel-dialog-hash">#</span>
+                  <div>
+                    <strong>{previewValue}</strong>
+                    <small>Messages will stay organized inside this focused channel.</small>
+                  </div>
+                </div>
+                <div className="channel-dialog-suggestions" aria-label="Suggested channel names">
+                  {(dialog.suggestions || ['announcements', 'design', 'bugs']).map((name) => (
+                    <button key={name} type="button" onClick={() => setValue(name)}>
+                      # {name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : null}
           </div>
         ) : null}
 
@@ -1806,8 +1841,10 @@ export function ChatCore({ user, registerApi }) {
       kicker: 'Channels',
       title: 'Create Channel',
       description: 'Add a focused channel inside this room.',
+      variant: 'channel',
       label: 'Channel name',
       placeholder: 'design, announcements, bugs...',
+      suggestions: ['announcements', 'design', 'bugs', 'resources', 'events'],
       confirmText: 'Add Channel',
       maxLength: 32,
     });

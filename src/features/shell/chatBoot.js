@@ -71,6 +71,13 @@ window.enterChat = function enterChat() {
       }
     };
 
+    const performanceSettings = window.getPerformanceSettings?.();
+    if (performanceSettings?.effectiveLowPerformanceMode) {
+      sessionStorage.setItem('blipLoaded', 'true');
+      launchChatUI();
+      return;
+    }
+
     if (sessionStorage.getItem('blipLoaded') === 'true') {
       launchChatUI();
       return;

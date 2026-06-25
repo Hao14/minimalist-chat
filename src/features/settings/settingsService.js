@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ProfileCompleteness } from './SettingsWidgets.jsx';
 
-const SETTINGS_TABS = ['profile', 'billing', 'app', 'notifications'];
+const SETTINGS_TABS = ['profile', 'billing', 'app', 'performance', 'notifications'];
 let profileCompletenessRoot = null;
 let settingsPaneAnimationTimer = 0;
 let settingsModalAnimationTimer = 0;
@@ -265,6 +265,7 @@ window.openSettings = function openSettings() {
   if (typeof window.switchTab === 'function') window.switchTab('pane-profile', 'tab-btn-profile');
   updateCustomThemeUI();
   updateFeatureModeUI();
+  window.renderPerformanceSettings?.();
   window.renderNotificationSettings?.();
   window.ensurePhoneNotifyButton?.();
 
@@ -338,6 +339,10 @@ window.switchTab = function switchTab(paneId, btnId) {
     window.renderNotificationSettings?.();
     window.ensurePhoneNotifyButton?.();
   }
+
+  if (paneId === 'pane-performance') {
+    window.renderPerformanceSettings?.();
+  }
 };
 
 window.updateBillingUI = function updateBillingUI() {
@@ -403,6 +408,7 @@ document.getElementById('cancel-profile-edit-inline-btn')?.addEventListener('cli
 document.getElementById('tab-btn-profile')?.addEventListener('click', () => window.switchTab('pane-profile', 'tab-btn-profile'));
 document.getElementById('tab-btn-billing')?.addEventListener('click', () => window.switchTab('pane-billing', 'tab-btn-billing'));
 document.getElementById('tab-btn-app')?.addEventListener('click', () => window.switchTab('pane-app', 'tab-btn-app'));
+document.getElementById('tab-btn-performance')?.addEventListener('click', () => window.switchTab('pane-performance', 'tab-btn-performance'));
 document.getElementById('tab-btn-notifications')?.addEventListener('click', () => window.switchTab('pane-notifications', 'tab-btn-notifications'));
 
 document.getElementById('preview-profile-btn')?.addEventListener('click', async (e) => {

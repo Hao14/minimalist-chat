@@ -2,6 +2,7 @@
 import './globalState.js';
 import './uiShell.js';
 import './dialogHost.jsx';
+import '../performance/performanceSettings.js';
 import '../settings/settingsService.js';
 import '../onboarding/welcomeTour.js';
 import './backgroundServices.js';

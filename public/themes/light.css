@@ -1,0 +1,31 @@
+/* ============================================================
+   Light theme layer
+   Shared feature/layout CSS can stay global; this file owns the
+   final color decisions for the default light experience.
+   ============================================================ */
+
+body:not(.dark-mode):not(.gray-mode):not(.modern-mode):not(.marketing):not(.auth-screen) {
+    --bg-color: #ffffff;
+    --text-color: #050505;
+    --accent-color: var(--custom-accent-color, #ffd400);
+    --theme-panel: #ffffff;
+    --theme-panel-2: #f7f7f8;
+    --theme-line: rgba(0, 0, 0, 0.12);
+    --theme-muted: #707070;
+}
+
+body:not(.dark-mode):not(.gray-mode):not(.modern-mode):not(.marketing):not(.auth-screen) #main-chat-area,
+body:not(.dark-mode):not(.gray-mode):not(.modern-mode):not(.marketing):not(.auth-screen) .room-view {
+    background:
+        radial-gradient(900px 520px at 100% 0%, color-mix(in srgb, var(--accent-color) 8%, transparent), transparent 62%),
+        var(--bg-color);
+    color: var(--text-color);
+}
+
+body:not(.dark-mode):not(.gray-mode):not(.modern-mode):not(.marketing):not(.auth-screen) #desktop-room-sidebar,
+body:not(.dark-mode):not(.gray-mode):not(.modern-mode):not(.marketing):not(.auth-screen) #active-room-header,
+body:not(.dark-mode):not(.gray-mode):not(.modern-mode):not(.marketing):not(.auth-screen) #room-sub-nav {
+    background: color-mix(in srgb, var(--theme-panel) 92%, transparent);
+    color: var(--text-color);
+}
+

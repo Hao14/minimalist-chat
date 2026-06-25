@@ -657,6 +657,10 @@ body.dark-mode .phone-notify-btn.enabled { background: var(--accent-color); colo
     color: currentColor;
 }
 
+/* In the mobile bottom nav, match the 24px phosphor icons so VAULT's label
+   lines up with its siblings (the glyph is drawn in em units). */
+#mobile-nav-links .vault-rail-glyph { font-size: 1.5rem; }
+
 .vault-rail-glyph::before {
     content: '';
     position: absolute;
@@ -6599,6 +6603,129 @@ body.marketing .home-faq-pills p {
     body.marketing .home-faq-pills {
         grid-template-columns: 1fr;
     }
+}
+
+/* ============================================================
+   Home: modern interactive room demo (guided: type → pin → task → memory)
+   ============================================================ */
+.idemo-card {
+    --id-glass: color-mix(in srgb, var(--bg-color) 84%, transparent);
+    --id-surface: color-mix(in srgb, var(--bg-color) 92%, var(--text-color));
+    --id-border: color-mix(in srgb, var(--text-color) 12%, transparent);
+    --id-soft: color-mix(in srgb, var(--text-color) 6%, transparent);
+    --id-shadow: 0 34px 90px -44px rgba(20, 16, 4, 0.5), 0 10px 30px -18px rgba(20, 16, 4, 0.22);
+    --id-accent-grad: linear-gradient(135deg, color-mix(in srgb, var(--accent-color), white 16%), var(--accent-color) 58%, color-mix(in srgb, var(--accent-color), #ff8a3d 32%));
+    --id-on-accent: #1b1305;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    flex: 1 1 400px;
+    width: min(100%, 520px);
+    max-width: 520px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 1.1rem;
+    border-radius: 28px;
+    border: 1px solid var(--id-border);
+    background: var(--id-glass);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: blur(22px) saturate(150%);
+    box-shadow: var(--id-shadow), inset 0 1px 0 color-mix(in srgb, white 55%, transparent);
+    animation: idemoIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.idemo-glow {
+    position: absolute;
+    z-index: -1;
+    top: -32%;
+    right: -22%;
+    width: 72%;
+    height: 72%;
+    border-radius: 50%;
+    background: radial-gradient(circle, color-mix(in srgb, var(--accent-color) 52%, transparent), transparent 70%);
+    filter: blur(46px);
+    opacity: 0.5;
+    animation: idemoFloat 9s ease-in-out infinite;
+}
+.idemo-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.idemo-room { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.idemo-room strong { font-size: 1.02rem; letter-spacing: -0.01em; }
+.idemo-room-meta { font-size: 0.72rem; font-weight: 600; color: color-mix(in srgb, var(--text-color) 50%, transparent); }
+.idemo-live-dot { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; animation: idemoPulse 2s ease-out infinite; }
+.idemo-live { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.3rem 0.6rem; border-radius: 999px; color: color-mix(in srgb, var(--accent-color) 85%, var(--text-color)); background: color-mix(in srgb, var(--accent-color) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent-color) 26%, transparent); }
+
+.idemo-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.35rem; list-style: none; margin: 0; padding: 0; }
+.idemo-steps li { display: flex; flex-direction: column; align-items: center; gap: 0.32rem; text-align: center; opacity: 0.5; transition: opacity 0.3s ease; }
+.idemo-steps li em { font-style: normal; font-size: 0.64rem; font-weight: 700; line-height: 1.2; color: color-mix(in srgb, var(--text-color) 70%, transparent); }
+.idemo-step-ico { display: grid; place-items: center; width: 1.9rem; height: 1.9rem; border-radius: 50%; font-size: 0.85rem; background: var(--id-soft); border: 1px solid var(--id-border); color: color-mix(in srgb, var(--text-color) 55%, transparent); transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.idemo-steps li.current { opacity: 1; }
+.idemo-steps li.current .idemo-step-ico { border-color: color-mix(in srgb, var(--accent-color) 55%, transparent); color: color-mix(in srgb, var(--accent-color) 92%, var(--text-color)); animation: idemoBreathe 1.8s ease-in-out infinite; }
+.idemo-steps li.done { opacity: 1; }
+.idemo-steps li.done .idemo-step-ico { background: var(--id-accent-grad); color: var(--id-on-accent); border-color: transparent; box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent-color) 70%, transparent); }
+.idemo-steps li.done em { color: var(--text-color); }
+
+.idemo-pinned { display: flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.75rem; border-radius: 14px; background: color-mix(in srgb, var(--accent-color) 14%, transparent); border: 1px solid color-mix(in srgb, var(--accent-color) 28%, transparent); font-size: 0.84rem; font-weight: 700; animation: idemoDrop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.idemo-pinned i { color: color-mix(in srgb, var(--accent-color) 80%, var(--text-color)); }
+.idemo-pinned span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idemo-pinned small { font-size: 0.6rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in srgb, var(--text-color) 50%, transparent); }
+
+.idemo-window { flex: 1; min-height: 210px; max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.85rem; border-radius: 18px; background: color-mix(in srgb, var(--bg-color) 70%, transparent); border: 1px solid var(--id-border); scrollbar-width: thin; }
+.idemo-msg { max-width: 86%; align-self: flex-start; padding: 0.5rem 0.7rem; border-radius: 15px; background: var(--id-surface); border: 1px solid var(--id-border); animation: idemoMsgIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.idemo-msg p { margin: 0; font-size: 0.86rem; font-weight: 600; line-height: 1.4; color: var(--text-color); }
+.idemo-from { display: block; margin-bottom: 0.12rem; font-size: 0.62rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--text-color) 45%, transparent); }
+.idemo-msg.self { align-self: flex-end; background: var(--id-accent-grad); border-color: transparent; box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--accent-color) 75%, transparent); }
+.idemo-msg.self p { color: var(--id-on-accent); }
+.idemo-msg.self .idemo-from { color: color-mix(in srgb, var(--id-on-accent) 70%, transparent); }
+.idemo-msg.active { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 60%, transparent), 0 10px 24px -14px color-mix(in srgb, var(--accent-color) 55%, transparent); animation: idemoMsgIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both, idemoActive 2.4s ease-in-out 0.5s infinite; }
+
+.idemo-tasks { display: flex; flex-direction: column; gap: 0.4rem; }
+.idemo-task { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.7rem; border-radius: 13px; background: color-mix(in srgb, #22c55e 10%, var(--id-surface)); border: 1px solid color-mix(in srgb, #22c55e 30%, transparent); font-size: 0.84rem; font-weight: 700; animation: idemoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.idemo-task i { color: #16a34a; }
+.idemo-task span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.idemo-task small { font-size: 0.58rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; color: #16a34a; }
+
+.idemo-memory { display: flex; align-items: center; gap: 0.5rem; align-self: flex-start; padding: 0.5rem 0.75rem; border-radius: 13px; background: color-mix(in srgb, #8b5cf6 12%, var(--id-surface)); border: 1px solid color-mix(in srgb, #8b5cf6 32%, transparent); font-size: 0.82rem; font-weight: 800; color: color-mix(in srgb, #6d28d9 82%, var(--text-color)); animation: idemoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), idemoMemGlow 2.6s ease-in-out infinite; }
+.idemo-memory i { color: #7c3aed; }
+
+.idemo-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; transition: opacity 0.25s ease; }
+.idemo-actions.idle { opacity: 0.55; }
+.idemo-act { display: inline-flex; align-items: center; gap: 0.32rem; margin: 0; width: auto; padding: 0.45rem 0.7rem; border-radius: 11px; border: 1px solid var(--id-border); background: var(--id-soft); color: var(--text-color); font-size: 0.78rem; font-weight: 700; cursor: pointer; box-shadow: none; transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.18s ease, border-color 0.18s ease; }
+.idemo-act i { font-size: 0.9rem; color: color-mix(in srgb, var(--accent-color) 78%, var(--text-color)); }
+.idemo-act:hover { transform: translateY(-2px); background: color-mix(in srgb, var(--accent-color) 14%, transparent); border-color: color-mix(in srgb, var(--accent-color) 40%, transparent); }
+.idemo-act.done { background: color-mix(in srgb, var(--accent-color) 18%, transparent); border-color: color-mix(in srgb, var(--accent-color) 45%, transparent); }
+
+.idemo-form { display: grid; grid-template-columns: minmax(0, 1fr) 46px; gap: 0.5rem; }
+.idemo-form input { min-width: 0; width: 100%; margin: 0; padding: 0.7rem 0.9rem; border-radius: 13px; border: 1px solid var(--id-border); background: var(--id-surface); color: var(--text-color); font-size: 0.9rem; box-shadow: none; transition: border-color 0.18s ease, box-shadow 0.18s ease; }
+.idemo-form input:focus { outline: none; border-color: color-mix(in srgb, var(--accent-color) 55%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 16%, transparent); }
+.idemo-form button { width: 46px; height: 46px; margin: 0; padding: 0; display: grid; place-items: center; border: 0; border-radius: 13px; background: var(--id-accent-grad); color: var(--id-on-accent); cursor: pointer; box-shadow: 0 10px 22px -10px color-mix(in srgb, var(--accent-color) 70%, transparent); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.18s ease; }
+.idemo-form button:hover { transform: translateY(-2px); filter: brightness(1.05); }
+
+.idemo-note { margin: 0; text-align: center; font-size: 0.78rem; font-weight: 600; color: color-mix(in srgb, var(--text-color) 60%, transparent); min-height: 1.1em; transition: color 0.2s ease; }
+.idemo-note.win { color: color-mix(in srgb, var(--accent-color) 82%, var(--text-color)); font-weight: 800; }
+.idemo-cta { align-self: center; margin-top: 0.1rem; animation: idemoPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+body.marketing .home-cinematic-preview .idemo-card { width: 100%; max-width: 100%; }
+
+@keyframes idemoIn { from { opacity: 0; transform: translateY(26px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes idemoMsgIn { from { opacity: 0; transform: translateY(10px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes idemoDrop { from { opacity: 0; transform: translateY(-12px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes idemoPop { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+@keyframes idemoFloat { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-8%, 8%) scale(1.08); } }
+@keyframes idemoPulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, #22c55e 60%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+@keyframes idemoBreathe { 0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-color) 14%, transparent); } 50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent-color) 22%, transparent); } }
+@keyframes idemoActive { 0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 55%, transparent), 0 10px 24px -14px color-mix(in srgb, var(--accent-color) 50%, transparent); } 50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 72%, transparent), 0 12px 28px -12px color-mix(in srgb, var(--accent-color) 60%, transparent); } }
+@keyframes idemoMemGlow { 0%, 100% { box-shadow: 0 0 0 0 transparent; } 50% { box-shadow: 0 6px 20px -8px color-mix(in srgb, #8b5cf6 50%, transparent); } }
+
+@media (max-width: 1020px) {
+    .idemo-card { width: 100%; max-width: 100%; }
+}
+@media (max-width: 520px) {
+    .idemo-steps li em { font-size: 0.56rem; }
+    .idemo-act { font-size: 0.74rem; padding: 0.4rem 0.58rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .idemo-card, .idemo-glow, .idemo-msg, .idemo-msg.active, .idemo-pinned, .idemo-task, .idemo-memory, .idemo-cta, .idemo-live-dot, .idemo-steps li.current .idemo-step-ico { animation: none !important; }
 }
 
 /* ===== Modern auth refresh ===== */
