@@ -23,7 +23,9 @@ setInterval(() => {
   }, 150);
 }, 4000);
 
-if ('serviceWorker' in navigator) {
+const isLocalDevelopmentHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+
+if ('serviceWorker' in navigator && !(import.meta.env.DEV && isLocalDevelopmentHost)) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // Offline viewing is best-effort; the app should still run normally if registration fails.

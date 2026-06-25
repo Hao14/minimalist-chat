@@ -1,135 +1,184 @@
 import {
   get,
-  limitToLast,
-  off,
-  onChildAdded,
   onValue,
-  push,
-  query,
   ref,
   remove,
-  serverTimestamp,
   set,
 } from 'firebase/database';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { db } from '../../lib/firebase.js';
-import { escapeHtml, renderMessageText } from '../../lib/text.js';
+import ContactsList from './ContactsList.jsx';
 
-const pmE2eKeys = new Map();
+let contactsRoot = null;
+let contactsUnsubscribers = [];
 
-function bytesToBase64(bytes) {
-  let binary = '';
-  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
-  return btoa(binary);
+function getCurrentUid() {
+  return window.currentUser?.uid || null;
 }
 
-function base64ToBytes(value) {
-  return Uint8Array.from(atob(value), (char) => char.charCodeAt(0));
+function ensureContactsRoot(list) {
+  if (!contactsRoot) contactsRoot = createRoot(list);
+  return contactsRoot;
 }
 
-async function derivePmKey(roomId, passphrase) {
-  const rawKey = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveKey'],
-  );
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: new TextEncoder().encode(`minimalist-pm:${roomId}`),
-      iterations: 120000,
-      hash: 'SHA-256',
-    },
-    rawKey,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
-  );
-}
-
-async function encryptPmText(roomId, text) {
-  const key = pmE2eKeys.get(roomId);
-  if (!key) return { text };
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(text));
-  return {
-    encrypted: true,
-    ciphertext: bytesToBase64(new Uint8Array(encrypted)),
-    iv: bytesToBase64(iv),
-  };
-}
-
-async function decryptPmText(roomId, msg) {
-  if (!msg.encrypted) return msg.text || '';
-  const key = pmE2eKeys.get(roomId);
-  if (!key) return '🔒 Encrypted message — tap the lock and enter the shared passphrase.';
+async function safeGetValue(path, fallback, options = {}) {
   try {
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: base64ToBytes(msg.iv) },
-      key,
-      base64ToBytes(msg.ciphertext),
-    );
-    return new TextDecoder().decode(decrypted);
-  } catch {
-    return '🔒 Could not decrypt — wrong passphrase for this chat.';
+    const snapshot = await get(ref(db, path));
+    return snapshot.exists() ? snapshot.val() : fallback;
+  } catch (error) {
+    if (!options.quiet) console.warn(`Unable to load ${path}`, error);
+    return fallback;
   }
 }
 
-function updatePmE2eStatus() {
-  const status = document.getElementById('pm-e2e-status');
-  const button = document.getElementById('pm-e2e-btn');
-  const enabled = window.currentPmRoomId && pmE2eKeys.has(window.currentPmRoomId);
-  if (status) status.textContent = enabled ? 'Encrypted on · messages are protected before upload' : 'Standard PM · tap 🔒 to enable encrypted messages';
-  button?.classList.toggle('active', !!enabled);
+function mountContactsList(list, sections) {
+  ensureContactsRoot(list).render(createElement(ContactsList, {
+    sections,
+    onAcceptRequest: (uid) => runContactAction(() => window.acceptRequest(uid)),
+    onOpenPrivateChat: (uid, name) => window.openPrivateChat(uid, name),
+    onOpenProfile: (uid) => window.viewUserProfile(uid),
+    onRemoveFriend: (uid) => runContactAction(() => window.removeFriend(uid)),
+    onSendRequest: (uid) => runContactAction(() => window.sendRequest(uid)),
+  }));
 }
+
+function renderContactsStatus(message, options = {}) {
+  const list = document.getElementById('contacts-list');
+  if (!list) return;
+
+  mountContactsList(list, [{
+    id: options.id || 'status',
+    title: options.title || 'Contacts',
+    items: [],
+    empty: message,
+    subdued: options.subdued ?? true,
+  }]);
+}
+
+async function runContactAction(action) {
+  try {
+    if (!getCurrentUid()) throw new Error('Please sign in first.');
+    await action();
+    window.renderContactsUI?.();
+  } catch (error) {
+    window.showToast?.(`Contact action failed: ${error.message}`);
+  }
+}
+
+function normalizeUserRecord(user = {}) {
+  const displayName = (user.displayName || user.name || user.username || 'Unknown').trim();
+  return {
+    displayName,
+    shortId: user.shortId || '',
+    photoUrl: user.photoUrl || user.photoURL || '',
+    themeColor: user.themeColor || '',
+  };
+}
+
+function toContact(uid, user, status, presenceData) {
+  const displayName = user.displayName || 'Unknown';
+  return {
+    uid,
+    displayName,
+    shortId: user.shortId || '',
+    avatar: user.photoUrl || window.getAvatarUrl?.(displayName, '') || '',
+    status,
+    isOnline: presenceData[uid]?.state === 'online',
+  };
+}
+
+function pushSection(sections, id, title, items, options = {}) {
+  if (!items.length && !options.empty) return;
+  sections.push({ id, title, items, ...options });
+}
+
+function stopContactSubscriptions() {
+  contactsUnsubscribers.forEach((unsubscribe) => unsubscribe?.());
+  contactsUnsubscribers = [];
+}
+
+function startContactSubscriptions(uid) {
+  stopContactSubscriptions();
+  contactsUnsubscribers = [
+    onValue(ref(db, `friends/${uid}`), () => window.renderContactsUI?.()),
+    onValue(ref(db, 'presence'), () => window.renderContactsUI?.()),
+  ];
+}
+
+function openContactsPanel() {
+  const panel = document.getElementById('contacts-panel');
+  if (!panel) return;
+
+  panel.classList.add('open');
+  renderContactsStatus('Loading contacts…');
+
+  const uid = getCurrentUid();
+  if (!uid) {
+    stopContactSubscriptions();
+    renderContactsStatus('Sign in to view contacts.');
+    return;
+  }
+
+  startContactSubscriptions(uid);
+  window.renderContactsUI?.();
+}
+
+function closeContactsPanel() {
+  document.getElementById('contacts-panel')?.classList.remove('open');
+  stopContactSubscriptions();
+}
+
+window.openContactsPanel = openContactsPanel;
+window.closeContactsPanel = closeContactsPanel;
 
 window.toggleContacts = function toggleContacts() {
   const panel = document.getElementById('contacts-panel');
   if (!panel) return;
 
-  panel.classList.toggle('open');
-  if (panel.classList.contains('open')) {
-    onValue(ref(db, `friends/${window.currentUser.uid}`), window.renderContactsUI);
-    onValue(ref(db, 'presence'), window.renderContactsUI);
-  }
+  if (panel.classList.contains('open')) closeContactsPanel();
+  else openContactsPanel();
 };
 
-document.getElementById('close-contacts-btn')?.addEventListener('click', () => {
-  document.getElementById('contacts-panel')?.classList.remove('open');
-  off(ref(db, `friends/${window.currentUser.uid}`));
-  off(ref(db, 'presence'));
+document.addEventListener('click', (event) => {
+  if (event.target.closest('#close-contacts-btn')) closeContactsPanel();
 });
 
 window.sendRequest = async (targetUid) => {
-  await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'pending_sent');
-  await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'pending_received');
+  const uid = getCurrentUid();
+  if (!uid) throw new Error('Please sign in first.');
+
+  await set(ref(db, `friends/${uid}/${targetUid}`), 'pending_sent');
+  await set(ref(db, `friends/${targetUid}/${uid}`), 'pending_received');
 
   if (window.createNotification) {
     window.createNotification(
       targetUid,
       'friend',
       `${window.userProfileName || 'Someone'} sent you a friend request!`,
-      { groupId: window.currentUser.uid, from: window.userProfileName || 'Someone' },
+      { groupId: uid, from: window.userProfileName || 'Someone' },
     );
   }
 };
 
 window.acceptRequest = async (targetUid) => {
-  await set(ref(db, `friends/${window.currentUser.uid}/${targetUid}`), 'accepted');
-  await set(ref(db, `friends/${targetUid}/${window.currentUser.uid}`), 'accepted');
+  const uid = getCurrentUid();
+  if (!uid) throw new Error('Please sign in first.');
+
+  await set(ref(db, `friends/${uid}/${targetUid}`), 'accepted');
+  await set(ref(db, `friends/${targetUid}/${uid}`), 'accepted');
 
   if (window.awardBadge) {
-    window.awardBadge(window.currentUser.uid, 'first_friend');
+    window.awardBadge(uid, 'first_friend');
     window.awardBadge(targetUid, 'first_friend');
-    window.awardXP?.(window.currentUser.uid, 'support', 5);
+    window.awardXP?.(uid, 'support', 5);
     window.awardXP?.(targetUid, 'support', 5);
     window.trackQuest?.('friend');
 
     try {
-      const mine = Object.values((await get(ref(db, `friends/${window.currentUser.uid}`))).val() || {})
+      const mine = Object.values((await get(ref(db, `friends/${uid}`))).val() || {})
         .filter((status) => status === 'accepted').length;
-      if (mine >= 10) window.awardBadge(window.currentUser.uid, 'social');
+      if (mine >= 10) window.awardBadge(uid, 'social');
     } catch {
       // Badge progress is best effort.
     }
@@ -137,203 +186,122 @@ window.acceptRequest = async (targetUid) => {
 };
 
 window.removeFriend = async (targetUid) => {
-  await remove(ref(db, `friends/${window.currentUser.uid}/${targetUid}`));
-  await remove(ref(db, `friends/${targetUid}/${window.currentUser.uid}`));
+  const uid = getCurrentUid();
+  if (!uid) throw new Error('Please sign in first.');
+
+  await remove(ref(db, `friends/${uid}/${targetUid}`));
+  await remove(ref(db, `friends/${targetUid}/${uid}`));
 };
 
-window.renderContactsUI = async function renderContactsUI() {
-  try {
-    const list = document.getElementById('contacts-list');
-    if (!list) return;
+async function readCurrentRoomMembers() {
+  if (!window.activeRoomId || window.activeRoomId === 'global') return {};
+  return safeGetValue(`rooms_meta/${window.activeRoomId}/members`, {}, { quiet: true });
+}
 
-    const searchInput = document.getElementById('contact-search-input');
-    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+async function readMutualRoomUids(uid) {
+  const mutualUids = new Set();
+  const meta = await safeGetValue('rooms_meta', {}, { quiet: true });
 
-    const usersSnap = await get(ref(db, 'users'));
-    const friendsSnap = await get(ref(db, `friends/${window.currentUser.uid}`));
-    const presenceSnap = await get(ref(db, 'presence'));
-
-    let currentRoomMembers = {};
-    if (window.activeRoomId !== 'global') {
-      const roomSnap = await get(ref(db, `rooms_meta/${window.activeRoomId}/members`));
-      if (roomSnap.exists()) currentRoomMembers = roomSnap.val();
-    }
-
-    const allUsers = usersSnap.val() || {};
-    const myFriends = friendsSnap.val() || {};
-    const presenceData = presenceSnap.val() || {};
-    const mutualUids = new Set();
-
-    try {
-      const meta = (await get(ref(db, 'rooms_meta'))).val() || {};
-      Object.values(meta).forEach((room) => {
-        const members = room.members || {};
-        if (members[window.currentUser.uid]) {
-          Object.keys(members).forEach((uid) => {
-            if (uid !== window.currentUser.uid) mutualUids.add(uid);
-          });
-        }
+  Object.values(meta || {}).forEach((room) => {
+    const members = room?.members || {};
+    if (members[uid]) {
+      Object.keys(members).forEach((memberUid) => {
+        if (memberUid !== uid) mutualUids.add(memberUid);
       });
-    } catch {
-      // Suggestions are optional; the core contacts list still renders.
     }
-
-    let htmlRequests = '';
-    let htmlOnline = '';
-    let htmlOffline = '';
-    let htmlRoom = '';
-    let htmlSearch = '';
-    let htmlSuggest = '';
-
-    Object.entries(allUsers).forEach(([uid, user]) => {
-      if (uid === window.currentUser.uid) return;
-
-      const status = myFriends[uid];
-      const isOnline = presenceData[uid]?.state === 'online';
-      const statusClass = isOnline ? 'online' : 'offline';
-      const displayName = user.displayName || 'Unknown';
-      const avatar = user.photoUrl || window.getAvatarUrl(displayName, '');
-      const nameLower = displayName.toLowerCase();
-      const shortIdLower = (user.shortId || '').toLowerCase();
-
-      const baseItem = `<li class="contact-item"><div class="contact-info"><div class="avatar-wrapper" onclick="viewUserProfile('${uid}')" style="cursor: pointer;" title="View Profile"><img src="${escapeHtml(avatar)}" class="contact-avatar"><div class="status-dot ${statusClass}"></div></div><span style="font-weight:600;">${escapeHtml(displayName)}</span><span class="unread-indicator" id="dot-${uid}"></span></div><div class="contact-actions">`;
-      let actionHtml = '';
-
-      if (status === 'accepted') {
-        actionHtml = `<button class="contact-icon-btn pm-open-btn" data-uid="${uid}" data-name="${escapeHtml(displayName)}" title="Message"><i class="ph-bold ph-chat-circle-text"></i></button><button class="contact-icon-btn" onclick="viewUserProfile('${uid}')" title="More Options"><i class="ph-bold ph-dots-three-vertical"></i></button></div></li>`;
-      } else if (status === 'pending_received') {
-        actionHtml = `<button class="mini-btn" onclick="acceptRequest('${uid}')">Accept</button><button class="mini-btn danger" onclick="removeFriend('${uid}')">Decline</button></div></li>`;
-      } else if (status === 'pending_sent') {
-        actionHtml = '<span style="font-size:0.8rem; color:#888; font-weight: bold; margin-top: 5px;">Requested</span></div></li>';
-      } else {
-        actionHtml = `<button class="mini-btn outline" onclick="sendRequest('${uid}')">ADD</button></div></li>`;
-      }
-
-      const fullItem = baseItem + actionHtml;
-
-      if (searchQuery) {
-        if (nameLower.includes(searchQuery) || shortIdLower.includes(searchQuery)) htmlSearch += fullItem;
-      } else if (status === 'accepted') {
-        if (isOnline) htmlOnline += fullItem;
-        else htmlOffline += fullItem;
-      } else if (status === 'pending_received' || status === 'pending_sent') {
-        htmlRequests += fullItem;
-      } else if (currentRoomMembers[uid]) {
-        htmlRoom += fullItem;
-      } else if (mutualUids.has(uid)) {
-        htmlSuggest += fullItem;
-      }
-    });
-
-    list.innerHTML = '';
-
-    if (searchQuery) {
-      list.innerHTML += `<li class="section-title">Search Results</li>${
-        htmlSearch || '<li style="padding: 1rem 1.5rem; color: #888; font-size: 0.85rem; font-weight: bold;">No users found.</li>'
-      }`;
-    } else {
-      if (htmlOnline) list.innerHTML += `<li class="section-title">Online Friends</li>${htmlOnline}`;
-      if (htmlOffline) list.innerHTML += `<li class="section-title" style="opacity: 0.6;">Offline Friends</li>${htmlOffline}`;
-      if (htmlRoom) list.innerHTML += `<li class="section-title">People in Room</li>${htmlRoom}`;
-      if (htmlSuggest) list.innerHTML += `<li class="section-title">People you may know</li>${htmlSuggest}`;
-      if (htmlRequests) list.innerHTML += `<li class="section-title">Requests</li>${htmlRequests}`;
-    }
-
-    list.querySelectorAll('.pm-open-btn').forEach((button) => {
-      button.addEventListener('click', () => window.openPrivateChat(button.dataset.uid, button.dataset.name));
-    });
-  } catch (error) {
-    console.error('Contacts render failed', error);
-  }
-};
-
-window.openPrivateChat = function openPrivateChat(targetUid, targetName) {
-  window.currentPmTargetUid = targetUid;
-  document.getElementById('pm-target-name').textContent = targetName;
-  document.getElementById('pm-messages').innerHTML = '';
-  window.currentPmRoomId = window.currentUser.uid < targetUid
-    ? `${window.currentUser.uid}_${targetUid}`
-    : `${targetUid}_${window.currentUser.uid}`;
-
-  if (window.pmQueryRef) off(window.pmQueryRef);
-  set(ref(db, `inbox/${window.currentUser.uid}/${targetUid}/read`), true);
-  remove(ref(db, `notifications/${window.currentUser.uid}/message_${targetUid}`));
-
-  window.pmQueryRef = query(ref(db, `private_messages/${window.currentPmRoomId}`), limitToLast(30));
-  updatePmE2eStatus();
-  onChildAdded(window.pmQueryRef, async (snapshot) => {
-    const msg = snapshot.val();
-    const pmList = document.getElementById('pm-messages');
-    const item = document.createElement('li');
-    item.classList.add(msg.uid === window.currentUser.uid ? 'my-pm' : 'their-pm');
-    if (msg.encrypted) item.classList.add('encrypted-pm');
-    item.innerHTML = renderMessageText(await decryptPmText(window.currentPmRoomId, msg));
-    pmList.appendChild(item);
-    pmList.scrollTo(0, pmList.scrollHeight);
   });
 
-  document.getElementById('pm-popup')?.classList.remove('hidden');
-};
+  return mutualUids;
+}
 
-document.getElementById('pm-close-btn')?.addEventListener('click', () => {
-  document.getElementById('pm-popup')?.classList.add('hidden');
-  if (window.pmQueryRef) off(window.pmQueryRef);
-  window.currentPmRoomId = null;
-  window.currentPmTargetUid = null;
-  updatePmE2eStatus();
-});
+async function loadContactUsers(candidateUids, directoryData, currentUid) {
+  const entries = await Promise.all([...candidateUids].map(async (uid) => {
+    if (!uid || uid === currentUid) return null;
 
-document.getElementById('pm-e2e-btn')?.addEventListener('click', async () => {
-  if (!window.currentPmRoomId) return;
-  if (pmE2eKeys.has(window.currentPmRoomId)) {
-    const targetUid = window.currentPmTargetUid;
-    const targetName = document.getElementById('pm-target-name')?.textContent || 'User';
-    pmE2eKeys.delete(window.currentPmRoomId);
-    updatePmE2eStatus();
-    window.showToast?.('Encrypted messages disabled for this PM window.', false);
-    if (targetUid) window.openPrivateChat(targetUid, targetName);
+    const directoryRecord = directoryData?.[uid];
+    if (directoryRecord) return [uid, normalizeUserRecord(directoryRecord)];
+
+    const privateRecord = await safeGetValue(`users/${uid}`, null, { quiet: true });
+    if (!privateRecord) return null;
+
+    return [uid, normalizeUserRecord(privateRecord)];
+  }));
+
+  return Object.fromEntries(entries.filter(Boolean));
+}
+
+window.renderContactsUI = async function renderContactsUI() {
+  const list = document.getElementById('contacts-list');
+  if (!list) return;
+
+  const uid = getCurrentUid();
+  if (!uid) {
+    renderContactsStatus('Sign in to view contacts.');
     return;
   }
 
-  const passphrase = window.prompt('Enter the shared encryption passphrase for this PM. The other person must enter the same passphrase.');
-  if (!passphrase) return;
   try {
-    pmE2eKeys.set(window.currentPmRoomId, await derivePmKey(window.currentPmRoomId, passphrase));
-    updatePmE2eStatus();
-    window.showToast?.('Encrypted messages enabled for this PM window.', false);
-    if (window.currentPmTargetUid) window.openPrivateChat(window.currentPmTargetUid, document.getElementById('pm-target-name')?.textContent || 'User');
+    const searchInput = document.getElementById('contact-search-input');
+    const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    const [directoryData, myFriends, presenceData, currentRoomMembers, mutualUids] = await Promise.all([
+      safeGetValue('user_directory', {}, { quiet: true }),
+      safeGetValue(`friends/${uid}`, {}, { quiet: true }),
+      safeGetValue('presence', {}, { quiet: true }),
+      readCurrentRoomMembers(),
+      readMutualRoomUids(uid),
+    ]);
+
+    const candidateUids = new Set(Object.keys(directoryData || {}));
+    Object.keys(myFriends || {}).forEach((friendUid) => candidateUids.add(friendUid));
+    Object.keys(currentRoomMembers || {}).forEach((memberUid) => candidateUids.add(memberUid));
+    mutualUids.forEach((memberUid) => candidateUids.add(memberUid));
+
+    const allUsers = await loadContactUsers(candidateUids, directoryData || {}, uid);
+    const requests = [];
+    const online = [];
+    const offline = [];
+    const roomPeople = [];
+    const searchResults = [];
+    const suggestions = [];
+
+    Object.entries(allUsers)
+      .sort(([, a], [, b]) => (a.displayName || '').localeCompare(b.displayName || ''))
+      .forEach(([contactUid, user]) => {
+        const status = myFriends?.[contactUid];
+        const displayName = user.displayName || 'Unknown';
+        const nameLower = displayName.toLowerCase();
+        const shortIdLower = (user.shortId || '').toLowerCase();
+        const contact = toContact(contactUid, user, status, presenceData || {});
+
+        if (searchQuery) {
+          if (nameLower.includes(searchQuery) || shortIdLower.includes(searchQuery)) searchResults.push(contact);
+        } else if (status === 'accepted') {
+          if (contact.isOnline) online.push(contact);
+          else offline.push(contact);
+        } else if (status === 'pending_received' || status === 'pending_sent') {
+          requests.push(contact);
+        } else if (currentRoomMembers?.[contactUid]) {
+          roomPeople.push(contact);
+        } else if (mutualUids.has(contactUid)) {
+          suggestions.push(contact);
+        }
+      });
+
+    const sections = [];
+    if (searchQuery) {
+      pushSection(sections, 'search', 'Search Results', searchResults, { empty: 'No users found.' });
+    } else {
+      pushSection(sections, 'online', 'Online Friends', online);
+      pushSection(sections, 'offline', 'Offline Friends', offline, { subdued: true });
+      pushSection(sections, 'room', 'People in Room', roomPeople);
+      pushSection(sections, 'suggested', 'People you may know', suggestions);
+      pushSection(sections, 'requests', 'Requests', requests);
+    }
+
+    mountContactsList(list, sections);
   } catch (error) {
-    window.showToast?.(`Could not enable encrypted messages: ${error.message}`);
+    console.error('Contacts render failed', error);
+    renderContactsStatus(`Could not load contacts: ${error.message}`, { id: 'error', title: 'Contacts unavailable' });
   }
-});
-
-document.getElementById('pm-form')?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-
-  const pmInput = document.getElementById('pm-input');
-  const text = pmInput.value.trim();
-  if (!text || !window.currentPmRoomId) return;
-
-  const messagePayload = await encryptPmText(window.currentPmRoomId, text);
-  await push(ref(db, `private_messages/${window.currentPmRoomId}`), {
-    uid: window.currentUser.uid,
-    ...messagePayload,
-    timestamp: serverTimestamp(),
-  });
-  await set(ref(db, `inbox/${window.currentPmTargetUid}/${window.currentUser.uid}`), {
-    fromName: window.userProfileName,
-    timestamp: Date.now(),
-    read: false,
-  });
-
-  if (window.createNotification) {
-    window.createNotification(
-      window.currentPmTargetUid,
-      'message',
-      `New message from ${window.userProfileName || 'Someone'}.`,
-      { groupId: window.currentUser.uid, from: window.userProfileName || 'Someone' },
-    );
-  }
-
-  pmInput.value = '';
-});
+};

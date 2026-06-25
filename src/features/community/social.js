@@ -7,6 +7,11 @@
 import { db } from '../../lib/firebase.js';
 import { ref, get, set, remove, runTransaction } from 'firebase/database';
 import { escapeHtml } from '../../lib/text.js';
+import { getRequiredIdToken } from '../../lib/authToken.js';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import Leaderboard from './Leaderboard.jsx';
+import RecognitionPanel from './RecognitionPanel.jsx';
 
 // Earned-badge catalog (distinct from paid tier badges).
 const BADGES = {
@@ -16,8 +21,15 @@ const BADGES = {
     social:       { label: 'Social',       icon: 'ph-users-three',  color: '#22d3ee' }, // 10 friends
     liked:        { label: 'Liked',        icon: 'ph-heart',        color: '#f472b6' }, // 5 kudos
     popular:      { label: 'Popular',      icon: 'ph-star',         color: '#fbbf24' }, // 25 kudos
+    member_week:  { label: 'Member of the Week', icon: 'ph-crown',  color: '#f59e0b' },
+    community_award: { label: 'Community Award', icon: 'ph-medal',  color: '#fb923c' },
+    top_contributor: { label: 'Top Contributor', icon: 'ph-trophy', color: '#38bdf8' },
+    anniversary:  { label: 'Anniversary',  icon: 'ph-confetti',     color: '#a78bfa' },
+    birthday:     { label: 'Birthday',     icon: 'ph-cake',         color: '#f472b6' },
 };
 window.BADGE_DEFS = BADGES;
+let leaderboardRoot = null;
+let recognitionRoot = null;
 
 // Award a badge (idempotent — only fires/notifies the first time).
 window.awardBadge = async function (uid, badgeId) {
@@ -57,20 +69,59 @@ window.giveKudos = async function (targetUid) {
     } catch (e) { return { ok: false, reason: e.message }; }
 };
 
-// @mention notifications — resolve @name tokens against the current room's member roster.
-// (Global room has no roster; multi-word display names aren't mentionable by design.)
-window.notifyMentions = async function (text, roomId) {
-    if (!text || text.indexOf('@') === -1 || !roomId || roomId === 'global') return;
+function mentionHandle(value) {
+    return String(value || '')
+        .trim()
+        .replace(/^@+/, '')
+        .replace(/[^A-Za-z0-9_-]+/g, '')
+        .slice(0, 32)
+        .toLowerCase();
+}
+
+function addMentionHandles(map, uid, user = {}, fallbackName = '') {
+    if (!uid) return;
+    const names = [
+        fallbackName,
+        user.displayName,
+        user.name,
+        user.username,
+        user.shortId,
+    ];
+    names.forEach((name) => {
+        const handle = mentionHandle(name);
+        if (handle) map[handle] = uid;
+    });
+}
+
+// @mention notifications — resolve @handles against room members, and against all users in Global Chat.
+window.notifyMentions = async function (text, roomId, context = {}) {
+    if (!text || text.indexOf('@') === -1 || !roomId) return;
     try {
-        const members = (await get(ref(db, `rooms_meta/${roomId}/members`))).val() || {};
+        const directory = (await get(ref(db, 'user_directory'))).val() || {};
+        const members = roomId === 'global' ? null : ((await get(ref(db, `rooms_meta/${roomId}/members`))).val() || {});
         const byName = {};
-        Object.entries(members).forEach(([uid, name]) => { if (name) byName[String(name).toLowerCase()] = uid; });
+        if (members) {
+            Object.entries(members).forEach(([uid, name]) => addMentionHandles(byName, uid, directory[uid] || {}, name));
+        } else {
+            Object.entries(directory).forEach(([uid, user]) => addMentionHandles(byName, uid, user));
+        }
+
         const targets = new Set();
-        (text.match(/(^|[^\w@])@(\w{2,32})/g) || []).forEach(tok => {
-            const uid = byName[tok.slice(tok.indexOf('@') + 1).toLowerCase()];
+        for (const match of text.matchAll(/(^|[^\w@])@([A-Za-z0-9_-]{2,32})/g)) {
+            const uid = byName[mentionHandle(match[2])];
             if (uid) targets.add(uid);
-        });
-        targets.forEach(uid => window.createNotification?.(uid, 'mention', `${window.userProfileName || 'Someone'} mentioned you.`, { groupId: roomId, from: window.userProfileName }));
+        }
+
+        targets.forEach(uid => window.createNotification?.(uid, 'mention', `${window.userProfileName || 'Someone'} mentioned you.`, {
+            groupId: context.groupId || roomId,
+            from: window.userProfileName,
+            action: 'room-message',
+            roomId,
+            roomName: context.roomName || document.getElementById('active-room-name-display')?.textContent?.trim() || (roomId === 'global' ? 'Global Chat' : 'Room'),
+            shortId: context.shortId || window.activeRoomShortId || (roomId === 'global' ? 'GLOBAL' : ''),
+            channelId: context.channelId || window.activeChannelId || 'general',
+            messageId: context.messageId || '',
+        }));
     } catch (e) { console.error('notifyMentions failed', e); }
 };
 
@@ -162,8 +213,8 @@ window.openProfileByRef = async function (val) {
     if (!val || !window.viewUserProfile) return;
     val = String(val).replace(/^#/, '');
     if ((await get(ref(db, `users/${val}`))).exists()) return window.viewUserProfile(val);
-    const users = (await get(ref(db, 'users'))).val() || {};
-    const hit = Object.entries(users).find(([, u]) => (u.shortId || '').toUpperCase() === val.toUpperCase());
+    const directory = (await get(ref(db, 'user_directory'))).val() || {};
+    const hit = Object.entries(directory).find(([, u]) => (u.shortId || '').toUpperCase() === val.toUpperCase());
     if (hit) window.viewUserProfile(hit[0]);
 };
 window.profileShareLink = (uid) => `${location.origin}/chat?profile=${uid}`;
@@ -172,20 +223,34 @@ window.profileShareLink = (uid) => `${location.origin}/chat?profile=${uid}`;
 window.generateSpotlight = async function (uid, user) {
     const el = document.getElementById('up-spotlight');
     if (!el) return;
-    if (!window.AI_CHAT_ENDPOINT) { el.innerHTML = `<div class="ai-empty">AI spotlight needs the aiChat function deployed.</div>`; return; }
-    el.innerHTML = `<div class="ai-progress"><div class="ai-spinner"></div><span>Writing spotlight…</span></div>`;
+    const renderSpotlight = (payload) => {
+        if (window.renderProfileSpotlight) {
+            window.renderProfileSpotlight({ ...payload, onRetry: () => window.generateSpotlight(uid, user) });
+        } else {
+            el.textContent = payload.text || payload.error || '';
+        }
+    };
+    if (!window.AI_CHAT_ENDPOINT) {
+        renderSpotlight({ status: 'error', error: 'AI spotlight needs the aiChat function deployed.' });
+        return;
+    }
+    renderSpotlight({ status: 'loading' });
     const ctx = `Member: ${user.displayName || 'Member'}\nBio: ${user.bio || '—'}\nStatus: ${user.status || '—'}\nReputation: ${window.computeRep(user)}\nBadges: ${Object.keys(user.badges || {}).join(', ') || 'none'}\nKudos: ${user.kudos || 0}\nMessages: ${(user.stats && user.stats.messages) || 0}`;
     try {
+        const token = await getRequiredIdToken('Please sign in again before generating an AI spotlight.');
         const r = await fetch(window.AI_CHAT_ENDPOINT, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({ context: ctx, messages: [{ role: 'user', content: 'Write a warm 1–2 sentence community spotlight for this member based only on the context. Do not invent facts.' }] })
         });
         const data = await r.json().catch(() => ({}));
         if (r.ok && data.reply) {
-            el.innerHTML = `<div class="profile-spotlight-text">✨ ${escapeHtml(data.reply)}</div><button id="up-spotlight-btn" class="ai-btn ai-btn-ghost"><i class="ph-bold ph-arrows-clockwise"></i> Regenerate</button>`;
-            document.getElementById('up-spotlight-btn')?.addEventListener('click', () => window.generateSpotlight(uid, user));
-        } else { el.innerHTML = `<div class="ai-empty">${escapeHtml(data.error || 'Spotlight unavailable.')}</div>`; }
-    } catch (e) { el.innerHTML = `<div class="ai-empty">Couldn't reach AI: ${escapeHtml(e.message)}</div>`; }
+            renderSpotlight({ status: 'ready', text: data.reply });
+        } else {
+            renderSpotlight({ status: 'error', error: data.error || 'Spotlight unavailable.' });
+        }
+    } catch (e) {
+        renderSpotlight({ status: 'error', error: `Couldn't reach AI: ${e.message}` });
+    }
 };
 
 /* ---------- Skills & endorsements ---------- */
@@ -251,34 +316,203 @@ window.renderHeatmap = function (activityByDay) {
 window.renderLeaderboard = async function (metric = 'overall') {
     const listEl = document.getElementById('leaderboard-list');
     if (!listEl) return;
+    if (!leaderboardRoot) leaderboardRoot = createRoot(listEl);
     const skills = window.SKILL_DEFS || {};
-    const filters = `<li class="lb-filters">`
-        + `<button class="lb-filter ${metric === 'overall' ? 'active' : ''}" data-metric="overall">Overall</button>`
-        + Object.entries(skills).map(([k, m]) => `<button class="lb-filter ${metric === k ? 'active' : ''}" data-metric="${k}" style="${metric === k ? `background:${m.color};border-color:${m.color};color:#111` : ''}"><i class="ph-bold ${m.icon}"></i></button>`).join('')
-        + `</li>`;
-    const wireFilters = () => listEl.querySelectorAll('.lb-filter').forEach(b => b.addEventListener('click', (e) => { e.stopPropagation(); window.renderLeaderboard(b.dataset.metric); }));
-    listEl.innerHTML = filters + `<li class="lb-empty">Loading…</li>`;
+    const renderLeaderboardState = (payload) => leaderboardRoot.render(createElement(Leaderboard, {
+        metric,
+        onMetric: window.renderLeaderboard,
+        skills,
+        ...payload,
+    }));
+    renderLeaderboardState({ status: 'loading' });
     try {
-        const users = (await get(ref(db, 'users'))).val() || {};
+        const directory = (await get(ref(db, 'user_directory'))).val() || {};
         const isSkill = !!skills[metric];
         const scoreOf = (u) => isSkill ? ((u.xp && u.xp[metric]) || 0) : window.computeRep(u);
         const unit = isSkill ? `${skills[metric].label} XP` : 'pts';
-        const ranked = Object.entries(users)
-            .map(([uid, u]) => ({ uid, name: u.displayName || 'Anonymous', photo: u.photoUrl || '', score: scoreOf(u), lvl: window.totalLevel(u) }))
+        const profileRows = await Promise.all(Object.entries(directory).map(async ([uid, publicProfile]) => {
+            const snap = await get(ref(db, `users/${uid}`)).catch(() => null);
+            const privateProfile = snap?.val() || {};
+            return {
+                uid,
+                publicProfile: publicProfile || {},
+                privateProfile,
+            };
+        }));
+        const ranked = profileRows
+            .map(({ uid, publicProfile, privateProfile }) => ({
+                uid,
+                name: publicProfile.displayName || privateProfile.displayName || 'Anonymous',
+                photo: publicProfile.photoUrl || privateProfile.photoUrl || '',
+                score: scoreOf(privateProfile),
+                lvl: window.totalLevel(privateProfile),
+            }))
             .filter(u => u.score > 0)
             .sort((a, b) => b.score - a.score)
             .slice(0, 25);
-        const medal = (i) => (i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`);
-        listEl.innerHTML = filters + (ranked.length ? ranked.map((u, i) => `
-            <li class="lb-row" onclick="viewUserProfile('${u.uid}')">
-                <span class="lb-rank">${medal(i)}</span>
-                <img class="lb-avatar" src="${escapeHtml(u.photo || window.getAvatarUrl(u.name, ''))}" alt="">
-                <span class="lb-name">${escapeHtml(u.name)} <span class="lb-lvl">Lv ${u.lvl}</span></span>
-                <span class="lb-rep">${u.score} ${escapeHtml(unit)}</span>
-            </li>`).join('') : `<li class="lb-empty">No ranked members yet.</li>`);
-        wireFilters();
+        renderLeaderboardState({ rows: ranked, status: 'ready', unit });
     } catch (e) {
-        listEl.innerHTML = filters + `<li class="lb-empty">Couldn't load leaderboard: ${escapeHtml(e.message)}</li>`;
-        wireFilters();
+        console.warn('Leaderboard unavailable; using local fallback.', e);
+        const fallbackScore = window.computeRep?.(window.currentUserProfile || {}) || 0;
+        const fallbackRows = window.currentUser ? [{
+            uid: window.currentUser.uid,
+            name: window.userProfileName || window.currentUser.displayName || 'You',
+            photo: window.userPhotoUrl || window.currentUser.photoURL || '',
+            score: fallbackScore,
+            lvl: window.totalLevel?.(window.currentUserProfile || {}) || 1,
+        }].filter((row) => row.score > 0) : [];
+        renderLeaderboardState({ rows: fallbackRows, status: 'ready', unit: 'pts' });
+    }
+};
+
+function parseLooseDate(value) {
+    if (!value) return null;
+    if (typeof value === 'number') {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+        const date = new Date(trimmed);
+        if (!Number.isNaN(date.getTime())) return date;
+        const monthDay = trimmed.match(/^(\d{1,2})[/-](\d{1,2})$/);
+        if (monthDay) {
+            const now = new Date();
+            return new Date(now.getFullYear(), Number(monthDay[1]) - 1, Number(monthDay[2]));
+        }
+    }
+    return null;
+}
+
+function dayKey(date) {
+    return `${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function upcomingMeta(date, label) {
+    if (!date) return '';
+    const now = new Date();
+    const thisYear = new Date(now.getFullYear(), date.getMonth(), date.getDate());
+    const next = thisYear < new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        ? new Date(now.getFullYear() + 1, date.getMonth(), date.getDate())
+        : thisYear;
+    const days = Math.max(0, Math.round((next - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000));
+    if (days === 0) return `${label} today`;
+    if (days === 1) return `${label} tomorrow`;
+    return `${label} in ${days} days`;
+}
+
+function isWithinNextDays(date, days = 30) {
+    if (!date) return false;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    let next = new Date(now.getFullYear(), date.getMonth(), date.getDate());
+    if (next < today) next = new Date(now.getFullYear() + 1, date.getMonth(), date.getDate());
+    return next - today <= days * 86400000;
+}
+
+function weeklyActivityScore(user) {
+    const activity = user?.activityByDay || {};
+    const today = new Date();
+    const cutoff = new Date(today);
+    cutoff.setDate(today.getDate() - 6);
+    cutoff.setHours(0, 0, 0, 0);
+    return Object.entries(activity).reduce((sum, [date, count]) => {
+        const parsed = new Date(`${date}T00:00:00`);
+        if (Number.isNaN(parsed.getTime()) || parsed < cutoff) return sum;
+        return sum + Number(count || 0);
+    }, 0);
+}
+
+async function loadCommunityProfiles() {
+    const directory = (await get(ref(db, 'user_directory'))).val() || {};
+    const rows = await Promise.all(Object.entries(directory).map(async ([uid, publicProfile]) => {
+        const snap = await get(ref(db, `users/${uid}`)).catch(() => null);
+        const privateProfile = snap?.val() || {};
+        const joinedAt = parseLooseDate(
+            privateProfile.joinedAt
+            || privateProfile.createdAt
+            || privateProfile.created
+            || publicProfile?.joinedAt
+            || publicProfile?.createdAt
+            || publicProfile?.created
+        );
+        const birthday = parseLooseDate(privateProfile.birthday || privateProfile.birthdate || publicProfile?.birthday || publicProfile?.birthdate);
+        return {
+            uid,
+            name: publicProfile?.displayName || privateProfile.displayName || privateProfile.name || 'Anonymous',
+            handle: publicProfile?.username || privateProfile.username || publicProfile?.shortId || privateProfile.shortId || '',
+            photo: publicProfile?.photoUrl || privateProfile.photoUrl || '',
+            score: window.computeRep(privateProfile),
+            lvl: window.totalLevel(privateProfile),
+            weekScore: weeklyActivityScore(privateProfile),
+            joinedAt,
+            birthday,
+            privateProfile,
+            publicProfile: publicProfile || {},
+        };
+    }));
+    return rows;
+}
+
+window.resolveUserRef = async function resolveUserRef(value) {
+    const needle = mentionHandle(String(value || '').trim());
+    if (!needle) return null;
+    if ((await get(ref(db, `users/${needle}`))).exists()) return needle;
+    const directory = (await get(ref(db, 'user_directory'))).val() || {};
+    const hit = Object.entries(directory).find(([uid, user]) => {
+        const candidates = [uid, user?.displayName, user?.name, user?.username, user?.shortId].map(mentionHandle);
+        return candidates.includes(needle);
+    });
+    return hit ? hit[0] : null;
+};
+
+window.giveCommunityAward = async function giveCommunityAward(targetRef, badgeId = 'community_award') {
+    if (!window.currentUser) return { ok: false, reason: 'auth' };
+    const uid = await window.resolveUserRef(targetRef);
+    if (!uid) return { ok: false, reason: 'not-found' };
+    await window.awardBadge(uid, BADGES[badgeId] ? badgeId : 'community_award');
+    try {
+        await window.awardXP?.(window.currentUser.uid, 'leadership', 5);
+    } catch {}
+    window.createNotification?.(uid, 'award', `${window.userProfileName || 'Someone'} gave you a community award.`, {
+        groupId: `${window.currentUser.uid}_${badgeId}`,
+        from: window.userProfileName,
+    });
+    return { ok: true, uid };
+};
+
+window.renderRecognition = async function renderRecognition() {
+    const listEl = document.getElementById('recognition-list');
+    if (!listEl) return;
+    if (!recognitionRoot) recognitionRoot = createRoot(listEl);
+    const renderRecognitionState = (payload) => recognitionRoot.render(createElement(RecognitionPanel, payload));
+    renderRecognitionState({ status: 'loading' });
+    try {
+        const profiles = await loadCommunityProfiles();
+        const ranked = profiles
+            .map((row) => ({ ...row, score: Number(row.score || 0), weekScore: Number(row.weekScore || 0) }))
+            .sort((a, b) => b.score - a.score);
+        const memberOfWeek = [...ranked]
+            .filter((row) => row.weekScore > 0 || row.score > 0)
+            .sort((a, b) => (b.weekScore - a.weekScore) || (b.score - a.score))[0] || null;
+        const anniversaries = ranked
+            .filter((row) => isWithinNextDays(row.joinedAt, 30))
+            .map((row) => ({ ...row, meta: upcomingMeta(row.joinedAt, 'Anniversary') }))
+            .sort((a, b) => dayKey(a.joinedAt).localeCompare(dayKey(b.joinedAt)));
+        const birthdays = ranked
+            .filter((row) => isWithinNextDays(row.birthday, 30))
+            .map((row) => ({ ...row, meta: upcomingMeta(row.birthday, 'Birthday') }))
+            .sort((a, b) => dayKey(a.birthday).localeCompare(dayKey(b.birthday)));
+
+        renderRecognitionState({
+            anniversaries,
+            birthdays,
+            memberOfWeek,
+            rows: ranked.filter((row) => row.score > 0),
+            status: 'ready',
+        });
+    } catch (e) {
+        renderRecognitionState({ error: e.message, status: 'error' });
     }
 };

@@ -3,6 +3,15 @@ import { get, limitToLast, push, query, ref, remove, set, update } from 'firebas
 import { db } from '../../lib/firebase.js';
 
 const defaultDescription = 'A dedicated space for communication, sharing resources, and connecting with the group. Everyone is welcome.';
+const ROOM_TEMPLATE_LABELS = {
+  blank: 'Blank room',
+  study: 'Study room',
+  creator: 'Creator community',
+  project: 'Project team',
+  support: 'Support group',
+  gaming: 'Gaming group',
+  club: 'Club hub',
+};
 
 function safeUrl(url) {
   const trimmed = (url || '').trim();
@@ -16,6 +25,183 @@ function Section({ action, children, icon, title }) {
       <div className="rh-head"><h3><i className={`ph-bold ${icon}`} /> {title}</h3>{action ? <span>{action}</span> : null}</div>
       {children}
     </section>
+  );
+}
+
+function countObject(value) {
+  return Object.keys(value || {}).length;
+}
+
+function numericCount(value) {
+  if (typeof value === 'number') return value;
+  const parsed = parseInt(String(value || '').replace(/\D+/g, ''), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }) {
+  const messages = numericCount(messageCount);
+  const members = isGlobal ? 50 : numericCount(memberCount);
+  const channels = isGlobal ? 1 : countObject(data.channels) + 1;
+  const resources = countObject(data.resources);
+  const events = countObject(data.events);
+  const rules = countObject(data.rules);
+  const logs = Object.values(data.logs || {});
+  const recentActivity = logs.filter((log) => Date.now() - Number(log.timestamp || 0) < 14 * 86400000).length;
+  const descriptionScore = data.description ? 10 : 0;
+  const topicScore = data.topic ? 8 : 0;
+  const health = Math.min(100,
+    (messages >= 10 ? 18 : messages >= 1 ? 8 : 0)
+    + (members >= 5 ? 14 : members >= 2 ? 8 : 0)
+    + descriptionScore
+    + topicScore
+    + (rules ? 10 : 0)
+    + (resources ? 10 : 0)
+    + (events ? 10 : 0)
+    + (recentActivity ? 12 : 0)
+    + (channels > 1 ? 8 : 0)
+  );
+  const reputation = Math.max(0, (messages * 2) + (members * 12) + (channels * 8) + (resources * 9) + (events * 12) + (rules * 6) + ((contributors?.length || 0) * 10));
+  const prestigeLevel = Math.max(1, Math.min(50, Math.floor(reputation / 125) + 1));
+  const discovery = data.discovery || {};
+
+  const milestones = [
+    { label: 'Room created', done: isGlobal || Boolean(data.createdAt), icon: 'ph-flag' },
+    { label: '10 messages', done: messages >= 10, icon: 'ph-chat-circle-text' },
+    { label: '5 members', done: members >= 5, icon: 'ph-users-three' },
+    { label: 'First resource pinned', done: resources >= 1, icon: 'ph-push-pin' },
+    { label: 'First event scheduled', done: events >= 1, icon: 'ph-calendar-dots' },
+    { label: 'Prestige level 3', done: prestigeLevel >= 3, icon: 'ph-crown' },
+  ];
+
+  const snapshots = [
+    ['Messages', messageCount],
+    ['Members', memberCount],
+    ['Channels', channels],
+    ['Resources', resources],
+    ['Events', events],
+    ['Rules', rules],
+  ];
+
+  const timeline = [
+    ...(data.createdAt ? [{ ts: Number(data.createdAt), label: 'Room created', icon: 'ph-flag' }] : []),
+    ...logs.map((log) => ({ ts: Number(log.timestamp || 0), label: log.text || 'Room activity', icon: 'ph-activity' })),
+    ...Object.values(data.events || {}).map((event) => ({
+      ts: event.date ? Date.parse(`${event.date}T12:00:00`) : 0,
+      label: `Event: ${event.title || 'Untitled'}`,
+      icon: 'ph-calendar-dots',
+    })),
+  ].filter((item) => item.ts).sort((a, b) => b.ts - a.ts).slice(0, 8);
+
+  return {
+    category: data.category || data.roomTypeLabel || data.roomType || 'General',
+    discoveryEnabled: discovery.enabled === true || data.discoverable === true,
+    health,
+    milestones,
+    recommendationsEnabled: discovery.recommendations !== false,
+    reputation,
+    snapshots,
+    templateLabel: ROOM_TEMPLATE_LABELS[data.template || data.roomTemplate] || data.template || 'Blank room',
+    timeline,
+    prestigeLevel,
+    topic: data.topic || 'No topic set',
+  };
+}
+
+function RoomIdentityHero({ data, insights, isGlobal }) {
+  const bannerStyle = data.bannerUrl
+    ? { backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.58), rgba(0,0,0,0.08)), url("${data.bannerUrl}")` }
+    : undefined;
+  return (
+    <section className={`rh-identity ${data.bannerUrl ? 'has-banner' : ''}`} style={bannerStyle}>
+      <div>
+        <span className="rh-kicker">Room identity</span>
+        <h2>{data.name || (isGlobal ? 'Global Chat' : 'Room')}</h2>
+        <p>{insights.topic}</p>
+      </div>
+      <div className="rh-chip-row">
+        <span><i className="ph-bold ph-shapes" /> {insights.category}</span>
+        <span><i className="ph-bold ph-stack" /> {insights.templateLabel}</span>
+        <span><i className="ph-bold ph-sparkle" /> Prestige {insights.prestigeLevel}</span>
+        <span><i className="ph-bold ph-heart" /> Favorite from room list</span>
+      </div>
+    </section>
+  );
+}
+
+function RoomScores({ insights }) {
+  return (
+    <Section icon="ph-pulse" title="Room Health">
+      <div className="rh-score-grid">
+        <div className="rh-score-card">
+          <span>Health score</span>
+          <strong>{insights.health}%</strong>
+          <div className="rh-meter"><i style={{ width: `${insights.health}%` }} /></div>
+        </div>
+        <div className="rh-score-card">
+          <span>Room reputation</span>
+          <strong>{insights.reputation}</strong>
+          <small>Activity, resources, members, events, and structure.</small>
+        </div>
+        <div className="rh-score-card">
+          <span>Prestige level</span>
+          <strong>{insights.prestigeLevel}</strong>
+          <small>Grows as the room becomes more useful.</small>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+function Discovery({ insights }) {
+  return (
+    <Section icon="ph-compass" title="Discovery">
+      <div className="rh-discovery-grid">
+        <div className={insights.discoveryEnabled ? 'on' : ''}><i className="ph-bold ph-binoculars" /><strong>{insights.discoveryEnabled ? 'Discoverable' : 'Private discovery'}</strong><span>Room discovery</span></div>
+        <div className={insights.recommendationsEnabled ? 'on' : ''}><i className="ph-bold ph-sparkle" /><strong>{insights.recommendationsEnabled ? 'Recommendations on' : 'Recommendations off'}</strong><span>Room recommendations</span></div>
+        <div><i className="ph-bold ph-stack" /><strong>{insights.templateLabel}</strong><span>Room template</span></div>
+      </div>
+    </Section>
+  );
+}
+
+function Milestones({ insights }) {
+  return (
+    <Section icon="ph-flag-checkered" title="Room Milestones">
+      <div className="rh-milestones">
+        {insights.milestones.map((item) => (
+          <div key={item.label} className={item.done ? 'done' : ''}>
+            <i className={`ph-bold ${item.done ? 'ph-check-circle' : item.icon}`} />
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+function Snapshots({ insights }) {
+  return (
+    <Section icon="ph-camera" title="Room Snapshots">
+      <div className="rh-snapshots">
+        {insights.snapshots.map(([label, value]) => <div key={label}><strong>{value}</strong><span>{label}</span></div>)}
+      </div>
+    </Section>
+  );
+}
+
+function Timeline({ insights }) {
+  return (
+    <Section icon="ph-timeline" title="Room Timeline">
+      <div className="rh-timeline">
+        {insights.timeline.length ? insights.timeline.map((item) => (
+          <div key={`${item.ts}-${item.label}`}>
+            <i className={`ph-bold ${item.icon}`} />
+            <span>{item.label}</span>
+            <small>{new Date(item.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>
+          </div>
+        )) : <div className="rh-muted">No timeline activity yet.</div>}
+      </div>
+    </Section>
   );
 }
 
@@ -168,6 +354,7 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   const [messageCount, setMessageCount] = useState('~');
   const memberCount = isGlobal ? '∞' : (Object.keys(data.members || {}).length || 1);
   const createdDate = isGlobal ? 'Day 1' : (data.createdAt ? new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+  const insights = useMemo(() => computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }), [contributors, data, isGlobal, memberCount, messageCount]);
 
   useEffect(() => {
     let active = true;
@@ -219,10 +406,11 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
 
   return (
     <div className="rh-scroll">
+      <RoomIdentityHero data={data} insights={insights} isGlobal={isGlobal} />
       <div className="rh-stats"><div className="rh-stat"><i className="ph-bold ph-chats" /> <span>{messageCount}</span> Messages</div><div className="rh-stat"><i className="ph-bold ph-users" /> <span>{memberCount}</span> Members</div><div className="rh-spacer" /><div className="rh-created">Created <span>{createdDate}</span></div></div>
       <div className="rh-grid">
-        <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><Analytics data={data} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>
-        <div className="rh-col"><Resources canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><EventsPreview canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><Contributors contributors={contributors} /><Members data={data} isGlobal={isGlobal} /></div>
+        <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><RoomScores insights={insights} /><Milestones insights={insights} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><Analytics data={data} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>
+        <div className="rh-col"><Discovery insights={insights} /><Snapshots insights={insights} /><Timeline insights={insights} /><Resources canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><EventsPreview canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><Contributors contributors={contributors} /><Members data={data} isGlobal={isGlobal} /></div>
       </div>
     </div>
   );

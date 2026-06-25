@@ -9,7 +9,11 @@ export function mountSearch(props) {
   if (!host) return;
   if (!searchRoot) {
     host.replaceChildren();
-    host.addEventListener('click', () => host.classList.add('hidden'));
+    host.addEventListener('click', (event) => {
+      if (event.target === host) {
+        window.dispatchEvent(new CustomEvent('minimalist:close-search'));
+      }
+    });
     searchRoot = createRoot(host);
   }
   searchRoot.render(createElement(Search, props));

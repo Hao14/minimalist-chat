@@ -16,6 +16,13 @@ const tools = [
   ['text', 'ph-text-t', 'Text'],
 ];
 
+function isRoomManager(roomData = {}, user) {
+  if (!user?.uid) return false;
+  if (user.uid === window.MY_ADMIN_UID) return true;
+  if (roomData.creatorId) return roomData.creatorId === user.uid;
+  return Object.keys(roomData.members || {})[0] === user.uid;
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -50,27 +57,55 @@ function isTextItem(item) {
   return item.type === 'note' || item.type === 'text';
 }
 
+function displayNameFor(user = {}) {
+  const profileName = String(user.displayName || '').trim();
+  if (profileName && profileName !== 'Anonymous') return profileName;
+  const emailName = String(user.email || '').split('@')[0]?.trim();
+  return emailName || 'Room member';
+}
+
 function WhiteboardItem({
   item,
   selected,
   activeTool,
   zoom,
+  editing,
   onSelect,
   onDelete,
   onMove,
   onSaveText,
+  onStartEditing,
+  onFinishEditing,
 }) {
-  const [editing, setEditing] = useState(false);
+  const [draftText, setDraftText] = useState(item.text || '');
   const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
+  const suppressEditClickUntil = useRef(0);
+  const editorRef = useRef(null);
   const canMove = activeTool === 'select' && !editing;
+
+  useEffect(() => {
+    if (!editing) return;
+    const timer = window.requestAnimationFrame(() => {
+      editorRef.current?.focus();
+      editorRef.current?.setSelectionRange?.(editorRef.current.value.length, editorRef.current.value.length);
+    });
+    return () => window.cancelAnimationFrame(timer);
+  }, [editing, item.id, item.text]);
+
+  const startEditing = () => {
+    if (Date.now() < suppressEditClickUntil.current) return;
+    setDraftText(item.text || '');
+    onStartEditing(item.id);
+  };
 
   const beginDrag = (event) => {
     if (event.button !== 0) return;
-    if (event.target.closest('button, textarea')) return;
+    if (event.target.closest('textarea, input, .wb-item-del')) return;
     onSelect(item.id);
     if (!canMove) return;
 
+    event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     drag.current = {
       pointerId: event.pointerId,
@@ -80,12 +115,16 @@ function WhiteboardItem({
       originY: item.y || 0,
       lastX: item.x || 0,
       lastY: item.y || 0,
+      moved: false,
+      startedOnEditableText: Boolean(event.target.closest('.wb-note-text, .wb-free-text')),
     };
     setDragging(true);
   };
 
   const moveDrag = (event) => {
     if (!drag.current || drag.current.pointerId !== event.pointerId) return;
+    const movedDistance = Math.hypot(event.clientX - drag.current.startX, event.clientY - drag.current.startY);
+    if (movedDistance > 4) drag.current.moved = true;
     const x = clamp(drag.current.originX + (event.clientX - drag.current.startX) / zoom, 0, BOARD_WIDTH - item.w);
     const y = clamp(drag.current.originY + (event.clientY - drag.current.startY) / zoom, 0, BOARD_HEIGHT - item.h);
     drag.current.lastX = x;
@@ -95,10 +134,12 @@ function WhiteboardItem({
 
   const endDrag = (event) => {
     if (!drag.current || drag.current.pointerId !== event.pointerId) return;
-    const { originX, originY, lastX, lastY } = drag.current;
+    const { originX, originY, lastX, lastY, moved, startedOnEditableText } = drag.current;
     drag.current = null;
     setDragging(false);
+    if (moved) suppressEditClickUntil.current = Date.now() + 220;
     onMove(item.id, lastX, lastY, true, { x: originX, y: originY });
+    if (!moved && startedOnEditableText) window.setTimeout(startEditing, 0);
   };
 
   const commonStyle = {
@@ -108,6 +149,7 @@ function WhiteboardItem({
     height: item.type === 'note' ? undefined : item.h,
     '--item-color': item.color,
   };
+  const ownerName = item.byName || 'Room member';
 
   return (
     <article
@@ -118,10 +160,10 @@ function WhiteboardItem({
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
       onDoubleClick={() => {
-        if (isTextItem(item)) setEditing(true);
+        if (isTextItem(item)) startEditing();
       }}
     >
-      <button type="button" className="wb-item-del" title="Delete" aria-label="Delete item" onClick={() => onDelete(item.id)}>
+      <button type="button" className="wb-item-del" title="Delete" aria-label="Delete item" onPointerDown={(event) => event.stopPropagation()} onClick={() => onDelete(item.id)}>
         &times;
       </button>
 
@@ -131,17 +173,25 @@ function WhiteboardItem({
 
       {isTextItem(item) && editing ? (
         <textarea
+          ref={editorRef}
           className="wb-text-editor"
-          defaultValue={item.text}
+          value={draftText}
           autoFocus
+          onChange={(event) => setDraftText(event.target.value)}
           onPointerDown={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
           onBlur={(event) => {
             onSaveText(item.id, event.target.value);
-            setEditing(false);
+            onFinishEditing();
           }}
           onKeyDown={(event) => {
             if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
               event.currentTarget.blur();
+            }
+            if (event.key === 'Escape') {
+              setDraftText(item.text || '');
+              onFinishEditing();
             }
           }}
         />
@@ -149,13 +199,17 @@ function WhiteboardItem({
 
       {item.type === 'note' && !editing ? (
         <>
-          <div className="wb-note-text">{item.text || 'Double-click to write…'}</div>
-          <div className="wb-note-meta">{item.byName ? `— ${item.byName}` : ''}</div>
+          <button type="button" className="wb-note-text" onClick={startEditing}>
+            {item.text || 'Click to write…'}
+          </button>
+          <div className="wb-note-meta"><i className="ph-bold ph-user-circle" /> {ownerName}</div>
         </>
       ) : null}
 
       {item.type === 'text' && !editing ? (
-        <div className="wb-free-text">{item.text || 'Double-click to type…'}</div>
+        <button type="button" className="wb-free-text" onClick={startEditing}>
+          {item.text || 'Click to type…'}
+        </button>
       ) : null}
     </article>
   );
@@ -168,6 +222,8 @@ export function Whiteboard({ roomId, user }) {
   const [selectedId, setSelectedId] = useState('');
   const [zoom, setZoom] = useState(1);
   const [draftShape, setDraftShape] = useState(null);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [editingId, setEditingId] = useState('');
   const canvasRef = useRef(null);
   const worldRef = useRef(null);
   const zoomRef = useRef(1);
@@ -199,13 +255,14 @@ export function Whiteboard({ roomId, user }) {
 
   const whiteboardAllowed = useCallback(async () => {
     if (roomId === 'global') return true;
-    const snap = await get(ref(db, `rooms_meta/${roomId}/permissions/whiteboard`)).catch(() => null);
-    if (snap?.exists() && snap.val() === false) {
+    const snap = await get(ref(db, `rooms_meta/${roomId}`)).catch(() => null);
+    const roomData = snap?.val() || {};
+    if (!isRoomManager(roomData, user) && roomData.permissions?.whiteboard === false) {
       window.showToast?.('Whiteboard editing is disabled in this room.');
       return false;
     }
     return true;
-  }, [roomId]);
+  }, [roomId, user]);
 
   const addItem = async (payload) => {
     if (!(await whiteboardAllowed())) return;
@@ -213,13 +270,14 @@ export function Whiteboard({ roomId, user }) {
     const nextItem = {
       ...payload,
       by: user.uid,
-      byName: user.displayName,
+      byName: displayNameFor(user),
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
     await set(nextRef, nextItem);
     pushAction({ type: 'add', id: nextRef.key });
     setSelectedId(nextRef.key || '');
+    if (isTextItem(nextItem)) setEditingId(nextRef.key || '');
     window.awardXP?.(user.uid, 'creativity', payload.type === 'note' ? 3 : 2);
   };
 
@@ -263,9 +321,10 @@ export function Whiteboard({ roomId, user }) {
     const nextY = Math.round(clamp(y, 0, BOARD_HEIGHT));
     setItems((current) => current.map((item) => item.id === id ? { ...item, x: nextX, y: nextY } : item));
     if (persist) {
+      if (before && Math.round(before.x) === nextX && Math.round(before.y) === nextY) return;
       whiteboardAllowed().then((allowed) => {
         if (!allowed) return;
-        if (before && (Math.round(before.x) !== nextX || Math.round(before.y) !== nextY)) {
+        if (before) {
           pushAction({ type: 'move', id, before: { x: Math.round(before.x), y: Math.round(before.y) }, after: { x: nextX, y: nextY } });
         }
         update(itemRef(id), { x: nextX, y: nextY, updatedAt: Date.now() });
@@ -277,11 +336,15 @@ export function Whiteboard({ roomId, user }) {
   const saveText = async (id, text) => {
     if (!(await whiteboardAllowed())) return;
     const current = items.find((item) => item.id === id);
-    const nextText = text.trim();
+    const nextText = text.replace(/\s+$/g, '');
     if (current && current.text !== nextText) {
       pushAction({ type: 'edit', id, before: current.text || '', after: nextText });
     }
-    update(itemRef(id), { text: nextText, updatedAt: Date.now() });
+    update(itemRef(id), {
+      text: nextText,
+      byName: current?.byName || displayNameFor(user),
+      updatedAt: Date.now(),
+    });
   };
 
   const deleteItem = useCallback(async (id) => {
@@ -290,6 +353,7 @@ export function Whiteboard({ roomId, user }) {
     if (item) pushAction({ type: 'delete', item });
     await remove(itemRef(id));
     setSelectedId((current) => (current === id ? '' : current));
+    setEditingId((current) => (current === id ? '' : current));
   }, [itemRef, items, pushAction, whiteboardAllowed]);
 
   const undo = async () => {
@@ -318,10 +382,13 @@ export function Whiteboard({ roomId, user }) {
   };
 
   const clearBoard = () => {
-    if (window.confirm('Clear the entire whiteboard for everyone?')) {
-      actionStack.current = [];
-      remove(ref(db, `whiteboards/${roomId}/notes`));
-    }
+    setConfirmClearOpen(true);
+  };
+
+  const confirmClearBoard = () => {
+    actionStack.current = [];
+    remove(ref(db, `whiteboards/${roomId}/notes`));
+    setConfirmClearOpen(false);
   };
 
   const normalizeShape = (start, current, type) => ({
@@ -420,7 +487,9 @@ export function Whiteboard({ roomId, user }) {
   }, [applyZoom]);
 
   const beginPan = (event) => {
-    if (event.button !== 1) return;
+    const isMiddlePan = event.button === 1;
+    const isEmptyBoardDrag = event.button === 0 && activeTool === 'select' && !event.target.closest('.wb-item');
+    if (!isMiddlePan && !isEmptyBoardDrag) return;
     event.preventDefault();
     const canvas = canvasRef.current;
     canvas?.setPointerCapture(event.pointerId);
@@ -490,12 +559,32 @@ export function Whiteboard({ roomId, user }) {
           </button>
         </div>
 
-        <span id="wb-hint">Middle-click to pan · Scroll to zoom</span>
+        <span id="wb-hint">Drag empty space to pan · Scroll to zoom</span>
         <button type="button" id="wb-clear" onClick={clearBoard}>Clear</button>
       </div>
 
+      {confirmClearOpen ? (
+        <div className="wb-confirm-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setConfirmClearOpen(false); }}>
+          <section className="wb-confirm-card" role="dialog" aria-modal="true" aria-labelledby="wb-confirm-title">
+            <div className="wb-confirm-head">
+              <div>
+                <span>Whiteboard</span>
+                <h3 id="wb-confirm-title">Clear board?</h3>
+              </div>
+              <button type="button" onClick={() => setConfirmClearOpen(false)} aria-label="Close clear confirmation">✖</button>
+            </div>
+            <p>This clears the entire whiteboard for everyone in the room.</p>
+            <div className="wb-confirm-actions">
+              <button type="button" onClick={() => setConfirmClearOpen(false)}>Cancel</button>
+              <button type="button" className="danger" onClick={confirmClearBoard}>Clear Board</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       <div
         id="wb-canvas"
+        className={activeTool === 'select' ? 'can-drag' : ''}
         ref={canvasRef}
         onPointerDown={beginPan}
         onPointerMove={movePan}
@@ -522,10 +611,13 @@ export function Whiteboard({ roomId, user }) {
                 selected={item.id === selectedId}
                 activeTool={activeTool}
                 zoom={zoom}
+                editing={item.id === editingId}
                 onSelect={setSelectedId}
                 onDelete={deleteItem}
                 onMove={moveItem}
                 onSaveText={saveText}
+                onStartEditing={setEditingId}
+                onFinishEditing={() => setEditingId('')}
               />
             ))}
             {draftShape ? (

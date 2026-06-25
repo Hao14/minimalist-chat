@@ -4,15 +4,18 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   createUserWithEmailAndPassword,
+  getRedirectResult,
   onAuthStateChanged,
   sendPasswordResetEmail,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   updateProfile,
 } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
 import { auth, db } from '../lib/firebase.js';
+import { ensureAuthProfile, isGoogleAuthUser, syncPublicUserDirectory } from '../lib/authProfile.js';
 
 const strengthLabels = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 const strengthColors = ['#ccc', '#e53935', '#e53935', '#fb8c00', '#fdd835', '#43a047'];
@@ -30,15 +33,44 @@ function passwordStrength(password) {
 
 function friendlyAuthError(error) {
   const messages = {
+    'auth/account-exists-with-different-credential': 'That email already uses a different sign-in method.',
     'auth/email-already-in-use': 'That email already has an account.',
     'auth/invalid-credential': 'The email or password is incorrect.',
     'auth/invalid-email': 'Enter a valid email address.',
+    'auth/missing-password': 'Enter your password.',
     'auth/network-request-failed': 'The network is unavailable. Try again in a moment.',
+    'auth/operation-not-allowed': 'Google sign-in is not enabled for this project yet.',
+    'auth/operation-not-supported-in-this-environment': 'This browser needs Google sign-in to open in the current tab.',
     'auth/popup-blocked': 'The sign-in popup was blocked by your browser.',
     'auth/too-many-requests': 'Too many attempts. Please wait before trying again.',
+    'auth/unauthorized-domain': 'This domain is not authorized for Google sign-in in Firebase.',
     'auth/weak-password': 'Use a stronger password with at least 6 characters.',
   };
   return messages[error?.code] || 'Something went wrong. Please try again.';
+}
+
+function createGoogleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
+function prefersRedirectGoogleAuth() {
+  if (typeof window === 'undefined') return false;
+  const userAgent = navigator.userAgent || '';
+  const mobileAgent = /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(userAgent);
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+  const narrowScreen = window.matchMedia?.('(max-width: 820px)')?.matches;
+  const standalone = window.matchMedia?.('(display-mode: standalone)')?.matches || navigator.standalone;
+  return Boolean(mobileAgent || (coarsePointer && narrowScreen) || standalone);
+}
+
+function shouldRedirectAfterPopupError(error) {
+  return [
+    'auth/popup-blocked',
+    'auth/cancelled-popup-request',
+    'auth/operation-not-supported-in-this-environment',
+  ].includes(error?.code);
 }
 
 function PasswordField({ id, label, placeholder, value, onChange }) {
@@ -69,7 +101,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState('login');
   const [loginStep, setLoginStep] = useState(1);
   const [signupStep, setSignupStep] = useState(1);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(() => sessionStorage.getItem('googleAuthRedirectPending') === '1');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -87,6 +119,7 @@ export default function LoginPage() {
   const signupEmailInput = useRef(null);
   const signupNameInput = useRef(null);
   const isNative = Boolean(window.Capacitor?.isNativePlatform?.());
+  const usesRedirectGoogleAuth = prefersRedirectGoogleAuth();
   const strength = useMemo(() => passwordStrength(signup.password), [signup.password]);
   const passwordsMatch = signup.confirm && signup.confirm === signup.password;
 
@@ -101,14 +134,38 @@ export default function LoginPage() {
     const previousClass = document.body.className;
     const previousStyle = document.body.getAttribute('style');
     document.title = 'Minimalist | Enter';
-    document.body.className = 'marketing';
+    document.body.className = 'auth-screen';
     document.body.setAttribute(
       'style',
-      'display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:2rem 0;',
+      'display:block;min-height:100vh;margin:0;padding:0;overflow-y:auto;',
     );
 
+    let handledAuth = false;
+    const finishSignedInUser = async (user, welcome = false) => {
+      if (!user || handledAuth) return;
+      handledAuth = true;
+      sessionStorage.removeItem('googleAuthRedirectPending');
+      try {
+        if (isGoogleAuthUser(user)) await ensureAuthProfile(user, { welcome });
+      } catch (error) {
+        showToast(`Signed in, but profile setup needs a retry: ${error.message}`);
+        handledAuth = false;
+        setBusy(false);
+        return;
+      }
+      window.location.replace('/chat');
+    };
+
+    getRedirectResult(auth)
+      .then((result) => finishSignedInUser(result?.user, true))
+      .catch((error) => {
+        sessionStorage.removeItem('googleAuthRedirectPending');
+        if (error?.code !== 'auth/popup-closed-by-user') showToast(friendlyAuthError(error));
+        setBusy(false);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) window.location.replace('/chat');
+      if (user) finishSignedInUser(user);
     });
 
     return () => {
@@ -137,8 +194,19 @@ export default function LoginPage() {
     if (signupNameInput.current?.reportValidity()) setSignupStep(3);
   };
 
+  const continueOnEnter = (event, nextStep) => {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+    nextStep();
+  };
+
   const handleLogin = async (event) => {
     event.preventDefault();
+    if (loginStep === 1) {
+      continueLogin();
+      return;
+    }
+
     setBusy(true);
     try {
       await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
@@ -152,6 +220,15 @@ export default function LoginPage() {
 
   const handleSignup = async (event) => {
     event.preventDefault();
+    if (signupStep === 1) {
+      continueSignupEmail();
+      return;
+    }
+    if (signupStep === 2) {
+      continueSignupProfile();
+      return;
+    }
+
     if (signup.password !== signup.confirm) {
       showToast('Passwords do not match.');
       return;
@@ -167,7 +244,7 @@ export default function LoginPage() {
       await updateProfile(credential.user, { displayName: signup.username.trim() });
       const shortId = Math.random().toString(36).slice(2, 8).toUpperCase();
       const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(signup.username.trim())}&background=000&color=FFD700&bold=true`;
-      await set(ref(db, `users/${credential.user.uid}`), {
+      const profile = {
         displayName: signup.username.trim(),
         phoneNumber: signup.phone.trim(),
         birthday: signup.birthday,
@@ -177,7 +254,12 @@ export default function LoginPage() {
         bio: "I'm new here!",
         pronouns: '',
         createdAt: credential.user.metadata.creationTime,
-      });
+        badges: {
+          welcome: Date.now(),
+        },
+      };
+      await set(ref(db, `users/${credential.user.uid}`), profile);
+      await syncPublicUserDirectory(credential.user, profile);
       sessionStorage.setItem('showWelcomeTour', '1');
       window.location.replace('/chat');
     } catch (error) {
@@ -189,9 +271,28 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     setBusy(true);
     try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
+      await setPersistence(auth, mode === 'login' && !remember ? browserSessionPersistence : browserLocalPersistence);
+      const provider = createGoogleProvider();
+      if (usesRedirectGoogleAuth) {
+        sessionStorage.setItem('googleAuthRedirectPending', '1');
+        await signInWithRedirect(auth, provider);
+        return;
+      }
+      const credential = await signInWithPopup(auth, provider);
+      await ensureAuthProfile(credential.user, { welcome: true });
       window.location.replace('/chat');
     } catch (error) {
+      if (shouldRedirectAfterPopupError(error)) {
+        try {
+          sessionStorage.setItem('googleAuthRedirectPending', '1');
+          await signInWithRedirect(auth, createGoogleProvider());
+        } catch (redirectError) {
+          sessionStorage.removeItem('googleAuthRedirectPending');
+          showToast(friendlyAuthError(redirectError));
+          setBusy(false);
+        }
+        return;
+      }
       if (error?.code !== 'auth/popup-closed-by-user') showToast(friendlyAuthError(error));
       setBusy(false);
     }
@@ -211,20 +312,99 @@ export default function LoginPage() {
     }
   };
 
+  const loginStepMeta =
+    loginStep === 1
+      ? {
+          badge: 'Step 1 of 2',
+          title: 'Start with your email',
+          copy: 'We’ll find your room profile first, then ask for the password.',
+        }
+      : {
+          badge: 'Step 2 of 2',
+          title: 'Enter your password',
+          copy: 'Use your password or continue with Google if this is a mobile browser.',
+        };
+
+  const signupStepMeta = [
+    {
+      badge: 'Step 1 of 3',
+      title: 'Create your login',
+      copy: 'Use the email you want connected to rooms, invites, and billing.',
+    },
+    {
+      badge: 'Step 2 of 3',
+      title: 'Set up your profile',
+      copy: 'Pick the name people will recognize. You can finish the rest later.',
+    },
+    {
+      badge: 'Step 3 of 3',
+      title: 'Secure the account',
+      copy: 'Choose a password you won’t hate typing twice.',
+    },
+  ][signupStep - 1];
+
   return (
     <>
-      <div className="shape yellow-circle bottom-left" />
-      <div className="shape auth-shape auth-shape-square" />
-      <div className="shape auth-shape auth-shape-dot" />
-      <div className="shape auth-shape auth-shape-ring" />
+      <div className="auth-ambient auth-ambient-one" aria-hidden="true" />
+      <div className="auth-ambient auth-ambient-two" aria-hidden="true" />
+      <div className="auth-ambient auth-ambient-grid" aria-hidden="true" />
 
-      <main className="container fade-in-up react-auth-page">
-        <div id="auth-box" className="brutalist-auth-card">
-          <div className="auth-toggle">
+      <main className="react-auth-page auth-page-shell fade-in-up">
+        <section className="auth-hero-panel" aria-label="Minimalist sign in overview">
+          <a className="auth-brand" href="/">
+            <span className="auth-brand-mark">
+              <span />
+              <span />
+            </span>
+            <span>Minimalist</span>
+          </a>
+
+          <div className="auth-hero-copy">
+            <p className="auth-eyebrow">Rooms that stay calm</p>
+            <h1>Come back to a quieter workspace.</h1>
+            <p>
+              Message, share, plan, and remember what matters without the noisy feed feeling.
+            </p>
+          </div>
+
+          <div className="auth-live-card" aria-hidden="true">
+            <div className="auth-live-top">
+              <span className="auth-pulse-dot" />
+              <span>secure room session</span>
+            </div>
+            <div className="auth-code-lines">
+              <span style={{ width: '78%' }} />
+              <span style={{ width: '56%' }} />
+              <span style={{ width: '88%' }} />
+            </div>
+            <div className="auth-mini-room">
+              <span># study-room</span>
+              <strong>3 new replies</strong>
+            </div>
+          </div>
+
+          <div className="auth-benefits" aria-label="Product highlights">
+            <span>Private rooms</span>
+            <span>Smart tools</span>
+            <span>Clean mobile</span>
+          </div>
+        </section>
+
+        <section id="auth-box" className={`brutalist-auth-card auth-panel ${busy ? 'is-busy' : ''}`} aria-busy={busy}>
+          <div className="auth-panel-top">
+            <div>
+              <p className="auth-eyebrow">{mode === 'login' ? 'Welcome back' : 'New here?'}</p>
+              <h2>{mode === 'login' ? 'Log in to Minimalist' : 'Create your account'}</h2>
+            </div>
+            <a className="auth-home-link" href="/">Home</a>
+          </div>
+
+          <div className="auth-toggle" role="tablist" aria-label="Choose authentication mode">
             <button
               type="button"
               className={`toggle-btn ${mode === 'login' ? 'active' : ''}`}
               onClick={() => setMode('login')}
+              aria-selected={mode === 'login'}
             >
               Log In
             </button>
@@ -232,16 +412,21 @@ export default function LoginPage() {
               type="button"
               className={`toggle-btn ${mode === 'signup' ? 'active' : ''}`}
               onClick={() => setMode('signup')}
+              aria-selected={mode === 'signup'}
             >
               Sign Up
             </button>
           </div>
 
           {mode === 'login' ? (
-            <form className="auth-form active" onSubmit={handleLogin}>
-              <h1>Welcome <span>Back</span></h1>
+            <form className="auth-form active" onSubmit={handleLogin} data-step={loginStep}>
+              <div className="auth-form-heading">
+                <span className="auth-step-pill">{loginStepMeta.badge}</span>
+                <h3>{loginStepMeta.title}</h3>
+                <p>{loginStepMeta.copy}</p>
+              </div>
               {loginStep === 1 ? (
-                <div>
+                <div className="auth-step-content">
                   <div className="input-group mt-1">
                     <label htmlFor="login-email">EMAIL ADDRESS</label>
                     <input
@@ -251,14 +436,15 @@ export default function LoginPage() {
                       placeholder="you@example.com"
                       value={loginEmail}
                       onChange={(event) => setLoginEmail(event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event, continueLogin)}
                       autoComplete="email"
                       required
                     />
                   </div>
-                  <button type="button" className="auth-submit-btn" onClick={continueLogin}>Next</button>
+                  <button type="button" className="auth-submit-btn" onClick={continueLogin}>Continue</button>
                 </div>
               ) : (
-                <div>
+                <div className="auth-step-content">
                   <PasswordField
                     id="login-password"
                     label="PASSWORD"
@@ -287,16 +473,21 @@ export default function LoginPage() {
                 <>
                   <div className="auth-divider"><span>OR</span></div>
                   <button type="button" className="google-btn" disabled={busy} onClick={handleGoogle}>
-                    Sign In with Google
+                    <span className="google-mark" aria-hidden="true">G</span>
+                    {usesRedirectGoogleAuth ? 'Continue with Google' : 'Sign In with Google'}
                   </button>
                 </>
               )}
             </form>
           ) : (
-            <form className="auth-form active" onSubmit={handleSignup}>
-              <h1>Create <span>Account</span></h1>
+            <form className="auth-form active" onSubmit={handleSignup} data-step={signupStep}>
+              <div className="auth-form-heading">
+                <span className="auth-step-pill">{signupStepMeta.badge}</span>
+                <h3>{signupStepMeta.title}</h3>
+                <p>{signupStepMeta.copy}</p>
+              </div>
               {signupStep === 1 && (
-                <div>
+                <div className="auth-step-content">
                   <div className="input-group mt-1">
                     <label htmlFor="signup-email">EMAIL ADDRESS</label>
                     <input
@@ -306,15 +497,16 @@ export default function LoginPage() {
                       placeholder="you@example.com"
                       value={signup.email}
                       onChange={(event) => updateSignup('email', event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event, continueSignupEmail)}
                       autoComplete="email"
                       required
                     />
                   </div>
-                  <button type="button" className="auth-submit-btn" onClick={continueSignupEmail}>Next</button>
+                  <button type="button" className="auth-submit-btn" onClick={continueSignupEmail}>Continue</button>
                 </div>
               )}
               {signupStep === 2 && (
-                <div>
+                <div className="auth-step-content">
                   <div className="input-group mt-1">
                     <label htmlFor="signup-username">USERNAME</label>
                     <input
@@ -324,6 +516,7 @@ export default function LoginPage() {
                       placeholder="ChatName"
                       value={signup.username}
                       onChange={(event) => updateSignup('username', event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event, continueSignupProfile)}
                       autoComplete="username"
                       required
                     />
@@ -335,6 +528,7 @@ export default function LoginPage() {
                       id="signup-birthday"
                       value={signup.birthday}
                       onChange={(event) => updateSignup('birthday', event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event, continueSignupProfile)}
                     />
                   </div>
                   <div className="input-group">
@@ -345,15 +539,16 @@ export default function LoginPage() {
                       placeholder="+1..."
                       value={signup.phone}
                       onChange={(event) => updateSignup('phone', event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event, continueSignupProfile)}
                       autoComplete="tel"
                     />
                   </div>
-                  <button type="button" className="auth-submit-btn" onClick={continueSignupProfile}>Next</button>
+                  <button type="button" className="auth-submit-btn" onClick={continueSignupProfile}>Continue</button>
                   <button type="button" className="action-btn mt-1 auth-back-btn" onClick={() => setSignupStep(1)}>Back</button>
                 </div>
               )}
               {signupStep === 3 && (
-                <div>
+                <div className="auth-step-content">
                   <div className="mt-1">
                     <PasswordField
                       id="signup-password"
@@ -392,13 +587,14 @@ export default function LoginPage() {
                 <>
                   <div className="auth-divider"><span>OR</span></div>
                   <button type="button" className="google-btn" disabled={busy} onClick={handleGoogle}>
-                    Sign Up with Google
+                    <span className="google-mark" aria-hidden="true">G</span>
+                    {usesRedirectGoogleAuth ? 'Continue with Google' : 'Sign Up with Google'}
                   </button>
                 </>
               )}
             </form>
           )}
-        </div>
+        </section>
       </main>
 
       <div id="brutalist-toast" className={toast ? '' : 'toast-hidden'} role="status" aria-live="polite">

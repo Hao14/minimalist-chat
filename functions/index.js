@@ -14,9 +14,42 @@ const STRIPE_PRICE_TO_TIER = Object.fromEntries(
     Object.entries(STRIPE_PRICE_IDS).map(([tier, priceId]) => [priceId, tier])
 );
 const ACTIVE_STRIPE_STATUSES = new Set(['active', 'trialing']);
+const APP_WEB_URL = process.env.APP_WEB_URL || 'https://chat-app-356c1.web.app';
+const DEFAULT_ALLOWED_ORIGINS = [
+    APP_WEB_URL,
+    'https://chat-app-356c1.firebaseapp.com',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
+];
 
-function setCors(res) {
-    res.set('Access-Control-Allow-Origin', '*');
+function normalizeOrigin(value) {
+    try {
+        const url = new URL(String(value || '').trim());
+        return url.origin;
+    } catch {
+        return '';
+    }
+}
+
+function configuredAllowedOrigins() {
+    const configured = String(process.env.ALLOWED_WEB_ORIGINS || '')
+        .split(',')
+        .map(normalizeOrigin)
+        .filter(Boolean);
+    return new Set([...DEFAULT_ALLOWED_ORIGINS.map(normalizeOrigin), ...configured]);
+}
+
+function allowedCorsOrigin(req) {
+    const origin = normalizeOrigin(req.get('Origin') || '');
+    if (!origin) return normalizeOrigin(APP_WEB_URL);
+    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin;
+    return configuredAllowedOrigins().has(origin) ? origin : '';
+}
+
+function setCors(req, res) {
+    const origin = allowedCorsOrigin(req);
+    if (origin) res.set('Access-Control-Allow-Origin', origin);
+    res.set('Vary', 'Origin');
     res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
@@ -131,6 +164,249 @@ async function applyCheckoutSession(stripe, session, expectedUid) {
     return applySubscription(subscription, uid);
 }
 
+function webhookConfigFromRoom(roomData) {
+    const raw = roomData?.webhook;
+    if (raw && typeof raw === 'object') {
+        return {
+            url: String(raw.url || '').trim(),
+            channelId: String(raw.channelId || roomData.webhookChannel || 'general')
+        };
+    }
+    return {
+        url: String(raw || '').trim(),
+        channelId: String(roomData?.webhookChannel || 'general')
+    };
+}
+
+function messageSummaryForWebhook(message) {
+    const pieces = [];
+    const text = String(message?.text || '').trim();
+    if (text) pieces.push(text);
+    if (message?.attachedImage) pieces.push('[image]');
+    if (message?.attachedFile?.name) pieces.push(`[file: ${message.attachedFile.name}]`);
+    if (message?.poll?.question) pieces.push(`[poll: ${message.poll.question}]`);
+    if (message?.reminder?.text) pieces.push(`[reminder: ${message.reminder.text}]`);
+    return pieces.join(' ').trim();
+}
+
+function webhookPayloadForUrl(url, content) {
+    if (/hooks\.slack\.com/i.test(url)) return { text: content.slice(0, 3800) };
+    return {
+        username: 'Minimalist',
+        content: content.slice(0, 1900)
+    };
+}
+
+function safePushText(value, fallback) {
+    const text = String(value || fallback || '').replace(/\s+/g, ' ').trim();
+    return text.length > 120 ? text.slice(0, 117) + '...' : text;
+}
+
+function normalizeStockSymbol(value) {
+    return String(value || '')
+        .replace(/^\$/, '')
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9.-]/g, '')
+        .slice(0, 16);
+}
+
+function csvFields(line) {
+    const out = [];
+    let cur = '';
+    let quoted = false;
+    for (const ch of String(line || '')) {
+        if (ch === '"') {
+            quoted = !quoted;
+        } else if (ch === ',' && !quoted) {
+            out.push(cur);
+            cur = '';
+        } else {
+            cur += ch;
+        }
+    }
+    out.push(cur);
+    return out.map((field) => field.replace(/^"|"$/g, '').trim());
+}
+
+async function yahooStockQuote(symbol) {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=1d&interval=1m`;
+    const response = await fetch(url, { headers: { 'User-Agent': 'Minimalist.chat stock bot' } });
+    if (!response.ok) throw new Error(`Yahoo quote failed (${response.status})`);
+    const data = await response.json();
+    const result = data?.chart?.result?.[0];
+    const meta = result?.meta || {};
+    const price = Number(meta.regularMarketPrice || meta.previousClose || meta.chartPreviousClose);
+    if (!Number.isFinite(price)) throw new Error('Quote unavailable');
+    const previousClose = Number(meta.previousClose || meta.chartPreviousClose || price);
+    const change = price - previousClose;
+    return {
+        symbol: String(meta.symbol || symbol).toUpperCase(),
+        name: String(meta.longName || meta.shortName || meta.symbol || symbol),
+        price,
+        currency: String(meta.currency || 'USD'),
+        change,
+        changePercent: previousClose ? (change / previousClose) * 100 : 0,
+        provider: 'Yahoo Finance',
+        at: Date.now()
+    };
+}
+
+async function stooqStockQuote(symbol) {
+    const stooqSymbol = /[.-]/.test(symbol) ? symbol.toLowerCase() : `${symbol.toLowerCase()}.us`;
+    const url = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol)}&f=sd2t2ohlcvn&h&e=csv`;
+    const response = await fetch(url, { headers: { 'User-Agent': 'Minimalist.chat stock bot' } });
+    if (!response.ok) throw new Error(`Stooq quote failed (${response.status})`);
+    const text = await response.text();
+    const [, row] = text.trim().split(/\r?\n/);
+    const fields = csvFields(row);
+    const [returnedSymbol, date, time, open, high, low, close, volume, name] = fields;
+    const price = Number(close);
+    const openPrice = Number(open);
+    if (!Number.isFinite(price)) throw new Error('Quote unavailable');
+    const change = Number.isFinite(openPrice) ? price - openPrice : 0;
+    return {
+        symbol: symbol.toUpperCase(),
+        name: name || returnedSymbol || symbol.toUpperCase(),
+        price,
+        currency: 'USD',
+        change,
+        changePercent: openPrice ? (change / openPrice) * 100 : 0,
+        provider: 'Stooq',
+        at: Date.parse(`${date}T${time}`) || Date.now(),
+        volume: Number(volume) || 0
+    };
+}
+
+exports.stockQuote = functions.https.onRequest(async (req, res) => {
+    setCors(req, res);
+    if (req.method === 'OPTIONS') return res.status(204).send('');
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
+
+    try {
+        await requireFirebaseUser(req);
+        const symbol = normalizeStockSymbol(req.body?.symbol);
+        if (!symbol) return res.status(400).json({ error: 'Missing ticker symbol' });
+        if (symbol.length > 16) return res.status(400).json({ error: 'Ticker is too long' });
+
+        try {
+            return res.status(200).json(await yahooStockQuote(symbol));
+        } catch (primaryError) {
+            console.warn('Yahoo quote fallback', symbol, primaryError.message);
+            return res.status(200).json(await stooqStockQuote(symbol));
+        }
+    } catch (err) {
+        console.error('stockQuote failed', err);
+        return res.status(err.status || 500).json({ error: err.message || 'Quote failed' });
+    }
+});
+
+function invalidPushToken(error) {
+    const code = error?.code || '';
+    return code === 'messaging/invalid-registration-token'
+        || code === 'messaging/registration-token-not-registered'
+        || code === 'messaging/invalid-argument';
+}
+
+exports.pmPushNotification = functions.database
+    .ref('/inbox/{targetUid}/{senderUid}')
+    .onWrite(async (change, context) => {
+        const after = change.after.val();
+        if (!after || after.read !== false) return null;
+
+        const before = change.before.val();
+        if (
+            before
+            && before.read === false
+            && before.timestamp === after.timestamp
+            && before.lastText === after.lastText
+        ) return null;
+
+        const { targetUid, senderUid } = context.params;
+        if (!targetUid || !senderUid || targetUid === senderUid) return null;
+
+        const tokenSnap = await admin.database().ref(`push_tokens/${targetUid}`).once('value');
+        const entries = Object.entries(tokenSnap.val() || {}).filter(([, entry]) => entry?.token);
+        if (!entries.length) return null;
+
+        const senderName = safePushText(after.fromName, 'Someone');
+        const body = safePushText(after.lastText, 'New private message');
+        const tokens = entries.map(([, entry]) => entry.token);
+
+        const response = await admin.messaging().sendEachForMulticast({
+            tokens,
+            notification: {
+                title: `New PM from ${senderName}`,
+                body
+            },
+            data: {
+                type: 'minimalist-open-pm',
+                targetUid: senderUid,
+                targetName: senderName,
+                fromName: senderName,
+                body
+            },
+            webpush: {
+                fcmOptions: {
+                    link: `${APP_WEB_URL.replace(/\/$/, '')}/chat`
+                },
+                notification: {
+                    tag: `minimalist-pm-${senderUid}`,
+                    renotify: true
+                }
+            }
+        });
+
+        const removals = [];
+        response.responses.forEach((result, index) => {
+            if (result.success) return;
+            if (invalidPushToken(result.error)) {
+                removals.push(admin.database().ref(`push_tokens/${targetUid}/${entries[index][0]}`).remove());
+            } else {
+                console.error('PM push failed', targetUid, result.error);
+            }
+        });
+
+        if (removals.length) await Promise.all(removals);
+        return null;
+    });
+
+async function deliverRoomWebhook(roomId, channelId, message) {
+    if (!roomId || roomId === 'global') return null;
+    if (message?.webhookEvent || message?.uid === 'room-webhook') return null;
+
+    const roomSnap = await admin.database().ref(`rooms_meta/${roomId}`).once('value');
+    const roomData = roomSnap.val() || {};
+    const config = webhookConfigFromRoom(roomData);
+    if (!/^https:\/\/\S+/i.test(config.url)) return null;
+    if ((config.channelId || 'general') !== (channelId || 'general')) return null;
+
+    const summary = messageSummaryForWebhook(message);
+    if (!summary) return null;
+
+    const roomName = roomData.name || 'Room';
+    const author = message.name || 'Someone';
+    const content = `[${roomName} / #${channelId || 'general'}] ${author}: ${summary}`;
+    const response = await fetch(config.url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(webhookPayloadForUrl(config.url, content))
+    });
+
+    if (!response.ok) {
+        console.error('Room webhook failed', roomId, channelId, response.status, await response.text());
+    }
+    return null;
+}
+
+exports.roomGeneralWebhook = functions.database
+    .ref('/rooms_data/{roomId}/messages/{messageId}')
+    .onCreate((snapshot, context) => deliverRoomWebhook(context.params.roomId, 'general', snapshot.val()));
+
+exports.roomChannelWebhook = functions.database
+    .ref('/rooms_data/{roomId}/channels/{channelId}/messages/{messageId}')
+    .onCreate((snapshot, context) => deliverRoomWebhook(context.params.roomId, context.params.channelId, snapshot.val()));
+
 // --- AI: extract calendar events from a photo (Groq vision) ---
 // Deploy, then set window.AI_CALENDAR_ENDPOINT in public/config.js to this function's URL.
 // Set the API key first:  firebase functions:secrets:set GROQ_API_KEY
@@ -140,17 +416,15 @@ const GROQ_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct'; // multimodal; s
 exports.extractCalendar = functions
     .runWith({ secrets: ['GROQ_API_KEY'] })
     .https.onRequest(async (req, res) => {
-        // CORS — the browser calls this cross-origin from the app
-        res.set('Access-Control-Allow-Origin', '*');
-        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        setCors(req, res);
         if (req.method === 'OPTIONS') return res.status(204).send('');
         if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
 
-        const { image, mimeType } = req.body || {};
-        if (!image) return res.status(400).json({ error: 'Missing image' });
-
         try {
+            await requireFirebaseUser(req);
+            const { image, mimeType } = req.body || {};
+            if (!image) return res.status(400).json({ error: 'Missing image' });
+
             const today = new Date().toISOString().slice(0, 10);
             const prompt = `Extract every event or appointment shown in this image of a calendar or schedule. Today is ${today}; resolve relative dates against it and assume the current or next upcoming occurrence when no year is shown.\n\nFor each event capture both the start time and the end time when the image shows them (e.g. "4:00 AM - 11:30 AM" means time "04:00" and endTime "11:30"). If only a start time is shown, leave endTime empty. If a duration is written instead of an end time, put it in duration.\n\nRespond with ONLY a JSON object (no prose, no markdown code fences) of exactly this shape:\n{"events":[{"title":"string","date":"YYYY-MM-DD","time":"24-hour HH:MM start or empty string","endTime":"24-hour HH:MM end or empty string","duration":integer minutes (0 if unknown),"location":"string or empty"}]}`;
 
@@ -187,7 +461,7 @@ exports.extractCalendar = functions
             return res.status(200).json({ events: parsed.events || [] });
         } catch (err) {
             console.error('extractCalendar failed', err);
-            return res.status(500).json({ error: err.message || 'Extraction failed' });
+            return res.status(err.status || 500).json({ error: err.message || 'Extraction failed' });
         }
     });
 
@@ -222,29 +496,28 @@ Your job:
 exports.aiChat = functions
     .runWith({ secrets: ['GROQ_API_KEY'] })
     .https.onRequest(async (req, res) => {
-        res.set('Access-Control-Allow-Origin', '*');
-        res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
-        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        setCors(req, res);
         if (req.method === 'OPTIONS') return res.status(204).send('');
         if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
 
-        const { messages, context, system } = req.body || {};
-        if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'Missing messages' });
-
-        // Guardrails so one user (or a busy room) can't blow the shared free-tier budget.
-        const safeContext = String(context || '').slice(0, 12000);
-        const convo = messages.slice(-12).map(m => ({
-            role: m.role === 'assistant' ? 'assistant' : 'user',
-            content: String(m.content || '').slice(0, 4000)
-        }));
-
-        const chat = [
-            { role: 'system', content: String(system || AI_SYSTEM_PROMPT).slice(0, 6000) },
-            ...(safeContext ? [{ role: 'system', content: 'Current room context (rely on this; do not invent anything beyond it):\n' + safeContext }] : []),
-            ...convo
-        ];
-
         try {
+            await requireFirebaseUser(req);
+            const { messages, context, system } = req.body || {};
+            if (!Array.isArray(messages) || !messages.length) return res.status(400).json({ error: 'Missing messages' });
+
+            // Guardrails so one user (or a busy room) can't blow the shared free-tier budget.
+            const safeContext = String(context || '').slice(0, 12000);
+            const convo = messages.slice(-12).map(m => ({
+                role: m.role === 'assistant' ? 'assistant' : 'user',
+                content: String(m.content || '').slice(0, 4000)
+            }));
+
+            const chat = [
+                { role: 'system', content: String(system || AI_SYSTEM_PROMPT).slice(0, 6000) },
+                ...(safeContext ? [{ role: 'system', content: 'Current room context (rely on this; do not invent anything beyond it):\n' + safeContext }] : []),
+                ...convo
+            ];
+
             const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + process.env.GROQ_API_KEY },
@@ -260,14 +533,14 @@ exports.aiChat = functions
             return res.status(200).json({ reply });
         } catch (err) {
             console.error('aiChat failed', err);
-            return res.status(500).json({ error: err.message || 'AI failed' });
+            return res.status(err.status || 500).json({ error: err.message || 'AI failed' });
         }
     });
 
 exports.personalAiAgent = functions
     .runWith({ secrets: ['GROQ_API_KEY'] })
     .https.onRequest(async (req, res) => {
-        setCors(res);
+        setCors(req, res);
         if (req.method === 'OPTIONS') return res.status(204).send('');
         if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
 
@@ -335,7 +608,7 @@ exports.personalAiAgent = functions
 exports.stripeCreateCheckoutSession = functions
     .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
     .https.onRequest(async (req, res) => {
-        setCors(res);
+        setCors(req, res);
         if (req.method === 'OPTIONS') return res.status(204).send('');
         if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
 
@@ -399,7 +672,7 @@ exports.stripeCreateCheckoutSession = functions
 exports.stripeCreatePortalSession = functions
     .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
     .https.onRequest(async (req, res) => {
-        setCors(res);
+        setCors(req, res);
         if (req.method === 'OPTIONS') return res.status(204).send('');
         if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
 
@@ -428,7 +701,7 @@ exports.stripeCreatePortalSession = functions
 exports.stripeSyncCheckoutSession = functions
     .runWith({ secrets: ['STRIPE_SECRET_KEY'] })
     .https.onRequest(async (req, res) => {
-        setCors(res);
+        setCors(req, res);
         if (req.method === 'OPTIONS') return res.status(204).send('');
         if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
 

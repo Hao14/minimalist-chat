@@ -21,6 +21,142 @@ export const safeUrl = (u) => {
 // formatting so their contents stay literal and never collide with real text.
 const STASH_OPEN = '';
 const STASH_CLOSE = '';
+const HIGHLIGHT_OPEN = '';
+const HIGHLIGHT_CLOSE = '';
+
+const CODE_LANGUAGE_ALIASES = {
+    html: 'html',
+    htm: 'html',
+    xml: 'html',
+    svg: 'html',
+    css: 'css',
+    scss: 'css',
+    sass: 'css',
+    js: 'javascript',
+    jsx: 'javascript',
+    mjs: 'javascript',
+    cjs: 'javascript',
+    javascript: 'javascript',
+    ts: 'javascript',
+    tsx: 'javascript',
+    typescript: 'javascript',
+    json: 'json',
+    py: 'python',
+    python: 'python',
+};
+
+const normalizeCodeLanguage = (language = '') =>
+    CODE_LANGUAGE_ALIASES[String(language).trim().toLowerCase()] || '';
+
+const inferCodeLanguage = (escapedCode = '') => {
+    const code = String(escapedCode);
+    if (/&lt;[a-z!/][\s\S]*?&gt;/i.test(code)) return 'html';
+    if (/^[\s{[\],:&quot;&#39;.\-\dA-Za-z]+$/m.test(code) && /&quot;[^&]+&quot;\s*:/.test(code)) return 'json';
+    if (/[.#]?[-_a-zA-Z0-9]+\s*\{[\s\S]*?:[\s\S]*?\}/.test(code)) return 'css';
+    if (/\b(import|export|const|let|var|function|return|async|await|console|document|window)\b|=&gt;/.test(code)) return 'javascript';
+    if (/\b(def|class|import|from|print|return|async|await|None|True|False)\b/.test(code)) return 'python';
+    return 'text';
+};
+
+const makeCodeMarker = () => {
+    const tokens = [];
+    return {
+        mark(className, value) {
+            const safeClass = String(className || 'plain').replace(/[^a-z0-9_-]/gi, '');
+            const index = tokens.push(`<span class="tok-${safeClass}">${value}</span>`) - 1;
+            return `${HIGHLIGHT_OPEN}${String.fromCharCode(0xe100 + index)}${HIGHLIGHT_CLOSE}`;
+        },
+        restore(value) {
+            return String(value).replace(new RegExp(`${HIGHLIGHT_OPEN}([\\uE100-\\uF8FF])${HIGHLIGHT_CLOSE}`, 'g'), (_, marker) => {
+                const index = marker.charCodeAt(0) - 0xe100;
+                return tokens[index] || '';
+            });
+        },
+    };
+};
+
+const highlightHtmlCode = (escapedCode) => {
+    const marker = makeCodeMarker();
+    let code = String(escapedCode)
+        .replace(/(&lt;!--[\s\S]*?--&gt;)/g, (match) => marker.mark('comment', match))
+        .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;)/g, (match) => marker.mark('string', match));
+
+    code = code
+        .replace(/(&lt;\/?)([A-Za-z][\w:.-]*)/g, (_, open, tag) => `${marker.mark('punctuation', open)}${marker.mark('tag', tag)}`)
+        .replace(/(\s)([A-Za-z_:][\w:.-]*)(=)/g, (_, space, attr, equals) => `${space}${marker.mark('attr', attr)}${marker.mark('punctuation', equals)}`)
+        .replace(/(\/?&gt;)/g, (match) => marker.mark('punctuation', match));
+
+    return marker.restore(code);
+};
+
+const highlightCssCode = (escapedCode) => {
+    const marker = makeCodeMarker();
+    let code = String(escapedCode)
+        .replace(/(\/\*[\s\S]*?\*\/)/g, (match) => marker.mark('comment', match))
+        .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;)/g, (match) => marker.mark('string', match));
+
+    code = code
+        .replace(/^([^{}\n]+)(?=\s*\{)/gm, (match) => marker.mark('selector', match))
+        .replace(/([A-Za-z-]+)(\s*:)/g, (_, property, colon) => `${marker.mark('property', property)}${marker.mark('punctuation', colon)}`)
+        .replace(/(-?\b\d+(?:\.\d+)?(?:px|rem|em|vh|vw|%|s|ms|deg)?\b)/g, (match) => marker.mark('number', match))
+        .replace(/(#(?:[0-9a-f]{3,8})\b)/gi, (match) => marker.mark('number', match));
+
+    return marker.restore(code);
+};
+
+const highlightJavascriptCode = (escapedCode) => {
+    const marker = makeCodeMarker();
+    let code = String(escapedCode)
+        .replace(/(\/\*[\s\S]*?\*\/|\/\/[^\n]*)/g, (match) => marker.mark('comment', match))
+        .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;|`[\s\S]*?`)/g, (match) => marker.mark('string', match));
+
+    code = code
+        .replace(/\b(async|await|break|case|catch|class|const|continue|default|delete|do|else|export|extends|finally|for|from|function|if|import|in|let|new|of|return|super|switch|throw|try|typeof|var|void|while|yield|true|false|null|undefined)\b/g, (match) => marker.mark('keyword', match))
+        .replace(/\b([A-Za-z_$][\w$]*)(?=\s*\()/g, (match) => marker.mark('function', match))
+        .replace(/(-?\b\d+(?:\.\d+)?\b)/g, (match) => marker.mark('number', match))
+        .replace(/([{}()[\].,;:+\-*/%=<>!&|?]+)/g, (match) => marker.mark('punctuation', match));
+
+    return marker.restore(code);
+};
+
+const highlightJsonCode = (escapedCode) => {
+    const marker = makeCodeMarker();
+    let code = String(escapedCode)
+        .replace(/(&quot;[\s\S]*?&quot;)(\s*:)?/g, (_, keyOrString, colon = '') => {
+            const className = colon ? 'property' : 'string';
+            return `${marker.mark(className, keyOrString)}${colon ? marker.mark('punctuation', colon) : ''}`;
+        })
+        .replace(/\b(true|false|null)\b/g, (match) => marker.mark('keyword', match))
+        .replace(/(-?\b\d+(?:\.\d+)?\b)/g, (match) => marker.mark('number', match))
+        .replace(/([{}[\],])/g, (match) => marker.mark('punctuation', match));
+    return marker.restore(code);
+};
+
+const highlightPythonCode = (escapedCode) => {
+    const marker = makeCodeMarker();
+    let code = String(escapedCode)
+        .replace(/(#[^\n]*)/g, (match) => marker.mark('comment', match))
+        .replace(/(&quot;[\s\S]*?&quot;|&#39;[\s\S]*?&#39;)/g, (match) => marker.mark('string', match));
+
+    code = code
+        .replace(/\b(async|await|break|class|continue|def|elif|else|except|False|finally|for|from|if|import|in|is|lambda|None|not|or|pass|raise|return|True|try|while|with|yield)\b/g, (match) => marker.mark('keyword', match))
+        .replace(/\b([A-Za-z_]\w*)(?=\s*\()/g, (match) => marker.mark('function', match))
+        .replace(/(-?\b\d+(?:\.\d+)?\b)/g, (match) => marker.mark('number', match))
+        .replace(/([{}()[\].,;:+\-*/%=<>!&|]+)/g, (match) => marker.mark('punctuation', match));
+
+    return marker.restore(code);
+};
+
+const highlightCode = (escapedCode, language = '') => {
+    const normalized = normalizeCodeLanguage(language) || inferCodeLanguage(escapedCode);
+    if (normalized === 'html') return highlightHtmlCode(escapedCode);
+    if (normalized === 'css') return highlightCssCode(escapedCode);
+    if (normalized === 'javascript') return highlightJavascriptCode(escapedCode);
+    if (normalized === 'json') return highlightJsonCode(escapedCode);
+    if (normalized === 'python') return highlightPythonCode(escapedCode);
+    return String(escapedCode);
+};
+
 export const renderMessageText = (raw) => {
     if (!raw) return '';
     const stash = [];
@@ -29,10 +165,20 @@ export const renderMessageText = (raw) => {
     let s = escapeHtml(raw);
 
     // Fenced code blocks ```...```
-    s = s.replace(/```([\s\S]*?)```/g, (_, code) =>
-        keep(`<pre class="msg-codeblock"><code>${code.replace(/^\n/, '').replace(/\n$/, '')}</code></pre>`));
+    s = s.replace(/```([\s\S]*?)```/g, (_, block) => {
+        let code = block.replace(/^\n/, '').replace(/\n$/, '');
+        let language = '';
+        const languageLine = code.match(/^([A-Za-z0-9_+#.-]{1,24})\n([\s\S]*)$/);
+        if (languageLine && normalizeCodeLanguage(languageLine[1])) {
+            language = normalizeCodeLanguage(languageLine[1]);
+            code = languageLine[2];
+        } else {
+            language = inferCodeLanguage(code);
+        }
+        return keep(`<pre class="msg-codeblock language-${language}" data-lang="${language === 'text' ? 'code' : language}"><code>${highlightCode(code, language)}</code></pre>`);
+    });
     // Inline code `...`
-    s = s.replace(/`([^`\n]+?)`/g, (_, code) => keep(`<code class="msg-inline-code">${code}</code>`));
+    s = s.replace(/`([^`\n]+?)`/g, (_, code) => keep(`<code class="msg-inline-code">${highlightCode(code)}</code>`));
 
     // Emphasis
     s = s.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');
@@ -47,8 +193,8 @@ export const renderMessageText = (raw) => {
     s = s.replace(/(^|[\s])(https?:\/\/[^\s<]+)/g,
         '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
 
-    // @mentions — highlight @name tokens (requires a non-word char before @ so emails aren't matched)
-    s = s.replace(/(^|[^\w@])@(\w{2,32})/g, '$1<span class="msg-mention">@$2</span>');
+    // @mentions — highlight @handles (requires a non-word char before @ so emails aren't matched)
+    s = s.replace(/(^|[^\w@])@([A-Za-z0-9_-]{2,32})/g, '$1<span class="msg-mention">@$2</span>');
 
     s = s.replace(/\n/g, '<br>');
     // Restore stashed code spans/blocks

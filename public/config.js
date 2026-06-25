@@ -22,6 +22,9 @@ window.AI_CHAT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net
 // Pro personal AI agent — authenticated and tier-checked in Firebase Functions.
 window.PERSONAL_AI_AGENT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/personalAiAgent';
 
+// Bot Marketplace — authenticated stock quote endpoint for the Stock Price Tracker bot.
+window.STOCK_QUOTE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stockQuote';
+
 // Stripe billing — deployed Firebase Cloud Function URLs.
 // Set these after deploying functions:
 //   firebase deploy --only functions:stripeCreateCheckoutSession,functions:stripeCreatePortalSession,functions:stripeSyncCheckoutSession,functions:stripeWebhook
@@ -30,3 +33,8 @@ window.STRIPE_PUBLISHABLE_KEY = 'pk_test_51QgFVBK2lNxMjmQ44C7NfSmjFWmuSO7sPu34n6
 window.STRIPE_CHECKOUT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeCreateCheckoutSession';
 window.STRIPE_PORTAL_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeCreatePortalSession';
 window.STRIPE_SYNC_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeSyncCheckoutSession';
+
+// Phone push notifications — paste your Firebase Web Push certificate public VAPID key here.
+// Firebase Console → Project Settings → Cloud Messaging → Web Push certificates.
+// Browser/PWA alerts still work without this, but fully closed-app phone push needs it.
+window.FCM_VAPID_KEY = '';

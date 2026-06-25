@@ -1,3 +1,7 @@
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import WelcomeTour from './WelcomeTour.jsx';
+
 window.WELCOME_STEPS = [
   {
     emoji: '👋',
@@ -21,61 +25,44 @@ window.WELCOME_STEPS = [
   },
 ];
 
-let wtStep = 0;
-
-function renderWtStep() {
-  const step = window.WELCOME_STEPS[wtStep];
-  if (!step) return;
-
-  const setText = (id, value) => {
-    const el = document.getElementById(id);
-    if (el) el.textContent = value;
-  };
-
-  setText('wt-emoji', step.emoji);
-  setText('wt-title', step.title);
-  setText('wt-text', step.text);
-
-  const last = wtStep === window.WELCOME_STEPS.length - 1;
-  const next = document.getElementById('wt-next');
-  if (next) next.textContent = last ? 'Enter Rooms' : (wtStep === 0 ? 'Take a quick tour' : 'Next');
-
-  const skip = document.getElementById('wt-skip');
-  if (skip) skip.style.display = last ? 'none' : '';
-
-  const dots = document.getElementById('wt-dots');
-  if (dots) {
-    dots.innerHTML = window.WELCOME_STEPS.map(
-      (_, index) => `<span class="wt-dot ${index === wtStep ? 'on' : ''}"></span>`,
-    ).join('');
-  }
-}
+let welcomeRoot = null;
+let stepIndex = 0;
 
 function closeWelcomeTour() {
   document.getElementById('welcome-tour')?.classList.add('hidden');
   localStorage.setItem('tourSeen', '1');
 }
 
+function renderWelcomeTour() {
+  const host = document.getElementById('welcome-tour');
+  if (!host) return;
+  if (!welcomeRoot) welcomeRoot = createRoot(host);
+
+  const step = window.WELCOME_STEPS[stepIndex] || window.WELCOME_STEPS[0];
+  welcomeRoot.render(createElement(WelcomeTour, {
+    step,
+    stepIndex,
+    totalSteps: window.WELCOME_STEPS.length,
+    onNext: () => {
+      if (stepIndex < window.WELCOME_STEPS.length - 1) {
+        stepIndex += 1;
+        renderWelcomeTour();
+        return;
+      }
+      closeWelcomeTour();
+    },
+    onSkip: closeWelcomeTour,
+  }));
+}
+
 window.showWelcomeTour = function showWelcomeTour() {
   const overlay = document.getElementById('welcome-tour');
   if (!overlay) return;
 
-  wtStep = 0;
-  renderWtStep();
+  stepIndex = 0;
+  renderWelcomeTour();
   overlay.classList.remove('hidden');
 };
-
-document.getElementById('wt-next')?.addEventListener('click', () => {
-  if (wtStep < window.WELCOME_STEPS.length - 1) {
-    wtStep += 1;
-    renderWtStep();
-    return;
-  }
-
-  closeWelcomeTour();
-});
-
-document.getElementById('wt-skip')?.addEventListener('click', closeWelcomeTour);
 
 window.maybeShowWelcomeTour = function maybeShowWelcomeTour() {
   if (!sessionStorage.getItem('showWelcomeTour')) return;

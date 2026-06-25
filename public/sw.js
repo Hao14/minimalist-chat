@@ -1,4 +1,4 @@
-const CACHE_NAME = 'minimalist-offline-v13';
+const CACHE_NAME = 'minimalist-offline-v14';
 const APP_SHELL = [
   '/',
   '/chat',
@@ -57,4 +57,43 @@ self.addEventListener('fetch', (event) => {
       return response;
     })),
   );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const data = event.notification.data || {};
+
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const chatClient = windows.find((client) => new URL(client.url).pathname.startsWith('/chat')) || windows[0];
+
+    if (chatClient) {
+      await chatClient.focus();
+      chatClient.postMessage(data);
+      return;
+    }
+
+    const opened = await self.clients.openWindow('/chat');
+    if (opened) opened.postMessage(data);
+  })());
+});
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { title: 'Minimalist', body: event.data?.text() || 'New notification' };
+  }
+
+  const notification = payload.notification || {};
+  const title = payload.title || notification.title || 'Minimalist';
+  const options = {
+    body: payload.body || notification.body || 'You have a new update.',
+    tag: payload.tag || notification.tag || 'minimalist-update',
+    data: payload.data || payload,
+    renotify: Boolean(payload.renotify || notification.renotify),
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });

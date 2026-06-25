@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { get, onValue, push, ref, remove, set } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { getRequiredIdToken } from '../../lib/authToken.js';
 
 const accents = ['#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#60a5fa'];
 const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -295,7 +296,12 @@ export function Calendar({ adminUid, aiCalendarEndpoint, gcalClientId, roomId, u
       setPhotoImport({ active: true, progress: 24, label: 'Reading image…' });
       const image = await fileToBase64(file);
       setPhotoImport({ active: true, progress: 46, label: 'Finding events…' });
-      const response = await fetch(aiCalendarEndpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image, mimeType: file.type }) });
+      const token = await getRequiredIdToken('Please sign in again before importing a calendar photo.');
+      const response = await fetch(aiCalendarEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ image, mimeType: file.type }),
+      });
       if (!response.ok) throw new Error('Extraction service error');
       setPhotoImport({ active: true, progress: 72, label: 'Checking details…' });
       const data = await response.json();

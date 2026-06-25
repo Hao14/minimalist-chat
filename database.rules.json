@@ -1,0 +1,195 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "users": {
+      ".indexOn": ["shortId", "stripeCustomerId"],
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $uid && newData.child('tier').val() === data.child('tier').val() && newData.child('stripeCustomerId').val() === data.child('stripeCustomerId').val() && newData.child('stripeSubscriptionId').val() === data.child('stripeSubscriptionId').val() && newData.child('stripeSubscriptionStatus').val() === data.child('stripeSubscriptionStatus').val() && newData.child('stripePriceId').val() === data.child('stripePriceId').val() && newData.child('stripeCancelAtPeriodEnd').val() === data.child('stripeCancelAtPeriodEnd').val() && newData.child('stripeCurrentPeriodEnd').val() === data.child('stripeCurrentPeriodEnd').val() && newData.child('stripeUpdatedAt').val() === data.child('stripeUpdatedAt').val()",
+        "badges": {
+          ".write": "auth != null"
+        },
+        "kudos": {
+          ".write": "auth != null"
+        },
+        "kudosFrom": {
+          ".write": "auth != null"
+        },
+        "skills": {
+          ".write": "auth != null"
+        },
+        "stats": {
+          ".write": "auth != null"
+        },
+        "activityByDay": {
+          ".write": "auth != null"
+        },
+        "xp": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "quests": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "streak": {
+          ".write": "auth != null && auth.uid === $uid"
+        },
+        "tier": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripeCustomerId": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripeSubscriptionId": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripeSubscriptionStatus": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripePriceId": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripeCancelAtPeriodEnd": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripeCurrentPeriodEnd": {
+          ".validate": "newData.val() === data.val()"
+        },
+        "stripeUpdatedAt": {
+          ".validate": "newData.val() === data.val()"
+        }
+      }
+    },
+    "user_directory": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "newData.hasChildren(['displayName', 'updatedAt'])",
+        "displayName": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+        },
+        "photoUrl": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 2048)"
+        },
+        "shortId": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 24)"
+        },
+        "themeColor": {
+          ".validate": "!newData.exists() || (newData.isString() && newData.val().length <= 32)"
+        },
+        "updatedAt": {
+          ".validate": "newData.isNumber()"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+    "push_tokens": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "inbox": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null"
+      }
+    },
+    "messages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "rooms": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "rooms_data": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "rooms_meta": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "typing": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "presence": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "friends": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "following": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "followers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "notifications": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null"
+      }
+    },
+    "private_messages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "room_calls": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "pm_calls": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "whiteboards": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "user_room_preferences": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "user_reminders": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "upload_usage": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "room_tasks": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "room_docs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "room_pages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "vaults": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}
