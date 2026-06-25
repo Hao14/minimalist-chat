@@ -5,6 +5,20 @@ import { db } from '../../lib/firebase.js';
 const emojis = ['📄', '📝', '☕', '🧘', '🌅', '📌', '💡', '🚀', '🔬', '📚'];
 const emptyEditor = { title: '', content: '', emoji: '📄', tags: '' };
 
+function isRoomManager(roomData = {}, user) {
+  if (!user?.uid) return false;
+  if (user.uid === window.MY_ADMIN_UID) return true;
+  if (roomData.creatorId) return roomData.creatorId === user.uid;
+  return Object.keys(roomData.members || {})[0] === user.uid;
+}
+
+async function docsAllowed(roomId, user) {
+  if (roomId === 'global') return true;
+  const snapshot = await get(ref(db, `rooms_meta/${roomId}`)).catch(() => null);
+  const roomData = snapshot?.val() || {};
+  return isRoomManager(roomData, user) || roomData.permissions?.docs !== false;
+}
+
 function timestamp() {
   return Date.now();
 }
@@ -34,6 +48,8 @@ export function Docs({ roomId, user }) {
   const [editor, setEditor] = useState(emptyEditor);
   const [collaborators, setCollaborators] = useState([]);
   const [saveStatus, setSaveStatus] = useState('Saved');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingDocument, setDeletingDocument] = useState(false);
   const saveTimer = useRef(null);
   const dirty = useRef(false);
   const contentRef = useRef(null);
@@ -98,6 +114,8 @@ export function Docs({ roomId, user }) {
 
   const openDocument = (document) => {
     dirty.current = false;
+    setDeleteConfirmOpen(false);
+    setDeletingDocument(false);
     setEditor({
       title: document.title || '',
       content: document.content || '',
@@ -109,7 +127,7 @@ export function Docs({ roomId, user }) {
   };
 
   const createDocument = async () => {
-    const allowed = roomId === 'global' || (await get(ref(db, `rooms_meta/${roomId}/permissions/docs`)).catch(() => null))?.val() !== false;
+    const allowed = await docsAllowed(roomId, user);
     if (!allowed) return window.showToast?.('Docs editing is disabled in this room.');
     const now = timestamp();
     const document = { ...emptyEditor, tags: [], by: user.uid, byName: user.displayName, createdAt: now, updatedAt: now };
@@ -123,7 +141,7 @@ export function Docs({ roomId, user }) {
   const saveDocument = async (nextEditor) => {
     if (!activeId) return;
     try {
-      const allowed = roomId === 'global' || (await get(ref(db, `rooms_meta/${roomId}/permissions/docs`)).catch(() => null))?.val() !== false;
+      const allowed = await docsAllowed(roomId, user);
       if (!allowed) {
         setSaveStatus('Editing disabled');
         window.showToast?.('Docs editing is disabled in this room.');
@@ -181,15 +199,31 @@ export function Docs({ roomId, user }) {
     window.clearTimeout(saveTimer.current);
     if (dirty.current) saveDocument(editor);
     dirty.current = false;
+    setDeleteConfirmOpen(false);
     setActiveId(null);
   };
 
   const deleteDocument = async () => {
-    if (!activeId || !window.confirm('Delete this document for everyone?')) return;
+    if (!activeId || deletingDocument) return;
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteDocument = async () => {
+    if (!activeId || deletingDocument) return;
     const id = activeId;
-    setActiveId(null);
-    dirty.current = false;
-    await remove(ref(db, `room_docs/${roomId}/${id}`));
+    setDeletingDocument(true);
+    try {
+      window.clearTimeout(saveTimer.current);
+      dirty.current = false;
+      await remove(ref(db, `room_docs/${roomId}/${id}`));
+      setDeleteConfirmOpen(false);
+      setActiveId(null);
+      window.showToast?.('Document deleted.', false);
+    } catch (error) {
+      window.showToast?.(`Could not delete document: ${error.message}`);
+    } finally {
+      setDeletingDocument(false);
+    }
   };
 
   if (activeId) {
@@ -226,6 +260,24 @@ export function Docs({ roomId, user }) {
           <span className="doc-save-status" id="doc-save-status">{saveStatus}</span>
           <button type="button" className="docs-icon-btn danger" id="doc-delete-btn" aria-label="Delete document" onClick={deleteDocument}><i className="ph-bold ph-trash" /></button>
         </div>
+        {deleteConfirmOpen ? (
+          <div className="docs-confirm-overlay" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !deletingDocument) setDeleteConfirmOpen(false); }}>
+            <section className="docs-confirm-card" role="dialog" aria-modal="true" aria-labelledby="docs-delete-title">
+              <div className="docs-confirm-icon"><i className="ph-bold ph-trash" /></div>
+              <div className="docs-confirm-copy">
+                <span className="docs-confirm-kicker">Delete document</span>
+                <h3 id="docs-delete-title">Delete “{editor.title || 'Untitled'}”?</h3>
+                <p>This removes the document for everyone in this room. This cannot be undone.</p>
+              </div>
+              <div className="docs-confirm-actions">
+                <button type="button" className="docs-confirm-cancel" disabled={deletingDocument} onClick={() => setDeleteConfirmOpen(false)}>Cancel</button>
+                <button type="button" className="docs-confirm-delete" disabled={deletingDocument} onClick={confirmDeleteDocument}>
+                  {deletingDocument ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </section>
+          </div>
+        ) : null}
         <div className="docs-editor-body">
           <input id="doc-title-input" value={editor.title} onChange={(event) => editDocument('title', event.target.value)} placeholder="Untitled document" aria-label="Document title" />
           <input id="doc-tags-input" value={editor.tags} onChange={(event) => editDocument('tags', event.target.value)} placeholder="Tags (comma separated)" aria-label="Document tags" />

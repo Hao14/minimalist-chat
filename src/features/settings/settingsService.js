@@ -1,4 +1,14 @@
-const SETTINGS_TABS = ['profile', 'billing', 'app'];
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ProfileCompleteness } from './SettingsWidgets.jsx';
+
+const SETTINGS_TABS = ['profile', 'billing', 'app', 'notifications'];
+let profileCompletenessRoot = null;
+let settingsPaneAnimationTimer = 0;
+let settingsModalAnimationTimer = 0;
+
+const SETTINGS_PANE_ANIMATION_MS = 320;
+const SETTINGS_MODAL_ANIMATION_MS = 420;
 
 const safeSetValue = (id, val) => {
   const el = document.getElementById(id);
@@ -12,6 +22,87 @@ const safeSetText = (id, text) => {
 
 const DEFAULT_ACCENT_COLOR = '#FFD700';
 const THEME_CLASSES = ['dark-mode', 'gray-mode', 'modern-mode'];
+const FEATURE_MODE_KEY = 'minimalistMarketingMode';
+const FEATURE_MODE_EVENT = 'minimalist:marketing-mode';
+const FEATURE_MODE_CLASSES = ['simple-feature-mode', 'power-feature-mode'];
+
+function normalizeFeatureMode(value) {
+  return value === 'power' ? 'power' : 'simple';
+}
+
+function readFeatureMode() {
+  return normalizeFeatureMode(localStorage.getItem(FEATURE_MODE_KEY));
+}
+
+function updateFeatureModeUI(mode = readFeatureMode()) {
+  const normalized = normalizeFeatureMode(mode);
+  document.querySelectorAll('[data-feature-mode-select]').forEach((btn) => {
+    const isActive = btn.getAttribute('data-feature-mode-select') === normalized;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+
+  const note = document.getElementById('feature-mode-note');
+  if (note) {
+    note.textContent = normalized === 'power'
+      ? 'Power Mode shows tasks, polls, events, wiki, analytics, moderation, integrations, room memory, time capsules, and archives.'
+      : 'Simple Mode keeps the app focused on rooms, messages, files, search, and settings.';
+  }
+
+  const summary = document.getElementById('feature-mode-summary');
+  if (summary) {
+    summary.textContent = normalized === 'power'
+      ? 'Power Mode is active. All room pages and advanced tools are visible on this device.'
+      : 'Simple Mode is active. Advanced room pages are tucked away until you switch back to Power.';
+  }
+}
+
+function activateChatForFeatureMode() {
+  if (typeof window.activateRoomView === 'function') {
+    window.activateRoomView('chat');
+    return;
+  }
+
+  document.querySelectorAll('.room-tab').forEach((tab) => {
+    tab.classList.toggle('active', tab.getAttribute('data-target') === 'chat');
+  });
+  document.querySelectorAll('.room-view').forEach((view) => view.classList.add('hidden'));
+  document.getElementById('room-view-chat')?.classList.remove('hidden');
+  window.syncRoomChannelBar?.('chat');
+
+  const messages = document.getElementById('messages');
+  if (messages) messages.scrollTop = messages.scrollHeight;
+}
+
+function applyFeatureMode(mode = readFeatureMode(), { showToast = false } = {}) {
+  const normalized = normalizeFeatureMode(mode);
+  localStorage.setItem(FEATURE_MODE_KEY, normalized);
+  document.body.classList.remove(...FEATURE_MODE_CLASSES);
+  document.body.classList.add(`${normalized}-feature-mode`);
+  window.dispatchEvent(new CustomEvent(FEATURE_MODE_EVENT, { detail: { mode: normalized } }));
+  updateFeatureModeUI(normalized);
+
+  if (normalized === 'simple') {
+    const activeRoomTab = document.querySelector('.room-tab.active');
+    const activeTarget = activeRoomTab?.getAttribute('data-target');
+    if (activeTarget && activeTarget !== 'chat') {
+      activateChatForFeatureMode();
+    }
+    document.getElementById('room-add-page-menu')?.classList.add('hidden');
+    document.getElementById('room-channel-bar')?.classList.add('hidden');
+  } else {
+    window.syncRoomChannelBar?.();
+  }
+
+  if (showToast) {
+    window.showToast?.(`${normalized === 'power' ? 'Power' : 'Simple'} Mode enabled.`, false);
+  }
+}
+
+window.getFeatureMode = readFeatureMode;
+window.setFeatureMode = applyFeatureMode;
+window.isSimpleFeatureMode = () => readFeatureMode() === 'simple';
 
 function setCustomAccent(color) {
   document.documentElement.style.setProperty('--accent-color', color);
@@ -33,6 +124,7 @@ function applySavedTheme() {
 }
 
 applySavedTheme();
+applyFeatureMode(readFeatureMode());
 
 document.querySelectorAll('.theme-select-btn').forEach((btn) => {
   btn.addEventListener('click', (e) => {
@@ -95,6 +187,20 @@ function setProfileEditMode(isEditing) {
 
 window.setProfileEditMode = setProfileEditMode;
 
+function animateSettingsModal(modalObj) {
+  if (!modalObj) return;
+
+  modalObj.classList.remove('settings-modal-enter');
+  window.clearTimeout(settingsModalAnimationTimer);
+
+  window.requestAnimationFrame(() => {
+    modalObj.classList.add('settings-modal-enter');
+    settingsModalAnimationTimer = window.setTimeout(() => {
+      modalObj.classList.remove('settings-modal-enter');
+    }, SETTINGS_MODAL_ANIMATION_MS);
+  });
+}
+
 document.getElementById('apply-custom-theme-btn')?.addEventListener('click', () => {
   const color = document.getElementById('custom-accent-color')?.value || DEFAULT_ACCENT_COLOR;
   setCustomAccent(color);
@@ -110,6 +216,12 @@ document.getElementById('reset-custom-theme-btn')?.addEventListener('click', () 
   applySavedTheme();
   updateCustomThemeUI();
   window.showToast?.('Accent color reset.', false);
+});
+
+document.addEventListener('click', (event) => {
+  const modeBtn = event.target.closest('[data-feature-mode-select]');
+  if (!modeBtn) return;
+  applyFeatureMode(modeBtn.getAttribute('data-feature-mode-select'), { showToast: true });
 });
 
 window.openSettings = function openSettings() {
@@ -152,8 +264,12 @@ window.openSettings = function openSettings() {
 
   if (typeof window.switchTab === 'function') window.switchTab('pane-profile', 'tab-btn-profile');
   updateCustomThemeUI();
+  updateFeatureModeUI();
+  window.renderNotificationSettings?.();
+  window.ensurePhoneNotifyButton?.();
 
   modalObj.classList.remove('hidden');
+  animateSettingsModal(modalObj);
   document.getElementById('modal-overlay')?.classList.remove('hidden');
 };
 
@@ -173,23 +289,55 @@ window.renderProfileCompleteness = function renderProfileCompleteness() {
   const pct = Math.round((done / checks.length) * 100);
   const missing = checks.filter((check) => !check[1]).map((check) => check[0]);
 
-  el.innerHTML = `
-    <div class="pc-row"><span>Profile ${pct}% complete</span><span class="pc-count">${done}/${checks.length}</span></div>
-    <div class="pc-bar"><div class="pc-fill" style="width:${pct}%"></div></div>
-    ${
-      missing.length
-        ? `<div class="pc-missing">Add: ${missing.join(', ')}</div>`
-        : '<div class="pc-missing pc-done">All set! 🎉</div>'
-    }`;
+  if (!profileCompletenessRoot) profileCompletenessRoot = createRoot(el);
+  profileCompletenessRoot.render(createElement(ProfileCompleteness, {
+    percent: pct,
+    done,
+    total: checks.length,
+    missing,
+  }));
 };
 
 window.switchTab = function switchTab(paneId, btnId) {
+  const nextPane = document.getElementById(paneId);
+  const nextTab = document.getElementById(btnId);
+  const modalObj = document.getElementById('settings-modal');
+
   SETTINGS_TABS.forEach((tab) => {
-    document.getElementById(`pane-${tab}`)?.classList.add('hidden');
-    document.getElementById(`tab-btn-${tab}`)?.classList.remove('active');
+    const pane = document.getElementById(`pane-${tab}`);
+    const tabBtn = document.getElementById(`tab-btn-${tab}`);
+    pane?.classList.add('hidden');
+    pane?.classList.remove('settings-pane-enter');
+    tabBtn?.classList.remove('active');
+    tabBtn?.setAttribute('role', 'tab');
+    tabBtn?.setAttribute('aria-selected', 'false');
   });
-  document.getElementById(paneId)?.classList.remove('hidden');
-  document.getElementById(btnId)?.classList.add('active');
+
+  if (nextPane) {
+    nextPane.classList.remove('hidden');
+    nextPane.classList.remove('settings-pane-enter');
+    void nextPane.offsetWidth;
+    nextPane.classList.add('settings-pane-enter');
+    window.clearTimeout(settingsPaneAnimationTimer);
+    settingsPaneAnimationTimer = window.setTimeout(() => {
+      nextPane.classList.remove('settings-pane-enter');
+    }, SETTINGS_PANE_ANIMATION_MS);
+  }
+
+  if (nextTab) {
+    nextTab.classList.add('active');
+    nextTab.setAttribute('role', 'tab');
+    nextTab.setAttribute('aria-selected', 'true');
+  }
+
+  if (modalObj) {
+    modalObj.dataset.activeSettingsPane = paneId.replace(/^pane-/, '');
+  }
+
+  if (paneId === 'pane-notifications') {
+    window.renderNotificationSettings?.();
+    window.ensurePhoneNotifyButton?.();
+  }
 };
 
 window.updateBillingUI = function updateBillingUI() {
@@ -212,10 +360,10 @@ window.updateBillingUI = function updateBillingUI() {
   if (planLimits) {
     planLimits.textContent =
       window.userTier === 'pro'
-        ? '3GB per file · 9GB/day · Unlimited rooms · Analytics · Video calls'
+        ? '3GB per file · 9GB/day · Unlimited rooms · Analytics · Video calls · Screen share system limit'
         : window.userTier === 'advanced'
-          ? '700MB per file · 1.5GB/day · 5 rooms'
-          : '10MB per file · 500MB/day · 3 rooms';
+          ? '700MB per file · 1.5GB/day · 5 rooms · Screen share 1080p/60'
+          : '10MB per file · 500MB/day · 3 rooms · Screen share 720p/30';
   }
 
   if (planBadge) {
@@ -255,6 +403,7 @@ document.getElementById('cancel-profile-edit-inline-btn')?.addEventListener('cli
 document.getElementById('tab-btn-profile')?.addEventListener('click', () => window.switchTab('pane-profile', 'tab-btn-profile'));
 document.getElementById('tab-btn-billing')?.addEventListener('click', () => window.switchTab('pane-billing', 'tab-btn-billing'));
 document.getElementById('tab-btn-app')?.addEventListener('click', () => window.switchTab('pane-app', 'tab-btn-app'));
+document.getElementById('tab-btn-notifications')?.addEventListener('click', () => window.switchTab('pane-notifications', 'tab-btn-notifications'));
 
 document.getElementById('preview-profile-btn')?.addEventListener('click', async (e) => {
   const box = document.getElementById('settings-card-inline-preview');

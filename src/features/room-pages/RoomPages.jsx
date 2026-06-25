@@ -13,7 +13,7 @@ const pageDefinitions = {
   calls: { label: 'Calls', icon: 'ph-phone-call' },
 };
 
-const defaultPages = { docs: true, whiteboard: true, calls: true };
+const defaultPages = { docs: true, whiteboard: true, events: true, calls: true };
 const corePages = { docs: true };
 
 export function RoomPages({ adminUid, menuHost, roomId, userId }) {
@@ -89,7 +89,7 @@ export function RoomPages({ adminUid, menuHost, roomId, userId }) {
     .filter(([key]) => pages[key])
     .map(([key, page]) => (
       <button key={key} type="button" className="room-tab" data-target={key}>
-        <i className={`ph-bold ${page.icon}`} aria-hidden="true" />{page.label}
+        <i className={`ph-bold ${page.icon}`} aria-hidden="true" /><span>{page.label}</span>
       </button>
     ));
 

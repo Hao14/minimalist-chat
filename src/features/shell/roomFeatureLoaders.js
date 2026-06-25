@@ -8,6 +8,7 @@ import { mountRoomHome } from '../room-home/mountRoomHome.js';
 import { mountRoomPages } from '../room-pages/mountRoomPages.js';
 import { mountSearch } from '../search/mountSearch.js';
 import { mountTasks } from '../tasks/mountTasks.js';
+import { mountVault } from '../vault/mountVault.js';
 import { mountWhiteboard } from '../whiteboard/mountWhiteboard.js';
 
 function currentRoomContext() {
@@ -17,6 +18,7 @@ function currentRoomContext() {
     user: {
       uid: window.currentUser.uid,
       displayName: window.userProfileName || 'Anonymous',
+      email: window.currentUser.email || '',
       photoUrl: window.userPhotoUrl || '',
     },
     adminUid: window.MY_ADMIN_UID,
@@ -42,6 +44,7 @@ window.loadRoomDocs = function loadRoomDocs() {
     user: {
       uid: context.user.uid,
       displayName: context.user.displayName,
+      email: context.user.email,
     },
   });
 };
@@ -75,7 +78,11 @@ window.loadRoomEvents = function loadRoomEvents() {
   if (!context) return;
   mountEvents({
     roomId: context.roomId,
-    user: { uid: context.user.uid },
+    user: {
+      uid: context.user.uid,
+      displayName: context.user.displayName,
+      email: context.user.email,
+    },
     adminUid: context.adminUid,
   });
 };
@@ -124,12 +131,32 @@ window.openPersonalAgent = function openPersonalAgent() {
   if (!window.currentUser) return;
   document.getElementById('contacts-panel')?.classList.remove('open');
   document.getElementById('updates-panel')?.classList.remove('open');
+  document.getElementById('vault-panel')?.classList.remove('open');
   const panel = document.getElementById('personal-ai-agent-panel');
   if (!panel) return;
   panel.classList.add('open');
   mountPersonalAgent({
     roomId: window.activeRoomId || 'global',
     personalAiAgentEndpoint: window.PERSONAL_AI_AGENT_ENDPOINT || '',
+  });
+};
+
+window.openVault = function openVault(initialView = 'all') {
+  if (!window.currentUser) return;
+  document.getElementById('contacts-panel')?.classList.remove('open');
+  document.getElementById('updates-panel')?.classList.remove('open');
+  document.getElementById('personal-ai-agent-panel')?.classList.remove('open');
+  document.getElementById('bookmarks-panel')?.classList.add('hidden');
+  const panel = document.getElementById('vault-panel');
+  if (!panel) return;
+  panel.dataset.vaultView = initialView || 'all';
+  panel.classList.add('open');
+  window.dispatchEvent(new CustomEvent('minimalist:vault-open', { detail: { view: initialView || 'all' } }));
+  mountVault({
+    userId: window.currentUser.uid,
+    userName: window.userProfileName || window.currentUser.displayName || 'You',
+    initialView: initialView || 'all',
+    bookmarks: window.__bookmarkIds || {},
   });
 };
 

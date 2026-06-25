@@ -1,8 +1,8 @@
 {
   "name": "Minimalist Chat",
   "short_name": "Minimalist",
-  "description": "A clean, brutalist chat experience.",
-  "start_url": "/chat.html",
+  "description": "A calmer rooms platform for organized communities, private groups, teams, students, and creators.",
+  "start_url": "/chat",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#FFD700",

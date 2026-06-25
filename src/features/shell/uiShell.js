@@ -1,3 +1,7 @@
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import { MarketingNav } from './MarketingNav.jsx';
+
 window.addEventListener('error', (event) => {
   if (event.filename && event.filename.includes('extension')) return;
   if (event.message && event.message.includes('s is not defined')) return;
@@ -50,40 +54,9 @@ window.showScreen = function showScreen(screenId) {
   if (!navEl) return;
 
   const path = (location.pathname.replace(/\.html$/, '').replace(/\/$/, '')) || '/';
-  const links = [
-    ['/', 'Home'],
-    ['/features', 'Features'],
-    ['/download', 'Download'],
-    ['/story', 'Story'],
-  ];
-  const active = (href) => (href === '/' ? (path === '/' || path === '/index') : path === href) ? 'active' : '';
-
-  navEl.innerHTML = `
-    <a href="/" id="nav-logo">
-      <div class="mascot-blip"><div class="blip-eye left"></div><div class="blip-eye right"></div></div>
-      <span class="logo-text">MINIMALIST</span>
-    </a>
-    <div class="desktop-nav">
-      ${links.map(([href, label]) => `<a href="${href}" class="${active(href)}">${label}</a>`).join('')}
-      <a href="/chat" class="auth-only hidden">Chat</a>
-      <a href="/login" class="guest-only">Login</a>
-      <a href="/login" class="nav-cta guest-only">Sign Up</a>
-    </div>
-    <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
-    <div id="mobile-nav-links" class="mobile-only hidden">
-      ${links.map(([href, label]) => `<a href="${href}" class="mobile-link ${active(href)}">${label.toUpperCase()}</a>`).join('')}
-      <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
-      <a href="/login" class="mobile-link guest-only">LOGIN</a>
-      <a href="/login" class="mobile-link guest-only">SIGN UP</a>
-    </div>`;
-
-  document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
-    document.getElementById('mobile-nav-links')?.classList.toggle('hidden');
-  });
-
   const loggedIn = !!window.currentUser;
-  navEl.querySelectorAll('.auth-only').forEach((el) => el.classList.toggle('hidden', !loggedIn));
-  navEl.querySelectorAll('.guest-only').forEach((el) => el.classList.toggle('hidden', loggedIn));
+  const navRoot = createRoot(navEl);
+  navRoot.render(createElement(MarketingNav, { path, loggedIn }));
 })();
 
 document.addEventListener('click', (event) => {

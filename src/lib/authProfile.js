@@ -1,0 +1,105 @@
+import { get, ref, set } from 'firebase/database';
+import { db } from './firebase.js';
+
+function randomShortId() {
+  return Math.random().toString(36).slice(2, 8).toUpperCase();
+}
+
+export function isGoogleAuthUser(user) {
+  return Boolean(user?.providerData?.some((provider) => provider?.providerId === 'google.com'));
+}
+
+export function displayNameFromAuthUser(user) {
+  const emailName = user?.email ? user.email.split('@')[0] : '';
+  return (user?.displayName || emailName || 'New User').trim();
+}
+
+export function publicDirectoryProfileFromUser(user, profile = {}) {
+  const displayName = (profile.displayName || displayNameFromAuthUser(user) || 'New User').trim();
+  return {
+    displayName,
+    photoUrl: profile.photoUrl || user?.photoURL || '',
+    shortId: profile.shortId || '',
+    themeColor: profile.themeColor || '#FFD700',
+    updatedAt: Date.now(),
+  };
+}
+
+export async function syncPublicUserDirectory(user, profile = {}) {
+  if (!user?.uid) return false;
+
+  try {
+    await set(ref(db, `user_directory/${user.uid}`), publicDirectoryProfileFromUser(user, profile));
+    return true;
+  } catch (error) {
+    console.warn('Public user directory sync failed', error);
+    return false;
+  }
+}
+
+export async function ensureWelcomeBadge(userOrUid, profile = {}) {
+  const uid = typeof userOrUid === 'string' ? userOrUid : userOrUid?.uid;
+  if (!uid) return { awardedAt: null, newlyAwarded: false };
+
+  const existingProfileBadge = profile?.badges?.welcome;
+  if (existingProfileBadge) {
+    return { awardedAt: existingProfileBadge, newlyAwarded: false };
+  }
+
+  const badgeRef = ref(db, `users/${uid}/badges/welcome`);
+  const badgeSnapshot = await get(badgeRef);
+  if (badgeSnapshot.exists()) {
+    return { awardedAt: badgeSnapshot.val(), newlyAwarded: false };
+  }
+
+  const awardedAt = Date.now();
+  await set(badgeRef, awardedAt);
+  return { awardedAt, newlyAwarded: true };
+}
+
+export async function ensureAuthProfile(user, { welcome = false } = {}) {
+  if (!user?.uid) return null;
+
+  const profileRef = ref(db, `users/${user.uid}`);
+  const snapshot = await get(profileRef);
+  if (snapshot.exists()) {
+    const profile = snapshot.val();
+    if (welcome) {
+      const result = await ensureWelcomeBadge(user.uid, profile);
+      if (result.awardedAt) {
+        profile.badges = {
+          ...(profile.badges || {}),
+          welcome: result.awardedAt,
+        };
+      }
+      if (result.newlyAwarded) sessionStorage.setItem('showWelcomeTour', '1');
+    }
+    syncPublicUserDirectory(user, profile);
+    return profile;
+  }
+
+  const displayName = displayNameFromAuthUser(user);
+  const shortId = randomShortId();
+  const avatar = user.photoURL
+    || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=000&color=FFD700&bold=true`;
+
+  const profile = {
+    displayName,
+    phoneNumber: user.phoneNumber || '',
+    birthday: '',
+    photoUrl: avatar,
+    shortId,
+    themeColor: '#FFD700',
+    bio: "I'm new here!",
+    pronouns: '',
+    createdAt: user.metadata?.creationTime || new Date().toISOString(),
+    badges: {
+      welcome: Date.now(),
+    },
+  };
+
+  await set(profileRef, profile);
+  await syncPublicUserDirectory(user, profile);
+  if (welcome) sessionStorage.setItem('showWelcomeTour', '1');
+  return profile;
+}

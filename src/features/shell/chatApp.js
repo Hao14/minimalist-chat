@@ -1,6 +1,7 @@
 // Chat app entrypoint for the React/Vite shell.
 import './globalState.js';
 import './uiShell.js';
+import './dialogHost.jsx';
 import '../settings/settingsService.js';
 import '../onboarding/welcomeTour.js';
 import './backgroundServices.js';

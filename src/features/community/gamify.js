@@ -4,9 +4,14 @@
 //   users/{uid}/xp/{skill}                         = number (lifetime XP per skill)
 //   users/{uid}/quests/{periodKey}/{questId}       = { n: progress, done: bool }
 import { db } from '../../lib/firebase.js';
-import { ref, get, set, runTransaction } from 'firebase/database';
+import { ref, get, set, runTransaction, onValue } from 'firebase/database';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
+import QuestList from './QuestList.jsx';
 
 const XP_PER_LEVEL = 100;
+let questsRoot = null;
+let questsLiveUnsubscribe = null;
 
 // The four skill trees.
 const SKILLS = {
@@ -109,35 +114,78 @@ window.bumpStreak = async function (uid) {
 };
 
 // Quest panel UI.
-window.renderQuests = async function () {
+function computeLiveStreak(streak) {
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    return (streak.lastDay === today || streak.lastDay === yesterday) ? (streak.count || 0) : 0;
+}
+
+function stopQuestLiveSync() {
+    if (!questsLiveUnsubscribe) return;
+    questsLiveUnsubscribe();
+    questsLiveUnsubscribe = null;
+}
+
+window.stopQuestLiveSync = stopQuestLiveSync;
+
+window.renderQuests = function () {
     const el = document.getElementById('quests-list');
     if (!el) return;
-    el.innerHTML = `<li class="q-empty">Loading quests…</li>`;
+    if (!questsRoot) questsRoot = createRoot(el);
+    questsRoot.render(createElement(QuestList, { status: 'loading' }));
+
+    stopQuestLiveSync();
+
     try {
-        const uid = window.currentUser.uid;
-        const [ds, ws, st] = await Promise.all([
-            get(ref(db, `users/${uid}/quests/${periodKey('daily')}`)),
-            get(ref(db, `users/${uid}/quests/${periodKey('weekly')}`)),
-            get(ref(db, `users/${uid}/streak`)),
-        ]);
-        const prog = { daily: ds.val() || {}, weekly: ws.val() || {} };
-        // Streak only counts if completed today or yesterday (otherwise it's broken).
-        const streak = st.val() || { count: 0, lastDay: '' };
-        const today = new Date().toISOString().slice(0, 10);
-        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-        const liveStreak = (streak.lastDay === today || streak.lastDay === yesterday) ? streak.count : 0;
-        const row = (q) => {
-            const p = prog[q.type][q.id] || { n: 0, done: false };
-            const pct = Math.min(100, Math.round((p.n / q.goal) * 100));
-            const sk = SKILLS[q.skill];
-            return `<li class="q-row ${p.done ? 'q-done' : ''}">
-                <div class="q-top"><span class="q-label">${q.label}</span><span class="q-reward" style="color:${sk.color}">+${q.xp} ${sk.label}</span></div>
-                <div class="q-bar"><div class="q-fill" style="width:${pct}%; background:${sk.color}"></div></div>
-                <div class="q-meta">${p.done ? '✓ Complete' : `${p.n}/${q.goal}`}</div>
-            </li>`;
+        const uid = window.currentUser?.uid;
+        if (!uid) throw new Error('Sign in to view quests.');
+
+        const state = {
+            daily: null,
+            weekly: null,
+            streak: null,
         };
-        el.innerHTML = `<li class="q-streak">🔥 ${liveStreak} day streak</li>`
-            + `<li class="q-section">Daily</li>` + QUESTS.filter(q => q.type === 'daily').map(row).join('')
-            + `<li class="q-section">Weekly</li>` + QUESTS.filter(q => q.type === 'weekly').map(row).join('');
-    } catch { el.innerHTML = `<li class="q-empty">Couldn't load quests.</li>`; }
+
+        const renderLiveState = () => {
+            if (!questsRoot) return;
+            if (state.daily === null || state.weekly === null || state.streak === null) {
+                questsRoot.render(createElement(QuestList, { status: 'loading' }));
+                return;
+            }
+
+            questsRoot.render(createElement(QuestList, {
+                liveStreak: computeLiveStreak(state.streak || {}),
+                progress: {
+                    daily: state.daily || {},
+                    weekly: state.weekly || {},
+                },
+                quests: QUESTS,
+                skills: SKILLS,
+                status: 'ready',
+            }));
+        };
+
+        const onSyncError = (error) => {
+            questsRoot.render(createElement(QuestList, { status: 'error', error: error.message }));
+        };
+
+        const unsubs = [
+            onValue(ref(db, `users/${uid}/quests/${periodKey('daily')}`), (snapshot) => {
+                state.daily = snapshot.val() || {};
+                renderLiveState();
+            }, onSyncError),
+            onValue(ref(db, `users/${uid}/quests/${periodKey('weekly')}`), (snapshot) => {
+                state.weekly = snapshot.val() || {};
+                renderLiveState();
+            }, onSyncError),
+            onValue(ref(db, `users/${uid}/streak`), (snapshot) => {
+                state.streak = snapshot.val() || {};
+                renderLiveState();
+            }, onSyncError),
+        ];
+
+        questsLiveUnsubscribe = () => unsubs.forEach((unsubscribe) => unsubscribe());
+    } catch (error) {
+        questsRoot.render(createElement(QuestList, { status: 'error', error: error.message }));
+    }
 };

@@ -1,12 +1,43 @@
 import { get, ref, remove } from 'firebase/database';
+import { createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { db } from '../../lib/firebase.js';
-import { escapeHtml } from '../../lib/text.js';
+import { ProfileCardPreview } from '../settings/SettingsWidgets.jsx';
+import {
+  ActivityFeed,
+  ActivityHeatmap,
+  EarnedBadges,
+  MutualRooms,
+  ProfileLinks,
+  ProfileNameLine,
+  ProfileSpotlight,
+  ProfileSkills,
+  ProfileSkillTree,
+  Reputation,
+} from './ProfilePopupSections.jsx';
 
 const contextMenu = document.getElementById('custom-context-menu');
+let settingsCardPreviewRoot = null;
+const profileSectionRoots = new Map();
+
+function renderProfileSection(id, element) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  let root = profileSectionRoots.get(id);
+  if (!root) {
+    root = createRoot(target);
+    profileSectionRoots.set(id, root);
+  }
+  root.render(element);
+}
+
+window.renderProfileSpotlight = function renderProfileSpotlight(payload = {}) {
+  renderProfileSection('up-spotlight', createElement(ProfileSpotlight, payload));
+};
 
 window.renderSettingsCardPreview = async function renderSettingsCardPreview() {
   const el = document.getElementById('settings-card-inline-preview');
-  if (!el) return;
+  if (!el || !window.currentUser?.uid) return;
 
   const uid = window.currentUser.uid;
   let user = {};
@@ -18,28 +49,16 @@ window.renderSettingsCardPreview = async function renderSettingsCardPreview() {
 
   const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, '');
   const bannerStyle = user.bannerUrl
-    ? `background-image:url("${encodeURI(user.bannerUrl)}");background-size:cover;background-position:center;`
-    : `background:${user.themeColor || 'var(--accent-color)'};`;
+    ? { backgroundImage: `url("${encodeURI(user.bannerUrl)}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: user.themeColor || 'var(--accent-color)' };
 
-  el.innerHTML = `
-    <div class="scp-card">
-      <div class="scp-banner" style="${bannerStyle}"><img class="scp-avatar" src="${escapeHtml(avatar)}" alt=""></div>
-      <div class="scp-body">
-        <div class="scp-name-row">
-          <span class="profile-display-name">${escapeHtml(user.displayName || 'You')}</span>
-          ${user.pronouns ? `<span class="profile-pronouns">${escapeHtml(user.pronouns)}</span>` : ''}
-          ${user.flair ? `<span class="profile-flair">${escapeHtml(user.flair)}</span>` : ''}
-        </div>
-        <div><span class="profile-short-id">#${escapeHtml(user.shortId || '')}</span></div>
-        ${user.status ? `<div class="profile-status">${escapeHtml(user.status)}</div>` : ''}
-        <div class="profile-bio">${escapeHtml(user.bio || 'No bio yet.')}</div>
-        <div class="profile-links">${window.renderProfileLinks ? window.renderProfileLinks(user.links) : ''}</div>
-        <div class="profile-section-label">Skill Trees</div>
-        ${window.renderSkillTree ? window.renderSkillTree(user) : ''}
-        <div class="profile-badges">${window.renderBadges ? window.renderBadges(user.badges) : ''}</div>
-        <div class="profile-rep"><i class="ph-bold ph-trophy"></i> ${window.computeRep ? window.computeRep(user) : 0} reputation</div>
-      </div>
-    </div>`;
+  if (!settingsCardPreviewRoot) settingsCardPreviewRoot = createRoot(el);
+  settingsCardPreviewRoot.render(createElement(ProfileCardPreview, {
+    user,
+    avatar,
+    bannerStyle,
+    reputation: window.computeRep ? window.computeRep(user) : 0,
+  }));
 };
 
 window.viewUserProfile = async function viewUserProfile(targetUid) {
@@ -50,13 +69,9 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
     const user = snapshot.val();
     const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, '');
     const tier = (user.tier || '').toLowerCase();
-    let badgeHtml = '';
-
-    if (tier.includes('pro')) badgeHtml = '<span class="tier-badge pro">PRO</span>';
-    else if (tier.includes('advanced')) badgeHtml = '<span class="tier-badge advanced">ADVANCED</span>';
 
     document.getElementById('up-avatar').src = avatar;
-    document.getElementById('up-name').innerHTML = `${escapeHtml(user.displayName)} ${badgeHtml}`;
+    renderProfileSection('up-name', createElement(ProfileNameLine, { name: user.displayName, tier }));
 
     const displayId = user.shortId || window.generateShortId();
     document.getElementById('up-pronouns').textContent = user.pronouns || '';
@@ -67,38 +82,26 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
       upStatus.style.display = user.status ? '' : 'none';
     }
     document.getElementById('up-bio').textContent = user.bio || 'No bio yet.';
-    const upLinks = document.getElementById('up-links');
-    if (upLinks) upLinks.innerHTML = window.renderProfileLinks ? window.renderProfileLinks(user.links) : '';
+    renderProfileSection('up-links', createElement(ProfileLinks, { links: user.links }));
     const upFlair = document.getElementById('up-flair');
     if (upFlair) {
       upFlair.textContent = user.flair || '';
       upFlair.style.display = user.flair ? '' : 'none';
     }
 
-    const upSkills = document.getElementById('up-skills');
-    if (upSkills && window.renderSkills) {
-      upSkills.innerHTML = window.renderSkills(user.skills);
-      const selfSkills = targetUid === window.currentUser.uid;
-      upSkills.querySelectorAll('.skill-endorse').forEach((button) => {
-        button.disabled = selfSkills;
-        if (!selfSkills) {
-          button.onclick = async () => {
-            button.disabled = true;
-            const res = await window.endorseSkill(targetUid, button.dataset.skill);
-            if (res.ok) button.textContent = `+${res.count}`;
-            else {
-              button.disabled = res.reason === 'already';
-              if (res.reason === 'already') window.showToast('Already endorsed.');
-            }
-          };
-        }
-      });
-    }
-
-    const upTree = document.getElementById('up-skilltree');
-    if (upTree && window.renderSkillTree) upTree.innerHTML = window.renderSkillTree(user);
-    const upBadges = document.getElementById('up-badges');
-    if (upBadges) upBadges.innerHTML = window.renderBadges ? window.renderBadges(user.badges) : '';
+    const isMe = targetUid === window.currentUser.uid;
+    renderProfileSection('up-skills', createElement(ProfileSkills, {
+      skills: user.skills,
+      targetUid,
+      isSelf: isMe,
+      onEndorse: async (uid, skillKey) => {
+        const result = await window.endorseSkill?.(uid, skillKey);
+        if (result?.reason === 'already') window.showToast('Already endorsed.');
+        return result;
+      },
+    }));
+    renderProfileSection('up-skilltree', createElement(ProfileSkillTree, { user }));
+    renderProfileSection('up-badges', createElement(EarnedBadges, { badges: user.badges }));
     const upJoined = document.getElementById('up-joined');
     if (upJoined) {
       upJoined.textContent = `Joined: ${
@@ -107,17 +110,10 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
           : 'Unknown'
       }`;
     }
-    const upRep = document.getElementById('up-rep');
-    if (upRep && window.computeRep) upRep.innerHTML = `<i class="ph-bold ph-trophy"></i> ${window.computeRep(user)} reputation`;
-    const upHeat = document.getElementById('up-heatmap');
-    if (upHeat && window.renderHeatmap) upHeat.innerHTML = window.renderHeatmap(user.activityByDay);
-    const upAct = document.getElementById('up-activity');
-    if (upAct && window.buildActivityFeed) {
-      const feed = window.buildActivityFeed(user);
-      upAct.innerHTML = feed || '<li class="act-empty">No activity yet.</li>';
-    }
+    renderProfileSection('up-rep', createElement(Reputation, { value: window.computeRep ? window.computeRep(user) : 0 }));
+    renderProfileSection('up-heatmap', createElement(ActivityHeatmap, { activityByDay: user.activityByDay }));
+    renderProfileSection('up-activity', createElement(ActivityFeed, { user }));
 
-    const isMe = targetUid === window.currentUser.uid;
     const followBtn = document.getElementById('up-follow-btn');
     if (followBtn) {
       followBtn.style.display = isMe ? 'none' : '';
@@ -151,17 +147,14 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
       } else if (window.getMutualRooms) {
         const rooms = await window.getMutualRooms(targetUid);
         upMutual.style.display = rooms.length ? '' : 'none';
-        if (rooms.length) {
-          upMutual.innerHTML = `<i class="ph-bold ph-door-open"></i> ${rooms.length} mutual room${rooms.length > 1 ? 's' : ''}: ${escapeHtml(rooms.slice(0, 3).join(', '))}${rooms.length > 3 ? '…' : ''}`;
-        }
+        renderProfileSection('up-mutual', createElement(MutualRooms, { rooms }));
       }
     }
 
-    const spot = document.getElementById('up-spotlight');
-    if (spot) {
-      spot.innerHTML = '<button id="up-spotlight-btn" class="ai-btn ai-btn-ghost"><i class="ph-bold ph-sparkle"></i> AI Spotlight</button>';
-    }
-    document.getElementById('up-spotlight-btn')?.addEventListener('click', () => window.generateSpotlight(targetUid, user));
+    window.renderProfileSpotlight({
+      status: 'idle',
+      onRetry: () => window.generateSpotlight(targetUid, user),
+    });
 
     const shareBtn = document.getElementById('up-share-btn');
     if (shareBtn) {

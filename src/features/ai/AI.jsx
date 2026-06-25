@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { get, ref } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { getRequiredIdToken } from '../../lib/authToken.js';
 
 const stopWords = new Set('a an the and or but if then is are was were be been being to of in on at for with as by from this that these those it its i you he she we they me him her them my your our their not no yes do does did have has had will would can could should just so about into out up down over under again more most some any all'.split(' '));
 
@@ -150,9 +151,10 @@ function CloudAI({ aiChatEndpoint, context }) {
     setHistory(nextHistory);
     setBusy(true);
     try {
+      const token = await getRequiredIdToken('Please sign in again before using workspace AI.');
       const response = await fetch(aiChatEndpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ context: buildContextString(context), messages: nextHistory }),
       });
       const data = await response.json().catch(() => ({}));
@@ -180,26 +182,48 @@ function CloudAI({ aiChatEndpoint, context }) {
   );
 }
 
-export function PersonalAIAgent({ personalAiAgentEndpoint, context }) {
+const EMPTY_CONTEXT = { messages: [], tasks: [], docs: [], events: [] };
+
+const PERSONAL_QUICK_ACTIONS = [
+  { label: 'Catch me up', hint: 'What changed recently', icon: 'ph-lightning', prompt: 'Catch me up on this room like my personal assistant. Focus on what matters to me and what changed recently.' },
+  { label: 'My next steps', hint: 'What I should do now', icon: 'ph-list-checks', prompt: 'Based on this room, what should I personally do next? Separate urgent items from nice-to-haves.' },
+  { label: 'Draft a reply', hint: 'Two tone options', icon: 'ph-pencil-simple-line', prompt: 'Draft a short, natural reply I could send in this room. Include two tone options.' },
+  { label: 'Plan my day', hint: 'Tasks + events → plan', icon: 'ph-calendar-check', prompt: 'Turn the open tasks, events, and recent messages into a simple personal plan for today.' },
+];
+
+function agentInitial(name) {
+  const trimmed = String(name || 'A').trim();
+  return (trimmed.charAt(0) || 'A').toUpperCase();
+}
+
+function PersonalAgentShell({ children, className = '' }) {
+  return <div className={`pa-shell ${className}`.trim()}>{children}</div>;
+}
+
+export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = false, error = '', onRefresh }) {
   const [profile, setProfile] = useState(loadPersonalAgentProfile);
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const threadRef = useRef(null);
   const pro = isProTier();
-  const quickActions = [
-    ['Catch me up', 'Catch me up on this room like my personal assistant. Focus on what matters to me and what changed recently.'],
-    ['My next steps', 'Based on this room, what should I personally do next? Separate urgent items from nice-to-haves.'],
-    ['Draft reply', 'Draft a short, natural reply I could send in this room. Include two tone options.'],
-    ['Plan my day', 'Turn the open tasks, events, and recent messages into a simple personal plan for today.'],
-  ];
+  const ctx = context || EMPTY_CONTEXT;
+  const initial = agentInitial(profile.name);
+
+  const contextBits = useMemo(() => {
+    const bits = [];
+    if (ctx.messages.length) bits.push(`${ctx.messages.length} messages`);
+    if (ctx.tasks.length) bits.push(`${ctx.tasks.length} tasks`);
+    if (ctx.events.length) bits.push(`${ctx.events.length} events`);
+    if (ctx.docs.length) bits.push(`${ctx.docs.length} docs`);
+    return bits;
+  }, [ctx]);
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight; }, [busy, history]);
 
-  const updateProfile = (field, value) => {
-    setProfile((current) => ({ ...current, [field]: value }));
-  };
+  const updateProfile = (field, value) => setProfile((current) => ({ ...current, [field]: value }));
 
   const persistProfile = () => {
     savePersonalAgentProfile(profile);
@@ -217,16 +241,8 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context }) {
   const sendPrompt = async (text) => {
     const prompt = text.trim();
     if (!prompt || busy) return;
-    if (!pro) {
-      setHistory((current) => [...current, { role: 'assistant', content: 'Personal AI Agent is included with Pro.' }]);
-      return;
-    }
-    if (!personalAiAgentEndpoint) {
-      setHistory((current) => [...current, { role: 'assistant', content: 'Personal AI Agent endpoint is not configured yet.' }]);
-      return;
-    }
     if (!window.currentUser?.getIdToken) {
-      setHistory((current) => [...current, { role: 'assistant', content: 'Please sign in again before using your personal agent.' }]);
+      setHistory((current) => [...current, { role: 'user', content: prompt }, { role: 'assistant', content: 'Please sign in again before using your personal agent.' }]);
       return;
     }
 
@@ -239,83 +255,156 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context }) {
       const response = await fetch(personalAiAgentEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ context: buildContextString(context), messages: nextHistory, agentProfile: profile }),
+        body: JSON.stringify({ context: buildContextString(ctx), messages: nextHistory, agentProfile: profile }),
       });
       const data = await response.json().catch(() => ({}));
       setHistory([...nextHistory, { role: 'assistant', content: response.ok ? (data.reply || '(no response)') : (data.error || `Request failed (${response.status}).`) }]);
-    } catch (error) {
-      setHistory([...nextHistory, { role: 'assistant', content: `Could not reach your personal agent: ${error.message}` }]);
+    } catch (requestError) {
+      setHistory([...nextHistory, { role: 'assistant', content: `Could not reach your personal agent: ${requestError.message}` }]);
     } finally {
       setBusy(false);
     }
   };
 
+  // Endpoint not deployed yet.
   if (!personalAiAgentEndpoint) {
     return (
-      <div className="ai-card ai-personal-agent ai-personal-locked">
-        <div className="ai-card-h">Personal AI Agent <span className="ai-tag ai-tag-pro">Pro</span></div>
-        <div className="ai-empty">Personal AI Agent needs the Firebase function endpoint configured.</div>
-      </div>
+      <PersonalAgentShell className="pa-notice">
+        <div className="pa-orb pa-orb-lg">{initial}</div>
+        <h3>Personal AI Agent <span className="pa-pro">Pro</span></h3>
+        <p>Your private assistant isn’t connected yet — the agent’s Firebase function endpoint still needs to be configured.</p>
+      </PersonalAgentShell>
     );
   }
 
+  // Pro upsell.
   if (!pro) {
     return (
-      <div className="ai-card ai-personal-agent ai-personal-locked">
-        <div className="ai-card-h">Personal AI Agent <span className="ai-tag ai-tag-pro">Pro</span></div>
-        <p className="ai-agent-lede">A private assistant that remembers your preferences, helps draft replies, and turns room context into your personal next steps.</p>
+      <PersonalAgentShell className="pa-notice">
+        <div className="pa-orb pa-orb-lg">{initial}</div>
+        <h3>Meet your private agent <span className="pa-pro">Pro</span></h3>
+        <p>A personal assistant that remembers your preferences, drafts replies in your voice, and turns each room into your own next steps.</p>
+        <ul className="pa-feature-list">
+          <li><i className="ph-bold ph-brain" /> Remembers your tone &amp; preferences</li>
+          <li><i className="ph-bold ph-list-checks" /> Surfaces what you personally should do</li>
+          <li><i className="ph-bold ph-lock-simple" /> Setup stays private, on your device</li>
+        </ul>
         <button
           type="button"
-          className="ai-btn"
-          onClick={() => {
-            window.openSettings?.();
-            window.switchTab?.('pane-billing', 'tab-btn-billing');
-          }}
+          className="pa-btn pa-btn-accent"
+          onClick={() => { window.openSettings?.(); window.switchTab?.('pane-billing', 'tab-btn-billing'); }}
         >
           <i className="ph-bold ph-crown" /> Unlock with Pro
         </button>
-      </div>
+      </PersonalAgentShell>
     );
   }
 
+  const empty = history.length === 0 && !busy;
+
   return (
-    <div className="ai-card ai-personal-agent">
-      <div className="ai-card-h">Personal AI Agent <span className="ai-tag ai-tag-pro">Pro</span><span className="ai-tag">{profile.name || 'Agent'}</span></div>
-      <p className="ai-agent-lede">Your private Pro agent uses this room plus your saved preferences. Agent setup stays on this device.</p>
-      <details className="ai-agent-settings">
-        <summary>Agent setup</summary>
-        <label>
-          Agent name
-          <input value={profile.name} onChange={(event) => updateProfile('name', event.target.value)} maxLength={80} />
-        </label>
-        <label>
-          What should your agent help you with?
-          <textarea value={profile.instructions} onChange={(event) => updateProfile('instructions', event.target.value)} rows={3} />
-        </label>
-        <label>
-          Preferred tone
-          <input value={profile.tone} onChange={(event) => updateProfile('tone', event.target.value)} maxLength={400} />
-        </label>
-        <label>
-          Memory / preferences
-          <textarea value={profile.memory} onChange={(event) => updateProfile('memory', event.target.value)} rows={4} placeholder="Example: Remind me to keep replies short. I prefer action lists over paragraphs." />
-        </label>
-        <div className="ai-agent-actions">
-          <button type="button" className="ai-btn" onClick={persistProfile}><i className="ph-bold ph-floppy-disk" /> Save agent</button>
-          <button type="button" className="ai-btn ai-btn-ghost" onClick={resetProfile}><i className="ph-bold ph-arrow-counter-clockwise" /> Reset</button>
-          {saved ? <span className="ai-agent-saved">Saved</span> : null}
+    <PersonalAgentShell>
+      <div className="pa-id">
+        <div className="pa-orb">{initial}</div>
+        <div className="pa-id-meta">
+          <strong>{profile.name || 'Your agent'}</strong>
+          <span><i className="ph-bold ph-shield-check" /> Private agent · Pro</span>
         </div>
-      </details>
-      <div className="ai-quick-actions">{quickActions.map(([label, prompt]) => <button key={label} type="button" className="ai-qa" onClick={() => sendPrompt(prompt)}>{label}</button>)}</div>
-      <div ref={threadRef} className="ai-thread ai-personal-thread">
-        {history.map((message, index) => <div key={`${message.role}-${index}`} className={`ai-bubble ai-bubble-${message.role}`}>{message.content}</div>)}
-        {busy ? <div className="ai-bubble ai-bubble-assistant ai-typing"><span /><span /><span /></div> : null}
+        <div className="pa-id-actions">
+          <button type="button" className="pa-icon-btn" onClick={onRefresh} title="Re-read this room" disabled={loading}>
+            <i className={`ph-bold ph-arrows-clockwise ${loading ? 'pa-spin' : ''}`} />
+          </button>
+          <button type="button" className={`pa-icon-btn ${settingsOpen ? 'active' : ''}`} onClick={() => setSettingsOpen((open) => !open)} title="Agent setup">
+            <i className="ph-bold ph-sliders-horizontal" />
+          </button>
+        </div>
       </div>
-      <form className="ai-chat-form" onSubmit={(event) => { event.preventDefault(); sendPrompt(draft); setDraft(''); }}>
-        <input value={draft} onChange={(event) => setDraft(event.target.value)} type="text" placeholder={`Ask ${profile.name || 'your agent'} anything…`} autoComplete="off" />
-        <button type="submit" className="ai-btn ai-send" title="Send"><i className="ph-bold ph-paper-plane-tilt" /></button>
+
+      <div className="pa-context">
+        {loading ? (
+          <><span className="pa-context-dot pulsing" /> Reading this room…</>
+        ) : error ? (
+          <span className="pa-context-error"><i className="ph-bold ph-warning-circle" /> {error}</span>
+        ) : (
+          <><span className="pa-context-dot" /> {contextBits.length ? `Using ${contextBits.join(' · ')}` : 'Room is quiet — ask me anything'}</>
+        )}
+      </div>
+
+      {settingsOpen ? (
+        <div className="pa-settings">
+          <label>
+            Agent name
+            <input value={profile.name} onChange={(event) => updateProfile('name', event.target.value)} maxLength={80} />
+          </label>
+          <label>
+            What should your agent help with?
+            <textarea value={profile.instructions} onChange={(event) => updateProfile('instructions', event.target.value)} rows={3} />
+          </label>
+          <label>
+            Preferred tone
+            <input value={profile.tone} onChange={(event) => updateProfile('tone', event.target.value)} maxLength={400} />
+          </label>
+          <label>
+            Memory / preferences
+            <textarea value={profile.memory} onChange={(event) => updateProfile('memory', event.target.value)} rows={3} placeholder="Example: keep replies short. I prefer action lists over paragraphs." />
+          </label>
+          <div className="pa-settings-actions">
+            <button type="button" className="pa-btn pa-btn-accent" onClick={persistProfile}><i className="ph-bold ph-check" /> Save</button>
+            <button type="button" className="pa-btn" onClick={resetProfile}><i className="ph-bold ph-arrow-counter-clockwise" /> Reset</button>
+            {saved ? <span className="pa-saved"><i className="ph-bold ph-check-circle" /> Saved</span> : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div ref={threadRef} className="pa-thread">
+        {empty ? (
+          <div className="pa-welcome">
+            <div className="pa-orb pa-orb-lg">{initial}</div>
+            <h4>Hi, I’m {profile.name || 'your agent'}</h4>
+            <p>I read this room for you. Pick a starting point or just ask.</p>
+            <div className="pa-suggest">
+              {PERSONAL_QUICK_ACTIONS.map((action) => (
+                <button key={action.label} type="button" className="pa-suggest-card" onClick={() => sendPrompt(action.prompt)}>
+                  <i className={`ph-bold ${action.icon}`} />
+                  <span className="pa-suggest-copy">
+                    <strong>{action.label}</strong>
+                    <small>{action.hint}</small>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {history.map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`pa-msg pa-msg-${message.role}`}>
+                {message.role === 'assistant' ? <div className="pa-msg-orb">{initial}</div> : null}
+                <div className="pa-bubble">{message.content}</div>
+              </div>
+            ))}
+            {busy ? (
+              <div className="pa-msg pa-msg-assistant">
+                <div className="pa-msg-orb">{initial}</div>
+                <div className="pa-bubble pa-typing"><span /><span /><span /></div>
+              </div>
+            ) : null}
+          </>
+        )}
+      </div>
+
+      <form className="pa-composer" onSubmit={(event) => { event.preventDefault(); sendPrompt(draft); setDraft(''); }}>
+        <input
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          type="text"
+          placeholder={`Ask ${profile.name || 'your agent'}…`}
+          autoComplete="off"
+        />
+        <button type="submit" className="pa-send" title="Send" disabled={busy || !draft.trim()}>
+          <i className="ph-bold ph-arrow-up" />
+        </button>
       </form>
-    </div>
+    </PersonalAgentShell>
   );
 }
 
@@ -343,23 +432,13 @@ export function PersonalAIAgentLauncher({ personalAiAgentEndpoint, roomId }) {
   }, [load]);
 
   return (
-    <div className="personal-agent-panel-body">
-      <div className="personal-agent-panel-intro">
-        <span className="ai-tag ai-tag-pro">Pro</span>
-        <h3>Personal AI Agent</h3>
-        <p>Private assistant for the current room, your saved preferences, and your next steps.</p>
-      </div>
-      {loading ? <Spinner label="Reading current room…" /> : null}
-      {error ? <div className="ai-empty">{error}</div> : null}
-      {!loading && context ? (
-        <>
-          <button type="button" className="ai-btn ai-btn-ghost personal-agent-refresh" onClick={load}>
-            <i className="ph-bold ph-arrows-clockwise" /> Refresh room context
-          </button>
-          <PersonalAIAgent personalAiAgentEndpoint={personalAiAgentEndpoint} context={context} />
-        </>
-      ) : null}
-    </div>
+    <PersonalAIAgent
+      personalAiAgentEndpoint={personalAiAgentEndpoint}
+      context={context}
+      loading={loading}
+      error={error}
+      onRefresh={load}
+    />
   );
 }
 

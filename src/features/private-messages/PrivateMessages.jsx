@@ -217,6 +217,7 @@ function PrivateMessagesDock() {
   const [call, setCall] = useState(null);
   const [micState, setMicState] = useState('idle');
   const [encryptionVersion, setEncryptionVersion] = useState(0);
+  const [passphraseOpen, setPassphraseOpen] = useState(false);
   const messagesRef = useRef(null);
 
   const activeSession = useMemo(
@@ -335,11 +336,19 @@ function PrivateMessagesDock() {
       return;
     }
 
-    const passphrase = window.prompt('Enter the shared encryption passphrase for this PM. The other person must enter the same passphrase.');
-    if (!passphrase) return;
+    setPassphraseOpen(true);
+  }, [roomId]);
+
+  const submitPassphrase = useCallback(async (event) => {
+    event.preventDefault();
+    if (!roomId) return;
+    const formData = new FormData(event.currentTarget);
+    const passphrase = String(formData.get('passphrase') || '');
+    if (!passphrase.trim()) return;
     try {
       pmKeys.set(roomId, await derivePmKey(roomId, passphrase));
       setEncryptionVersion((value) => value + 1);
+      setPassphraseOpen(false);
       window.showToast?.('Encrypted messages enabled for this PM window.', false);
     } catch (error) {
       window.showToast?.(`Could not enable encrypted messages: ${error.message}`);
@@ -376,7 +385,13 @@ function PrivateMessagesDock() {
       activeSession.targetUid,
       'message',
       `New message from ${window.userProfileName || 'Someone'}.`,
-      { groupId: myUid, from: window.userProfileName || 'Someone' },
+      {
+        groupId: myUid,
+        from: window.userProfileName || 'Someone',
+        action: 'pm',
+        pmTargetUid: myUid,
+        pmTargetName: window.userProfileName || 'Someone',
+      },
     );
     upsertSession(activeSession.targetUid, { lastText: text, timestamp: Date.now(), unread: false });
     setDraft('');
@@ -413,11 +428,17 @@ function PrivateMessagesDock() {
         read: false,
       });
       window.createNotification?.(
-        activeSession.targetUid,
-        'message',
-        `${window.userProfileName || 'Someone'} started a PM voice call.`,
-        { groupId: myUid, from: window.userProfileName || 'Someone' },
-      );
+      activeSession.targetUid,
+      'message',
+      `${window.userProfileName || 'Someone'} started a PM voice call.`,
+      {
+        groupId: myUid,
+        from: window.userProfileName || 'Someone',
+        action: 'pm',
+        pmTargetUid: myUid,
+        pmTargetName: window.userProfileName || 'Someone',
+      },
+    );
       setMicState(micReady ? 'ready' : 'blocked');
       window.showToast?.('PM voice call joined.', false);
     } catch (error) {
@@ -521,6 +542,32 @@ function PrivateMessagesDock() {
           <input id="pm-input" autoComplete="off" placeholder={activeSession ? `Message ${activeSession.targetName}…` : 'Pick a PM…'} value={draft} onChange={(event) => setDraft(event.target.value)} disabled={!activeSession} />
           <button type="submit" disabled={!activeSession || !draft.trim()}>Send</button>
         </form>
+
+        {passphraseOpen ? (
+          <div className="pm-passphrase-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setPassphraseOpen(false); }}>
+            <form className="pm-passphrase-card" onSubmit={submitPassphrase}>
+              <div className="pm-passphrase-head">
+                <div>
+                  <span>Encrypted PM</span>
+                  <h3>Shared passphrase</h3>
+                </div>
+                <button type="button" onClick={() => setPassphraseOpen(false)} aria-label="Close passphrase dialog">✖</button>
+              </div>
+              <p>The other person must enter the same passphrase to read encrypted messages in this PM.</p>
+              <input
+                autoFocus
+                name="passphrase"
+                type="password"
+                autoComplete="off"
+                placeholder="Enter shared passphrase..."
+              />
+              <div className="pm-passphrase-actions">
+                <button type="button" onClick={() => setPassphraseOpen(false)}>Cancel</button>
+                <button type="submit">Enable</button>
+              </div>
+            </form>
+          </div>
+        ) : null}
       </section>
     </div>
   );

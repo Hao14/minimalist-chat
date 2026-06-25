@@ -2,6 +2,87 @@ import { Fragment, createElement, useEffect } from 'react';
 
 const h = createElement;
 
+function renderFeatureModePanel() {
+  return h(
+    "div",
+    {
+      className: "settings-feature-mode-panel",
+      id: "settings-feature-mode-panel",
+    },
+    "\n        ",
+    h(
+      "div",
+      {
+        className: "settings-feature-mode-copy",
+      },
+      "\n            ",
+      h(
+        "span",
+        {
+          className: "settings-feature-mode-title",
+        },
+        "Interface Mode"
+      ),
+      "\n            ",
+      h(
+        "span",
+        {
+          className: "settings-feature-mode-note",
+          id: "feature-mode-note",
+        },
+        "Simple keeps the app quiet. Power shows the full room toolkit."
+      ),
+      "\n        "
+    ),
+    "\n        ",
+    h(
+      "div",
+      {
+        className: "settings-feature-mode-controls",
+        role: "tablist",
+        "aria-label": "Interface mode",
+      },
+      "\n            ",
+      h(
+        "button",
+        {
+          className: "action-btn feature-mode-select-btn",
+          "data-feature-mode-select": "simple",
+          type: "button",
+          role: "tab",
+          "aria-label": "Simple Mode: rooms, messages, files, search, and settings",
+        },
+        h("strong", null, "Simple Mode"),
+        h("span", null, "Essentials only")
+      ),
+      "\n            ",
+      h(
+        "button",
+        {
+          className: "action-btn feature-mode-select-btn",
+          "data-feature-mode-select": "power",
+          type: "button",
+          role: "tab",
+          "aria-label": "Power Mode: tasks, polls, events, wiki, analytics, moderation, integrations, memory, time capsules, and archives",
+        },
+        h("strong", null, "Power Mode"),
+        h("span", null, "Full toolkit")
+      ),
+      "\n        "
+    ),
+    "\n        ",
+    h(
+      "div",
+      {
+        className: "settings-feature-mode-summary",
+        id: "feature-mode-summary",
+      },
+      "Simple Mode is active."
+    ),
+    "\n    "
+  );
+}
+
 function loadConfigScript() {
   return new Promise((resolve) => {
     document.querySelector('script[data-minimalist-config]')?.remove();
@@ -38,7 +119,10 @@ function useChatBoot() {
       if (!window.GCAL_CLIENT_ID || !window.STRIPE_CHECKOUT_ENDPOINT) {
         await loadConfigScript();
       }
-      if (!cancelled) await import('../features/shell/chatApp.js');
+      if (!cancelled) {
+        await import('../features/shell/chatApp.js');
+        window.requestAnimationFrame(() => window.hydrateRoomCollapsePreference?.());
+      }
     };
 
     boot().catch((error) => {
@@ -52,6 +136,59 @@ function useChatBoot() {
       document.body.className = oldClass;
       if (oldStyle === null) document.body.removeAttribute('style');
       else document.body.setAttribute('style', oldStyle);
+    };
+  }, []);
+}
+
+function useRoomNavMotion() {
+  useEffect(() => {
+    const rail = document.getElementById('room-sub-nav');
+    if (!rail) return undefined;
+
+    let frame = 0;
+    const updateIndicator = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const activeTab = rail.querySelector('.room-tab.active');
+        if (!activeTab) return;
+
+        const railRect = rail.getBoundingClientRect();
+        const tabRect = activeTab.getBoundingClientRect();
+        const x = tabRect.left - railRect.left + rail.scrollLeft;
+        const center = tabRect.left - railRect.left + tabRect.width / 2;
+
+        rail.style.setProperty('--room-nav-indicator-x', `${Math.max(0, x)}px`);
+        rail.style.setProperty('--room-nav-indicator-w', `${Math.max(24, tabRect.width)}px`);
+        rail.style.setProperty('--room-nav-active-center', `${Math.max(0, center)}px`);
+      });
+    };
+
+    const observer = new MutationObserver(updateIndicator);
+    observer.observe(rail, { attributes: true, attributeFilter: ['class'], childList: true, subtree: true });
+
+    const resizeObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateIndicator) : null;
+    resizeObserver?.observe(rail);
+
+    const handlePointerMove = (event) => {
+      const rect = rail.getBoundingClientRect();
+      rail.style.setProperty('--room-nav-pointer-x', `${event.clientX - rect.left}px`);
+      rail.style.setProperty('--room-nav-pointer-y', `${event.clientY - rect.top}px`);
+    };
+
+    rail.addEventListener('pointermove', handlePointerMove);
+    rail.addEventListener('scroll', updateIndicator, { passive: true });
+    window.addEventListener('resize', updateIndicator);
+    updateIndicator();
+    const refreshTimer = window.setTimeout(updateIndicator, 450);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(refreshTimer);
+      observer.disconnect();
+      resizeObserver?.disconnect();
+      rail.removeEventListener('pointermove', handlePointerMove);
+      rail.removeEventListener('scroll', updateIndicator);
+      window.removeEventListener('resize', updateIndicator);
     };
   }, []);
 }
@@ -165,7 +302,21 @@ function renderChatShell() {
             title: "Personal AI Agent",
           },
           h("i", {
-              className: "ph ph-sparkle",
+              className: "ph-bold ph-sparkle",
+            })
+        ),
+        "\n            ",
+        h(
+          "button",
+          {
+            className: "rail-icon auth-only hidden",
+            id: "open-vault-btn",
+            title: "Vault",
+            "aria-label": "Open Vault",
+          },
+          h("span", {
+              className: "vault-rail-glyph",
+              "aria-hidden": "true",
             })
         ),
         "\n\n            ",
@@ -284,6 +435,25 @@ function renderChatShell() {
           "button",
           {
             className: "action-btn mobile-link-btn auth-only",
+            id: "open-vault-btn-mobile",
+          },
+          "\n                ",
+          h("span", {
+              className: "vault-rail-glyph",
+              "aria-hidden": "true",
+            }),
+          h(
+            "span",
+            null,
+            "VAULT"
+          ),
+          "\n            "
+        ),
+        "\n            ",
+        h(
+          "button",
+          {
+            className: "action-btn mobile-link-btn auth-only",
             id: "open-updates-btn-mobile",
           },
           "\n                ",
@@ -363,7 +533,7 @@ function renderChatShell() {
     h(
       "div",
       {
-        className: "app-screen hidden boot-loader-screen",
+        className: "app-screen boot-loader-screen",
         id: "loading-screen",
         style: { display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-start", flex: "1", height: "100vh", padding: "3rem", position: "fixed", top: "0", left: "0", width: "100vw", zIndex: "9999", background: "var(--bg-color)", transition: "opacity 0.5s ease", boxSizing: "border-box" },
       },
@@ -412,6 +582,29 @@ function renderChatShell() {
           className: "boot-terminal",
           style: { display: "flex", flexDirection: "column", gap: "10px", fontFamily: "monospace", fontSize: "1rem", fontWeight: "700", color: "var(--text-color)", textTransform: "uppercase" },
         },
+        "\n            ",
+        h(
+          "div",
+          {
+            className: "boot-line is-complete boot-line-static",
+          },
+          h("span", { className: "boot-line-no" }, "00"),
+          h("span", { className: "boot-status" }, "run"),
+          h(
+            "span",
+            {
+              className: "boot-code",
+            },
+            h("span", { className: "boot-key" }, "session"),
+            h("span", { className: "boot-punc" }, "."),
+            h("span", { className: "boot-fn" }, "prepare"),
+            h("span", { className: "boot-punc" }, "("),
+            h("span", { className: "boot-string" }, "\"identity\""),
+            h("span", { className: "boot-punc" }, ")"),
+            h("span", { className: "boot-muted" }, " // waiting for auth")
+          ),
+          h("span", { className: "boot-cursor" })
+        ),
         "\n            "
       ),
       "\n\n    "
@@ -616,7 +809,23 @@ function renderChatShell() {
                 {
                   id: "room-drop-invite",
                 },
-                "Invite to Room"
+                "Invite / Link"
+              ),
+              "\n                        ",
+              h(
+                "button",
+                {
+                  id: "room-drop-favorite",
+                },
+                "☆ Favorite Room"
+              ),
+              "\n                        ",
+              h(
+                "button",
+                {
+                  id: "room-drop-hide",
+                },
+                "Hide Room"
               ),
               "\n                        ",
               h(
@@ -650,6 +859,7 @@ function renderChatShell() {
             "div",
             {
               id: "room-sub-nav",
+              className: "room-nav-rail",
               style: { display: "flex", gap: "2rem", padding: "0 1.5rem", background: "var(--bg-color)", alignItems: "center" },
             },
             "\n                    ",
@@ -659,7 +869,8 @@ function renderChatShell() {
                 className: "room-tab",
                 "data-target": "home",
               },
-              "Home"
+              h("i", { className: "ph-bold ph-house" }),
+              h("span", null, "Home")
             ),
             "\n                    ",
             h(
@@ -668,7 +879,8 @@ function renderChatShell() {
                 className: "room-tab active",
                 "data-target": "chat",
               },
-              "Chat"
+              h("i", { className: "ph-bold ph-chat-circle-text" }),
+              h("span", null, "Chat")
             ),
             "\n                    ",
             "\n                    ",
@@ -1932,7 +2144,7 @@ function renderChatShell() {
             {
               style: { fontSize: "1.2rem", fontWeight: "800" },
             },
-            "Inbox"
+            "Updates"
           ),
           "\n                ",
           h(
@@ -1983,6 +2195,15 @@ function renderChatShell() {
             "button",
             {
               className: "update-tab",
+              id: "tab-recognition",
+            },
+            "Recognition"
+          ),
+          "\n                ",
+          h(
+            "button",
+            {
+              className: "update-tab",
               id: "tab-changelog",
             },
             "Changelog"
@@ -2026,6 +2247,12 @@ function renderChatShell() {
         }),
       "\n        ",
       h("ul", {
+          id: "recognition-list",
+          className: "hidden",
+          style: { listStyle: "none", overflowY: "auto", flex: "1", padding: "1rem", margin: "0", display: "flex", flexDirection: "column", gap: "0.6rem" },
+        }),
+      "\n        ",
+      h("ul", {
           id: "quests-list",
           className: "hidden",
           style: { listStyle: "none", overflowY: "auto", flex: "1", padding: "1rem", margin: "0", display: "flex", flexDirection: "column", gap: "0.6rem" },
@@ -2046,9 +2273,25 @@ function renderChatShell() {
         },
         "\n            ",
         h(
-          "span",
-          null,
-          "Contacts"
+          "div",
+          {
+            className: "contacts-panel-title",
+          },
+          "\n                ",
+          h("i", {
+              className: "ph-bold ph-users",
+            }),
+          "\n                ",
+          h(
+            "div",
+            null,
+            "\n                    ",
+            h("span", null, "People"),
+            "\n                    ",
+            h("strong", null, "Contacts"),
+            "\n                "
+          ),
+          "\n            "
         ),
         h(
           "span",
@@ -2064,15 +2307,25 @@ function renderChatShell() {
       h(
         "div",
         {
-          style: { padding: "1rem", borderBottom: "4px solid var(--text-color)", background: "var(--bg-color)", flexShrink: "0" },
+          className: "contacts-search-wrap",
         },
         "\n            ",
+        h(
+          "p",
+          {
+            className: "contacts-panel-subtitle",
+          },
+          "Find friends, requests, and people from shared rooms."
+        ),
+        "\n            ",
+        h("i", {
+            className: "ph-bold ph-magnifying-glass contacts-search-icon",
+          }),
         h("input", {
             type: "text",
             id: "contact-search-input",
             autoComplete: "off",
-            placeholder: "Search for users...",
-            style: { width: "100%", margin: "0", padding: "0.6rem 0.8rem", border: "3px solid var(--text-color)", borderRadius: "6px", fontSize: "0.95rem", fontWeight: "700", fontFamily: "inherit", background: "var(--bg-color)", color: "var(--text-color)" },
+            placeholder: "Search people...",
           }),
         "\n        "
       ),
@@ -2113,6 +2366,40 @@ function renderChatShell() {
       "\n        ",
       h("div", {
           id: "personal-ai-agent-root",
+        }),
+      "\n    "
+    ),
+    "\n\n    ",
+    h(
+      "div",
+      {
+        id: "vault-panel",
+      },
+      "\n        ",
+      h(
+        "div",
+        {
+          className: "contacts-header",
+        },
+        "\n            ",
+        h(
+          "span",
+          null,
+          "Vault"
+        ),
+        h(
+          "span",
+          {
+            className: "close-panel",
+            id: "close-vault-btn",
+          },
+          "✖"
+        ),
+        "\n        "
+      ),
+      "\n        ",
+      h("div", {
+          id: "vault-root",
         }),
       "\n    "
     ),
@@ -2191,6 +2478,15 @@ function renderChatShell() {
           "Appearance"
         ),
         "\n            ",
+        h(
+          "div",
+          {
+            className: "settings-tab",
+            id: "tab-btn-notifications",
+          },
+          "Notifications"
+        ),
+        "\n            ",
         h("div", {
             className: "settings-divider",
           }),
@@ -2198,10 +2494,32 @@ function renderChatShell() {
         h(
           "div",
           {
-            className: "settings-tab danger",
-            id: "logout-btn",
+            className: "settings-session-actions",
           },
-          "Log Out"
+          h(
+            "button",
+            {
+              className: "settings-session-btn settings-session-logout",
+              id: "logout-btn",
+              type: "button",
+            },
+            h("i", {
+              className: "ph-bold ph-sign-out",
+            }),
+            "Log Out"
+          ),
+          h(
+            "button",
+            {
+              className: "settings-session-btn settings-session-switch",
+              id: "switch-user-btn",
+              type: "button",
+            },
+            h("i", {
+              className: "ph-bold ph-users-three",
+            }),
+            "Switch User"
+          )
         ),
         "\n        "
       ),
@@ -2278,6 +2596,51 @@ function renderChatShell() {
                 className: "hidden",
               }),
             "\n                "
+          ),
+          "\n\n                ",
+          h(
+            "div",
+            {
+              className: "account-session-actions profile-view-section",
+            },
+            h(
+              "button",
+              {
+                id: "account-switch-user-btn",
+                className: "account-session-action account-switch-action",
+                type: "button",
+              },
+              h(
+                "span",
+                null,
+                h("i", {
+                  className: "ph-bold ph-users-three",
+                }),
+                "Switch User"
+              ),
+              h("i", {
+                className: "ph-bold ph-arrow-right",
+              })
+            ),
+            h(
+              "button",
+              {
+                id: "account-logout-btn",
+                className: "account-session-action account-logout-action",
+                type: "button",
+              },
+              h(
+                "span",
+                null,
+                h("i", {
+                  className: "ph-bold ph-sign-out",
+                }),
+                "Log Out"
+              ),
+              h("i", {
+                className: "ph-bold ph-arrow-right",
+              })
+            )
           ),
           "\n\n                ",
           h(
@@ -2880,7 +3243,7 @@ function renderChatShell() {
                     id: "billing-plan-limits",
                     style: { fontSize: "0.85rem", fontWeight: "800" },
                   },
-                  "10MB per file · 500MB/day"
+                  "10MB per file · 500MB/day · Screen share 720p/30"
                 ),
                 "\n                        "
               ),
@@ -3026,6 +3389,12 @@ function renderChatShell() {
                   h(
                     "li",
                     null,
+                    "✓ Screen share 1080p/60"
+                  ),
+                  "\n                                ",
+                  h(
+                    "li",
+                    null,
                     "✓ Advanced tier badge"
                   ),
                   "\n                                ",
@@ -3116,6 +3485,12 @@ function renderChatShell() {
                     "li",
                     null,
                     "✓ Video calls"
+                  ),
+                  "\n                                ",
+                  h(
+                    "li",
+                    null,
+                    "✓ Screen share at system limit"
                   ),
                   "\n                                ",
                   h(
@@ -3299,8 +3674,88 @@ function renderChatShell() {
               ),
               "\n                    "
             ),
+            "\n                    ",
+            renderFeatureModePanel(),
             "\n                "
           ),
+          "\n            "
+        ),
+        "\n            \n            ",
+        h(
+          "div",
+          {
+            className: "settings-pane hidden",
+            id: "pane-notifications",
+          },
+          "\n                ",
+          h("h2", null, "Notifications"),
+          "\n                ",
+          h(
+            "div",
+            {
+              className: "settings-card settings-notifications-hero",
+            },
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "settings-card-body",
+              },
+              "\n                        ",
+              h("span", { className: "notif-settings-kicker" }, "Activity Center"),
+              "\n                        ",
+              h("h3", null, "Stay informed without the noise."),
+              "\n                        ",
+              h(
+                "p",
+                null,
+                "Control room alerts, mentions, keyword alerts, digests, Do Not Disturb, schedules, and phone notifications from one place."
+              ),
+              "\n                    "
+            ),
+            "\n                "
+          ),
+          "\n                ",
+          h(
+            "div",
+            {
+              className: "settings-card notification-phone-card",
+            },
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "settings-card-body",
+              },
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "notification-phone-head",
+                },
+                "\n                            ",
+                h("span", null, h("i", { className: "ph-bold ph-device-mobile" }), " Phone alerts"),
+                "\n                            ",
+                h("div", {
+                    id: "notification-phone-alerts-slot",
+                  }),
+                "\n                        "
+              ),
+              "\n                        ",
+              h(
+                "p",
+                null,
+                "Enable browser/PWA alerts for private messages on this device. Mobile browsers will use the same setting when installed as an app."
+              ),
+              "\n                    "
+            ),
+            "\n                "
+          ),
+          "\n                ",
+          h("div", {
+              id: "notification-settings-root",
+              className: "notif-settings-root",
+            }),
           "\n            "
         ),
         "\n        "
@@ -3618,9 +4073,9 @@ function renderChatShell() {
         style: { zIndex: "6000", display: "flex", justifyContent: "center", alignItems: "center" },
       },
       "\n        ",
-      h(
-        "div",
-        {
+        h(
+          "div",
+          {
           className: "brutalist-auth-card",
           style: { width: "90%", maxWidth: "400px", padding: "2rem", textAlign: "center" },
         },
@@ -3713,8 +4168,9 @@ function renderChatShell() {
       h(
         "div",
         {
-          className: "brutalist-auth-card",
-          style: { width: "90%", maxWidth: "400px", padding: "2rem", textAlign: "center" },
+          className: "brutalist-auth-card room-action-card",
+          id: "room-action-card",
+          style: { width: "90%", maxWidth: "520px", padding: "2rem", textAlign: "left" },
         },
         "\n            ",
         h(
@@ -3727,8 +4183,18 @@ function renderChatShell() {
         ),
         "\n            ",
         h(
+          "p",
+          {
+            id: "room-action-subtitle",
+            className: "room-action-subtitle",
+          },
+          "Paste a room link or invite code."
+        ),
+        "\n            ",
+        h(
           "div",
           {
+            id: "room-join-fields",
             className: "input-group mt-1",
             style: { textAlign: "left" },
           },
@@ -3747,6 +4213,177 @@ function renderChatShell() {
               placeholder: "Enter Room ID...",
             }),
           "\n            "
+        ),
+        "\n            ",
+        h(
+          "div",
+          {
+            id: "create-room-wizard",
+            className: "hidden room-create-wizard",
+          },
+          "\n                ",
+          h(
+            "div",
+            {
+              className: "room-create-progress",
+            },
+            "\n                    ",
+            h("span", { id: "room-create-step-label" }, "Step 1 of 2"),
+            "\n                    ",
+            h("span", { id: "room-create-type-pill" }, "Choose room type"),
+            "\n                "
+          ),
+          "\n                ",
+          h(
+            "div",
+            {
+              id: "room-create-type-step",
+              className: "room-create-step",
+            },
+            "\n                    ",
+            h(
+              "button",
+              {
+                type: "button",
+                className: "room-type-option",
+                "data-room-type": "friends",
+              },
+              "\n                        ",
+              h("i", { className: "ph-bold ph-users-three" }),
+              "\n                        ",
+              h(
+                "span",
+                null,
+                "Friends group"
+              ),
+              "\n                        ",
+              h(
+                "small",
+                null,
+                "A cozy room for friends, family, classmates, or small squads."
+              ),
+              "\n                    "
+            ),
+            "\n                    ",
+            h(
+              "button",
+              {
+                type: "button",
+                className: "room-type-option",
+                "data-room-type": "community",
+              },
+              "\n                        ",
+              h("i", { className: "ph-bold ph-planet" }),
+              "\n                        ",
+              h(
+                "span",
+                null,
+                "Club or community"
+              ),
+              "\n                        ",
+              h(
+                "small",
+                null,
+                "A more organized room for clubs, creators, teams, or public groups."
+              ),
+              "\n                    "
+            ),
+            "\n                "
+          ),
+          "\n                ",
+          h(
+            "div",
+            {
+              id: "room-create-details-step",
+              className: "hidden room-create-step",
+            },
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "input-group",
+              },
+              "\n                        ",
+              h(
+                "label",
+                {
+                  htmlFor: "create-room-name-input",
+                },
+                "ROOM NAME"
+              ),
+              "\n                        ",
+              h("input", {
+                  type: "text",
+                  id: "create-room-name-input",
+                  maxLength: "42",
+                  placeholder: "Morning Rituals, Study Room, Project Team...",
+                }),
+              "\n                    "
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "input-group",
+              },
+              "\n                        ",
+              h(
+                "label",
+                null,
+                "ROOM PICTURE"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                {
+                  className: "room-picture-picker",
+                  htmlFor: "create-room-picture-input",
+                },
+                "\n                            ",
+                h(
+                  "span",
+                  {
+                    id: "create-room-picture-preview",
+                    className: "room-picture-preview",
+                  },
+                  h("i", { className: "ph-bold ph-image" })
+                ),
+                "\n                            ",
+                h(
+                  "span",
+                  {
+                    className: "room-picture-picker-copy",
+                  },
+                  "\n                                ",
+                  h("strong", null, "Add an optional picture"),
+                  "\n                                ",
+                  h("small", null, "Square images work best. Max 5MB."),
+                  "\n                            "
+                ),
+                "\n                        "
+              ),
+              "\n                        ",
+              h("input", {
+                  type: "file",
+                  id: "create-room-picture-input",
+                  accept: "image/*",
+                  className: "hidden",
+                }),
+              "\n                    "
+            ),
+            "\n                "
+          ),
+          "\n            "
+        ),
+        "\n            ",
+        h(
+          "button",
+          {
+            id: "room-create-back-btn",
+            className: "hidden",
+            style: { background: "transparent", color: "var(--text-color)", marginTop: "1rem", border: "2px solid var(--text-color)", boxShadow: "none" },
+          },
+          "Back"
         ),
         "\n            ",
         h(
@@ -3775,14 +4412,14 @@ function renderChatShell() {
       "div",
       {
         id: "room-settings-modal",
-        className: "hidden modal-overlay",
+        className: "hidden modal-overlay room-settings-overlay",
         style: { zIndex: "6000", display: "flex", justifyContent: "center", alignItems: "center" },
       },
       "\n        ",
       h(
         "div",
         {
-          className: "brutalist-auth-card room-settings-card",
+          className: "brutalist-auth-card room-settings-card room-settings-modern",
           id: "room-settings-card",
           style: { width: "90%", maxWidth: "700px", height: "70vh", padding: "0", textAlign: "left", display: "flex", flexDirection: "row", overflow: "hidden", background: "var(--bg-color)" },
         },
@@ -3823,7 +4460,8 @@ function renderChatShell() {
               id: "rs-tab-members",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
             },
-            "Members"
+            h("i", { className: "ph-bold ph-users-three" }),
+            h("span", null, "Members")
           ),
           "\n                ",
           h(
@@ -3833,7 +4471,8 @@ function renderChatShell() {
               id: "rs-tab-channels",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
             },
-            "Channels"
+            h("i", { className: "ph-bold ph-hash" }),
+            h("span", null, "Channels")
           ),
           "\n                ",
           h(
@@ -3843,7 +4482,8 @@ function renderChatShell() {
               id: "rs-tab-permissions",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
             },
-            "Permissions"
+            h("i", { className: "ph-bold ph-shield-check" }),
+            h("span", null, "Permissions")
           ),
           "\n                ",
           h(
@@ -3853,7 +4493,19 @@ function renderChatShell() {
               id: "rs-tab-webhooks",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
             },
-            "Webhooks"
+            h("i", { className: "ph-bold ph-plugs-connected" }),
+            h("span", null, "Platform")
+          ),
+          "\n                ",
+          h(
+            "div",
+            {
+              className: "settings-tab",
+              id: "rs-tab-subscription",
+              style: { padding: "0.6rem", fontSize: "0.9rem" },
+            },
+            h("i", { className: "ph-bold ph-currency-circle-dollar" }),
+            h("span", null, "Subscription")
           ),
           "\n                ",
           h(
@@ -3863,7 +4515,8 @@ function renderChatShell() {
               id: "rs-tab-logs",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
             },
-            "Audit Logs"
+            h("i", { className: "ph-bold ph-clock-counter-clockwise" }),
+            h("span", null, "Audit Logs")
           ),
           "\n                \n                ",
           h("div", {
@@ -3909,6 +4562,7 @@ function renderChatShell() {
         h(
           "div",
           {
+            className: "room-settings-content",
             style: { flex: "1", padding: "2rem", overflowY: "auto" },
           },
           "\n                ",
@@ -3988,6 +4642,160 @@ function renderChatShell() {
                   )
                 ),
                 "\n                        "
+              ),
+              "\n                    "
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "rs-room-identity-card",
+              },
+              "\n                        ",
+              h(
+                "h2",
+                null,
+                "Room Identity"
+              ),
+              "\n                        ",
+              h(
+                "p",
+                null,
+                "Control the room banner, description, topic, category, discovery, recommendations, and template."
+              ),
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "rs-banner-preview",
+                  id: "rs-room-banner-preview",
+                },
+                h("i", {
+                    className: "ph-bold ph-image",
+                  }),
+                h("span", null, "Room banner")
+              ),
+              "\n                        ",
+              h("input", {
+                  type: "file",
+                  id: "rs-room-banner-input",
+                  accept: "image/*",
+                }),
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "rs-room-picture-actions",
+                },
+                h(
+                  "button",
+                  {
+                    id: "rs-save-room-banner-btn",
+                    className: "mini-btn",
+                    type: "button",
+                  },
+                  "Save Banner"
+                ),
+                h(
+                  "button",
+                  {
+                    id: "rs-remove-room-banner-btn",
+                    className: "mini-btn danger",
+                    type: "button",
+                  },
+                  "Remove Banner"
+                )
+              ),
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "rs-identity-grid",
+                },
+                h(
+                  "label",
+                  null,
+                  "Description",
+                  h("textarea", {
+                      id: "rs-room-description-input",
+                      rows: 3,
+                      placeholder: "What is this room for?",
+                    })
+                ),
+                h(
+                  "label",
+                  null,
+                  "Topic",
+                  h("input", {
+                      id: "rs-room-topic-input",
+                      maxLength: "90",
+                      placeholder: "This week: launch planning, finals week, raid night...",
+                    })
+                ),
+                h(
+                  "label",
+                  null,
+                  "Category",
+                  h("input", {
+                      id: "rs-room-category-input",
+                      maxLength: "36",
+                      placeholder: "Study, Gaming, Team, Creator...",
+                    })
+                ),
+                h(
+                  "label",
+                  null,
+                  "Template",
+                  h(
+                    "select",
+                    {
+                      id: "rs-room-template-select",
+                    },
+                    h("option", { value: "blank" }, "Blank room"),
+                    h("option", { value: "study" }, "Study room"),
+                    h("option", { value: "creator" }, "Creator community"),
+                    h("option", { value: "project" }, "Project team"),
+                    h("option", { value: "support" }, "Support group"),
+                    h("option", { value: "gaming" }, "Gaming group"),
+                    h("option", { value: "club" }, "Club hub")
+                  )
+                )
+              ),
+              "\n                        ",
+              h(
+                "div",
+                {
+                  className: "rs-toggle-row",
+                },
+                h(
+                  "label",
+                  null,
+                  h("input", {
+                      type: "checkbox",
+                      id: "rs-room-discoverable",
+                    }),
+                  " Room discovery"
+                ),
+                h(
+                  "label",
+                  null,
+                  h("input", {
+                      type: "checkbox",
+                      id: "rs-room-recommendations",
+                    }),
+                  " Room recommendations"
+                )
+              ),
+              "\n                        ",
+              h(
+                "button",
+                {
+                  id: "rs-save-room-identity-btn",
+                  className: "action-btn",
+                  style: { width: "100%" },
+                  type: "button",
+                },
+                "Save Room Identity"
               ),
               "\n                    "
             ),
@@ -4124,6 +4932,28 @@ function renderChatShell() {
                 null,
                 h("input", {
                     type: "checkbox",
+                    id: "perm-polls",
+                    defaultChecked: true,
+                  }),
+                " Members can create polls"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-reminders",
+                    defaultChecked: true,
+                  }),
+                " Members can create reminders"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
                     id: "perm-docs",
                     defaultChecked: true,
                   }),
@@ -4149,7 +4979,73 @@ function renderChatShell() {
                     id: "perm-calls",
                     defaultChecked: true,
                   }),
-                " Members can join calls/screen share"
+                " Members can join voice calls"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-video",
+                    defaultChecked: true,
+                  }),
+                " Pro members can join video calls"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-screen-share",
+                    defaultChecked: true,
+                  }),
+                " Members can share screen"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-invites",
+                    defaultChecked: true,
+                  }),
+                " Members can invite people"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-create-channels",
+                    defaultChecked: true,
+                  }),
+                " Members can create channels"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-manage-channels",
+                    defaultChecked: false,
+                  }),
+                " Members can manage channels"
+              ),
+              "\n                        ",
+              h(
+                "label",
+                null,
+                h("input", {
+                    type: "checkbox",
+                    id: "perm-webhooks",
+                    defaultChecked: false,
+                  }),
+                " Members can manage webhooks"
               ),
               "\n                    "
             ),
@@ -4178,7 +5074,7 @@ function renderChatShell() {
               {
                 style: { borderBottom: "3px solid var(--text-color)", paddingBottom: "0.5rem", marginBottom: "1rem" },
               },
-              "Webhooks"
+              "Platform & Ecosystem"
             ),
             "\n                    ",
             h(
@@ -4186,7 +5082,52 @@ function renderChatShell() {
               {
                 style: { fontSize: "0.9rem", fontWeight: "600", color: "#666", marginBottom: "1rem" },
               },
-              "Integrate with Discord, Slack, or automated bots."
+              "Extend the platform with integrations, developer tools, and room bots."
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "platform-section-grid",
+              },
+              h(
+                "section",
+                {
+                  className: "platform-card",
+                },
+                h("p", { className: "platform-kicker" }, "Integrations"),
+                h("h3", null, "Connect your workflow"),
+                h(
+                  "div",
+                  {
+                    className: "platform-chip-row",
+                  },
+                  ["GitHub", "Notion", "Jira", "Trello", "Google Calendar", "Google Drive"].map((label) => h("span", { key: label }, label))
+                )
+              ),
+              h(
+                "section",
+                {
+                  className: "platform-card",
+                },
+                h("p", { className: "platform-kicker" }, "Developer Platform"),
+                h("h3", null, "Build on Minimalist"),
+                h(
+                  "div",
+                  {
+                    className: "platform-chip-row",
+                  },
+                  ["Public API", "Webhooks", "OAuth Apps", "Custom Bots", "Bot Marketplace", "Automation Builder"].map((label) => h("span", { key: label }, label))
+                )
+              )
+            ),
+            "\n                    ",
+            h(
+              "h3",
+              {
+                className: "platform-subhead",
+              },
+              "Webhooks"
             ),
             "\n                    ",
             h(
@@ -4201,10 +5142,29 @@ function renderChatShell() {
                 "WEBHOOK URL"
               ),
               "\n                        ",
-              h("input", {
+                h("input", {
                   type: "text",
                   id: "rs-webhook-input",
                   placeholder: "https://...",
+                }),
+              "\n                    "
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "input-group",
+                style: { marginTop: "0.85rem" },
+              },
+              "\n                        ",
+              h(
+                "label",
+                null,
+                "POST FROM CHANNEL"
+              ),
+              "\n                        ",
+              h("select", {
+                  id: "rs-webhook-channel",
                 }),
               "\n                    "
             ),
@@ -4217,6 +5177,163 @@ function renderChatShell() {
                 style: { width: "100%" },
               },
               "Save Integration"
+            ),
+            "\n                    ",
+            h(
+              "h3",
+              {
+                className: "platform-subhead",
+              },
+              "Bot Marketplace"
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "bot-marketplace-grid",
+              },
+              h(
+                "section",
+                {
+                  className: "bot-marketplace-card",
+                },
+                h(
+                  "div",
+                  {
+                    className: "bot-card-head",
+                  },
+                  h("span", { className: "bot-card-icon" }, h("i", { className: "ph-bold ph-trend-up" })),
+                  h("div", null, h("h4", null, "Stock Price Tracker"), h("p", null, "Replies to /stock AAPL and watched $TICKER mentions."))
+                ),
+                h(
+                  "label",
+                  {
+                    className: "bot-toggle-row",
+                  },
+                  h("input", { type: "checkbox", id: "rs-stock-bot-enabled" }),
+                  h("span", null, "Install stock tracker")
+                ),
+                h("label", { className: "bot-field-label", htmlFor: "rs-stock-symbols" }, "Watch symbols"),
+                h("input", { type: "text", id: "rs-stock-symbols", placeholder: "AAPL, TSLA, MSFT" })
+              ),
+              h(
+                "section",
+                {
+                  className: "bot-marketplace-card",
+                },
+                h(
+                  "div",
+                  {
+                    className: "bot-card-head",
+                  },
+                  h("span", { className: "bot-card-icon" }, h("i", { className: "ph-bold ph-shield-check" })),
+                  h("div", null, h("h4", null, "Auto Moderation"), h("p", null, "Blocks configured keywords, link spam, flood text, and excessive caps."))
+                ),
+                h(
+                  "label",
+                  {
+                    className: "bot-toggle-row",
+                  },
+                  h("input", { type: "checkbox", id: "rs-automod-bot-enabled" }),
+                  h("span", null, "Install auto moderation")
+                ),
+                h("label", { className: "bot-field-label", htmlFor: "rs-automod-words" }, "Blocked words"),
+                h("textarea", { id: "rs-automod-words", rows: 3, placeholder: "spam, scam, raid..." }),
+                h(
+                  "label",
+                  {
+                    className: "bot-toggle-row",
+                  },
+                  h("input", { type: "checkbox", id: "rs-automod-links" }),
+                  h("span", null, "Block links")
+                )
+              )
+            ),
+            "\n                    ",
+            h(
+              "button",
+              {
+                id: "rs-save-bots",
+                className: "action-btn",
+                style: { width: "100%" },
+              },
+              "Save Bot Marketplace"
+            ),
+            "\n                "
+          ),
+          "\n                \n                ",
+          h(
+            "div",
+            {
+              id: "rs-pane-subscription",
+              className: "rs-pane hidden",
+            },
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "room-subscription-hero",
+              },
+              h("p", { className: "platform-kicker" }, "Room subscription"),
+              h("h2", null, "Boost this room"),
+              h("p", null, "Give selected members bigger uploads, better calls, room analytics, and screen-share quality inside this room.")
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "room-subscription-grid",
+                id: "rs-room-subscription-plans",
+              },
+              h(
+                "label",
+                { className: "room-subscription-card" },
+                h("input", { type: "radio", name: "rs-room-subscription-plan", value: "base", id: "rs-room-plan-base", defaultChecked: true }),
+                h("span", { className: "room-subscription-price" }, "Base room"),
+                h("strong", null, "$0"),
+                h("small", null, "Current room limits")
+              ),
+              h(
+                "label",
+                { className: "room-subscription-card featured" },
+                h("input", { type: "radio", name: "rs-room-subscription-plan", value: "advanced", id: "rs-room-plan-advanced" }),
+                h("span", { className: "room-subscription-price" }, "Advanced Room"),
+                h("strong", null, "$9.99/mo"),
+                h("small", null, "2GB/file · 4GB/day · Video calls · 1080p/60 screen share · Analytics · 20 selected users")
+              ),
+              h(
+                "label",
+                { className: "room-subscription-card" },
+                h("input", { type: "radio", name: "rs-room-subscription-plan", value: "pro", id: "rs-room-plan-pro" }),
+                h("span", { className: "room-subscription-price" }, "Pro Room"),
+                h("strong", null, "$14.99/mo"),
+                h("small", null, "3GB/file · 9GB/day · System-limit screen share · Advanced included · 50 selected users")
+              )
+            ),
+            "\n                    ",
+            h(
+              "div",
+              {
+                className: "room-subscription-members",
+              },
+              h(
+                "div",
+                { className: "room-subscription-members-head" },
+                h("div", null, h("h3", null, "Selected boosted users"), h("p", { id: "rs-room-subscription-limit" }, "Choose a paid plan to select users.")),
+                h("span", { id: "rs-room-subscription-count" }, "0/0")
+              ),
+              h("div", { id: "rs-room-subscription-user-list", className: "room-subscription-user-list" })
+            ),
+            "\n                    ",
+            h(
+              "button",
+              {
+                id: "rs-save-room-subscription-btn",
+                className: "action-btn",
+                style: { width: "100%", marginTop: "1rem" },
+                type: "button",
+              },
+              "Save Room Subscription"
             ),
             "\n                "
           ),
@@ -4562,71 +5679,6 @@ function renderChatShell() {
       "\n    "
     ),
     "\n    ",
-    h(
-      "footer",
-      null,
-      "\n        ",
-      h(
-        "div",
-        {
-          className: "footer-links",
-        },
-        "\n            ",
-        h(
-          "a",
-          {
-            href: "/faq",
-          },
-          "FAQ"
-        ),
-        "\n            ",
-        h(
-          "a",
-          {
-            href: "/terms",
-          },
-          "Terms of Service"
-        ),
-        "\n            ",
-        h(
-          "a",
-          {
-            href: "/privacy",
-          },
-          "Privacy Policy"
-        ),
-        "\n            ",
-        h(
-          "a",
-          {
-            href: "mailto:support@minimalist.com",
-          },
-          "Contact"
-        ),
-        "\n            ",
-        h(
-          "a",
-          {
-            href: "https://github.com/Hao14/minimalist-chat/issues",
-            target: "_blank",
-            rel: "noopener noreferrer",
-          },
-          "Bug Report"
-        ),
-        "\n        "
-      ),
-      "\n        ",
-      h(
-        "div",
-        {
-          className: "footer-info",
-          id: "live-clock",
-        },
-        "SYSTEM TIME: LOADING..."
-      ),
-      "\n    "
-    ),
-    "\n    ",
     h("div", {
         id: "emoji-picker",
         className: "hidden",
@@ -4889,5 +5941,6 @@ function renderChatShell() {
 
 export default function ChatPage() {
   useChatBoot();
+  useRoomNavMotion();
   return h('div', { className: 'react-page chat-react-page' }, renderChatShell());
 }

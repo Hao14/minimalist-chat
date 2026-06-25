@@ -2,6 +2,7 @@
 import { auth, db } from '../../lib/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
+import { ensureAuthProfile, ensureWelcomeBadge, isGoogleAuthUser, syncPublicUserDirectory } from '../../lib/authProfile.js';
 
 // --- AUTH ROUTER & STATE LISTENER ---
 onAuthStateChanged(auth, async (user) => {
@@ -62,10 +63,31 @@ async function checkUserProfile(uid) {
                 await set(ref(db, 'users/' + uid + '/createdAt'), auth.currentUser.metadata.creationTime);
             }
 
-            // Everyone earns the Welcome badge once (proves/seeds the badge system).
-            if (!(data.badges && data.badges.welcome) && window.awardBadge) window.awardBadge(uid, 'welcome');
+            syncPublicUserDirectory(auth.currentUser, {
+                ...data,
+                shortId: window.userShortId,
+            });
+
+            // Everyone earns the Welcome badge once. This writes directly so it does
+            // not depend on the community/social module having registered globals yet.
+            if (!(data.badges && data.badges.welcome)) {
+                const result = await ensureWelcomeBadge(uid, data);
+                if (result.awardedAt) {
+                    data.badges = {
+                        ...(data.badges || {}),
+                        welcome: result.awardedAt,
+                    };
+                }
+                if (result.newlyAwarded) {
+                    if (window.createNotification) window.createNotification(uid, 'badge', '🏅 You earned the "Welcome" badge!');
+                    if (window.showToast) window.showToast('🏅 Badge earned: Welcome', false);
+                }
+            }
 
             if (typeof window.enterChat === 'function') window.enterChat();
+        } else if (isGoogleAuthUser(auth.currentUser)) {
+            await ensureAuthProfile(auth.currentUser, { welcome: true });
+            return checkUserProfile(uid);
         } else { 
             if (typeof window.showScreen === 'function') window.showScreen('profile-setup-container'); 
         }
