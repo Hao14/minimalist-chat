@@ -275,7 +275,17 @@ function Resources({ canEdit, data, roomId, setData }) {
 
 function EventsPreview({ canEdit, data, roomId, setData }) {
   const [draft, setDraft] = useState({ title: '', date: '', desc: '' });
-  const events = useMemo(() => Object.entries(data.events || {}).sort((a, b) => (a[1].date || '').localeCompare(b[1].date || '')), [data.events]);
+  const events = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return Object.entries(data.events || {})
+      .filter(([, event]) => {
+        if (!event?.date) return true;
+        const eventDate = new Date(`${event.date}T00:00:00`);
+        return !Number.isNaN(eventDate.getTime()) && eventDate.getTime() >= today.getTime();
+      })
+      .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+  }, [data.events]);
   const addEvent = async (event) => {
     event.preventDefault();
     const next = { title: draft.title.trim(), date: draft.date, desc: draft.desc.trim() };
@@ -349,28 +359,30 @@ function Analytics({ data, isGlobal, memberCount, messageCount }) {
 
 export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   const isGlobal = roomId === 'global';
-  const [data, setData] = useState({});
-  const [canEdit, setCanEdit] = useState(false);
+  const [roomData, setRoomData] = useState({});
+  const [globalData, setGlobalData] = useState({});
+  const [roomCanEdit, setRoomCanEdit] = useState(false);
   const [contributors, setContributors] = useState([]);
   const [messageCount, setMessageCount] = useState('~');
+  const data = isGlobal ? globalData : roomData;
+  const setDisplayData = isGlobal ? setGlobalData : setRoomData;
+  const canEdit = isGlobal ? Boolean(user.uid === adminUid) : roomCanEdit;
   const memberCount = isGlobal ? '∞' : (Object.keys(data.members || {}).length || 1);
   const createdDate = isGlobal ? 'Day 1' : (data.createdAt ? new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
   const insights = useMemo(() => computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }), [contributors, data, isGlobal, memberCount, messageCount]);
 
   useEffect(() => {
     if (isGlobal) {
-      setData({});
-      setCanEdit(Boolean(user.uid === adminUid));
       return undefined;
     }
 
     const unsubscribe = onValue(ref(db, `rooms_meta/${roomId}`), (snapshot) => {
       const roomData = snapshot.val() || {};
-      setData(roomData);
-      setCanEdit(Boolean(user.uid === adminUid || roomData.creatorId === user.uid));
+      setRoomData(roomData);
+      setRoomCanEdit(Boolean(user.uid === adminUid || roomData.creatorId === user.uid));
     }, () => {
-      setData({});
-      setCanEdit(Boolean(user.uid === adminUid));
+      setRoomData({});
+      setRoomCanEdit(Boolean(user.uid === adminUid));
     });
 
     return unsubscribe;
@@ -401,7 +413,7 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   const patchRoom = async (patch) => {
     if (!canEdit) return;
     await update(ref(db, `rooms_meta/${roomId}`), patch);
-    setData((current) => ({ ...current, ...patch }));
+    setDisplayData((current) => ({ ...current, ...patch }));
   };
 
   return (
@@ -409,8 +421,8 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
       <RoomIdentityHero data={data} insights={insights} isGlobal={isGlobal} />
       <div className="rh-stats"><div className="rh-stat"><i className="ph-bold ph-chats" /> <span>{messageCount}</span> Messages</div><div className="rh-stat"><i className="ph-bold ph-users" /> <span>{memberCount}</span> Members</div><div className="rh-spacer" /><div className="rh-created">Created <span>{createdDate}</span></div></div>
       <div className="rh-grid">
-        <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><RoomScores insights={insights} /><Milestones insights={insights} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><Analytics data={data} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>
-        <div className="rh-col"><Discovery insights={insights} /><Snapshots insights={insights} /><Timeline insights={insights} /><Resources canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><EventsPreview canEdit={canEdit} data={data} roomId={roomId} setData={setData} /><Contributors contributors={contributors} /><Members data={data} isGlobal={isGlobal} /></div>
+        <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><RoomScores insights={insights} /><Milestones insights={insights} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><Analytics data={data} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>
+        <div className="rh-col"><Discovery insights={insights} /><Snapshots insights={insights} /><Timeline insights={insights} /><Resources canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><EventsPreview canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><Contributors contributors={contributors} /><Members data={data} isGlobal={isGlobal} /></div>
       </div>
     </div>
   );

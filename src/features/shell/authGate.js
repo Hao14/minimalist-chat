@@ -1,8 +1,21 @@
 ﻿// js/auth.js
 import { auth, db } from '../../lib/firebase.js';
-import { onAuthStateChanged } from 'firebase/auth';
+import { getRedirectResult, onAuthStateChanged } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
 import { ensureAuthProfile, ensureWelcomeBadge, isGoogleAuthUser, syncPublicUserDirectory } from '../../lib/authProfile.js';
+
+if (sessionStorage.getItem('minimalistAddUserRedirect') === '1') {
+    getRedirectResult(auth)
+        .then((result) => {
+            if (result?.user) window.showToast?.('Account added. You are now using the selected account.', false);
+        })
+        .catch((error) => {
+            window.showToast?.(`Could not add account: ${error.message}`);
+        })
+        .finally(() => {
+            sessionStorage.removeItem('minimalistAddUserRedirect');
+        });
+}
 
 // --- AUTH ROUTER & STATE LISTENER ---
 onAuthStateChanged(auth, async (user) => {

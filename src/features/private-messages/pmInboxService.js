@@ -8,6 +8,7 @@ let inboxUnsubscribe = null;
 let listeningUid = null;
 let listenerStartedAt = 0;
 let latestUnreadCount = 0;
+let latestInbox = {};
 const originalTitle = 'Minimalist | Chat';
 const notifiedInboxEvents = new Set();
 const unreadRailTargets = [
@@ -32,10 +33,20 @@ function cleanSnippet(value) {
 }
 
 function updateContactUnreadDots(inbox = {}) {
-  document.querySelectorAll('.unread-indicator').forEach((dot) => dot.classList.remove('unread-ping'));
+  document.querySelectorAll('.unread-indicator').forEach((dot) => {
+    dot.classList.remove('unread-ping');
+    dot.removeAttribute('title');
+    delete dot.dataset.unreadFrom;
+  });
   Object.entries(inbox).forEach(([targetUid, data]) => {
     const dot = document.getElementById(`dot-${targetUid}`);
-    if (dot) dot.classList.toggle('unread-ping', data?.read === false);
+    if (!dot) return;
+    const hasUnread = data?.read === false;
+    dot.classList.toggle('unread-ping', hasUnread);
+    if (hasUnread) {
+      dot.dataset.unreadFrom = data?.fromName || 'Someone';
+      dot.title = `New PM from ${data?.fromName || 'Someone'}`;
+    }
   });
 }
 
@@ -59,6 +70,10 @@ function clearTitleAlert() {
 
 window.updatePmUnreadBadge = function updatePmUnreadBadge(count, inbox = null) {
   latestUnreadCount = count;
+  if (inbox) {
+    latestInbox = inbox;
+    window.latestPmInbox = inbox;
+  }
   const label = count > 9 ? '9+' : String(count);
   unreadRailTargets.forEach((id) => {
     const el = document.getElementById(id);
@@ -76,6 +91,10 @@ window.updatePmUnreadBadge = function updatePmUnreadBadge(count, inbox = null) {
   if (inbox) updateContactUnreadDots(inbox);
   updateNativeAppBadge(count);
   if (count === 0) clearTitleAlert();
+};
+
+window.refreshContactUnreadDots = function refreshContactUnreadDots() {
+  updateContactUnreadDots(latestInbox || {});
 };
 
 async function openPmFromNotification(payload = {}) {

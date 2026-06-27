@@ -27,6 +27,29 @@ const pageRoutes = [
   ['/terms', TermsPage],
 ];
 
+function RouteFallback() {
+  const path = typeof window === 'undefined' ? '/' : window.location.pathname;
+  let label = 'Opening Minimalist…';
+
+  if (path === '/' || path === '') {
+    label = 'Preparing the homepage…';
+  } else if (path.startsWith('/features')) {
+    label = 'Preparing the feature tour…';
+  } else if (path.startsWith('/login')) {
+    label = 'Preparing secure sign in…';
+  } else if (path.startsWith('/chat') || path.startsWith('/join')) {
+    label = 'Opening your room shell…';
+  } else if (path.startsWith('/vault/share')) {
+    label = 'Opening secure vault share…';
+  }
+
+  return (
+    <div className="route-loading" role="status" aria-live="polite">
+      {label}
+    </div>
+  );
+}
+
 class AppErrorBoundary extends Component {
   constructor(props) {
     super(props);
@@ -67,7 +90,7 @@ class AppErrorBoundary extends Component {
 export default function App() {
   return (
     <AppErrorBoundary>
-      <Suspense fallback={<div className="route-loading" role="status">Loading Minimalist…</div>}>
+      <Suspense fallback={<RouteFallback />}>
         <Routes>
           {pageRoutes.map(([path, Page]) => (
             <Route key={path} path={path} element={createElement(Page)} />

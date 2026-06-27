@@ -17,6 +17,8 @@ const ACTIVE_STRIPE_STATUSES = new Set(['active', 'trialing']);
 const APP_WEB_URL = process.env.APP_WEB_URL || 'https://chat-app-356c1.web.app';
 const DEFAULT_ALLOWED_ORIGINS = [
     APP_WEB_URL,
+    'https://minimalist.chat',
+    'https://www.minimalist.chat',
     'https://chat-app-356c1.firebaseapp.com',
     'http://localhost:5173',
     'http://127.0.0.1:5173'
@@ -39,11 +41,16 @@ function configuredAllowedOrigins() {
     return new Set([...DEFAULT_ALLOWED_ORIGINS.map(normalizeOrigin), ...configured]);
 }
 
+function isAllowedWebOrigin(origin) {
+    if (!origin) return false;
+    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return true;
+    return configuredAllowedOrigins().has(origin);
+}
+
 function allowedCorsOrigin(req) {
     const origin = normalizeOrigin(req.get('Origin') || '');
     if (!origin) return normalizeOrigin(APP_WEB_URL);
-    if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(origin)) return origin;
-    return configuredAllowedOrigins().has(origin) ? origin : '';
+    return isAllowedWebOrigin(origin) ? origin : '';
 }
 
 function setCors(req, res) {
@@ -73,9 +80,9 @@ async function requireFirebaseUser(req) {
 }
 
 function originFromRequest(req) {
-    const requested = String(req.body?.origin || '').trim();
-    if (/^https?:\/\/[a-z0-9.-]+(?::\d+)?$/i.test(requested)) return requested;
-    return 'https://chat-app-356c1.web.app';
+    const requested = normalizeOrigin(req.body?.origin || '');
+    if (isAllowedWebOrigin(requested)) return requested;
+    return allowedCorsOrigin(req) || normalizeOrigin(APP_WEB_URL);
 }
 
 function priceIdToTier(priceId) {

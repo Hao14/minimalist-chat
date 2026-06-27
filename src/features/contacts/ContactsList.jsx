@@ -1,5 +1,5 @@
 function ContactActions({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfile, onRemoveFriend, onSendRequest }) {
-  if (contact.status === 'accepted') {
+  if (contact.status === 'accepted' || (!contact.status && contact.lastPm)) {
     return (
       <>
         <button
@@ -45,6 +45,7 @@ function ContactActions({ contact, onAcceptRequest, onOpenPrivateChat, onOpenPro
 }
 
 function getContactStatusLabel(contact) {
+  if (contact.unread) return 'Unread PM';
   if (contact.status === 'accepted') return contact.isOnline ? 'Online now' : 'Offline';
   if (contact.status === 'pending_received') return 'Wants to connect';
   if (contact.status === 'pending_sent') return 'Request sent';
@@ -73,6 +74,11 @@ function ContactItem({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfil
             <span className={`contact-status-pill ${contact.isOnline ? 'online' : 'offline'}`}>{statusLabel}</span>
             {contact.shortId ? <span className="contact-short-id">#{contact.shortId}</span> : null}
           </span>
+          {contact.lastPm ? (
+            <span className={`contact-last-pm ${contact.unread ? 'unread' : ''}`}>
+              {contact.unread ? 'New: ' : ''}{contact.lastPm}
+            </span>
+          ) : null}
         </span>
         <span className="unread-indicator" id={`dot-${contact.uid}`} />
       </div>

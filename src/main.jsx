@@ -1,10 +1,38 @@
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import '@phosphor-icons/web/bold';
 import App from './App.jsx';
 import './react-shell.css';
 
 const isLocalDevelopmentHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
+const iconStylesHref = '/phosphor-bold-subset.css?v=1';
+let iconStylesPromise;
+const loadIconStyles = () => {
+  if (iconStylesPromise) return iconStylesPromise;
+
+  iconStylesPromise = new Promise((resolve) => {
+    const existingStylesheet = document.querySelector('link[data-phosphor-bold-subset]');
+    if (existingStylesheet) {
+      if (existingStylesheet.sheet) {
+        resolve();
+        return;
+      }
+      existingStylesheet.addEventListener('load', resolve, { once: true });
+      existingStylesheet.addEventListener('error', resolve, { once: true });
+      return;
+    }
+
+    const stylesheet = document.createElement('link');
+    stylesheet.rel = 'stylesheet';
+    stylesheet.href = iconStylesHref;
+    stylesheet.dataset.phosphorBoldSubset = 'true';
+    stylesheet.addEventListener('load', resolve, { once: true });
+    stylesheet.addEventListener('error', resolve, { once: true });
+    document.head.appendChild(stylesheet);
+  });
+
+  return iconStylesPromise;
+};
+const shouldLoadIconsImmediately = window.location.pathname.startsWith('/chat') || window.location.pathname.startsWith('/login');
 
 if (import.meta.env.DEV && isLocalDevelopmentHost && 'serviceWorker' in navigator) {
   const devServiceWorkerRefreshKey = 'minimalist-dev-service-worker-cleared';
@@ -25,8 +53,52 @@ if (import.meta.env.DEV && isLocalDevelopmentHost && 'serviceWorker' in navigato
     });
 }
 
+if (shouldLoadIconsImmediately && 'requestIdleCallback' in window) {
+  window.requestIdleCallback(loadIconStyles, { timeout: 1200 });
+} else if (shouldLoadIconsImmediately) {
+  window.setTimeout(loadIconStyles, 900);
+} else if ('requestIdleCallback' in window) {
+  window.setTimeout(() => window.requestIdleCallback(loadIconStyles, { timeout: 1600 }), 6500);
+} else {
+  window.setTimeout(loadIconStyles, 6500);
+}
+
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <App />
   </BrowserRouter>,
 );
+
+const hideStaticHomeShell = () => {
+  const staticShell = document.getElementById('static-home-shell');
+  if (!staticShell) return;
+  staticShell.classList.add('static-home-hide');
+  window.setTimeout(() => staticShell.remove(), 220);
+};
+
+window.addEventListener('minimalist:marketing-mounted', hideStaticHomeShell, { once: true });
+
+const hideBootShell = () => {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(() => {
+      const bootShell = document.getElementById('app-boot-shell');
+      if (!bootShell) return;
+      bootShell.classList.add('instant-shell-hide');
+      window.setTimeout(() => bootShell.remove(), 240);
+    });
+  });
+};
+
+const fallbackCssReady = new Promise((resolve) => {
+  if (document.readyState === 'complete') {
+    resolve();
+    return;
+  }
+
+  window.addEventListener('load', resolve, { once: true });
+});
+
+Promise.race([
+  window.__minimalistCssReady || fallbackCssReady,
+  new Promise((resolve) => window.setTimeout(resolve, 2400)),
+]).then(hideBootShell);

@@ -1,24 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  GoogleAuthProvider,
-  browserLocalPersistence,
-  browserSessionPersistence,
-  createUserWithEmailAndPassword,
-  getRedirectResult,
-  onAuthStateChanged,
-  sendPasswordResetEmail,
-  setPersistence,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  signInWithRedirect,
-  updateProfile,
-} from 'firebase/auth';
-import { ref, set } from 'firebase/database';
-import { auth, db } from '../lib/firebase.js';
-import { ensureAuthProfile, isGoogleAuthUser, syncPublicUserDirectory } from '../lib/authProfile.js';
 
 const strengthLabels = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 const strengthColors = ['#ccc', '#e53935', '#e53935', '#fb8c00', '#fdd835', '#43a047'];
+
+let authKitPromise;
+
+function loadAuthKit() {
+  if (!authKitPromise) {
+    authKitPromise = Promise.all([
+      import('firebase/auth'),
+      import('firebase/database'),
+      import('../lib/firebase.js'),
+      import('../lib/authProfile.js'),
+    ]).then(([authModule, databaseModule, firebaseModule, profileModule]) => ({
+      ...authModule,
+      ref: databaseModule.ref,
+      set: databaseModule.set,
+      auth: firebaseModule.auth,
+      db: firebaseModule.db,
+      ensureAuthProfile: profileModule.ensureAuthProfile,
+      isGoogleAuthUser: profileModule.isGoogleAuthUser,
+      syncPublicUserDirectory: profileModule.syncPublicUserDirectory,
+    }));
+  }
+
+  return authKitPromise;
+}
 
 function passwordStrength(password) {
   if (!password) return 0;
@@ -49,7 +56,7 @@ function friendlyAuthError(error) {
   return messages[error?.code] || 'Something went wrong. Please try again.';
 }
 
-function createGoogleProvider() {
+function createGoogleProvider(GoogleAuthProvider) {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: 'select_account' });
   return provider;
@@ -70,6 +77,7 @@ function shouldRedirectAfterPopupError(error) {
     'auth/popup-blocked',
     'auth/cancelled-popup-request',
     'auth/operation-not-supported-in-this-environment',
+    'auth/web-storage-unsupported',
   ].includes(error?.code);
 }
 
@@ -122,6 +130,14 @@ export default function LoginPage() {
   const usesRedirectGoogleAuth = prefersRedirectGoogleAuth();
   const strength = useMemo(() => passwordStrength(signup.password), [signup.password]);
   const passwordsMatch = signup.confirm && signup.confirm === signup.password;
+  const googleButtonText = mode === 'signup'
+    ? (usesRedirectGoogleAuth || isNative ? 'Continue with Google' : 'Sign Up with Google')
+    : (usesRedirectGoogleAuth || isNative ? 'Continue with Google' : 'Sign In with Google');
+
+  const postAuthRedirect = () => {
+    const pendingJoinUrl = sessionStorage.getItem('pendingJoinUrl') || '';
+    return pendingJoinUrl.startsWith('/join/') ? pendingJoinUrl : '/chat';
+  };
 
   const showToast = (message, isError = true) => {
     window.clearTimeout(toastTimer.current);
@@ -133,6 +149,9 @@ export default function LoginPage() {
     const previousTitle = document.title;
     const previousClass = document.body.className;
     const previousStyle = document.body.getAttribute('style');
+    let unsubscribe = () => {};
+    let cancelled = false;
+    let idleHandle = null;
     document.title = 'Minimalist | Enter';
     document.body.className = 'auth-screen';
     document.body.setAttribute(
@@ -141,34 +160,51 @@ export default function LoginPage() {
     );
 
     let handledAuth = false;
-    const finishSignedInUser = async (user, welcome = false) => {
+    const finishSignedInUser = async (kit, user, welcome = false) => {
       if (!user || handledAuth) return;
       handledAuth = true;
       sessionStorage.removeItem('googleAuthRedirectPending');
       try {
-        if (isGoogleAuthUser(user)) await ensureAuthProfile(user, { welcome });
+        if (kit.isGoogleAuthUser(user)) await kit.ensureAuthProfile(user, { welcome });
       } catch (error) {
         showToast(`Signed in, but profile setup needs a retry: ${error.message}`);
         handledAuth = false;
         setBusy(false);
         return;
       }
-      window.location.replace('/chat');
+      window.location.replace(postAuthRedirect());
     };
 
-    getRedirectResult(auth)
-      .then((result) => finishSignedInUser(result?.user, true))
-      .catch((error) => {
-        sessionStorage.removeItem('googleAuthRedirectPending');
-        if (error?.code !== 'auth/popup-closed-by-user') showToast(friendlyAuthError(error));
-        setBusy(false);
-      });
+    const initAuthSessionWatcher = async () => {
+      try {
+        const kit = await loadAuthKit();
+        if (cancelled) return;
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) finishSignedInUser(user);
-    });
+        kit.getRedirectResult(kit.auth)
+          .then((result) => finishSignedInUser(kit, result?.user, true))
+          .catch((error) => {
+            sessionStorage.removeItem('googleAuthRedirectPending');
+            if (error?.code !== 'auth/popup-closed-by-user') showToast(friendlyAuthError(error));
+            setBusy(false);
+          });
+
+        unsubscribe = kit.onAuthStateChanged(kit.auth, (user) => {
+          if (user) finishSignedInUser(kit, user);
+        });
+      } catch (error) {
+        sessionStorage.removeItem('googleAuthRedirectPending');
+        if (!cancelled) {
+          showToast(friendlyAuthError(error));
+          setBusy(false);
+        }
+      }
+    };
+
+    initAuthSessionWatcher();
 
     return () => {
+      cancelled = true;
+      if (idleHandle !== null && 'cancelIdleCallback' in window) window.cancelIdleCallback(idleHandle);
       unsubscribe();
       window.clearTimeout(toastTimer.current);
       document.title = previousTitle;
@@ -209,9 +245,10 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
-      await signInWithEmailAndPassword(auth, loginEmail.trim(), loginPassword);
-      window.location.replace('/chat');
+      const kit = await loadAuthKit();
+      await kit.setPersistence(kit.auth, remember ? kit.browserLocalPersistence : kit.browserSessionPersistence);
+      await kit.signInWithEmailAndPassword(kit.auth, loginEmail.trim(), loginPassword);
+      window.location.replace(postAuthRedirect());
     } catch (error) {
       showToast(friendlyAuthError(error));
       setBusy(false);
@@ -240,8 +277,9 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      const credential = await createUserWithEmailAndPassword(auth, signup.email.trim(), signup.password);
-      await updateProfile(credential.user, { displayName: signup.username.trim() });
+      const kit = await loadAuthKit();
+      const credential = await kit.createUserWithEmailAndPassword(kit.auth, signup.email.trim(), signup.password);
+      await kit.updateProfile(credential.user, { displayName: signup.username.trim() });
       const shortId = Math.random().toString(36).slice(2, 8).toUpperCase();
       const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(signup.username.trim())}&background=000&color=FFD700&bold=true`;
       const profile = {
@@ -258,10 +296,10 @@ export default function LoginPage() {
           welcome: Date.now(),
         },
       };
-      await set(ref(db, `users/${credential.user.uid}`), profile);
-      await syncPublicUserDirectory(credential.user, profile);
+      await kit.set(kit.ref(kit.db, `users/${credential.user.uid}`), profile);
+      await kit.syncPublicUserDirectory(credential.user, profile);
       sessionStorage.setItem('showWelcomeTour', '1');
-      window.location.replace('/chat');
+      window.location.replace(postAuthRedirect());
     } catch (error) {
       showToast(friendlyAuthError(error));
       setBusy(false);
@@ -271,21 +309,23 @@ export default function LoginPage() {
   const handleGoogle = async () => {
     setBusy(true);
     try {
-      await setPersistence(auth, mode === 'login' && !remember ? browserSessionPersistence : browserLocalPersistence);
-      const provider = createGoogleProvider();
+      const kit = await loadAuthKit();
+      await kit.setPersistence(kit.auth, mode === 'login' && !remember ? kit.browserSessionPersistence : kit.browserLocalPersistence);
+      const provider = createGoogleProvider(kit.GoogleAuthProvider);
       if (usesRedirectGoogleAuth) {
         sessionStorage.setItem('googleAuthRedirectPending', '1');
-        await signInWithRedirect(auth, provider);
+        await kit.signInWithRedirect(kit.auth, provider);
         return;
       }
-      const credential = await signInWithPopup(auth, provider);
-      await ensureAuthProfile(credential.user, { welcome: true });
-      window.location.replace('/chat');
+      const credential = await kit.signInWithPopup(kit.auth, provider);
+      await kit.ensureAuthProfile(credential.user, { welcome: true });
+      window.location.replace(postAuthRedirect());
     } catch (error) {
       if (shouldRedirectAfterPopupError(error)) {
         try {
+          const kit = await loadAuthKit();
           sessionStorage.setItem('googleAuthRedirectPending', '1');
-          await signInWithRedirect(auth, createGoogleProvider());
+          await kit.signInWithRedirect(kit.auth, createGoogleProvider(kit.GoogleAuthProvider));
         } catch (redirectError) {
           sessionStorage.removeItem('googleAuthRedirectPending');
           showToast(friendlyAuthError(redirectError));
@@ -300,12 +340,20 @@ export default function LoginPage() {
 
   const handlePasswordReset = async (event) => {
     event.preventDefault();
-    if (!loginEmailInput.current?.reportValidity()) {
+    const resetEmail = loginEmail.trim();
+    if (!resetEmail) {
       setLoginStep(1);
+      showToast('Enter your email first.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(resetEmail)) {
+      setLoginStep(1);
+      showToast('Enter a valid email address.');
       return;
     }
     try {
-      await sendPasswordResetEmail(auth, loginEmail.trim());
+      const kit = await loadAuthKit();
+      await kit.sendPasswordResetEmail(kit.auth, resetEmail);
       showToast('Password reset email sent.', false);
     } catch (error) {
       showToast(friendlyAuthError(error));
@@ -425,6 +473,11 @@ export default function LoginPage() {
                 <h3>{loginStepMeta.title}</h3>
                 <p>{loginStepMeta.copy}</p>
               </div>
+              <button type="button" className="google-btn auth-google-primary" disabled={busy} onClick={handleGoogle}>
+                <span className="google-mark" aria-hidden="true">G</span>
+                {googleButtonText}
+              </button>
+              <div className="auth-divider"><span>OR USE EMAIL</span></div>
               {loginStep === 1 ? (
                 <div className="auth-step-content">
                   <div className="input-group mt-1">
@@ -469,15 +522,6 @@ export default function LoginPage() {
                   <a href="#reset-password" className="text-link" onClick={handlePasswordReset}>Forgot Password?</a>
                 </div>
               )}
-              {!isNative && (
-                <>
-                  <div className="auth-divider"><span>OR</span></div>
-                  <button type="button" className="google-btn" disabled={busy} onClick={handleGoogle}>
-                    <span className="google-mark" aria-hidden="true">G</span>
-                    {usesRedirectGoogleAuth ? 'Continue with Google' : 'Sign In with Google'}
-                  </button>
-                </>
-              )}
             </form>
           ) : (
             <form className="auth-form active" onSubmit={handleSignup} data-step={signupStep}>
@@ -486,6 +530,11 @@ export default function LoginPage() {
                 <h3>{signupStepMeta.title}</h3>
                 <p>{signupStepMeta.copy}</p>
               </div>
+              <button type="button" className="google-btn auth-google-primary" disabled={busy} onClick={handleGoogle}>
+                <span className="google-mark" aria-hidden="true">G</span>
+                {googleButtonText}
+              </button>
+              <div className="auth-divider"><span>OR USE EMAIL</span></div>
               {signupStep === 1 && (
                 <div className="auth-step-content">
                   <div className="input-group mt-1">
@@ -582,15 +631,6 @@ export default function LoginPage() {
                   </button>
                   <button type="button" className="action-btn mt-1 auth-back-btn" onClick={() => setSignupStep(2)}>Back</button>
                 </div>
-              )}
-              {!isNative && (
-                <>
-                  <div className="auth-divider"><span>OR</span></div>
-                  <button type="button" className="google-btn" disabled={busy} onClick={handleGoogle}>
-                    <span className="google-mark" aria-hidden="true">G</span>
-                    {usesRedirectGoogleAuth ? 'Continue with Google' : 'Sign Up with Google'}
-                  </button>
-                </>
               )}
             </form>
           )}

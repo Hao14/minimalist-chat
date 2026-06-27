@@ -51,6 +51,28 @@ function syncRoomChannelBar(targetView = document.querySelector('.room-tab.activ
 
 window.syncRoomChannelBar = syncRoomChannelBar;
 
+function scrollMessagesToLatest(passes = 2) {
+  if (typeof window.requestChatLatestScroll === 'function') {
+    window.requestChatLatestScroll({ passes });
+    return;
+  }
+
+  const scrollPass = (remainingPasses) => {
+    requestAnimationFrame(() => {
+      const messages = document.getElementById('messages');
+      if (messages) messages.scrollTop = messages.scrollHeight;
+      if (remainingPasses > 0) scrollPass(remainingPasses - 1);
+    });
+  };
+
+  scrollPass(Math.max(0, passes - 1));
+  [120, 320, 700, 1200, 1800].forEach((delay) => {
+    window.setTimeout(() => scrollPass(1), delay);
+  });
+}
+
+window.scrollMessagesToLatest = scrollMessagesToLatest;
+
 function activateRoomView(targetView = 'chat') {
   const targetTab = Array.from(document.querySelectorAll('.room-tab')).find((tab) => tab.getAttribute('data-target') === targetView);
 
@@ -63,8 +85,7 @@ function activateRoomView(targetView = 'chat') {
   syncRoomChannelBar(targetView);
 
   if (targetView === 'chat') {
-    const messages = document.getElementById('messages');
-    if (messages) messages.scrollTop = messages.scrollHeight;
+    scrollMessagesToLatest(2);
   }
 
   const loaders = {
@@ -192,14 +213,6 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('input', (event) => {
-  if (event.target.id === 'room-search-input') {
-    const query = event.target.value.toLowerCase();
-    document.querySelectorAll('#messages li').forEach((msg) => {
-      const text = msg.textContent.toLowerCase();
-      msg.style.display = text.includes(query) ? 'flex' : 'none';
-    });
-  }
-
   if (event.target.id === 'pm-search-input') {
     const query = event.target.value.toLowerCase();
     document.querySelectorAll('#pm-messages li').forEach((msg) => {
@@ -344,6 +357,8 @@ document.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopImmediatePropagation();
     closeFloatingUI();
+    activateRoomView('chat');
+    scrollMessagesToLatest(2);
     return;
   }
 }, true);
@@ -374,6 +389,7 @@ document.addEventListener('click', (event) => {
   if (targetView && targetView === activeView) {
     closeFloatingUI();
     syncRoomChannelBar(targetView);
+    if (targetView === 'chat') scrollMessagesToLatest(2);
     return;
   }
 

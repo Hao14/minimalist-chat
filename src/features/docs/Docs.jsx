@@ -57,6 +57,7 @@ export function Docs({ roomId, user }) {
   const [saveStatus, setSaveStatus] = useState('Saved');
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletingDocument, setDeletingDocument] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
   const saveTimer = useRef(null);
   const dirty = useRef(false);
   const contentRef = useRef(null);
@@ -145,6 +146,40 @@ export function Docs({ roomId, user }) {
     openDocument({ id: documentRef.key, ...document });
   };
 
+  const downloadMarkdown = () => {
+    const title = (editor.title || 'Untitled document').trim();
+    const safeName = title.replace(/[\\/:*?"<>|]+/g, '-').slice(0, 80) || 'document';
+    const blob = new Blob([`# ${title}\n\n${editor.content || ''}`], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = `${safeName}.md`;
+    link.click();
+    URL.revokeObjectURL(url);
+    window.showToast?.('Document downloaded.', false);
+  };
+
+  const duplicateDocument = async () => {
+    const allowed = await docsAllowed(roomId, user);
+    if (!allowed) return window.showToast?.('Docs editing is disabled in this room.');
+    const now = timestamp();
+    const copy = {
+      ...emptyEditor,
+      title: `${editor.title || 'Untitled'} copy`,
+      content: editor.content || '',
+      emoji: editor.emoji || '📄',
+      tags: editor.tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+      by: user.uid,
+      byName: user.displayName,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const documentRef = push(ref(db, `room_docs/${roomId}`));
+    await set(documentRef, copy);
+    openDocument({ id: documentRef.key, ...copy });
+    window.showToast?.('Document duplicated.', false);
+  };
+
   const saveDocument = async (nextEditor) => {
     if (!activeId) return;
     try {
@@ -202,6 +237,107 @@ export function Docs({ roomId, user }) {
     });
   };
 
+  const insertAtCursor = (value, selectOffset = 0, selectLength = 0) => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart || 0;
+    const end = textarea.selectionEnd || 0;
+    const nextContent = `${editor.content.slice(0, start)}${value}${editor.content.slice(end)}`;
+    editDocument('content', nextContent);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = start + value.length;
+      textarea.selectionStart = selectLength ? start + selectOffset : cursor;
+      textarea.selectionEnd = selectLength ? start + selectOffset + selectLength : cursor;
+    });
+  };
+
+  const runDocMenuAction = async (action) => {
+    setOpenMenu(null);
+    const textarea = contentRef.current;
+    switch (action) {
+      case 'new':
+        await createDocument();
+        break;
+      case 'download':
+        downloadMarkdown();
+        break;
+      case 'duplicate':
+        await duplicateDocument();
+        break;
+      case 'delete':
+        deleteDocument();
+        break;
+      case 'undo':
+      case 'redo':
+        textarea?.focus();
+        window.document.execCommand(action);
+        break;
+      case 'select-all':
+        textarea?.focus();
+        textarea?.select();
+        break;
+      case 'word-count': {
+        const words = (editor.content || '').trim().split(/\s+/).filter(Boolean).length;
+        window.showToast?.(`${words} word${words === 1 ? '' : 's'} in this document.`, false);
+        break;
+      }
+      case 'date':
+        insertAtCursor(new Date().toLocaleString());
+        break;
+      case 'link':
+        insertAtCursor('[link text](https://)', 1, 9);
+        break;
+      case 'table':
+        insertAtCursor('\n| Column | Column |\n| --- | --- |\n| Value | Value |\n');
+        break;
+      case 'divider':
+        insertAtCursor('\n\n---\n\n');
+        break;
+      case 'quote':
+      case 'code':
+      case 'heading':
+      case 'bold':
+      case 'italic':
+      case 'bullet':
+        formatSelection(action);
+        break;
+      default:
+        window.showToast?.('That document command is not available yet.');
+    }
+  };
+
+  const docsMenus = {
+    File: [
+      ['new', 'New document'],
+      ['duplicate', 'Duplicate'],
+      ['download', 'Download Markdown'],
+      ['delete', 'Delete document'],
+    ],
+    Edit: [
+      ['undo', 'Undo'],
+      ['redo', 'Redo'],
+      ['select-all', 'Select all'],
+    ],
+    View: [
+      ['word-count', 'Word count'],
+    ],
+    Insert: [
+      ['date', 'Date / time'],
+      ['link', 'Link'],
+      ['table', 'Table'],
+      ['divider', 'Divider'],
+    ],
+    Format: [
+      ['heading', 'Heading'],
+      ['bold', 'Bold'],
+      ['italic', 'Italic'],
+      ['bullet', 'Bullet list'],
+      ['quote', 'Quote'],
+      ['code', 'Inline code'],
+    ],
+  };
+
   const closeEditor = () => {
     window.clearTimeout(saveTimer.current);
     if (dirty.current) saveDocument(editor);
@@ -212,12 +348,20 @@ export function Docs({ roomId, user }) {
 
   const deleteDocument = async () => {
     if (!activeId || deletingDocument) return;
+    const allowed = await docsAllowed(roomId, user);
+    if (!allowed) return window.showToast?.('Docs editing is disabled in this room.');
     setDeleteConfirmOpen(true);
   };
 
   const confirmDeleteDocument = async () => {
     if (!activeId || deletingDocument) return;
     const id = activeId;
+    const allowed = await docsAllowed(roomId, user);
+    if (!allowed) {
+      setDeleteConfirmOpen(false);
+      window.showToast?.('Docs editing is disabled in this room.');
+      return;
+    }
     setDeletingDocument(true);
     try {
       window.clearTimeout(saveTimer.current);
@@ -258,11 +402,26 @@ export function Docs({ roomId, user }) {
 
         <div className="docs-editor-bar docs-google-toolbar">
           <div className="docs-menu-row" aria-label="Document menus">
-            <button type="button">File</button>
-            <button type="button">Edit</button>
-            <button type="button">View</button>
-            <button type="button">Insert</button>
-            <button type="button">Format</button>
+            {Object.entries(docsMenus).map(([menu, items]) => (
+              <div className="docs-menu" key={menu}>
+                <button
+                  type="button"
+                  aria-expanded={openMenu === menu}
+                  onClick={() => setOpenMenu((current) => (current === menu ? null : menu))}
+                >
+                  {menu}
+                </button>
+                {openMenu === menu ? (
+                  <div className="docs-menu-popover" role="menu">
+                    {items.map(([action, label]) => (
+                      <button key={action} type="button" role="menuitem" onClick={() => runDocMenuAction(action)}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ))}
           </div>
           <div className="docs-toolbar-menu" aria-label="Toolbar menu">
             <span>Toolbar</span>

@@ -399,9 +399,10 @@ export function Whiteboard({ roomId, user }) {
     setConfirmClearOpen(true);
   };
 
-  const confirmClearBoard = () => {
+  const confirmClearBoard = async () => {
+    if (!(await whiteboardAllowed())) return;
     actionStack.current = [];
-    remove(ref(db, `whiteboards/${roomId}/notes`));
+    await remove(ref(db, `whiteboards/${roomId}/notes`));
     setConfirmClearOpen(false);
   };
 

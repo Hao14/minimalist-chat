@@ -151,6 +151,19 @@ function embeddedCheckoutContainer() {
   return document.getElementById('stripe-embedded-checkout');
 }
 
+function clearEmbeddedCheckoutContainer(container = embeddedCheckoutContainer()) {
+  if (!container) return;
+  if (typeof container.replaceChildren === 'function') {
+    container.replaceChildren();
+    return;
+  }
+  while (container.firstChild) container.removeChild(container.firstChild);
+}
+
+function nextPaint() {
+  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+}
+
 function portalEmbeddedCard() {
   const card = embeddedCard();
   if (card && card.parentElement !== document.body) document.body.appendChild(card);
@@ -170,7 +183,7 @@ function destroyEmbeddedCheckout() {
   const container = embeddedCheckoutContainer();
   if (container) {
     container.classList.remove('is-loading');
-    container.innerHTML = '';
+    clearEmbeddedCheckoutContainer(container);
   }
 }
 
@@ -182,7 +195,7 @@ function showEmbeddedPanel(plan) {
 
   destroyEmbeddedCheckout();
   if (title) title.textContent = `Upgrade to ${planLabels[plan] || plan}`;
-  container.innerHTML = '';
+  clearEmbeddedCheckoutContainer(container);
   container.classList.add('is-loading');
   setEmbeddedStatus('Stripe is loading securely inside this page…');
   card.setAttribute('role', 'dialog');
@@ -267,6 +280,12 @@ async function openStripeCheckout(plan, button) {
       await openHostedCheckout(plan);
       return;
     }
+    const createEmbeddedCheckout = stripe.createEmbeddedCheckoutPage || stripe.initEmbeddedCheckout;
+    if (typeof createEmbeddedCheckout !== 'function') {
+      window.showToast?.('This browser cannot load embedded checkout. Opening hosted checkout instead…', false);
+      await openHostedCheckout(plan);
+      return;
+    }
 
     showEmbeddedPanel(plan);
     const data = await authedPost(billingEndpoints.checkout(), {
@@ -277,7 +296,7 @@ async function openStripeCheckout(plan, button) {
 
     if (!data.clientSecret || !data.sessionId) throw new Error('Stripe did not return an embedded checkout session.');
 
-    embeddedCheckout = await stripe.initEmbeddedCheckout({
+    embeddedCheckout = await createEmbeddedCheckout.call(stripe, {
       fetchClientSecret: () => Promise.resolve(data.clientSecret),
       onComplete: () => handleEmbeddedComplete(data.sessionId),
     });
@@ -285,8 +304,16 @@ async function openStripeCheckout(plan, button) {
     const container = embeddedCheckoutContainer();
     if (!container) throw new Error('Checkout container is missing.');
     container.classList.remove('is-loading');
-    container.innerHTML = '';
-    embeddedCheckout.mount(container);
+    clearEmbeddedCheckoutContainer(container);
+    await nextPaint();
+    try {
+      embeddedCheckout.mount(container);
+    } catch (mountError) {
+      if (!/contains no child nodes/i.test(mountError?.message || '')) throw mountError;
+      clearEmbeddedCheckoutContainer(container);
+      await nextPaint();
+      embeddedCheckout.mount(container);
+    }
     setEmbeddedStatus('Secure checkout is ready.');
   } catch (error) {
     embeddedCheckoutContainer()?.classList.remove('is-loading');

@@ -33,7 +33,6 @@ export function initModernThemeMotion() {
   const reduceMotion = () => Boolean(reduceMotionQuery?.matches);
 
   let enabled = false;
-  let motionFrame = 0;
   let revealTimer = 0;
   let tabRail = null;
   let resizeObserver = null;
@@ -50,22 +49,8 @@ export function initModernThemeMotion() {
     root.style.setProperty('--modern-tilt-y', '0');
     root.style.setProperty('--modern-tab-pointer-x', '-999px');
     root.style.setProperty('--modern-tab-pointer-y', '50%');
-  };
-
-  let lastAmbientTime = -100;
-  const animateAmbient = (time = 0) => {
-    if (!enabled || reduceMotion()) return;
-    motionFrame = window.requestAnimationFrame(animateAmbient);
-    // The ambient aurora drifts slowly, so updating at ~30fps (instead of every
-    // frame) is visually identical but halves style-recalc/compositing work.
-    // Skip entirely while the tab is hidden to avoid heating idle background tabs.
-    if (document.hidden || time - lastAmbientTime < 33) return;
-    lastAmbientTime = time;
-    // Only drives a compositor transform (rotate) + an opacity var now that the
-    // gradients are static, so this stays off the paint path.
-    const pulse = (Math.sin(time / 1250) + 1) / 2;
-    root.style.setProperty('--modern-aurora-angle', `${((time / 72) % 360).toFixed(2)}deg`);
-    root.style.setProperty('--modern-pulse', pulse.toFixed(3));
+    root.style.setProperty('--modern-aurora-angle', '0deg');
+    root.style.setProperty('--modern-pulse', '0.35');
   };
 
   const detachTabRail = () => {
@@ -127,16 +112,15 @@ export function initModernThemeMotion() {
 
   const start = () => {
     if (enabled || !isModernTheme()) return;
+    // Skip the ambient-motion machinery on phones (the rAF loop + reveal/mutation
+    // observers add scroll overhead, and mobile.css hides the effects they drive).
+    if (window.matchMedia?.('(max-width: 768px)')?.matches) return;
     enabled = true;
     body.classList.add('modern-motion-ready');
     window.addEventListener('resize', syncStaticAmbientVars, { passive: true });
     syncStaticAmbientVars();
     attachTabRail();
     scheduleRevealSetup();
-
-    if (!reduceMotion()) {
-      motionFrame = window.requestAnimationFrame(animateAmbient);
-    }
 
     mutationObserver = new MutationObserver(scheduleRevealSetup);
     mutationObserver.observe(document.getElementById('root') || body, {
@@ -152,9 +136,7 @@ export function initModernThemeMotion() {
     enabled = false;
     body.classList.remove('modern-motion-ready');
     window.removeEventListener('resize', syncStaticAmbientVars);
-    window.cancelAnimationFrame(motionFrame);
     window.clearTimeout(revealTimer);
-    motionFrame = 0;
     mutationObserver?.disconnect();
     mutationObserver = null;
     revealObserver?.disconnect();

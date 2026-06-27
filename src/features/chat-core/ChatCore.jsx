@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   endBefore,
@@ -19,8 +19,8 @@ import {
   set,
   update,
 } from 'firebase/database';
-import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
-import { db, storage } from '../../lib/firebase.js';
+import { db } from '../../lib/firebase.js';
+import { getStorageUploadTools } from '../../lib/firebaseStorage.js';
 import { renderMessageText } from '../../lib/text.js';
 import { getRequiredIdToken } from '../../lib/authToken.js';
 
@@ -480,11 +480,20 @@ async function canUseRoomPermission(roomId, key, deniedMessage) {
   return true;
 }
 
+const timeFormatCache = new Map();
+const MAX_TIME_FORMAT_CACHE = 1200;
+
 function formatTime(timestamp) {
   if (!timestamp) return '';
+  const cacheKey = String(timestamp);
+  if (timeFormatCache.has(cacheKey)) return timeFormatCache.get(cacheKey);
+
   const date = new Date(timestamp);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const value = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (timeFormatCache.size > MAX_TIME_FORMAT_CACHE) timeFormatCache.clear();
+  timeFormatCache.set(cacheKey, value);
+  return value;
 }
 
 const MESSAGE_TEXT_TAGS = new Set(['a', 'br', 'code', 'del', 'em', 'pre', 'span', 'strong']);
@@ -531,7 +540,7 @@ function renderMessageTextNode(node, key) {
   );
 }
 
-function MessageText({ text }) {
+const MessageText = memo(function MessageText({ text }) {
   const nodes = useMemo(() => {
     const html = renderMessageText(text || '');
     const parsed = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
@@ -539,7 +548,7 @@ function MessageText({ text }) {
   }, [text]);
 
   return nodes;
-}
+});
 
 function messageSearchText(message) {
   return [
@@ -601,16 +610,63 @@ function commandLabel(command) {
   return command.replace(/\s+/g, ' ');
 }
 
-function mergeMessage(list, messageId, message, prepend = false) {
-  const existing = list.findIndex((item) => item.id === messageId);
-  if (existing >= 0) {
-    const next = [...list];
-    next[existing] = { id: messageId, ...message };
-    return next;
+function shallowEqualMessage(left, right) {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key) => Object.is(left[key], right[key]));
+}
+
+function mergeMessageBatch(list, operations = []) {
+  if (!operations.length) return list;
+
+  const next = [...list];
+  const indexById = new Map(next.map((item, index) => [item.id, index]));
+  const prependById = new Map();
+  let changed = false;
+
+  for (const operation of operations) {
+    const { messageId, message, prepend = false } = operation;
+    if (!messageId || !message) continue;
+
+    const item = { id: messageId, ...message };
+    const existing = indexById.get(messageId);
+    if (existing !== undefined) {
+      if (shallowEqualMessage(next[existing], item)) continue;
+      next[existing] = item;
+      changed = true;
+      continue;
+    }
+
+    if (prepend) {
+      prependById.set(messageId, item);
+      changed = true;
+      continue;
+    }
+
+    if (prependById.has(messageId)) {
+      if (shallowEqualMessage(prependById.get(messageId), item)) continue;
+      prependById.set(messageId, item);
+      changed = true;
+      continue;
+    }
+
+    indexById.set(messageId, next.length);
+    next.push(item);
+    changed = true;
   }
 
-  const item = { id: messageId, ...message };
-  return prepend ? [item, ...list] : [...list, item];
+  if (prependById.size) return [...prependById.values(), ...next];
+  if (!changed) return list;
+  return next;
+}
+
+function sameStringArray(left = [], right = []) {
+  if (left === right) return true;
+  if (left.length !== right.length) return false;
+  return left.every((value, index) => value === right[index]);
 }
 
 function setHeaderRoom(roomId, roomName) {
@@ -1383,7 +1439,7 @@ function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
   );
 }
 
-function MessageItem({
+const MessageItem = memo(function MessageItem({
   animationIndex = 0,
   message,
   searchQuery,
@@ -1411,32 +1467,38 @@ function MessageItem({
       id={`msg-${message.id}`}
       style={{ display: isVisible ? 'flex' : 'none', '--message-index': animationIndex % 10 }}
     >
-      <div className="msg-actions">
-        <span className="action-icon" onClick={() => onReact(message.id, '👍')}>👍</span>
-        <span className="action-icon" onClick={() => onReact(message.id, '❤️')}>❤️</span>
-        <span
+      <div className="msg-actions" aria-label="Message actions">
+        <button className="action-icon" type="button" onClick={() => onReact(message.id, '👍')} aria-label="React with thumbs up">👍</button>
+        <button className="action-icon" type="button" onClick={() => onReact(message.id, '❤️')} aria-label="React with heart">❤️</button>
+        <button
           className="action-icon more-icon"
+          type="button"
           onClick={(event) => window.toggleEmojiPicker?.(event, message.id)}
           title="React"
+          aria-label="Choose reaction"
         >
           😊
-        </span>
-        <span
+        </button>
+        <button
           className="action-icon reply-icon"
+          type="button"
           onClick={() => onPrepareReply(message.id, message.name, message.text || 'Image')}
           title="Reply"
+          aria-label="Reply to message"
         >
           ↩️
-        </span>
-        <span
+        </button>
+        <button
           className="action-icon msg-menu-icon"
+          type="button"
           onClick={(event) => window.openMsgMenu?.(event, message.id)}
           title="More actions"
+          aria-label="More message actions"
         >
           ⋮
-        </span>
-        {isMine ? <span className="action-icon edit-icon" onClick={() => onStartEdit(message.id)} title="Edit">✏️</span> : null}
-        {canDelete ? <span className="action-icon delete-icon" onClick={() => onDelete(message.id)} title="Delete">🗑️</span> : null}
+        </button>
+        {isMine ? <button className="action-icon edit-icon" type="button" onClick={() => onStartEdit(message.id)} title="Edit" aria-label="Edit message">✏️</button> : null}
+        {canDelete ? <button className="action-icon delete-icon" type="button" onClick={() => onDelete(message.id)} title="Delete" aria-label="Delete message">🗑️</button> : null}
       </div>
 
       <div
@@ -1522,7 +1584,61 @@ function MessageItem({
       <ReactionPills message={message} onReact={onReact} />
     </li>
   );
+}, areMessageItemsEqual);
+
+function areMessageItemsEqual(prev, next) {
+  if (prev.message !== next.message) return false;
+  if (prev.searchQuery !== next.searchQuery) return false;
+
+  const wasEditing = prev.editingId === prev.message.id;
+  const isEditing = next.editingId === next.message.id;
+  if (wasEditing !== isEditing) return false;
+  if (isEditing && prev.editingText !== next.editingText) return false;
+
+  return true;
 }
+
+const MessageList = memo(function MessageList({
+  messages,
+  editingId,
+  editingText,
+  onCancelEdit,
+  onDelete,
+  onEditingText,
+  onPrepareReply,
+  onReact,
+  onSaveEdit,
+  onSaveReminder,
+  onScroll,
+  onStartEdit,
+  onVotePoll,
+  searchQuery,
+  listRef,
+}) {
+  return (
+    <ul id="messages" onScroll={onScroll} ref={listRef}>
+      {messages.map((message, index) => (
+        <MessageItem
+          animationIndex={index}
+          editingId={editingId}
+          editingText={editingText}
+          key={message.id}
+          message={message}
+          onCancelEdit={onCancelEdit}
+          onDelete={onDelete}
+          onEditingText={onEditingText}
+          onPrepareReply={onPrepareReply}
+          onReact={onReact}
+          onSaveReminder={onSaveReminder}
+          onSaveEdit={onSaveEdit}
+          onStartEdit={onStartEdit}
+          onVotePoll={onVotePoll}
+          searchQuery={searchQuery}
+        />
+      ))}
+    </ul>
+  );
+});
 
 export function ChatCore({ user, registerApi }) {
   const initialRoomPreferenceRef = useRef(readLastRoomPreference(user?.uid));
@@ -1564,14 +1680,107 @@ export function ChatCore({ user, registerApi }) {
   const oldestMessageKeyRef = useRef(null);
   const isFetchingHistoryRef = useRef(false);
   const shouldStickToBottomRef = useRef(true);
+  const forceScrollToLatestRef = useRef(true);
   const listRef = useRef(null);
+  const scrollFrameRef = useRef(null);
+  const scrollToBottomFrameRef = useRef(null);
+  const scrollSettleTimersRef = useRef([]);
+  const pendingMessageOpsRef = useRef([]);
+  const messageFlushFrameRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimerRef = useRef(null);
+  const typingStateRef = useRef(false);
   const muteTimerRef = useRef(null);
   const isSendingRef = useRef(false);
   const reminderTimersRef = useRef([]);
   const simpleDialogResolverRef = useRef(null);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  const clearPendingMessageOps = useCallback(() => {
+    pendingMessageOpsRef.current = [];
+    if (messageFlushFrameRef.current) {
+      cancelAnimationFrame(messageFlushFrameRef.current);
+      messageFlushFrameRef.current = null;
+    }
+  }, []);
+
+  const flushPendingMessageOps = useCallback(() => {
+    messageFlushFrameRef.current = null;
+    const operations = pendingMessageOpsRef.current;
+    pendingMessageOpsRef.current = [];
+    if (!operations.length) return;
+
+    setMessages((current) => mergeMessageBatch(current, operations));
+  }, []);
+
+  const queueMessageMutation = useCallback((messageId, message, prepend = false) => {
+    pendingMessageOpsRef.current.push({ messageId, message, prepend });
+    if (messageFlushFrameRef.current) return;
+
+    messageFlushFrameRef.current = requestAnimationFrame(flushPendingMessageOps);
+  }, [flushPendingMessageOps]);
+
+  const clearScrollSettleTimers = useCallback(() => {
+    scrollSettleTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    scrollSettleTimersRef.current = [];
+  }, []);
+
+  const scrollMessagesToLatest = useCallback((passes = 1, options = {}) => {
+    if (scrollToBottomFrameRef.current) cancelAnimationFrame(scrollToBottomFrameRef.current);
+    if (options.settle) clearScrollSettleTimers();
+
+    const scrollPass = (remainingPasses) => {
+      scrollToBottomFrameRef.current = requestAnimationFrame(() => {
+        const list = listRef.current;
+        if (list) list.scrollTop = list.scrollHeight;
+
+        if (remainingPasses > 0) {
+          scrollPass(remainingPasses - 1);
+          return;
+        }
+
+        scrollToBottomFrameRef.current = null;
+      });
+    };
+
+    scrollPass(Math.max(0, passes - 1));
+
+    if (!options.settle) return;
+
+    const settleDelays = options.delays || [120, 320, 700, 1200, 1800];
+    settleDelays.forEach((delay, index) => {
+      const timerId = window.setTimeout(() => {
+        const shouldStillLandLatest = forceScrollToLatestRef.current || shouldStickToBottomRef.current;
+        if (isFetchingHistoryRef.current || window.isFetchingHistory || !shouldStillLandLatest) return;
+
+        scrollPass(1);
+        if (index === settleDelays.length - 1) {
+          forceScrollToLatestRef.current = false;
+          clearScrollSettleTimers();
+        }
+      }, delay);
+      scrollSettleTimersRef.current.push(timerId);
+    });
+  }, [clearScrollSettleTimers]);
+
+  useEffect(() => {
+    const requestLatestScroll = (options = {}) => {
+      shouldStickToBottomRef.current = true;
+      forceScrollToLatestRef.current = true;
+      scrollMessagesToLatest(options.passes || 3, {
+        settle: true,
+        delays: options.delays || [40, 120, 260, 520, 900, 1400],
+      });
+    };
+
+    window.requestChatLatestScroll = requestLatestScroll;
+    return () => {
+      if (window.requestChatLatestScroll === requestLatestScroll) {
+        window.requestChatLatestScroll = null;
+      }
+    };
+  }, [scrollMessagesToLatest]);
 
   useEffect(() => {
     setRoomListHost(document.getElementById('room-list'));
@@ -1646,9 +1855,13 @@ export function ChatCore({ user, registerApi }) {
 
   const setTyping = useCallback((isTyping) => {
     if (!window.currentUser?.uid || !activeRoomRef.current?.id) return;
+    const nextTyping = Boolean(isTyping);
+    if (typingStateRef.current === nextTyping) return;
+
+    typingStateRef.current = nextTyping;
     const typingRef = ref(db, `typing/${activeRoomRef.current.id}/${window.currentUser.uid}`);
 
-    if (isTyping) {
+    if (nextTyping) {
       set(typingRef, window.userProfileName || 'Someone');
       onDisconnect(typingRef).remove();
     } else {
@@ -1752,6 +1965,7 @@ export function ChatCore({ user, registerApi }) {
     oldestMessageKeyRef.current = null;
     isFetchingHistoryRef.current = false;
     shouldStickToBottomRef.current = true;
+    forceScrollToLatestRef.current = true;
     setActiveRoom(nextRoom);
     setActiveChannelId(nextChannelId);
     setMessages([]);
@@ -1832,6 +2046,7 @@ export function ChatCore({ user, registerApi }) {
     window.activeChannelId = nextChannelId;
     writeLastRoomPreference(activeRoomRef.current, nextChannelId, user?.uid);
     shouldStickToBottomRef.current = true;
+    forceScrollToLatestRef.current = true;
   }, [user?.uid]);
 
   const addChannel = useCallback(async () => {
@@ -1860,12 +2075,12 @@ export function ChatCore({ user, registerApi }) {
   }, [requestTextDialog]);
 
   const displayMessage = useCallback((messageId, message, prepend = false) => {
-    setMessages((current) => mergeMessage(current, messageId, message, prepend));
-  }, []);
+    queueMessageMutation(messageId, message, prepend);
+  }, [queueMessageMutation]);
 
   const updateMessageEl = useCallback((messageId, message) => {
-    setMessages((current) => mergeMessage(current, messageId, message));
-  }, []);
+    queueMessageMutation(messageId, message);
+  }, [queueMessageMutation]);
 
   const deleteMessage = useCallback(async (messageId) => {
     const confirmed = await requestConfirmDialog({
@@ -1894,6 +2109,11 @@ export function ChatCore({ user, registerApi }) {
     } catch {
       // Local cached text is enough when the quick fetch fails.
     }
+  }, []);
+
+  const cancelEditMessage = useCallback(() => {
+    setEditingId(null);
+    setEditingText('');
   }, []);
 
   const saveEditedMessage = useCallback(async (messageId) => {
@@ -1934,16 +2154,51 @@ export function ChatCore({ user, registerApi }) {
   }, [reactToMessage]);
 
   const toggleEmojiPicker = useCallback((event, messageId) => {
+    event.preventDefault();
+    event.stopPropagation();
     window.activeMessageId = messageId;
     const picker = document.getElementById('emoji-picker');
     if (!picker) return;
 
-    picker.style.top = `${event.pageY + 10}px`;
-    picker.style.left = `${event.pageX - 50}px`;
+    if (picker.parentElement !== document.body) {
+      document.body.appendChild(picker);
+    }
+
     picker.classList.remove('hidden');
+    picker.style.position = 'fixed';
+    picker.style.visibility = 'hidden';
+    picker.style.zIndex = '9999';
+    picker.style.top = '0px';
+    picker.style.left = '0px';
+
+    const messageEl = event.currentTarget.closest('.chat-message');
+    const triggerRect = (messageEl || event.currentTarget).getBoundingClientRect();
+    const pickerRect = picker.getBoundingClientRect();
+    const pickerWidth = pickerRect.width || 250;
+    const pickerHeight = pickerRect.height || 200;
+    const margin = 12;
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+
+    const isMine = messageEl?.classList.contains('my-message');
+    let left = isMine ? triggerRect.right - pickerWidth : triggerRect.left;
+    let top = triggerRect.top - pickerHeight - 10;
+
+    if (top < margin) {
+      top = triggerRect.bottom + 10;
+    }
+
+    left = Math.max(margin, Math.min(left, viewportWidth - pickerWidth - margin));
+    top = Math.max(margin, Math.min(top, viewportHeight - pickerHeight - margin));
+
+    picker.style.left = `${Math.round(left)}px`;
+    picker.style.top = `${Math.round(top)}px`;
+    picker.style.visibility = '';
 
     document.addEventListener('click', function hidePicker(clickEvent) {
-      if (!clickEvent.target.classList.contains('more-icon')) picker.classList.add('hidden');
+      if (!picker.contains(clickEvent.target) && !clickEvent.target.classList.contains('more-icon')) {
+        picker.classList.add('hidden');
+      }
       document.removeEventListener('click', hidePicker);
     }, { once: true });
   }, []);
@@ -2159,6 +2414,9 @@ export function ChatCore({ user, registerApi }) {
     const currentMessagesRef = roomMessagesRef(activeRoom.id, activeChannelId);
     const latestQuery = query(currentMessagesRef, limitToLast(30));
 
+    clearPendingMessageOps();
+    shouldStickToBottomRef.current = true;
+    forceScrollToLatestRef.current = true;
     setMessages([]);
     oldestMessageKeyRef.current = null;
     window.oldestMessageKey = null;
@@ -2181,11 +2439,12 @@ export function ChatCore({ user, registerApi }) {
     });
 
     return () => {
+      clearPendingMessageOps();
       unsubscribeAdd();
       unsubscribeChange();
       unsubscribeRemove();
     };
-  }, [activeChannelId, activeRoom.id, displayMessage, updateMessageEl]);
+  }, [activeChannelId, activeRoom.id, clearPendingMessageOps, displayMessage, updateMessageEl]);
 
   useEffect(() => {
     if (!activeRoom.id || !window.currentUser?.uid) return undefined;
@@ -2196,7 +2455,7 @@ export function ChatCore({ user, registerApi }) {
       const names = Object.entries(snapshot.val() || {})
         .filter(([uid]) => uid !== window.currentUser?.uid)
         .map(([, name]) => name);
-      setTypingNames(names);
+      setTypingNames((current) => (sameStringArray(current, names) ? current : names));
     });
 
     return () => {
@@ -2217,9 +2476,13 @@ export function ChatCore({ user, registerApi }) {
   }, []);
 
   useEffect(() => {
-    if (!listRef.current || !shouldStickToBottomRef.current || loadingHistory) return;
-    listRef.current.scrollTo(0, listRef.current.scrollHeight);
-  }, [loadingHistory, messages]);
+    if (!listRef.current || loadingHistory) return;
+
+    const shouldForceLatest = forceScrollToLatestRef.current;
+    if (!shouldForceLatest && !shouldStickToBottomRef.current) return;
+
+    scrollMessagesToLatest(shouldForceLatest ? 2 : 1, { settle: shouldForceLatest && messages.length > 0 });
+  }, [loadingHistory, messages.length, scrollMessagesToLatest]);
 
   useEffect(() => {
     const jump = window.pendingMessageJump;
@@ -2243,6 +2506,8 @@ export function ChatCore({ user, registerApi }) {
 
     isFetchingHistoryRef.current = true;
     window.isFetchingHistory = true;
+    forceScrollToLatestRef.current = false;
+    clearScrollSettleTimers();
     setLoadingHistory(true);
 
     try {
@@ -2276,15 +2541,27 @@ export function ChatCore({ user, registerApi }) {
       window.isFetchingHistory = false;
       setLoadingHistory(false);
     }
-  }, []);
+  }, [clearScrollSettleTimers]);
 
   const handleMessagesScroll = useCallback(() => {
-    const list = listRef.current;
-    if (!list) return;
+    if (scrollFrameRef.current) return;
 
-    shouldStickToBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
-    if (list.scrollTop === 0) handleLoadHistory();
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = null;
+      const list = listRef.current;
+      if (!list) return;
+
+      shouldStickToBottomRef.current = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+      if (list.scrollTop <= 2) handleLoadHistory();
+    });
   }, [handleLoadHistory]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+    if (scrollToBottomFrameRef.current) cancelAnimationFrame(scrollToBottomFrameRef.current);
+    clearScrollSettleTimers();
+    clearPendingMessageOps();
+  }, [clearPendingMessageOps, clearScrollSettleTimers]);
 
   const handleDraftChange = useCallback((event) => {
     const value = event.target.value;
@@ -2916,6 +3193,7 @@ export function ChatCore({ user, registerApi }) {
         }
 
         const safeName = file.name.replace(/[^\w.\-()[\] ]+/g, '_');
+        const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
         const target = storageRef(storage, `chat_files/${activeId}/${Date.now()}_${safeName}`);
         try {
           await uploadBytesResumable(target, file);
@@ -3199,30 +3477,23 @@ export function ChatCore({ user, registerApi }) {
       ) : null}
 
       <div id="loading-history" className={loadingHistory ? '' : 'hidden'}>Loading history...</div>
-      <ul id="messages" onScroll={handleMessagesScroll} ref={listRef}>
-        {messages.map((message, index) => (
-          <MessageItem
-            animationIndex={index}
-            editingId={editingId}
-            editingText={editingText}
-            key={message.id}
-            message={message}
-            onCancelEdit={() => {
-              setEditingId(null);
-              setEditingText('');
-            }}
-            onDelete={deleteMessage}
-            onEditingText={setEditingText}
-            onPrepareReply={prepareReply}
-            onReact={reactToMessage}
-            onSaveReminder={saveReminder}
-            onSaveEdit={saveEditedMessage}
-            onStartEdit={startEditMessage}
-            onVotePoll={votePoll}
-            searchQuery={searchQuery}
-          />
-        ))}
-      </ul>
+      <MessageList
+        editingId={editingId}
+        editingText={editingText}
+        listRef={listRef}
+        messages={messages}
+        onCancelEdit={cancelEditMessage}
+        onDelete={deleteMessage}
+        onEditingText={setEditingText}
+        onPrepareReply={prepareReply}
+        onReact={reactToMessage}
+        onSaveEdit={saveEditedMessage}
+        onSaveReminder={saveReminder}
+        onScroll={handleMessagesScroll}
+        onStartEdit={startEditMessage}
+        onVotePoll={votePoll}
+        searchQuery={deferredSearchQuery}
+      />
 
       <div id="typing-status-container" className={typingNames.length ? '' : 'hidden'}>
         <div className="typing-dots"><div className="dot" /><div className="dot" /><div className="dot" /></div>

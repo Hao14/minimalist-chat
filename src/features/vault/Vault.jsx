@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ref, remove, set } from 'firebase/database';
 import { db as firebaseDb } from '../../lib/firebase.js';
 
@@ -131,6 +131,135 @@ function shareUrlFor(id) {
   return `${window.location.origin}/vault/share/${id}`;
 }
 
+function useDebouncedValue(value, delay = 150) {
+  const [debounced, setDebounced] = useState(value);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delay);
+    return () => window.clearTimeout(timer);
+  }, [delay, value]);
+
+  return debounced;
+}
+
+const VaultStatCard = memo(function VaultStatCard({ icon, value, label }) {
+  return (
+    <span className="vault-stat-card">
+      <i className={`ph-bold ${icon}`} aria-hidden="true" />
+      <strong>{value}</strong>
+      {label}
+    </span>
+  );
+});
+
+const VaultSavedCard = memo(function VaultSavedCard({ bookmark, index, onOpen, onRemove }) {
+  return (
+    <article className="vault-item vault-saved-card" style={{ '--vault-delay': `${Math.min(index * 18, 140)}ms` }}>
+      <div className="vault-file-icon vault-saved-icon" aria-hidden="true">
+        {(bookmark.roomName || bookmark.collection || 'S').charAt(0).toUpperCase()}
+      </div>
+      <div className="vault-item-copy">
+        <div className="vault-item-head">
+          <strong>{bookmark.text || 'Saved message'}</strong>
+          <span>{formatDate(bookmark.ts)}</span>
+        </div>
+        <div className="vault-item-meta">
+          <span>{bookmark.collection || 'Saved'}</span>
+          <span>{bookmark.name || 'Someone'}</span>
+          <span>{bookmark.roomName || 'Room'}</span>
+        </div>
+        <p>{bookmark.text || 'No preview available.'}</p>
+        <div className="vault-item-actions">
+          <button type="button" onClick={() => onOpen(bookmark)}>
+            <i className="ph-bold ph-arrow-square-out" aria-hidden="true" /> Open
+          </button>
+          <button type="button" className="danger" onClick={() => onRemove(bookmark)}>
+            <i className="ph-bold ph-trash" aria-hidden="true" /> Remove
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+});
+
+const VaultItemCard = memo(function VaultItemCard({
+  item,
+  index,
+  shareItemId,
+  shareBusy,
+  lastShare,
+  userName,
+  onDownload,
+  onShareToggle,
+  onShareCreate,
+  onRemove,
+}) {
+  return (
+    <article className={`vault-item vault-item-${item.type}`} style={{ '--vault-delay': `${Math.min(index * 18, 140)}ms` }}>
+      {item.type === 'file' && <FilePreview item={item} />}
+      {item.type === 'note' && (
+        <div className="vault-file-icon vault-note-icon" aria-hidden="true">
+          <i className="ph-bold ph-note-pencil" />
+        </div>
+      )}
+      <div className="vault-item-copy">
+        <div className="vault-item-head">
+          <strong>{item.title || item.fileName || 'Untitled'}</strong>
+          <span>{formatDate(item.createdAt)}</span>
+        </div>
+        <div className="vault-item-meta">
+          <span>{vaultTypeLabel(item.type)}</span>
+          <span>{item.ownerName || userName}</span>
+        </div>
+        {item.type === 'note' ? (
+          <p>{item.body || 'Empty note'}</p>
+        ) : (
+          <p>{formatBytes(item.size)} · {item.fileType || 'File'}</p>
+        )}
+        <div className="vault-item-actions">
+          {item.type === 'file' && (
+            <button type="button" onClick={() => onDownload(item)}>
+              <i className="ph-bold ph-download-simple" aria-hidden="true" /> Download
+            </button>
+          )}
+          {item.type === 'note' && (
+            <button type="button" onClick={() => onShareToggle(item.id)}>
+              <i className="ph-bold ph-share-network" aria-hidden="true" /> Share
+            </button>
+          )}
+          <button type="button" className="danger" onClick={() => onRemove(item)}>
+            <i className="ph-bold ph-trash" aria-hidden="true" /> Delete
+          </button>
+        </div>
+        {item.type === 'note' && shareItemId === item.id && (
+          <div className="vault-share-panel">
+            <strong>Share this note</strong>
+            <span>Pick how long the link should stay open.</span>
+            <div className="vault-share-options">
+              {SHARE_DURATIONS.map((duration) => (
+                <button
+                  key={duration.label}
+                  type="button"
+                  disabled={shareBusy}
+                  onClick={() => onShareCreate(item, duration.value)}
+                >
+                  {duration.label}
+                </button>
+              ))}
+            </div>
+            {lastShare?.itemId === item.id && (
+              <label className="vault-share-url">
+                <span>Copied link</span>
+                <input readOnly value={lastShare.url} onFocus={(event) => event.target.select()} />
+              </label>
+            )}
+          </div>
+        )}
+      </div>
+    </article>
+  );
+});
+
 export function VaultPanel({ userId, userName = 'You', initialView = 'all', bookmarks = {} }) {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -144,6 +273,8 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
   const [shareBusy, setShareBusy] = useState(false);
   const [lastShare, setLastShare] = useState(null);
   const fileInputRef = useRef(null);
+  const debouncedQuery = useDebouncedValue(query, 140);
+  const [visibleLimit, setVisibleLimit] = useState(36);
 
   const loadItems = useCallback(async () => {
     if (!userId) {
@@ -173,14 +304,6 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
   }, [loadItems]);
 
   useEffect(() => {
-    if (initialView) setActiveType(initialView);
-  }, [initialView]);
-
-  useEffect(() => {
-    setSavedBookmarks(bookmarks || {});
-  }, [bookmarks]);
-
-  useEffect(() => {
     const handleBookmarksUpdated = (event) => setSavedBookmarks(event.detail || {});
     window.addEventListener('minimalist:bookmarks-updated', handleBookmarksUpdated);
     return () => window.removeEventListener('minimalist:bookmarks-updated', handleBookmarksUpdated);
@@ -205,7 +328,7 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
   const savedEntries = useMemo(() => savedBookmarkList(savedBookmarks), [savedBookmarks]);
 
   const filteredItems = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     return items.filter((item) => {
       if (activeType !== 'all' && item.type !== activeType) return false;
       if (!term) return true;
@@ -216,10 +339,10 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
         item.fileType,
       ].filter(Boolean).some((value) => value.toLowerCase().includes(term));
     });
-  }, [activeType, items, query]);
+  }, [activeType, debouncedQuery, items]);
 
   const filteredSaved = useMemo(() => {
-    const term = query.trim().toLowerCase();
+    const term = debouncedQuery.trim().toLowerCase();
     if (!term) return savedEntries;
     return savedEntries.filter((bookmark) => [
       bookmark.text,
@@ -227,7 +350,15 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
       bookmark.roomName,
       bookmark.collection,
     ].filter(Boolean).some((value) => String(value).toLowerCase().includes(term)));
-  }, [query, savedEntries]);
+  }, [debouncedQuery, savedEntries]);
+
+  const visibleItems = useMemo(() => filteredItems.slice(0, visibleLimit), [filteredItems, visibleLimit]);
+  const visibleSaved = useMemo(() => filteredSaved.slice(0, visibleLimit), [filteredSaved, visibleLimit]);
+  const hiddenResultCount = Math.max(0, (activeType === 'saved' ? filteredSaved.length : filteredItems.length) - visibleLimit);
+  const canShowMore = activeType === 'saved' || status === 'ready';
+  const showMoreVaultItems = useCallback(() => {
+    setVisibleLimit((value) => value + 36);
+  }, []);
 
   const saveNote = async (event) => {
     event.preventDefault();
@@ -293,7 +424,7 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
     }
   };
 
-  const removeItem = async (item) => {
+  const removeItem = useCallback(async (item) => {
     const confirmed = await window.appConfirm?.({
       kicker: 'Vault',
       title: `Delete ${item.type === 'note' ? 'note' : 'file'}?`,
@@ -307,9 +438,9 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
     await deleteVaultItem(item.id);
     window.showToast?.('Removed from Vault.', false);
     loadItems();
-  };
+  }, [loadItems]);
 
-  const downloadFile = (item) => {
+  const downloadFile = useCallback((item) => {
     if (!item.blob) return;
     const url = URL.createObjectURL(item.blob);
     const anchor = document.createElement('a');
@@ -317,21 +448,25 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
     anchor.download = item.fileName || item.title || 'vault-file';
     anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
+  }, []);
 
-  const openSavedBookmark = (bookmark) => {
+  const openSavedBookmark = useCallback((bookmark) => {
     if (!bookmark?.roomId) return;
     window.switchRoom?.(bookmark.roomId, bookmark.roomName, bookmark.shortId, { channelId: bookmark.channelId || 'general' });
     document.getElementById('vault-panel')?.classList.remove('open');
-  };
+  }, []);
 
-  const removeSavedBookmark = async (bookmark) => {
+  const removeSavedBookmark = useCallback(async (bookmark) => {
     if (!bookmark?.id || !userId) return;
     await remove(ref(firebaseDb, `users/${userId}/bookmarks/${bookmark.id}`));
     window.showToast?.('Removed from saved.', false);
-  };
+  }, [userId]);
 
-  const createShareLink = async (item, durationMs) => {
+  const toggleSharePanel = useCallback((itemId) => {
+    setShareItemId((value) => (value === itemId ? null : itemId));
+  }, []);
+
+  const createShareLink = useCallback(async (item, durationMs) => {
     if (!item || item.type !== 'note' || !userId) return;
     setShareBusy(true);
     try {
@@ -356,7 +491,7 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
     } finally {
       setShareBusy(false);
     }
-  };
+  }, [userId, userName]);
 
   const visibleCount = activeType === 'saved' ? filteredSaved.length : filteredItems.length;
 
@@ -391,16 +526,13 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
         <button type="button" className="vault-secondary-action" onClick={() => fileInputRef.current?.click()}>
           <i className="ph-bold ph-upload-simple" /> Add files
         </button>
-        <button type="button" className="vault-secondary-action" onClick={() => setActiveType('saved')}>
-          <i className="ph-bold ph-bookmark-simple" /> Saved
-        </button>
       </section>
 
       <section className="vault-stats vault-command-strip" aria-label="Vault stats">
-        <span><i className="ph-bold ph-note" /><strong>{counts.notes}</strong> notes</span>
-        <span><i className="ph-bold ph-files" /><strong>{counts.files}</strong> files</span>
-        <span><i className="ph-bold ph-bookmark-simple" /><strong>{counts.saved}</strong> saved</span>
-        <span><i className="ph-bold ph-hard-drives" /><strong>{formatBytes(totalBytes)}</strong> stored</span>
+        <VaultStatCard icon="ph-note" value={counts.notes} label="notes" />
+        <VaultStatCard icon="ph-files" value={counts.files} label="files" />
+        <VaultStatCard icon="ph-bookmark-simple" value={counts.saved} label="saved" />
+        <VaultStatCard icon="ph-hard-drives" value={formatBytes(totalBytes)} label="stored" />
       </section>
 
       <section className="vault-workbench" aria-label="Vault actions">
@@ -489,32 +621,14 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
               <span>Use a message menu to save something, then it will live here beside notes and files.</span>
             </div>
           )}
-          {activeType === 'saved' && filteredSaved.map((bookmark, index) => (
-            <article className="vault-item vault-saved-card" key={bookmark.id} style={{ '--vault-delay': `${Math.min(index * 28, 220)}ms` }}>
-              <div className="vault-file-icon vault-saved-icon" aria-hidden="true">
-                {(bookmark.roomName || bookmark.collection || 'S').charAt(0).toUpperCase()}
-              </div>
-              <div className="vault-item-copy">
-                <div className="vault-item-head">
-                  <strong>{bookmark.text || 'Saved message'}</strong>
-                  <span>{formatDate(bookmark.ts)}</span>
-                </div>
-                <div className="vault-item-meta">
-                  <span>{bookmark.collection || 'Saved'}</span>
-                  <span>{bookmark.name || 'Someone'}</span>
-                  <span>{bookmark.roomName || 'Room'}</span>
-                </div>
-                <p>{bookmark.text || 'No preview available.'}</p>
-                <div className="vault-item-actions">
-                  <button type="button" onClick={() => openSavedBookmark(bookmark)}>
-                    <i className="ph-bold ph-arrow-square-out" /> Open
-                  </button>
-                  <button type="button" className="danger" onClick={() => removeSavedBookmark(bookmark)}>
-                    <i className="ph-bold ph-trash" /> Remove
-                  </button>
-                </div>
-              </div>
-            </article>
+          {activeType === 'saved' && visibleSaved.map((bookmark, index) => (
+            <VaultSavedCard
+              key={bookmark.id}
+              bookmark={bookmark}
+              index={index}
+              onOpen={openSavedBookmark}
+              onRemove={removeSavedBookmark}
+            />
           ))}
           {activeType !== 'saved' && status === 'ready' && filteredItems.length === 0 && (
             <div className="vault-empty">
@@ -524,70 +638,26 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
             </div>
           )}
 
-          {activeType !== 'saved' && status === 'ready' && filteredItems.map((item, index) => (
-            <article className={`vault-item vault-item-${item.type}`} key={item.id} style={{ '--vault-delay': `${Math.min(index * 28, 220)}ms` }}>
-              {item.type === 'file' && <FilePreview item={item} />}
-              {item.type === 'note' && (
-                <div className="vault-file-icon vault-note-icon" aria-hidden="true">
-                  <i className="ph-bold ph-note-pencil" />
-                </div>
-              )}
-              <div className="vault-item-copy">
-                <div className="vault-item-head">
-                  <strong>{item.title || item.fileName || 'Untitled'}</strong>
-                  <span>{formatDate(item.createdAt)}</span>
-                </div>
-                <div className="vault-item-meta">
-                  <span>{vaultTypeLabel(item.type)}</span>
-                  <span>{item.ownerName || userName}</span>
-                </div>
-                {item.type === 'note' ? (
-                  <p>{item.body || 'Empty note'}</p>
-                ) : (
-                  <p>{formatBytes(item.size)} · {item.fileType || 'File'}</p>
-                )}
-                <div className="vault-item-actions">
-                  {item.type === 'file' && (
-                    <button type="button" onClick={() => downloadFile(item)}>
-                      <i className="ph-bold ph-download-simple" /> Download
-                    </button>
-                  )}
-                  {item.type === 'note' && (
-                    <button type="button" onClick={() => setShareItemId((value) => (value === item.id ? null : item.id))}>
-                      <i className="ph-bold ph-share-network" /> Share
-                    </button>
-                  )}
-                  <button type="button" className="danger" onClick={() => removeItem(item)}>
-                    <i className="ph-bold ph-trash" /> Delete
-                  </button>
-                </div>
-                {item.type === 'note' && shareItemId === item.id && (
-                  <div className="vault-share-panel">
-                    <strong>Share this note</strong>
-                    <span>Pick how long the link should stay open.</span>
-                    <div className="vault-share-options">
-                      {SHARE_DURATIONS.map((duration) => (
-                        <button
-                          key={duration.label}
-                          type="button"
-                          disabled={shareBusy}
-                          onClick={() => createShareLink(item, duration.value)}
-                        >
-                          {duration.label}
-                        </button>
-                      ))}
-                    </div>
-                    {lastShare?.itemId === item.id && (
-                      <label className="vault-share-url">
-                        <span>Copied link</span>
-                        <input readOnly value={lastShare.url} onFocus={(event) => event.target.select()} />
-                      </label>
-                    )}
-                  </div>
-                )}
-              </div>
-            </article>
+          {activeType !== 'saved' && status === 'ready' && visibleItems.map((item, index) => (
+            <VaultItemCard
+              key={item.id}
+              item={item}
+              index={index}
+              shareItemId={shareItemId}
+              shareBusy={shareBusy}
+              lastShare={lastShare}
+              userName={userName}
+              onDownload={downloadFile}
+              onShareToggle={toggleSharePanel}
+              onShareCreate={createShareLink}
+              onRemove={removeItem}
+            />
           ))}
+          {canShowMore && hiddenResultCount > 0 && (
+            <button type="button" className="vault-show-more" onClick={showMoreVaultItems}>
+              Show {Math.min(hiddenResultCount, 36)} more
+            </button>
+          )}
         </div>
       </section>
     </div>

@@ -38,4 +38,19 @@
     
     nav a::after { display: none !important; } 
     .chat-container-full, .container { max-width: none !important; width: 100% !important; }
+
+    html.performance-low .rail-icon,
+    html.prefers-reduced-motion .rail-icon {
+        transition: none !important;
+        transform: none !important;
+        will-change: auto !important;
+    }
+}
+
+@media (min-width: 769px) and (prefers-reduced-motion: reduce) {
+    .rail-icon {
+        transition: none !important;
+        transform: none !important;
+        will-change: auto !important;
+    }
 }

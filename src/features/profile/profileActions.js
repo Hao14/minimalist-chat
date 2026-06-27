@@ -1,8 +1,8 @@
-import { deleteUser, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
+import { deleteUser, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
 import { ref, remove, set, update } from 'firebase/database';
-import { auth, db, storage } from '../../lib/firebase.js';
+import { auth, db } from '../../lib/firebase.js';
 import { syncPublicUserDirectory } from '../../lib/authProfile.js';
+import { getStorageUploadTools } from '../../lib/firebaseStorage.js';
 
 document.getElementById('save-new-profile-btn')?.addEventListener('click', async () => {
   try {
@@ -47,6 +47,7 @@ document.getElementById('update-profile-btn')?.addEventListener('click', async (
     let finalPhotoUrl = window.userPhotoUrl;
 
     if (fileInput?.files.length > 0) {
+      const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
       const fileRef = storageRef(storage, `avatars/${window.currentUser.uid}`);
       await uploadBytesResumable(fileRef, fileInput.files[0]);
       finalPhotoUrl = await getDownloadURL(fileRef);
@@ -55,6 +56,7 @@ document.getElementById('update-profile-btn')?.addEventListener('click', async (
     const bannerInput = document.getElementById('edit-banner-file');
     let finalBannerUrl = window.userBannerUrl || '';
     if (bannerInput?.files.length > 0) {
+      const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
       const bannerRef = storageRef(storage, `banners/${window.currentUser.uid}`);
       await uploadBytesResumable(bannerRef, bannerInput.files[0]);
       finalBannerUrl = await getDownloadURL(bannerRef);
@@ -191,6 +193,30 @@ function closeSwitchAccountDialog() {
   document.getElementById('switch-account-overlay')?.classList.add('hidden');
 }
 
+function createGoogleProvider() {
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return provider;
+}
+
+function prefersRedirectGoogleAuth() {
+  const userAgent = navigator.userAgent || '';
+  const mobileAgent = /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(userAgent);
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
+  const narrowScreen = window.matchMedia?.('(max-width: 820px)')?.matches;
+  const standalone = window.matchMedia?.('(display-mode: standalone)')?.matches || navigator.standalone;
+  return Boolean(mobileAgent || (coarsePointer && narrowScreen) || standalone);
+}
+
+function shouldRedirectAfterPopupError(error) {
+  return [
+    'auth/popup-blocked',
+    'auth/cancelled-popup-request',
+    'auth/operation-not-supported-in-this-environment',
+    'auth/web-storage-unsupported',
+  ].includes(error?.code);
+}
+
 function ensureSwitchAccountDialog() {
   let overlay = document.getElementById('switch-account-overlay');
   if (overlay) return overlay;
@@ -203,9 +229,9 @@ function ensureSwitchAccountDialog() {
       <button class="switch-account-close" type="button" aria-label="Close account switcher">
         <i class="ph-bold ph-x"></i>
       </button>
-      <p class="switch-account-kicker">Account switcher</p>
+      <p class="switch-account-kicker">Add user</p>
       <h2 id="switch-account-title">Add another account</h2>
-      <p class="switch-account-copy">Pick another Google account without signing out first. If you need email/password, use the sign-out option below.</p>
+      <p class="switch-account-copy">Add or choose a Google account for this browser. You can alternate accounts from the account picker without deleting anything.</p>
       <div class="switch-account-current">
         <span class="switch-account-avatar" id="switch-account-avatar">?</span>
         <div>
@@ -216,13 +242,13 @@ function ensureSwitchAccountDialog() {
       <div class="switch-account-actions">
         <button id="switch-add-google-btn" type="button" class="switch-account-primary">
           <i class="ph-bold ph-google-logo"></i>
-          Add Google account
+          Add or choose Google account
         </button>
         <button id="switch-stay-btn" type="button" class="switch-account-secondary">
           Stay on this account
         </button>
         <button id="switch-email-login-btn" type="button" class="switch-account-danger">
-          Sign out for email login
+          Use email/password login
         </button>
       </div>
     </section>
@@ -246,18 +272,33 @@ function ensureSwitchAccountDialog() {
     button.disabled = true;
     button.innerHTML = '<i class="ph-bold ph-spinner-gap"></i> Opening account picker…';
     try {
-      const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: 'select_account' });
+      const provider = createGoogleProvider();
+      if (prefersRedirectGoogleAuth()) {
+        sessionStorage.setItem('minimalistAddUserRedirect', '1');
+        await signInWithRedirect(auth, provider);
+        return;
+      }
       await signInWithPopup(auth, provider);
       closeSwitchAccountDialog();
       closeSettingsForSessionChange();
-      window.showToast?.('Account switched.', false);
+      window.showToast?.('Account added. You are now using the selected account.', false);
       window.location.reload();
     } catch (error) {
-      window.showToast?.(error?.code === 'auth/popup-closed-by-user' ? 'Account picker closed.' : `Could not switch account: ${error.message}`);
+      if (shouldRedirectAfterPopupError(error)) {
+        try {
+          sessionStorage.setItem('minimalistAddUserRedirect', '1');
+          await signInWithRedirect(auth, createGoogleProvider());
+          return;
+        } catch (redirectError) {
+          sessionStorage.removeItem('minimalistAddUserRedirect');
+          window.showToast?.(`Could not open account picker: ${redirectError.message}`);
+        }
+      } else {
+        window.showToast?.(error?.code === 'auth/popup-closed-by-user' ? 'Account picker closed.' : `Could not add account: ${error.message}`);
+      }
     } finally {
       button.disabled = false;
-      button.innerHTML = '<i class="ph-bold ph-google-logo"></i> Add Google account';
+      button.innerHTML = '<i class="ph-bold ph-google-logo"></i> Add or choose Google account';
     }
   });
 
