@@ -54,7 +54,7 @@ window.renderSettingsCardPreview = async function renderSettingsCardPreview() {
 
   if (!settingsCardPreviewRoot) settingsCardPreviewRoot = createRoot(el);
   settingsCardPreviewRoot.render(createElement(ProfileCardPreview, {
-    user,
+    user: { uid, ...user },
     avatar,
     bannerStyle,
     reputation: window.computeRep ? window.computeRep(user) : 0,
@@ -69,8 +69,17 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
     const user = snapshot.val();
     const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, '');
     const tier = (user.tier || '').toLowerCase();
+    const currentUid = window.currentUser?.uid;
+    const popup = document.getElementById('user-profile-popup');
+    if (popup) popup.dataset.profileUid = targetUid;
 
-    document.getElementById('up-avatar').src = avatar;
+    const avatarEl = document.getElementById('up-avatar');
+    if (avatarEl) {
+      avatarEl.src = avatar;
+      avatarEl.onerror = () => {
+        avatarEl.src = window.getAvatarUrl(user.displayName || user.email || 'User', '');
+      };
+    }
     renderProfileSection('up-name', createElement(ProfileNameLine, { name: user.displayName, tier }));
 
     const displayId = user.shortId || window.generateShortId();
@@ -89,7 +98,7 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
       upFlair.style.display = user.flair ? '' : 'none';
     }
 
-    const isMe = targetUid === window.currentUser.uid;
+    const isMe = targetUid === currentUid;
     renderProfileSection('up-skills', createElement(ProfileSkills, {
       skills: user.skills,
       targetUid,
@@ -182,7 +191,7 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
     const kudosBtn = document.getElementById('up-kudos-btn');
     if (kudosBtn) {
       kudosBtn.style.display = isMe ? 'none' : '';
-      const alreadyGave = !isMe && user.kudosFrom && user.kudosFrom[window.currentUser.uid];
+      const alreadyGave = !isMe && currentUid && user.kudosFrom && user.kudosFrom[currentUid];
       kudosBtn.disabled = !!alreadyGave;
       kudosBtn.onclick = async () => {
         kudosBtn.disabled = true;
@@ -219,7 +228,7 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
       };
     }
 
-    document.getElementById('user-profile-popup').classList.remove('hidden');
+    popup?.classList.remove('hidden');
     document.getElementById('modal-overlay').classList.remove('hidden');
     document.getElementById('profile-more-dropdown')?.classList.add('hidden');
   } catch (error) {

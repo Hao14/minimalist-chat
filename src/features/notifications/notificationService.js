@@ -7,6 +7,9 @@ const h = createElement;
 let notificationsRoot = null;
 let notificationSettingsRoot = null;
 let latestRawNotifications = null;
+let notificationListenerStartedAt = 0;
+const seenNotificationSignatures = new Set();
+const REALTIME_SOUND_TYPES = new Set(['mention', 'message', 'invite', 'friend']);
 const NOTIFICATION_MODES = [
   { id: 'all', label: 'All notifications', icon: 'ph-bell-ringing' },
   { id: 'mentions', label: 'Mentions only', icon: 'ph-at' },
@@ -89,6 +92,22 @@ function notificationTitle(type) {
   if (type === 'follow') return ['NEW FOLLOWER', 'ph-bold ph-user-focus'];
   if (type === 'endorse') return ['SKILL ENDORSED', 'ph-bold ph-seal-check'];
   return ['SYSTEM ALERT', 'ph-bold ph-bell'];
+}
+
+function hasFreshRealtimeAlert(rawNotifications = {}) {
+  const prefs = readNotificationPrefs();
+  const visibleAlertIds = new Set(
+    visibleNotifications(groupNotifications(rawNotifications || {}), prefs, 'all')
+      .flatMap((group) => group.ids || []),
+  );
+
+  return Object.entries(rawNotifications || {}).some(([id, notification]) => {
+    const signature = `${id}:${notification?.timestamp || 0}:${notification?.count || 1}:${notification?.text || ''}`;
+    const isFresh = (notification?.timestamp || 0) > notificationListenerStartedAt - 3000;
+    const isNew = !seenNotificationSignatures.has(signature);
+    seenNotificationSignatures.add(signature);
+    return isNew && isFresh && visibleAlertIds.has(id) && REALTIME_SOUND_TYPES.has(notification?.type);
+  });
 }
 
 function notificationTime(timestamp, today, yesterday) {
@@ -590,30 +609,39 @@ window.renderNotificationSettings = function renderNotificationSettings() {
 
 window.listenForNotifications = function listenForNotifications() {
   if (!window.currentUser) return;
+  notificationListenerStartedAt = Date.now();
+  seenNotificationSignatures.clear();
 
   onValue(ref(db, `notifications/${window.currentUser.uid}`), (snapshot) => {
     const list = document.getElementById('notifications-list');
     const desktopBell = document.getElementById('open-updates-btn-desktop');
     const mobileBell = document.getElementById('open-updates-btn-mobile');
-    if (!list) return;
 
     if (!snapshot.exists()) {
       latestRawNotifications = null;
       if (desktopBell) desktopBell.style.color = 'var(--text-color)';
       if (mobileBell) mobileBell.style.color = 'var(--text-color)';
-      list.style.padding = '1.5rem';
-      renderNotifications(list, null);
+      if (list) {
+        list.style.padding = '1.5rem';
+        renderNotifications(list, null);
+      }
       window.renderNotificationSettings?.();
       return;
     }
 
-    latestRawNotifications = snapshot.val();
+    const nextRawNotifications = snapshot.val();
+    const freshRealtimeAlert = hasFreshRealtimeAlert(nextRawNotifications);
+
+    latestRawNotifications = nextRawNotifications;
+    if (freshRealtimeAlert) window.playPing?.();
     if (desktopBell) desktopBell.style.color = '#FF3B30';
     if (mobileBell) mobileBell.style.color = '#FF3B30';
-    list.style.padding = '0';
-    list.style.gap = '0';
+    if (list) {
+      list.style.padding = '0';
+      list.style.gap = '0';
+      renderNotifications(list, latestRawNotifications);
+    }
 
-    renderNotifications(list, latestRawNotifications);
     window.renderNotificationSettings?.();
   });
 };

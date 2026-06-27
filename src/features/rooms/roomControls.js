@@ -1,9 +1,9 @@
 ﻿// js/rooms.js
-import { db, storage } from '../../lib/firebase.js';
+import { db } from '../../lib/firebase.js';
+import { getStorageUploadTools } from '../../lib/firebaseStorage.js';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ref, set, get, push, remove, serverTimestamp } from 'firebase/database';
-import { getDownloadURL, ref as storageRef, uploadBytesResumable } from 'firebase/storage';
 import { mountChatCore, switchChatRoom } from '../chat-core/mountChatCore.js';
 import {
     RoomAuditLog,
@@ -987,6 +987,7 @@ async function uploadCreateRoomPicture(roomId) {
     const file = createRoomDraft.pictureFile;
     if (!file) return '';
     const safeName = file.name.replace(/[^a-z0-9_.-]/gi, '_').slice(-80);
+    const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
     const target = storageRef(storage, `room_pictures/${roomId}/${Date.now()}_${safeName}`);
     await uploadBytesResumable(target, file);
     return getDownloadURL(target);
@@ -1379,6 +1380,7 @@ document.getElementById('rs-save-room-picture-btn')?.addEventListener('click', a
     setRoomPictureBusy(true);
     try {
         const safeName = file.name.replace(/[^a-z0-9_.-]/gi, '_').slice(-80);
+        const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
         const target = storageRef(storage, `room_pictures/${window.activeRoomId}/${Date.now()}_${safeName}`);
         await uploadBytesResumable(target, file);
         const photoUrl = await getDownloadURL(target);
@@ -1435,6 +1437,7 @@ document.getElementById('rs-save-room-banner-btn')?.addEventListener('click', as
     setRoomBannerBusy(true);
     try {
         const safeName = file.name.replace(/[^a-z0-9_.-]/gi, '_').slice(-80);
+        const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
         const target = storageRef(storage, `room_banners/${window.activeRoomId}/${Date.now()}_${safeName}`);
         await uploadBytesResumable(target, file);
         const bannerUrl = await getDownloadURL(target);

@@ -91,8 +91,8 @@ function SearchState({ body, icon, title }) {
   );
 }
 
-export function Search({ getAvatarUrl }) {
-  const [open, setOpen] = useState(false);
+export function Search({ getAvatarUrl, initialOpen = false }) {
+  const [open, setOpen] = useState(() => Boolean(initialOpen));
   const [searchText, setSearchText] = useState('');
   const [activeScope, setActiveScope] = useState('all');
   const [results, setResults] = useState({ query: '', rooms: [], people: [], messages: [], error: '' });

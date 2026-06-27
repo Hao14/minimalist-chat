@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../lib/firebase.js';
 
 const MARKETING_REVEAL_SELECTOR = [
   '.lp-hero',
@@ -262,7 +260,34 @@ function MarketingHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
 
-  useEffect(() => onAuthStateChanged(auth, setUser), []);
+  useEffect(() => {
+    let cancelled = false;
+    let unsubscribe = null;
+    let authTimer = 0;
+
+    const loadAuthState = async () => {
+      try {
+        const [{ onAuthStateChanged }, { auth }] = await Promise.all([
+          import('firebase/auth'),
+          import('../lib/firebase.js'),
+        ]);
+        if (cancelled) return;
+        unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+          if (!cancelled) setUser(nextUser);
+        });
+      } catch {
+        // The public marketing shell should never fail because auth was slow.
+      }
+    };
+
+    authTimer = window.setTimeout(loadAuthState, 6500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(authTimer);
+      unsubscribe?.();
+    };
+  }, []);
 
   const navItems = [
     ['/', 'Home'],
@@ -352,8 +377,8 @@ function MarketingFooter() {
   );
 }
 
-const DEFAULT_META_DESCRIPTION = 'Minimalist.chat is a calmer rooms platform for friends, teams, students, creators, clubs, and communities — organized chat without the noise.';
-const DEFAULT_META_TITLE = 'Minimalist.chat | Calm rooms for real communities';
+const DEFAULT_META_DESCRIPTION = 'Minimalist.chat is the calm, organized rooms platform with Catch-Me-Up digests, focus modes, decisions, action items, scheduled messages, and offline-first reading.';
+const DEFAULT_META_TITLE = 'Minimalist.chat | Calm, organized rooms';
 
 function upsertMeta(selector, createAttrs, valueAttr, value) {
   let tag = document.head.querySelector(selector);
@@ -389,6 +414,7 @@ function MarketingShell({ title, children, shape = 'yellow-circle', description 
     applyPageMeta({ title, description });
     document.body.className = 'marketing marketing-scroll';
     document.body.removeAttribute('style');
+    window.dispatchEvent(new Event('minimalist:marketing-mounted'));
     return () => {
       document.title = oldTitle;
       if (previousDescription) document.querySelector('meta[name="description"]')?.setAttribute('content', previousDescription);
@@ -420,13 +446,13 @@ function Toast({ message, onClose, icon = '📦' }) {
 }
 
 const homepageUseCases = [
-  ['Friend groups', 'ph-smiley', 'Plans, photos, and daily check-ins in one calm place — not five scattered threads.'],
-  ['Study groups', 'ph-graduation-cap', 'Share notes, schedule sessions, pin resources, and keep discussions organized.'],
-  ['Creator communities', 'ph-broadcast', 'Give fans a close, organized home with channels, events, and easy moderation.'],
-  ['Startup teams', 'ph-rocket-launch', 'Chat, docs, tasks, and decisions together — without drowning in noise.'],
-  ['Gaming communities', 'ph-game-controller', 'Squad up with channels, calls, clips, events, and room lore.'],
-  ['Clubs', 'ph-users-three', 'Keep announcements, events, files, and votes tidy for every member.'],
-  ['Support groups', 'ph-heart', 'A private, gentle space with reporting, permissions, and care built in.'],
+  ['Friend groups', 'ph-smiley', 'Catch up on plans, photos, and decisions without rereading a weekend of chatter.'],
+  ['Study groups', 'ph-graduation-cap', 'Use focus mode, scheduled reminders, shared notes, and offline reading before the exam.'],
+  ['Creator communities', 'ph-broadcast', 'Give fans a calm home with templates, role onboarding, digests, and gentle moderation.'],
+  ['Startup teams', 'ph-rocket-launch', 'Capture decisions and action items directly from conversation without turning chat into work noise.'],
+  ['Gaming communities', 'ph-game-controller', 'Coordinate raids, clips, schedules, and room lore while keeping the main room readable.'],
+  ['Clubs', 'ph-users-three', 'Start from a room template, onboard officers by role, and keep events and votes tidy.'],
+  ['Support groups', 'ph-heart', 'Quiet-by-default rooms help people read, respond, and step away without losing context.'],
 ];
 
 const demoRooms = [
@@ -435,21 +461,21 @@ const demoRooms = [
     icon: 'ph-graduation-cap',
     members: '24 members',
     mood: 'quiet focus',
-    lines: ['Pinned: finals checklist', 'Mina shared biology notes', 'AI summary ready for chapter 8'],
+    lines: ['Catch-Me-Up ready: 6 key updates', 'Offline pack saved for chapter 8', 'Scheduled reminder: lab review at 7'],
   },
   {
     name: 'Creator Community',
     icon: 'ph-broadcast',
     members: '1.2k members',
-    mood: 'organized buzz',
-    lines: ['Poll: next stream topic?', 'Best Of Archive updated', 'Room Prestige: rising'],
+    mood: 'guided onboarding',
+    lines: ['New member template applied', 'Role checklist: mods onboarded', 'Digest skipped low-signal chatter'],
   },
   {
     name: 'Project Team',
     icon: 'ph-kanban',
     members: '8 members',
     mood: 'clear momentum',
-    lines: ['Decision captured: ship beta Friday', 'Reminder set for design review', 'Docs: roadmap edited live'],
+    lines: ['Decision captured: ship beta Friday', '3 action items assigned', 'Scheduled message: launch notes tomorrow'],
   },
 ];
 
@@ -468,23 +494,23 @@ const guidedSteps = [
 
 const simpleFeatures = [
   'Rooms',
-  'Messages',
-  'Files',
+  'Quiet messages',
+  'Catch-Me-Up',
+  'Offline reading',
   'Search',
-  'Settings',
 ];
 
 const powerFeatures = [
-  'Tasks',
-  'Polls',
+  'Decisions',
+  'Action Items',
+  'Scheduled Messages',
+  'Room Templates',
+  'Role Onboarding',
   'Events',
   'Wiki',
-  'Analytics',
   'Moderation',
   'Integrations',
   'Room Memory',
-  'Time Capsules',
-  'Best Of Archive',
 ];
 
 const FEATURE_MODE_KEY = 'minimalistMarketingMode';
@@ -494,17 +520,17 @@ const featureModeMeta = {
   simple: {
     label: 'Simple Mode',
     shortLabel: 'Simple',
-    helper: '5 essentials',
-    title: 'Simple Mode keeps the site quiet.',
-    copy: 'Visitors see the core room experience first: rooms, messages, files, search, and settings. No wall of tools before they understand the feeling.',
+    helper: 'calm essentials',
+    title: 'Simple Mode stays quiet by default.',
+    copy: 'Visitors see the calm loop first: a room, readable messages, Catch-Me-Up digests, offline-first reading, and search. No wall of tools before they feel organized.',
     list: simpleFeatures,
   },
   power: {
     label: 'Power Mode',
     shortLabel: 'Power',
-    helper: 'full platform',
-    title: 'Power Mode opens the full platform.',
-    copy: 'When people want depth, the page reveals tasks, polls, events, wiki, analytics, moderation, integrations, room memory, time capsules, and archives.',
+    helper: 'organized follow-through',
+    title: 'Power Mode adds structure when the room grows.',
+    copy: 'When groups need depth, Minimalist reveals decisions, action items, scheduled messages, room templates, role onboarding, events, wiki, moderation, integrations, and memory.',
     list: powerFeatures,
   },
 };
@@ -572,47 +598,47 @@ function FeatureModeSwitch({ mode, onChange, className = '' }) {
 }
 
 const trustItems = [
-  ['Privacy controls', 'ph-lock-key', 'Private rooms, encrypted PM mode, and clear invite boundaries.'],
-  ['Moderation', 'ph-shield-check', 'Reporting, mutes, room permissions, audit logs, and safety controls.'],
-  ['Account security', 'ph-fingerprint', '2FA-ready account flows, secure auth, and a visible security center path.'],
-  ['Transparency', 'ph-clipboard-text', 'Audit logs and member controls help communities understand what changed.'],
+  ['Catch-Me-Up digest', 'ph-newspaper-clipping', 'A signature digest separates decisions, action items, links, and quiet context from the raw scroll.'],
+  ['Quiet by default', 'ph-moon-stars', 'Focus, zen, and compact modes make attention the default instead of another setting to hunt for.'],
+  ['Follow-through built in', 'ph-checks', 'Decisions and action items can be captured from the room while the conversation stays readable.'],
+  ['Roles know what to do', 'ph-identification-card', 'Templates and onboarding checklists help members, mods, students, and leads start organized.'],
 ];
 
 const pricingCards = [
-  ['Base', '$0', 'For starting a small room', ['10MB per file', '500MB daily uploads', 'Create up to 3 rooms', '720p/30 screen share']],
-  ['Advanced', '$1.99/mo', 'For active groups', ['700MB per file', '1.5GB daily uploads', 'Create up to 5 rooms', '1080p/60 screen share', 'Advanced badge']],
-  ['Pro', '$3.99/mo', 'For growing communities', ['3GB per file', '9GB daily uploads', 'Unlimited rooms', 'Analytics + video calls', 'Personal AI agent']],
+  ['Base', '$0', 'For starting a calm room', ['Quiet rooms', 'Catch-Me-Up preview', 'Create up to 3 rooms', '720p/30 screen share']],
+  ['Advanced', '$1.99/mo', 'For active groups', ['Scheduled messages', 'Room templates', 'Create up to 5 rooms', '1080p/60 screen share', 'Advanced badge']],
+  ['Pro', '$3.99/mo', 'For growing communities', ['Unlimited rooms', 'Offline-first reading', 'Role onboarding', 'Analytics + video calls', 'Personal AI agent']],
 ];
 
 const homeFaq = [
-  ['Is it free?', 'Yes. Base is free, with optional Advanced and Pro upgrades for bigger uploads, more rooms, analytics, calls, and AI.'],
-  ['Can I create private rooms?', 'Yes. Rooms can be private and invite-based, with permissions for who can chat, upload, call, create channels, and manage settings.'],
-  ['Can I invite people?', 'Yes. Share a join link, invite by room code, or forward an invite through private messages.'],
-  ['Is my data private?', 'Minimalist.chat is built around private spaces, reporting, account deletion, secure auth, and moderation tools.'],
+  ['What is Catch-Me-Up?', 'Catch-Me-Up is the signature digest: the room summarizes what changed, what was decided, what needs action, and what can wait.'],
+  ['What does quiet by default mean?', 'Rooms open readable and focused first. Focus, zen, compact layouts, and calmer notifications help people stay present without missing context.'],
+  ['Can rooms stay organized over time?', 'Yes. Decisions, action items, scheduled messages, templates, roles, files, and room memory give conversation a durable structure.'],
+  ['Can I read offline?', 'Offline-first reading is part of the calm workflow: catch up on saved room context even when your connection is unreliable.'],
   ['Can I use it for teams?', 'Yes. Teams can use rooms, channels, docs, tasks, events, files, calls, analytics, and audit logs.'],
 ];
 
 const homeStoryChapters = [
   {
-    eyebrow: '01 · Calm first',
-    title: 'The room opens simple.',
-    copy: 'People see the conversation, files, search, and settings first. The page moves like the app: clean, readable, and intentionally quiet.',
-    metric: '5 essentials',
-    chips: ['Rooms', 'Messages', 'Files', 'Search', 'Settings'],
+    eyebrow: '01 · Quiet by default',
+    title: 'The room opens calm.',
+    copy: 'Messages stay readable first. Focus, zen, and compact modes keep the experience quiet before any power tools appear.',
+    metric: 'focus first',
+    chips: ['Quiet messages', 'Focus mode', 'Zen mode', 'Search'],
   },
   {
-    eyebrow: '02 · Power appears',
-    title: 'Tools reveal only when the room needs them.',
-    copy: 'Tasks, polls, docs, events, analytics, moderation, integrations, room memory, and time capsules stay tucked away until the group grows.',
-    metric: '10+ power tools',
-    chips: ['Tasks', 'Polls', 'Events', 'Wiki', 'AI', 'Moderation'],
+    eyebrow: '02 · Catch up fast',
+    title: 'The digest does the scanning.',
+    copy: 'Catch-Me-Up pulls out decisions, action items, shared links, and important updates so returning members do not have to read every line.',
+    metric: 'digest first',
+    chips: ['Catch-Me-Up', 'Decisions', 'Action items', 'Links'],
   },
   {
-    eyebrow: '03 · Memory builds',
-    title: 'The room becomes a place.',
-    copy: 'Best Of Archive, Room Lore, milestones, prestige, celebrations, and community legacy make the room feel alive without adding clutter.',
-    metric: 'living history',
-    chips: ['Room Memory', 'Best Of', 'Lore', 'Milestones'],
+    eyebrow: '03 · Organized follow-through',
+    title: 'The room knows what happens next.',
+    copy: 'Scheduled messages, room templates, role onboarding, offline-first reading, and room memory turn chat into a place that keeps itself together.',
+    metric: 'next steps',
+    chips: ['Scheduled', 'Templates', 'Roles', 'Offline'],
   },
 ];
 
@@ -667,7 +693,7 @@ function InteractiveChatPreview() {
       setDone((d) => ({ ...d, task: true }));
       setNotice('Turned into a task on the room board.');
     }) },
-    { key: 'memory', label: 'Memory', icon: 'ph-brain', run: withActive((m) => {
+    { key: 'memory', label: 'Memory', icon: 'ph-brain', run: withActive(() => {
       setMemorySaved(true);
       setDone((d) => ({ ...d, memory: true }));
       setNotice('Saved to Room Memory — the room will remember this.');
@@ -759,8 +785,8 @@ function ModeToggleSection() {
   return (
     <section className="home-section home-mode-section">
       <div className="home-section-head">
-        <span className="home-kicker">Minimalist when you want it</span>
-        <h2>Clean by default. Powerful when the room grows.</h2>
+        <span className="home-kicker">Calm first, organized next</span>
+        <h2>Quiet by default. Structured when the room needs follow-through.</h2>
       </div>
       <div className="home-mode-card">
         <FeatureModeSwitch mode={mode} onChange={setMode} className="home-mode-toggle" />
@@ -789,18 +815,18 @@ export function HomePage() {
       <main className="container fade-in-up home-page home-cinematic-page">
         <section className="lp-hero home-cinematic-hero">
           <div className="lp-hero-text home-cinematic-copy">
-            <span className="home-kicker">Rooms without the noise</span>
-            <h1>One calm room can hold a whole community.</h1>
-            <p className="fade-in-up delay-1">Minimalist.chat turns group chat into a shared room for messages, files, events, decisions, and memory — without making the first screen feel like a cockpit.</p>
+            <span className="home-kicker">Calm rooms that organize themselves</span>
+            <h1>Catch up in minutes. Stay focused for hours.</h1>
+            <p className="fade-in-up delay-1">Minimalist.chat turns group chat into an organized room with Catch-Me-Up digests, quiet-by-default focus modes, decisions, action items, scheduled messages, templates, roles, and offline-first reading.</p>
             <div className="lp-cta fade-in-up delay-2">
               <a href="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></a>
               <a href="#home-live-demo" className="lp-btn lp-btn-secondary">Try demo room</a>
             </div>
             <div className="home-proof-row" aria-label="Platform highlights">
-              <span>Simple by default</span>
-              <span>Power on demand</span>
-              <span>Private or public</span>
-              <span>Built-in memory</span>
+              <span>Catch-Me-Up digest</span>
+              <span>Quiet by default</span>
+              <span>Decisions + actions</span>
+              <span>Offline-first reading</span>
             </div>
           </div>
           <div className="home-cinematic-preview">
@@ -810,9 +836,9 @@ export function HomePage() {
 
         <section className="home-section home-scroll-story" id="room-story">
           <div className="home-story-copy">
-            <span className="home-kicker">Compact scroll story</span>
-            <h2>The homepage now behaves like the product.</h2>
-            <p>Instead of listing every feature, the page shows the feeling: a room starts quiet, then unlocks depth as people actually need it.</p>
+            <span className="home-kicker">The calm/organized loop</span>
+            <h2>The page now leads with what makes Minimalist different.</h2>
+            <p>Instead of another noisy feature wall, Minimalist shows a room that starts quiet, catches you up, and turns important conversation into clear next steps.</p>
           </div>
           <div className="home-story-panels">
             {homeStoryChapters.map((chapter) => (
@@ -860,8 +886,8 @@ export function HomePage() {
 
         <section className="home-section home-compact-proof">
           <div className="home-proof-panel">
-            <span className="home-kicker">Trust</span>
-            <h2>Freedom, with control.</h2>
+            <span className="home-kicker">Differentiation</span>
+            <h2>Calm is the product, not a theme.</h2>
             <div className="home-trust-mini-grid">
               {trustItems.map(([label, icon, copy]) => (
                 <article className="home-trust-card" key={label}>
@@ -908,24 +934,24 @@ export function HomePage() {
 }
 
 const simpleFeatureCards = [
-  ['Rooms', 'ph-hash', 'Create a shared place for a group, project, class, club, or community.'],
-  ['Messages', 'ph-chat-circle-text', 'Real-time conversation stays readable, direct, and calm.'],
-  ['Files', 'ph-paperclip', 'Share images, docs, notes, and resources without hunting through the chat later.'],
-  ['Search', 'ph-magnifying-glass', 'Find rooms, messages, files, people, and resources from one obvious place.'],
-  ['Settings', 'ph-sliders-horizontal', 'Control your profile, room preferences, appearance, and notifications.'],
+  ['Rooms', 'ph-hash', 'Create a shared place for a group, project, class, club, or community without starting from a noisy blank slate.'],
+  ['Quiet Messages', 'ph-chat-circle-text', 'The core conversation stays readable with focus, zen, and compact modes close at hand.'],
+  ['Catch-Me-Up', 'ph-newspaper-clipping', 'Return to a room and see the decisions, action items, links, and key updates before the raw scroll.'],
+  ['Offline Reading', 'ph-cloud-arrow-down', 'Keep important room context available for unreliable connections, commutes, travel, and low-focus moments.'],
+  ['Search', 'ph-magnifying-glass', 'Find rooms, messages, files, people, decisions, and resources from one obvious place.'],
 ];
 
 const powerFeatureCards = [
-  ['Tasks', 'ph-check-square', 'Turn conversations into shared action items and keep work moving.'],
-  ['Polls', 'ph-chart-bar', 'Make decisions together without derailing the room.'],
-  ['Events', 'ph-calendar-dots', 'Plan room events, reminders, calendars, and deadlines.'],
+  ['Decisions', 'ph-seal-check', 'Capture what the group agreed to so the same question does not restart three days later.'],
+  ['Action Items', 'ph-check-square', 'Turn conversations into owned next steps and keep follow-through visible to the room.'],
+  ['Scheduled Messages', 'ph-clock-countdown', 'Write once, send later, and keep announcements or reminders from interrupting the wrong moment.'],
+  ['Room Templates', 'ph-layout', 'Start clubs, classes, projects, creator spaces, and support groups with the right structure already in place.'],
+  ['Role Onboarding', 'ph-identification-card', 'Give members, moderators, officers, students, and leads a guided first path through the room.'],
+  ['Events', 'ph-calendar-dots', 'Plan room events, reminders, calendars, and deadlines without leaving the shared context.'],
   ['Wiki', 'ph-book-open-text', 'Keep room knowledge, notes, rules, and resources in a living hub.'],
-  ['Analytics', 'ph-chart-line-up', 'Understand room health, activity, contribution, and momentum.'],
   ['Moderation', 'ph-shield-check', 'Use reports, permissions, audit logs, keyword controls, and safety tools.'],
   ['Integrations', 'ph-plugs-connected', 'Connect workflows through webhooks, channels, and external tools.'],
-  ['Room Memory', 'ph-brain', 'Preserve important context so the room remembers what happened.'],
-  ['Time Capsules', 'ph-hourglass-high', 'Lock memories, announcements, or moments for future reveal.'],
-  ['Best Of Archive', 'ph-trophy', 'Collect the highlights, decisions, wins, and room lore that define a community.'],
+  ['Room Memory', 'ph-brain', 'Preserve important context so the room remembers what happened and feeds better future digests.'],
 ];
 
 const powerWorkspaceTools = [
@@ -934,11 +960,14 @@ const powerWorkspaceTools = [
   'Keyboard shortcuts',
   'Workspace switching',
   'Multi-room view',
+  'Catch-Me-Up settings',
   'Focus mode',
   'Zen mode',
   'Compact mode',
-  'Resizable layouts',
-  'Pop-out windows',
+  'Scheduled send',
+  'Template library',
+  'Role checklists',
+  'Offline queue',
 ];
 
 function slugifyFeature(label) {
@@ -954,15 +983,15 @@ export function FeaturesPage() {
     <MarketingShell title="Minimalist | Features" shape="outline-square">
       <main className="container feat-page feature-mode-page" data-feature-mode={mode}>
         <div className="feat-hero">
-          <span className="home-kicker">Simple when you want it. Powerful when you need it.</span>
-          <h1>{mode === 'simple' ? 'A clean room, not a control panel.' : 'The full platform, when the room grows.'}</h1>
+          <span className="home-kicker">Quiet by default. Organized when it matters.</span>
+          <h1>{mode === 'simple' ? 'Catch up without digging through the scroll.' : 'The full room system, when the group grows.'}</h1>
           <p>{activeMode.copy}</p>
           <div className="feat-orbit-map" aria-hidden="true">
             <span className="orbit-core">{mode === 'simple' ? 'Simple' : 'Power'}</span>
             <span>Rooms</span>
-            <span>Docs</span>
-            <span>Tasks</span>
-            <span>AI</span>
+            <span>Digest</span>
+            <span>Actions</span>
+            <span>Focus</span>
           </div>
           <a href="/chat" className="lp-btn lp-btn-primary feat-start">Create your first room <i className="ph-bold ph-arrow-right" /></a>
         </div>
@@ -972,8 +1001,8 @@ export function FeaturesPage() {
             <span className="home-kicker">Current site mode</span>
             <h2>{activeMode.title}</h2>
             <p>{mode === 'simple'
-              ? 'The page intentionally stays small: the five things most groups need to understand before joining.'
-              : 'The page expands into the deeper room system from the product vision, without burying the simple promise.'}
+              ? 'The page intentionally starts with the calm loop: read, catch up, focus, search, and keep moving.'
+              : 'The page expands into the organized room system: decisions, action items, scheduling, templates, roles, and memory.'}
             </p>
           </div>
           <FeatureModeSwitch mode={mode} onChange={setMode} className="feat-mode-switch" />
@@ -1001,8 +1030,8 @@ export function FeaturesPage() {
         {mode === 'power' && (
           <section className="feat-power-tools">
             <span className="home-kicker">Power-user workspace</span>
-            <h2>Built for people who live in rooms all day.</h2>
-            <p>Power Mode also makes room for the pro workflow tools already in the platform vision.</p>
+            <h2>Built for people who live in rooms all day but still want calm.</h2>
+            <p>Power Mode keeps the pro workflow close while preserving the quiet default: digest controls, scheduled send, template libraries, role checklists, and offline queues.</p>
             <div className="feat-chip-grid">
               {powerWorkspaceTools.map((tool) => <span key={tool}>{tool}</span>)}
             </div>

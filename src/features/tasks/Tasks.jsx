@@ -37,6 +37,7 @@ const initials = (name) => (name || '?').trim().split(/\s+/).map((word) => word[
 const statusOf = (task) => (task.status && STATUS_IDS.includes(task.status) ? task.status : (task.done ? 'done' : 'todo'));
 const categoriesOf = (task) => (task.categories ? Object.keys(task.categories).filter((key) => task.categories[key]) : []);
 const isArchivedTask = (task) => task.archived === true || task.status === 'archived';
+const timestampNow = () => Date.now();
 const startOfToday = () => {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
@@ -178,9 +179,12 @@ function TaskDetail({ task, memberNames, onClose, onPatch, onDelete, onAddCatego
 
 export function Tasks({ roomId, user }) {
   const [tasks, setTasks] = useState([]);
+  const [archivedTasks, setArchivedTasks] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [filterMember, setFilterMember] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [archiveFilter, setArchiveFilter] = useState('days');
   const [addingColumn, setAddingColumn] = useState(null);
   const [addDraft, setAddDraft] = useState('');
   const addInputRef = useRef(null);
@@ -198,7 +202,7 @@ export function Tasks({ roomId, user }) {
       if (completedAt < cutoff) {
         update(ref(db, `room_tasks/${roomId}/${task.id}`), {
           archived: true,
-          archivedAt: Date.now(),
+          archivedAt: timestampNow(),
           archivedReason: 'End-of-day Done sweep',
           status: 'archived',
         }).catch(() => {});
@@ -212,6 +216,7 @@ export function Tasks({ roomId, user }) {
     const nextTasks = Object.entries(value).map(([id, task]) => ({ id, ...task }));
     allTasksRef.current = nextTasks;
     setTasks(nextTasks.filter((task) => !isArchivedTask(task)));
+    setArchivedTasks(nextTasks.filter(isArchivedTask));
     archiveDoneTasks(nextTasks);
   }), [archiveDoneTasks, roomId]);
 
@@ -240,6 +245,18 @@ export function Tasks({ roomId, user }) {
   }, [tasks, filterMember, filterPriority]);
 
   const selected = tasks.find((task) => task.id === selectedId) || null;
+  const visibleArchivedTasks = useMemo(() => {
+    const now = timestampNow();
+    const windows = {
+      hours: 24 * 60 * 60 * 1000,
+      days: 7 * 24 * 60 * 60 * 1000,
+      weeks: 30 * 24 * 60 * 60 * 1000,
+    };
+    const windowMs = windows[archiveFilter] || windows.days;
+    return [...archivedTasks]
+      .filter((task) => now - Number(task.archivedAt || task.completedAt || task.createdAt || 0) <= windowMs)
+      .sort((a, b) => Number(b.archivedAt || 0) - Number(a.archivedAt || 0));
+  }, [archiveFilter, archivedTasks]);
 
   const patchTask = (id, patch) => update(ref(db, `room_tasks/${roomId}/${id}`), patch);
 
@@ -255,7 +272,7 @@ export function Tasks({ roomId, user }) {
       byName: user.displayName,
       assignee: user.uid,
       assigneeName: user.displayName,
-      completedAt: status === 'done' ? Date.now() : null,
+      completedAt: status === 'done' ? timestampNow() : null,
       createdAt: serverTimestamp(),
     });
     setAddDraft('');
@@ -269,12 +286,20 @@ export function Tasks({ roomId, user }) {
     patchTask(id, {
       status,
       done: status === 'done',
-      completedAt: status === 'done' ? (task.completedAt || Date.now()) : null,
+      completedAt: status === 'done' ? (task.completedAt || timestampNow()) : null,
     });
     if (status === 'done' && task.by === user.uid) window.awardXP?.(user.uid, 'technical', 3);
   };
 
   const deleteTask = (id) => { remove(ref(db, `room_tasks/${roomId}/${id}`)); if (selectedId === id) setSelectedId(null); };
+  const restoreTask = (id) => patchTask(id, {
+    archived: false,
+    archivedAt: null,
+    archivedReason: null,
+    status: 'done',
+    done: true,
+    completedAt: timestampNow(),
+  });
 
   const addCategory = (id, name) => {
     const clean = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 18);
@@ -295,7 +320,48 @@ export function Tasks({ roomId, user }) {
             {PRIORITIES.map((priority) => <option key={priority} value={priority}>{PRIORITY_LABEL[priority]}</option>)}
           </select>
         </div>
+        <button type="button" className={`kb-archive-toggle ${archiveOpen ? 'active' : ''}`} onClick={() => setArchiveOpen((value) => !value)}>
+          <i className="ph-bold ph-archive-box" /> Archive
+          {archivedTasks.length ? <span>{archivedTasks.length}</span> : null}
+        </button>
       </div>
+
+      {archiveOpen ? (
+        <section className="kb-archive-panel" aria-label="Completed task archive">
+          <header>
+            <div>
+              <span className="kb-archive-kicker">Completed archive</span>
+              <h3>Done tasks that aged out</h3>
+            </div>
+            <div className="kb-archive-filters" role="tablist" aria-label="Archive time range">
+              {[
+                ['hours', 'Hours'],
+                ['days', 'Days'],
+                ['weeks', 'Weeks'],
+              ].map(([id, label]) => (
+                <button key={id} type="button" className={archiveFilter === id ? 'active' : ''} onClick={() => setArchiveFilter(id)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </header>
+          <div className="kb-archive-list">
+            {visibleArchivedTasks.length ? visibleArchivedTasks.map((task) => (
+              <article className="kb-archive-item" key={task.id}>
+                <div>
+                  <strong>{task.text || 'Untitled task'}</strong>
+                  <small>
+                    Archived {formatDate(task.archivedAt || task.completedAt)} · {task.assigneeName || task.byName || 'Unassigned'}
+                  </small>
+                </div>
+                <button type="button" onClick={() => restoreTask(task.id)}>Restore</button>
+              </article>
+            )) : (
+              <div className="kb-archive-empty">No completed tasks in this range yet.</div>
+            )}
+          </div>
+        </section>
+      ) : null}
 
       <div className="kb-board">
         {COLUMNS.map((column) => (

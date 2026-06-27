@@ -1,8 +1,6 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
-import { getFunctions } from 'firebase/functions';
-import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDAnwh1kYnomfGIMM71J9tCY3tuOV0ejnE',
@@ -19,5 +17,20 @@ export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 export const db = getDatabase(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app);
+
+let storagePromise = null;
+let functionsPromise = null;
+
+export function getStorageLazy() {
+  if (!storagePromise) {
+    storagePromise = import('firebase/storage').then(({ getStorage }) => getStorage(app));
+  }
+  return storagePromise;
+}
+
+export function getFunctionsLazy() {
+  if (!functionsPromise) {
+    functionsPromise = import('firebase/functions').then(({ getFunctions }) => getFunctions(app));
+  }
+  return functionsPromise;
+}

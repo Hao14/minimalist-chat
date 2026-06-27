@@ -1238,7 +1238,7 @@ body.modern-mode:not(.marketing):not(.auth-screen) .msg-inline-code {
 @media (max-width: 768px) {
     body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #chat-form {
         min-height: 128px !important;
-        padding: 0.64rem 0.78rem max(0.86rem, env(safe-area-inset-bottom)) !important;
+        padding: 0.64rem 0.78rem calc(72px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
     body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .composer-input-row {
@@ -1621,5 +1621,628 @@ body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-card-m
 
     body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .q-hero-ring::before {
         inset: 8px;
+    }
+}
+
+/* Desktop Modern hardening: readable light workspaces, no cursor-follow paint loop. */
+@media (min-width: 1200px) {
+    body.modern-mode:not(.marketing):not(.auth-screen) {
+        --modern-muted: #5b6472;
+        --modern-subtext: #536071;
+        --modern-nav-muted: rgba(226, 232, 240, 0.78);
+        --modern-aurora-angle: 0deg !important;
+        --modern-pulse: 0.35 !important;
+        --modern-pointer-x-pct: 72% !important;
+        --modern-pointer-y-pct: 14% !important;
+        --modern-tilt-x: 0 !important;
+        --modern-tilt-y: 0 !important;
+    }
+
+    body.modern-mode.modern-motion-ready #nav-logo .mascot-blip,
+    body.modern-mode.modern-motion-ready .composer-send-btn,
+    body.modern-mode.modern-motion-ready #mobile-send-btn {
+        animation: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::after,
+    body.modern-mode:not(.marketing):not(.auth-screen) #main-chat-area::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::after,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::after {
+        transform: none !important;
+        transition: none !important;
+        will-change: auto !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::after {
+        filter: none !important;
+        opacity: 0.20 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #main-chat-area::before {
+        opacity: 0.38 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel) {
+        width: clamp(420px, 30vw, 520px) !important;
+        max-width: calc(100vw - 76px) !important;
+        border-left: 1px solid rgba(124, 58, 237, 0.18) !important;
+        box-shadow: -26px 0 72px -58px rgba(17, 24, 39, 0.70) !important;
+        background:
+            radial-gradient(560px 280px at 100% 0%, rgba(139, 92, 246, 0.12), transparent 72%),
+            linear-gradient(180deg, #fdfcff 0%, #f8f5ff 46%, #ffffff 100%) !important;
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel).open,
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel.open {
+        transform: translate3d(0, 0, 0) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel) .contacts-header {
+        min-height: 72px !important;
+        padding: 1rem 1.15rem !important;
+        background:
+            radial-gradient(340px 180px at 100% 0%, rgba(168, 85, 247, 0.22), transparent 72%),
+            linear-gradient(135deg, #151a2b, #101827 58%, #211936) !important;
+        color: #f8fafc !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.10) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel) .contacts-header :is(span, strong, small, i),
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel) .close-panel {
+        color: #f8fafc !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-tabs, .updates-tabs, .lb-filters) {
+        margin: 0.85rem 1rem 0 !important;
+        padding: 0.32rem !important;
+        border: 1px solid rgba(124, 58, 237, 0.14) !important;
+        border-radius: 18px !important;
+        background: rgba(245, 243, 255, 0.82) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-tab, .updates-tab, .lb-filter) {
+        background: rgba(255, 255, 255, 0.72) !important;
+        border-color: rgba(124, 58, 237, 0.12) !important;
+        color: #475569 !important;
+        box-shadow: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-tab, .updates-tab, .lb-filter):is(.active, [aria-selected="true"]) {
+        background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+        color: #ffffff !important;
+        border-color: rgba(124, 58, 237, 0.32) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-tab, .updates-tab, .lb-filter):is(.active, [aria-selected="true"]) :is(i, span, strong, small) {
+        color: #ffffff !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(#notifications-list, #updates-list, #leaderboard-list, #recognition-list, #quests-list) {
+        padding: 1rem !important;
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.modern-notif, .update-card-modern, .updates-overview, .updates-state, .q-state, .q-hero, .q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .changelog-item, .notif-control-card, .notif-mode-pill) {
+        background:
+            radial-gradient(280px 180px at 100% 0%, rgba(139, 92, 246, 0.075), transparent 72%),
+            rgba(255, 255, 255, 0.965) !important;
+        border-color: rgba(124, 58, 237, 0.14) !important;
+        color: #111827 !important;
+        box-shadow: 0 18px 54px -44px rgba(76, 29, 149, 0.34) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.modern-notif, .update-card-modern, .updates-overview, .updates-state, .q-state, .q-hero, .q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .changelog-item, .notif-control-card, .notif-mode-pill) :is(h1, h2, h3, h4, strong, p, span, small, em) {
+        color: inherit !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.q-sub, .q-meta, .lb-lvl, .lb-hero-copy p, .update-desc, .recognition-muted, .modern-notif-destination, .modern-notif small, .notif-mode-pill small) {
+        color: #5f6b80 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel {
+        left: 76px !important;
+        right: auto !important;
+        width: calc(100vw - 76px) !important;
+        max-width: calc(100vw - 76px) !important;
+        border-left: 0 !important;
+        background:
+            radial-gradient(760px 420px at 0% 0%, rgba(139, 92, 246, 0.11), transparent 68%),
+            radial-gradient(680px 420px at 100% 12%, rgba(245, 158, 11, 0.07), transparent 64%),
+            linear-gradient(180deg, #fdfcff 0%, #faf8ff 48%, #ffffff 100%) !important;
+        color: #111827 !important;
+        box-shadow: -18px 0 60px -54px rgba(17, 24, 39, 0.66) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-root {
+        padding: clamp(0.85rem, 1.4vw, 1.4rem) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel .vault-redesign {
+        grid-template-columns: minmax(300px, 400px) minmax(0, 1fr) !important;
+        gap: clamp(0.9rem, 1.25vw, 1.4rem) !important;
+        max-width: none !important;
+        min-height: calc(100vh - 102px) !important;
+        padding: 0 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel .vault-library {
+        min-height: calc(100vh - 132px) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel :is(.vault-hero-modern, .vault-library, .vault-note-card, .vault-drop-card, .vault-stat-card, .vault-item, .vault-empty, .vault-secondary-action, .vault-search, .vault-note-form input, .vault-note-form textarea) {
+        background: rgba(255, 255, 255, 0.965) !important;
+        border-color: rgba(124, 58, 237, 0.13) !important;
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel :is(.vault-kicker, .vault-library-head span, .vault-item-meta, .vault-item-meta span, .vault-code-line span, .vault-empty span, .vault-hero-copy p, .vault-file-drop span, .vault-card-head span) {
+        color: #5f6b80 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal:not(.hidden) {
+        display: grid !important;
+        place-items: center !important;
+        padding: 1.5rem !important;
+        padding-top: 1.5rem !important;
+        background: rgba(15, 23, 42, 0.48) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell {
+        width: min(960px, calc(100vw - 3rem)) !important;
+        max-height: min(82vh, 820px) !important;
+        border-radius: 30px !important;
+        overflow: hidden !important;
+        background:
+            radial-gradient(540px 280px at 100% 0%, rgba(139, 92, 246, 0.14), transparent 72%),
+            linear-gradient(135deg, #ffffff 0%, #fbf8ff 58%, #ffffff 100%) !important;
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-item, .search-section-block, .search-state) {
+        background: rgba(255, 255, 255, 0.965) !important;
+        border: 1px solid rgba(124, 58, 237, 0.12) !important;
+        color: #111827 !important;
+        box-shadow: 0 14px 42px -36px rgba(76, 29, 149, 0.32) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-item {
+        border-radius: 18px !important;
+        margin: 0 0 0.55rem !important;
+        padding: 0.78rem 0.9rem !important;
+        transition: transform 160ms ease, background 160ms ease, border-color 160ms ease !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-item:hover {
+        background: #f5f3ff !important;
+        border-color: rgba(124, 58, 237, 0.22) !important;
+        transform: translate3d(0, -1px, 0) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-item-title, .search-section span, .search-state strong) {
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-item-sub, .search-state span, .search-hero p, .search-kicker, .search-footer-hint span) {
+        color: #5f6b80 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal :is(.search-item-icon, .search-item-arrow, .search-section strong, .search-count-pill) {
+        color: #6d28d9 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-scope-pill.active :is(i, span, strong),
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-input-row :is(i, button, span),
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal #global-search-input {
+        color: #f8fafc !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-scroll {
+        padding: clamp(1.25rem, 1.6vw, 2rem) clamp(1.5rem, 2.2vw, 2.6rem) !important;
+        background:
+            radial-gradient(740px 420px at 100% 0%, rgba(139, 92, 246, 0.09), transparent 70%),
+            linear-gradient(180deg, #fdfcff 0%, #faf8ff 50%, #ffffff 100%) !important;
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: clamp(1.25rem, 2vw, 2.25rem) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-section, .rh-stat, .rh-analytics div, .rh-resource, .rh-rule, .rh-event, .rh-contributor, .rh-members span, .rh-score-card, .rh-discovery-grid > div, .rh-snapshots > div, .rh-milestones > div, .rh-timeline > div) {
+        background: rgba(255, 255, 255, 0.965) !important;
+        border-color: rgba(124, 58, 237, 0.13) !important;
+        color: #111827 !important;
+        box-shadow: 0 18px 54px -44px rgba(76, 29, 149, 0.30) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-section {
+        border: 1px solid rgba(124, 58, 237, 0.13) !important;
+        border-radius: 24px !important;
+        padding: 1.05rem !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-identity h2, .rh-head h3, .rh-desc-text, .rh-rule-text, .rh-res-title, .rh-event-title, .rh-act-text, .rh-c-name, .rh-score-card strong, .rh-snapshots strong, .rh-discovery-grid strong, .rh-analytics strong, .rh-members span) {
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-kicker, .rh-muted, .rh-created, .rh-res-url, .rh-event-desc, .rh-act-time, .rh-score-card span, .rh-score-card small, .rh-snapshots span, .rh-discovery-grid span, .rh-milestones span) {
+        color: #5f6b80 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-identity,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-identity :is(.rh-kicker, h2, p, span, strong, small, i) {
+        color: #ffffff !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-identity .rh-chip-row span {
+        background: rgba(255, 255, 255, 0.14) !important;
+        border-color: rgba(255, 255, 255, 0.22) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-event .rh-event-date {
+        background: linear-gradient(135deg, #7c3aed, #a855f7) !important;
+        color: #ffffff !important;
+        border: 0 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home .rh-event .rh-event-date :is(.rh-d, .rh-m) {
+        color: #ffffff !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-view-home :is(.rh-desc-edit, .rh-add-form, .rh-add-form input) {
+        background: #ffffff !important;
+        border-color: rgba(124, 58, 237, 0.18) !important;
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-modal:not(.hidden),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal:not(.hidden) {
+        display: grid !important;
+        place-items: center !important;
+        align-content: center !important;
+        justify-content: center !important;
+        padding: 2rem !important;
+        padding-top: 2rem !important;
+        background: rgba(15, 23, 42, 0.50) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card {
+        align-self: center !important;
+        justify-self: center !important;
+        width: min(560px, calc(100vw - 4rem)) !important;
+        max-height: min(84vh, 760px) !important;
+        margin: 0 !important;
+        transform: none !important;
+        border-radius: 28px !important;
+        background:
+            radial-gradient(420px 240px at 100% 0%, rgba(139, 92, 246, 0.12), transparent 72%),
+            #ffffff !important;
+        color: #111827 !important;
+        border: 1px solid rgba(124, 58, 237, 0.18) !important;
+        box-shadow: 0 44px 120px -56px rgba(17, 24, 39, 0.72) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card :is(.room-type-option, .room-picture-picker, .input-group, input, textarea, select),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card :is(.room-invite-target, input, textarea, select) {
+        background: rgba(255, 255, 255, 0.96) !important;
+        color: #111827 !important;
+        border-color: rgba(124, 58, 237, 0.18) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card :is(h1, h2, h3, h4, p, span, strong, small, label),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card :is(h1, h2, h3, h4, p, span, strong, small, label) {
+        color: #111827 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-action-card :is(.room-action-subtitle, .room-picture-picker-copy small, .room-type-option small),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-invite-modal .room-invite-card :is(.room-invite-target-copy small, .room-invite-help) {
+        color: #5f6b80 !important;
+    }
+}
+
+@media (max-width: 600px) {
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel) {
+        inset: 0 !important;
+        left: 0 !important;
+        right: auto !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+        transform: translate3d(100%, 0, 0) !important;
+        transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 240ms !important;
+        z-index: 9200 !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel).open {
+        transform: translate3d(0, 0, 0) !important;
+        transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1), visibility 0s !important;
+        animation: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel) .contacts-header {
+        min-height: auto !important;
+        padding: calc(0.78rem + env(safe-area-inset-top, 0px)) 0.88rem 0.72rem !important;
+        box-shadow: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-tabs, .updates-tabs, .lb-filters) {
+        margin: 0.72rem 0 0 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(#notifications-list, #updates-list, #leaderboard-list, #recognition-list, #quests-list) {
+        padding: 0.78rem !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.modern-notif, .update-card-modern, .updates-overview, .updates-state, .q-state, .q-hero, .q-stats > div, .q-card, .lb-hero, .lb-row, .lb-state, .lb-podium-card, .recognition-hero, .recognition-award, .recognition-card, .recognition-rank-row, .changelog-item, .notif-control-card, .notif-mode-pill),
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel :is(.vault-hero-modern, .vault-library, .vault-note-card, .vault-drop-card, .vault-stat-card, .vault-item, .vault-empty, .vault-secondary-action, .vault-search, .vault-note-form input, .vault-note-form textarea) {
+        box-shadow: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-root {
+        padding: 0.78rem 0.82rem calc(0.95rem + env(safe-area-inset-bottom, 0px)) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel .vault-redesign {
+        grid-template-columns: 1fr !important;
+        min-height: 0 !important;
+        gap: 0.72rem !important;
+        padding: 0 !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #vault-panel .vault-library {
+        min-height: min(420px, 62dvh) !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings:not(.hidden),
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-settings-modern {
+        inset: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100dvh !important;
+        max-height: 100dvh !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+        transform: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-sidebar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: calc(0.72rem + env(safe-area-inset-top, 0px)) 4rem 0.62rem 0.72rem !important;
+        box-shadow: none !important;
+        scrollbar-width: none;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-sidebar::-webkit-scrollbar {
+        display: none;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-sidebar .sidebar-header,
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-divider {
+        display: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-tab:not(.danger),
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-session-btn, .account-session-action) {
+        flex: 0 0 auto !important;
+        width: auto !important;
+        min-width: max-content !important;
+        box-shadow: none !important;
+        white-space: nowrap !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-settings-modern .room-settings-x {
+        top: calc(0.62rem + env(safe-area-inset-top, 0px)) !important;
+        right: 0.72rem !important;
+        left: auto !important;
+        box-shadow: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-settings-modern .settings-sidebar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        padding: calc(0.72rem + env(safe-area-inset-top, 0px)) 4.1rem 0.64rem 0.72rem !important;
+        scrollbar-width: none;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-settings-modern .settings-sidebar::-webkit-scrollbar {
+        display: none;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-settings-modern .room-settings-content {
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        padding: 0.78rem 0.82rem calc(0.95rem + env(safe-area-inset-bottom, 0px)) !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* Modern low-performance/reduced-motion override: keep the theme, drop costly compositing. */
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    #chat-form,
+    .smart-replies,
+    #active-reply-box,
+    #search-modal,
+    #search-modal .search-box,
+    #search-modal .search-pro-shell,
+    #room-action-modal,
+    #room-action-card,
+    #room-invite-modal,
+    #room-invite-modal .room-invite-card,
+    #settings-modal.brutalist-settings,
+    #room-settings-card,
+    #contacts-panel,
+    #updates-panel,
+    #personal-ai-agent-panel,
+    #vault-panel,
+    #desktop-room-sidebar,
+    #room-sub-nav,
+    #mobile-nav-links.mobile-only,
+    .rh-stat,
+    .rh-panel,
+    .rh-resource-box,
+    .rh-event,
+    .doc-card,
+    .docs-google-editor,
+    .task-column,
+    .event-card,
+    .cal-connect-banner,
+    .call-card,
+    .vault-card,
+    .vault-library,
+    .settings-card
+),
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    #chat-form,
+    .smart-replies,
+    #active-reply-box,
+    #search-modal,
+    #search-modal .search-box,
+    #search-modal .search-pro-shell,
+    #room-action-modal,
+    #room-action-card,
+    #room-invite-modal,
+    #room-invite-modal .room-invite-card,
+    #settings-modal.brutalist-settings,
+    #room-settings-card,
+    #contacts-panel,
+    #updates-panel,
+    #personal-ai-agent-panel,
+    #vault-panel,
+    #desktop-room-sidebar,
+    #room-sub-nav,
+    #mobile-nav-links.mobile-only,
+    .rh-stat,
+    .rh-panel,
+    .rh-resource-box,
+    .rh-event,
+    .doc-card,
+    .docs-google-editor,
+    .task-column,
+    .event-card,
+    .cal-connect-banner,
+    .call-card,
+    .vault-card,
+    .vault-library,
+    .settings-card
+) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    filter: none !important;
+    box-shadow: none !important;
+}
+
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::before,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::after,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) #main-chat-area::before,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::before,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::after,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::before,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::after,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) nav::after,
+html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell::before,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::before,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::after,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) #main-chat-area::before,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::before,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::after,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::before,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::after,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) nav::after,
+html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell::before {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    display: none !important;
+    filter: none !important;
+    opacity: 0 !important;
+    will-change: auto !important;
+}
+
+html.performance-low body.modern-mode.modern-motion-ready :is(#nav-logo .mascot-blip, .composer-send-btn, #mobile-send-btn),
+html.prefers-reduced-motion body.modern-mode.modern-motion-ready :is(#nav-logo .mascot-blip, .composer-send-btn, #mobile-send-btn) {
+    animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.modern-mode:not(.marketing):not(.auth-screen) :is(
+        #chat-form,
+        .smart-replies,
+        #active-reply-box,
+        #search-modal,
+        #search-modal .search-box,
+        #search-modal .search-pro-shell,
+        #room-action-modal,
+        #room-action-card,
+        #room-invite-modal,
+        #room-invite-modal .room-invite-card,
+        #settings-modal.brutalist-settings,
+        #room-settings-card,
+        #contacts-panel,
+        #updates-panel,
+        #personal-ai-agent-panel,
+        #vault-panel,
+        #desktop-room-sidebar,
+        #room-sub-nav,
+        #mobile-nav-links.mobile-only,
+        .rh-stat,
+        .rh-panel,
+        .rh-resource-box,
+        .rh-event,
+        .doc-card,
+        .docs-google-editor,
+        .task-column,
+        .event-card,
+        .cal-connect-banner,
+        .call-card,
+        .vault-card,
+        .vault-library,
+        .settings-card
+    ) {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        filter: none !important;
+        box-shadow: none !important;
+    }
+
+    body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page::after,
+    body.modern-mode:not(.marketing):not(.auth-screen) #main-chat-area::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::after,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::before,
+    body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card::after,
+    body.modern-mode:not(.marketing):not(.auth-screen) nav::after,
+    body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-pro-shell::before {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+        display: none !important;
+        filter: none !important;
+        opacity: 0 !important;
+        will-change: auto !important;
+    }
+
+    body.modern-mode.modern-motion-ready :is(#nav-logo .mascot-blip, .composer-send-btn, #mobile-send-btn) {
+        animation: none !important;
     }
 }

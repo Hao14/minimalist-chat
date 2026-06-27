@@ -41,6 +41,7 @@ function mountContactsList(list, sections) {
     onRemoveFriend: (uid) => runContactAction(() => window.removeFriend(uid)),
     onSendRequest: (uid) => runContactAction(() => window.sendRequest(uid)),
   }));
+  requestAnimationFrame(() => window.refreshContactUnreadDots?.());
 }
 
 function renderContactsStatus(message, options = {}) {
@@ -76,8 +77,9 @@ function normalizeUserRecord(user = {}) {
   };
 }
 
-function toContact(uid, user, status, presenceData) {
+function toContact(uid, user, status, presenceData, inboxEntry = null) {
   const displayName = user.displayName || 'Unknown';
+  const lastText = inboxEntry?.lastText ? String(inboxEntry.lastText).replace(/\s+/g, ' ').trim() : '';
   return {
     uid,
     displayName,
@@ -85,6 +87,9 @@ function toContact(uid, user, status, presenceData) {
     avatar: user.photoUrl || window.getAvatarUrl?.(displayName, '') || '',
     status,
     isOnline: presenceData[uid]?.state === 'online',
+    unread: inboxEntry?.read === false,
+    lastPm: lastText.length > 72 ? `${lastText.slice(0, 69)}...` : lastText,
+    lastPmAt: inboxEntry?.timestamp || 0,
   };
 }
 
@@ -103,6 +108,7 @@ function startContactSubscriptions(uid) {
   contactsUnsubscribers = [
     onValue(ref(db, `friends/${uid}`), () => window.renderContactsUI?.()),
     onValue(ref(db, 'presence'), () => window.renderContactsUI?.()),
+    onValue(ref(db, `inbox/${uid}`), () => window.renderContactsUI?.()),
   ];
 }
 
@@ -244,21 +250,24 @@ window.renderContactsUI = async function renderContactsUI() {
     const searchInput = document.getElementById('contact-search-input');
     const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    const [directoryData, myFriends, presenceData, currentRoomMembers, mutualUids] = await Promise.all([
+    const [directoryData, myFriends, presenceData, currentRoomMembers, mutualUids, myInbox] = await Promise.all([
       safeGetValue('user_directory', {}, { quiet: true }),
       safeGetValue(`friends/${uid}`, {}, { quiet: true }),
       safeGetValue('presence', {}, { quiet: true }),
       readCurrentRoomMembers(),
       readMutualRoomUids(uid),
+      safeGetValue(`inbox/${uid}`, {}, { quiet: true }),
     ]);
 
     const candidateUids = new Set(Object.keys(directoryData || {}));
     Object.keys(myFriends || {}).forEach((friendUid) => candidateUids.add(friendUid));
     Object.keys(currentRoomMembers || {}).forEach((memberUid) => candidateUids.add(memberUid));
+    Object.keys(myInbox || {}).forEach((inboxUid) => candidateUids.add(inboxUid));
     mutualUids.forEach((memberUid) => candidateUids.add(memberUid));
 
     const allUsers = await loadContactUsers(candidateUids, directoryData || {}, uid);
     const requests = [];
+    const unreadPm = [];
     const online = [];
     const offline = [];
     const roomPeople = [];
@@ -272,10 +281,12 @@ window.renderContactsUI = async function renderContactsUI() {
         const displayName = user.displayName || 'Unknown';
         const nameLower = displayName.toLowerCase();
         const shortIdLower = (user.shortId || '').toLowerCase();
-        const contact = toContact(contactUid, user, status, presenceData || {});
+        const contact = toContact(contactUid, user, status, presenceData || {}, myInbox?.[contactUid]);
 
         if (searchQuery) {
           if (nameLower.includes(searchQuery) || shortIdLower.includes(searchQuery)) searchResults.push(contact);
+        } else if (contact.unread) {
+          unreadPm.push(contact);
         } else if (status === 'accepted') {
           if (contact.isOnline) online.push(contact);
           else offline.push(contact);
@@ -292,6 +303,7 @@ window.renderContactsUI = async function renderContactsUI() {
     if (searchQuery) {
       pushSection(sections, 'search', 'Search Results', searchResults, { empty: 'No users found.' });
     } else {
+      pushSection(sections, 'unread-pm', 'New Private Messages', unreadPm);
       pushSection(sections, 'online', 'Online Friends', online);
       pushSection(sections, 'offline', 'Offline Friends', offline, { subdued: true });
       pushSection(sections, 'room', 'People in Room', roomPeople);

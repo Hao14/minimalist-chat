@@ -4,6 +4,58 @@ import { BootSequence } from './BootSequence.jsx';
 
 let bootSequenceRoot = null;
 
+const wait = (ms) => new Promise((resolve) => {
+  window.setTimeout(resolve, ms);
+});
+
+const withTimeout = (work, ms = 900) => Promise.race([
+  Promise.resolve().then(work),
+  wait(ms),
+]).catch(() => undefined);
+
+const warmStaticAsset = (url) => withTimeout(() => fetch(url, {
+  cache: 'force-cache',
+  credentials: 'same-origin',
+  mode: 'same-origin',
+}).catch(() => undefined), 850);
+
+const warmImage = (src) => withTimeout(() => new Promise((resolve) => {
+  if (!src) {
+    resolve();
+    return;
+  }
+  const image = new Image();
+  image.decoding = 'async';
+  image.onload = resolve;
+  image.onerror = resolve;
+  image.src = src;
+}), 850);
+
+function warmCriticalStyles() {
+  return withTimeout(() => window.__minimalistCssReady || Promise.resolve(), 1400);
+}
+
+function warmCriticalFonts() {
+  return withTimeout(async () => {
+    if (!document.fonts?.load) return;
+    await Promise.allSettled([
+      document.fonts.load('700 14px Inter'),
+      document.fonts.load('700 14px "Space Grotesk"'),
+    ]);
+  }, 1000);
+}
+
+function warmShellAssets() {
+  const icon = document.querySelector('link[rel~="icon"]')?.href || '/icon.svg';
+  const manifest = document.querySelector('link[rel="manifest"]')?.href || '/manifest.json';
+  return Promise.allSettled([
+    warmStaticAsset('/config.js?v=6'),
+    warmStaticAsset(manifest),
+    warmStaticAsset('/icon.svg'),
+    warmImage(icon),
+  ]);
+}
+
 window.enterChat = function enterChat() {
   try {
     const desktopNavActions = document.getElementById('nav-actions');
@@ -87,15 +139,17 @@ window.enterChat = function enterChat() {
     if (desktopNavActions) desktopNavActions.replaceChildren();
 
     const bootLines = [
-      { scope: 'core', action: 'init', target: 'runtime', note: 'hydrate shell' },
-      { scope: 'security', action: 'mount', target: 'protocols', note: 'attach guards' },
-      { scope: 'socket', action: 'connect', target: 'realtime', note: 'open channel' },
-      { scope: 'auth', action: 'verify', target: 'identity', note: 'check session' },
-      { scope: 'module', action: 'load', target: 'auth.js', note: 'resolve user' },
-      { scope: 'module', action: 'load', target: 'rooms.js', note: 'map rooms' },
-      { scope: 'module', action: 'load', target: 'chat.js', note: 'bind composer' },
-      { scope: 'database', action: 'sync', target: 'firebase', note: 'merge state' },
-      { scope: 'system', action: 'ready', target: 'minimalist', note: 'handoff ui' },
+      { scope: 'core', action: 'hydrate', target: 'react-root', note: 'claim app shell', duration: 160 },
+      { scope: 'theme', action: 'resolve', target: 'css-graph', note: 'critical styles', run: warmCriticalStyles, duration: 220 },
+      { scope: 'font', action: 'warm', target: 'brand-type', note: 'swap-safe text', run: warmCriticalFonts, duration: 190 },
+      { scope: 'asset', action: 'cache', target: 'icons+manifest', note: 'logo pack ready', run: warmShellAssets, duration: 240 },
+      { scope: 'security', action: 'mount', target: 'protocols', note: 'attach guards', duration: 140 },
+      { scope: 'auth', action: 'verify', target: 'identity', note: 'session accepted', duration: 180 },
+      { scope: 'module', action: 'bind', target: 'rooms.js', note: 'map room rail', duration: 150 },
+      { scope: 'module', action: 'bind', target: 'chat.js', note: 'composer + messages', duration: 150 },
+      { scope: 'database', action: 'prime', target: 'firebase', note: 'listeners queued', duration: 180 },
+      { scope: 'notify', action: 'arm', target: 'pm+mentions', note: 'sound + inbox bridge', duration: 130 },
+      { scope: 'surface', action: 'paint', target: 'minimalist.ui', note: 'handoff frame', duration: 360 },
     ];
 
     const seqContainer = document.getElementById('boot-sequence');
@@ -124,19 +178,21 @@ window.enterChat = function enterChat() {
 
     renderBootSequence();
 
-    const showNextLine = () => {
+    const showNextLine = async () => {
       if (visibleCount > 0) {
         completedCount = visibleCount;
         renderBootSequence();
       }
 
       if (visibleCount < bootLines.length) {
+        const line = bootLines[visibleCount];
         const isLast = visibleCount === bootLines.length - 1;
         visibleCount += 1;
         completedCount = visibleCount - 1;
         renderBootSequence();
-        const delay = isLast ? 800 : Math.floor(Math.random() * 200) + 100;
-        setTimeout(showNextLine, delay);
+        const delay = isLast ? 520 : Math.floor(Math.random() * 120) + (line.duration || 120);
+        await Promise.all([line.run ? line.run() : Promise.resolve(), wait(delay)]);
+        showNextLine();
         return;
       }
 

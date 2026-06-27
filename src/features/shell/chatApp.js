@@ -3,7 +3,6 @@ import './globalState.js';
 import './uiShell.js';
 import './dialogHost.jsx';
 import '../performance/performanceSettings.js';
-import '../settings/settingsService.js';
 import '../onboarding/welcomeTour.js';
 import './backgroundServices.js';
 import './chatShellControls.js';
@@ -13,8 +12,6 @@ import './roomFeatureLoaders.js';
 import '../chat-core/emojiPicker.js';
 import '../admin/adminTools.js';
 import '../profile/profileActions.js';
-import '../profile/profilePopupService.js';
-import '../contacts/contactsService.js';
 import './authGate.js';
 import '../rooms/roomControls.js';
 import '../community/social.js';
@@ -24,7 +21,38 @@ import '../notifications/notificationService.js';
 import '../presence/presenceService.js';
 import '../private-messages/PrivateMessages.jsx';
 import '../private-messages/pmInboxService.js';
-import '../updates/githubUpdates.js';
 import { initializeBillingActions } from '../billing/billingActions.js';
+
+const lazyServices = new Map();
+
+function importServiceOnce(key, importer) {
+  if (!lazyServices.has(key)) {
+    lazyServices.set(
+      key,
+      importer().catch((error) => {
+        lazyServices.delete(key);
+        throw error;
+      })
+    );
+  }
+  return lazyServices.get(key);
+}
+
+function lazyWindowFunction(key, importer, name) {
+  window[name] = async (...args) => {
+    await importServiceOnce(key, importer);
+    return window[name]?.(...args);
+  };
+}
+
+lazyWindowFunction('settings-service', () => import('../settings/settingsService.js'), 'openSettings');
+lazyWindowFunction('profile-popup-service', () => import('../profile/profilePopupService.js'), 'viewUserProfile');
+lazyWindowFunction('profile-popup-service', () => import('../profile/profilePopupService.js'), 'renderSettingsCardPreview');
+lazyWindowFunction('profile-popup-service', () => import('../profile/profilePopupService.js'), 'renderProfileSpotlight');
+lazyWindowFunction('contacts-service', () => import('../contacts/contactsService.js'), 'openContactsPanel');
+lazyWindowFunction('contacts-service', () => import('../contacts/contactsService.js'), 'closeContactsPanel');
+lazyWindowFunction('contacts-service', () => import('../contacts/contactsService.js'), 'toggleContacts');
+lazyWindowFunction('contacts-service', () => import('../contacts/contactsService.js'), 'renderContactsUI');
+lazyWindowFunction('github-updates', () => import('../updates/githubUpdates.js'), 'fetchGitHubUpdates');
 
 initializeBillingActions();
