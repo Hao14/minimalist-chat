@@ -1,0 +1,777 @@
+/* ============================================================
+   Codex theme layer
+   Graphite developer workspace: quiet, premium, high-contrast.
+   ============================================================ */
+
+body.codex-mode:not(.marketing):not(.auth-screen) {
+    color-scheme: dark;
+    --bg-color: #101318;
+    --text-color: #f2f4f7;
+    --accent-color: var(--custom-accent-color, #f2c94c);
+    --accent-ink: #101318;
+    --theme-panel: #171b22;
+    --theme-panel-2: #20242c;
+    --theme-line: rgba(226, 232, 240, 0.12);
+    --theme-muted: #a2aab8;
+    --codex-bg: #101318;
+    --codex-bg-2: #0b0f14;
+    --codex-panel: #171b22;
+    --codex-panel-2: #20242c;
+    --codex-panel-3: #262b35;
+    --codex-panel-soft: rgba(23, 27, 34, 0.92);
+    --codex-text: #f2f4f7;
+    --codex-muted: #a2aab8;
+    --codex-muted-2: #788292;
+    --codex-border: rgba(226, 232, 240, 0.12);
+    --codex-border-strong: rgba(226, 232, 240, 0.24);
+    --codex-accent-fill: color-mix(in srgb, var(--accent-color) 72%, #f8fafc);
+    --codex-accent-soft: color-mix(in srgb, var(--accent-color) 16%, transparent);
+    --codex-accent-line: color-mix(in srgb, var(--accent-color) 58%, var(--codex-border));
+    --codex-focus: color-mix(in srgb, var(--accent-color) 42%, transparent);
+    --codex-success: #5ee089;
+    --codex-warning: #f2c94c;
+    --codex-danger: #ff6b7a;
+    --codex-info: #7dd3fc;
+    --codex-radius-sm: 8px;
+    --codex-radius-md: 12px;
+    --codex-radius-lg: 18px;
+    --codex-shadow: 0 22px 68px -46px rgba(0, 0, 0, 0.82);
+    --codex-shadow-soft: 0 16px 42px -34px rgba(0, 0, 0, 0.72);
+    --codex-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --codex-fast: 160ms;
+    --codex-medium: 220ms;
+    --room-nav-ink: var(--codex-text);
+    --room-nav-muted: var(--codex-muted);
+    --room-nav-surface: var(--codex-panel);
+    --room-nav-hover: color-mix(in srgb, var(--accent-color) 10%, var(--codex-panel-2));
+    --room-nav-active: color-mix(in srgb, var(--accent-color) 18%, var(--codex-panel-2));
+    --room-nav-line: var(--codex-border);
+    background:
+        radial-gradient(circle at 84% 0%, color-mix(in srgb, var(--accent-color) 9%, transparent), transparent 34%),
+        linear-gradient(180deg, #151922 0%, #101318 45%, #0b0f14 100%);
+    accent-color: var(--accent-color);
+    color: var(--codex-text);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #chat-wrapper,
+body.codex-mode:not(.marketing):not(.auth-screen) #chat-interface,
+body.codex-mode:not(.marketing):not(.auth-screen) #main-chat-area,
+body.codex-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page,
+body.codex-mode:not(.marketing):not(.auth-screen) .room-view {
+    background:
+        linear-gradient(90deg, rgba(226, 232, 240, 0.035) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(226, 232, 240, 0.025) 1px, transparent 1px),
+        radial-gradient(circle at 80% 0%, color-mix(in srgb, var(--accent-color) 8%, transparent), transparent 32%),
+        linear-gradient(180deg, #141821, #101318 48%, #0b0f14) !important;
+    background-size: 42px 42px, 42px 42px, auto, auto;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(nav, #desktop-room-sidebar, #active-room-header, #room-sub-nav, #room-channel-bar) {
+    background: color-mix(in srgb, var(--codex-panel) 94%, transparent) !important;
+    border-color: var(--codex-border) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 34%),
+        var(--codex-bg-2) !important;
+    border-right: 1px solid var(--codex-border) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar :is(.sidebar-header, .sidebar-actions) {
+    border-color: var(--codex-border) !important;
+    background: color-mix(in srgb, var(--codex-bg-2) 96%, transparent) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar :is(.sidebar-header h3, .room-name, .room-action-btn) {
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar :is(.room-preview, .room-hidden-label, .room-hidden-empty) {
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar .room-item {
+    border: 1px solid transparent !important;
+    border-radius: var(--codex-radius-md) !important;
+    background: transparent !important;
+    color: var(--codex-text) !important;
+    box-shadow: none !important;
+    transition: background var(--codex-fast) var(--codex-ease), border-color var(--codex-fast) var(--codex-ease), transform var(--codex-fast) var(--codex-ease);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar .room-item:hover {
+    background: color-mix(in srgb, var(--codex-panel-2) 82%, transparent) !important;
+    border-color: var(--codex-border) !important;
+    transform: translateY(-1px);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar .room-item.active {
+    background: linear-gradient(90deg, var(--codex-accent-soft), rgba(255, 255, 255, 0.025)) !important;
+    border-color: var(--codex-accent-line) !important;
+    box-shadow: inset 3px 0 0 var(--codex-accent-fill), var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar :is(.room-icon, .room-collapse-btn, .room-action-icon) {
+    border-color: var(--codex-border) !important;
+    background: var(--codex-panel) !important;
+    color: var(--codex-text) !important;
+    box-shadow: none !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar :is(.room-collapse-btn, .room-action-icon):hover {
+    border-color: var(--codex-accent-line) !important;
+    background: color-mix(in srgb, var(--accent-color) 10%, var(--codex-panel-2)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #active-room-header {
+    background: rgba(16, 19, 24, 0.94) !important;
+    border-bottom: 1px solid var(--codex-border) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #active-room-header :is(h1, h2, h3, #active-room-name-display) {
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    background: rgba(16, 19, 24, 0.84) !important;
+    border-bottom: 1px solid var(--codex-border) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-sub-nav .room-tab,
+body.codex-mode:not(.marketing):not(.auth-screen) .rail-icon,
+body.codex-mode:not(.marketing):not(.auth-screen) .theme-select-btn,
+body.codex-mode:not(.marketing):not(.auth-screen) .settings-tab,
+body.codex-mode:not(.marketing):not(.auth-screen) .channel-chip {
+    border: 1px solid transparent !important;
+    border-radius: var(--codex-radius-md) !important;
+    background: transparent !important;
+    color: var(--codex-muted) !important;
+    box-shadow: none !important;
+    transition: background var(--codex-fast) var(--codex-ease), border-color var(--codex-fast) var(--codex-ease), color var(--codex-fast) var(--codex-ease), transform var(--codex-fast) var(--codex-ease);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(#room-sub-nav .room-tab, .rail-icon, .theme-select-btn, .settings-tab, .channel-chip):hover {
+    background: color-mix(in srgb, var(--accent-color) 10%, var(--codex-panel-2)) !important;
+    border-color: var(--codex-border) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(#room-sub-nav .room-tab.active, .rail-icon.active, .theme-select-btn.active, .theme-select-btn[aria-checked="true"], .settings-tab.active, .channel-chip.active) {
+    background: color-mix(in srgb, var(--accent-color) 17%, var(--codex-panel-2)) !important;
+    border-color: var(--codex-accent-line) !important;
+    color: var(--codex-text) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-color) 20%, transparent) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .rail-icon.has-unread::before,
+body.codex-mode:not(.marketing):not(.auth-screen) .mobile-link-btn.has-unread::before {
+    background: var(--codex-danger) !important;
+    box-shadow: 0 0 0 3px var(--codex-bg), 0 0 16px color-mix(in srgb, var(--codex-danger) 42%, transparent) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-channel-bar {
+    background: color-mix(in srgb, var(--codex-panel) 90%, transparent) !important;
+    border-bottom: 1px solid var(--codex-border) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .channel-kicker {
+    color: var(--codex-muted-2) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .channel-chip.channel-add {
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.action-btn, .mini-btn, .rh-add-btn, .room-action-btn, .room-action-icon, .vault-primary-action, .vault-secondary-action, .ai-btn, .ai-qa, .pa-btn, .pa-icon-btn, .call-cta, .call-dock-btn, .composer-dialog-actions button, .composer-dialog-close, .smart-reply-chip, #chat-form .composer-icon-btn) {
+    border-color: var(--codex-border) !important;
+    border-radius: var(--codex-radius-md) !important;
+    background: var(--codex-panel-2) !important;
+    color: var(--codex-text) !important;
+    box-shadow: none !important;
+    text-transform: none !important;
+    transition: background var(--codex-fast) var(--codex-ease), border-color var(--codex-fast) var(--codex-ease), color var(--codex-fast) var(--codex-ease), transform var(--codex-fast) var(--codex-ease), box-shadow var(--codex-fast) var(--codex-ease);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.action-btn, .mini-btn, .rh-add-btn, .room-action-btn, .room-action-icon, .vault-secondary-action, .ai-btn, .ai-qa, .pa-btn, .pa-icon-btn, .call-cta, .composer-dialog-actions button, #chat-form .composer-icon-btn):hover:not(:disabled) {
+    border-color: var(--codex-accent-line) !important;
+    background: color-mix(in srgb, var(--accent-color) 10%, var(--codex-panel-2)) !important;
+    color: var(--codex-text) !important;
+    transform: translateY(-1px);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.rh-add-btn, .vault-primary-action, .ai-btn:not(.ai-btn-ghost), .pa-btn-accent, .call-cta:not(.ghost), .composer-dialog-primary, .composer-send-btn, .pa-send, .ai-send) {
+    border-color: color-mix(in srgb, var(--accent-color) 62%, transparent) !important;
+    background: var(--codex-accent-fill) !important;
+    color: var(--accent-ink) !important;
+    box-shadow: 0 14px 34px -24px color-mix(in srgb, var(--accent-color) 70%, #000) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.composer-send-btn, .pa-send, .call-dock-btn) {
+    border-radius: 999px !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.composer-send-btn, .pa-send, .ai-send):hover:not(:disabled) {
+    filter: brightness(1.04);
+    transform: translateY(-1px) scale(1.02) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(button, [role="button"], a, input:not([type="color"]), textarea, select, .room-item, .room-tab, .mobile-link-btn):focus-visible {
+    outline: none !important;
+    box-shadow:
+        0 0 0 1px var(--codex-bg),
+        0 0 0 4px var(--codex-focus) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(input:not([type="color"]), textarea, select, #message-input, #ai-chat-input, .composer-dialog-fields input, .composer-dialog-fields textarea, .vault-search, .vault-note-form input, .vault-note-form textarea, .pa-composer input, .pa-settings input, .pa-settings textarea, .ai-agent-settings input, .ai-agent-settings textarea) {
+    border-color: var(--codex-border) !important;
+    border-radius: var(--codex-radius-md) !important;
+    background: color-mix(in srgb, var(--codex-panel-2) 90%, #000) !important;
+    color: var(--codex-text) !important;
+    box-shadow: none !important;
+    caret-color: var(--codex-accent-fill);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(input:not([type="color"]), textarea, select, #message-input, #ai-chat-input)::placeholder {
+    color: var(--codex-muted-2) !important;
+    opacity: 1 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(button, input, textarea, select):disabled,
+body.codex-mode:not(.marketing):not(.auth-screen) [aria-disabled="true"] {
+    cursor: not-allowed !important;
+    opacity: 0.58 !important;
+    transform: none !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.room-item, .rh-panel, .rh-stat, .doc-card, .task-column, .event-card, .cal-connect-banner, .settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-edit-card, .profile-summary-compact > div, .ai-card, .pa-shell, .vault-hero, .vault-library, .vault-item, .vault-note-card, .vault-drop-card, .vault-stat-card, .vault-empty, .vault-share-panel, .call-lobby-panel, .search-pro-shell, .search-box, .search-result-item, .app-dialog-card, .composer-dialog, .room-invite-card, .pm-session, .update-card, .recognition-card, .q-card, .lb-row, .modern-notif) {
+    border-color: var(--codex-border) !important;
+    background: color-mix(in srgb, var(--codex-panel) 92%, transparent) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(#settings-modal.brutalist-settings, #room-settings-card, #contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel, #search-modal .search-box) {
+    border-color: var(--codex-border-strong) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 36%),
+        var(--codex-panel) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel) {
+    border-left: 1px solid var(--codex-border-strong) !important;
+    box-shadow: -24px 0 80px -56px rgba(0, 0, 0, 0.92) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings {
+    --settings-panel: var(--codex-panel);
+    --settings-surface: color-mix(in srgb, var(--codex-panel) 88%, #0b0f14);
+    --settings-surface-strong: var(--codex-panel-2);
+    --settings-line: var(--codex-border);
+    --settings-line-strong: var(--codex-border-strong);
+    --settings-muted: var(--codex-muted);
+    --settings-shadow: var(--codex-shadow);
+    --settings-accent-soft: var(--codex-accent-soft);
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings::before {
+    background:
+        radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--accent-color) 11%, transparent), transparent 27%),
+        radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--codex-info) 7%, transparent), transparent 25%),
+        linear-gradient(115deg, transparent 0 58%, rgba(255,255,255,0.04) 58% 58.5%, transparent 58.5% 100%) !important;
+    animation: none !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-sidebar, .settings-content) {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.025), transparent 34%),
+        var(--codex-panel) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-content {
+    background:
+        radial-gradient(circle at 78% 0%, color-mix(in srgb, var(--accent-color) 7%, transparent), transparent 28%),
+        linear-gradient(180deg, var(--codex-panel), var(--codex-bg)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(h1, h2, h3, h4, strong, .settings-card-title, .settings-tab.active, .profile-display-name, .profile-completion-text) {
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(p, label, small, li, .custom-theme-note, .settings-feature-mode-note, .profile-completion-hint, .settings-card-body span, .profile-field-label) {
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-summary-compact > div, .profile-edit-card) {
+    border-color: var(--codex-border) !important;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 32%),
+        var(--codex-panel-2) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-card-header {
+    border-color: var(--codex-border) !important;
+    background: color-mix(in srgb, var(--codex-panel-3) 82%, transparent) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .profile-summary-compact :is(div, p),
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings #profile-summary-bio {
+    border-color: var(--codex-border) !important;
+    background: color-mix(in srgb, var(--codex-bg) 38%, var(--codex-panel-2)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(#personal-ai-agent-root, #vault-root, #contacts-list, #updates-list, #notifications-list, #leaderboard-list, #recognition-list, #quests-list, .ai-wrap, .ai-thread, .pa-thread) {
+    scrollbar-color: color-mix(in srgb, var(--accent-color) 36%, var(--codex-border-strong)) transparent;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.contacts-header, .settings-sidebar, .rs-sidebar, .search-input-row, .composer-dialog-head, .pa-id, .pa-composer, .pm-header, .pm-sidebar) {
+    border-color: var(--codex-border) !important;
+    background: color-mix(in srgb, var(--codex-panel-2) 72%, transparent) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.muted, .ai-empty, .ai-note, .ai-owner, .ai-agent-lede, .pa-context, .pa-id-meta span, .pa-welcome p, .pa-suggest-copy small, .call-lobby-panel p, .call-lobby-hint, .call-topbar-meta, .vault-kicker, .vault-item-meta, .settings-tab, .billing-plan-card li, .profile-completion-hint, .search-item-sub, .search-state span, .room-invite-help) {
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.danger, .settings-tab.danger, .vault-empty.danger, .updates-error, .pa-context-error, .ai-agent-status-error, .call-dock-btn.ghost-danger) {
+    color: var(--codex-danger) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #brutalist-toast {
+    min-height: 54px;
+    border: 1px solid var(--codex-border-strong) !important;
+    border-radius: var(--codex-radius-lg) !important;
+    background: color-mix(in srgb, var(--codex-panel-2) 94%, transparent) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #brutalist-toast.toast-success {
+    border-color: color-mix(in srgb, var(--codex-success) 45%, var(--codex-border)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #brutalist-toast.toast-error {
+    border-color: color-mix(in srgb, var(--codex-danger) 50%, var(--codex-border)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat {
+    --chat-panel: #11151c;
+    --chat-panel-strong: #171b22;
+    --chat-bubble: #1b2029;
+    --chat-bubble-mine: color-mix(in srgb, var(--accent-color) 12%, #1d222b);
+    --chat-ink: var(--codex-text);
+    --chat-muted: var(--codex-muted);
+    --chat-line: var(--codex-border);
+    --chat-line-strong: var(--codex-border-strong);
+    --chat-shadow: 0 14px 34px -30px rgba(0, 0, 0, 0.72);
+    --chat-shadow-hover: 0 18px 46px -32px rgba(0, 0, 0, 0.82);
+    --chat-radius: 16px;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages::before {
+    background: linear-gradient(180deg, rgba(16, 19, 24, 0.92), transparent) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages li.chat-message {
+    border-color: var(--codex-border) !important;
+    background: var(--chat-bubble) !important;
+    color: var(--codex-text) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages li.chat-message.my-message,
+body.codex-mode:not(.marketing):not(.auth-screen) #pm-messages li.my-pm {
+    border-color: var(--codex-accent-line) !important;
+    background: color-mix(in srgb, var(--accent-color) 14%, var(--codex-panel-2)) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages li.chat-message:hover,
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat #messages li.chat-message:focus-within {
+    transform: translateY(-1px) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.msg-time, .msg-edited, .msg-flag, .pm-message-meta) {
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.msg-mention, .message-jump-highlight) {
+    border: 1px solid var(--codex-accent-line) !important;
+    border-radius: 6px !important;
+    background: var(--codex-accent-soft) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.msg-inline-code, .msg-codeblock) {
+    border-color: var(--codex-border) !important;
+    background: #0b0f14 !important;
+    color: #dce3ee !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.slash-command-menu, .mention-suggest-menu, .msg-actions, #active-reply-box, .typing-dots) {
+    border-color: var(--codex-border-strong) !important;
+    background: var(--codex-panel-2) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.mention-suggest-row:hover, .mention-suggest-row.active) {
+    border-color: var(--codex-accent-line) !important;
+    background: var(--codex-accent-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat .mention-suggest-avatar {
+    border-color: var(--codex-border-strong) !important;
+    background: var(--codex-bg) !important;
+    color: var(--codex-accent-fill) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #pm-popup {
+    background: var(--codex-bg) !important;
+    color: var(--codex-text) !important;
+    border-color: var(--codex-border-strong) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #pm-messages li {
+    border: 1px solid var(--codex-border) !important;
+    background: var(--codex-panel-2) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #pm-messages li.their-pm {
+    border-left-color: var(--codex-border-strong) !important;
+    background: var(--codex-panel) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(#pm-form, .pm-call-strip, .pm-e2e-status) {
+    border-color: var(--codex-border) !important;
+    background: color-mix(in srgb, var(--codex-panel-2) 88%, transparent) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-ai,
+body.codex-mode:not(.marketing):not(.auth-screen) #personal-ai-agent-panel {
+    --codex-ai-panel: var(--codex-panel);
+    --codex-ai-panel-2: var(--codex-panel-2);
+    --codex-ai-border: var(--codex-border);
+    --codex-ai-muted: var(--codex-muted);
+    --codex-ai-user-bg: color-mix(in srgb, var(--accent-color) 16%, var(--codex-panel-2));
+    --codex-ai-assistant-bg: #1b2029;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-head, .ai-card, .ai-agent-settings, .pa-settings, .pa-suggest-card) {
+    border: 1px solid var(--codex-ai-border) !important;
+    background: var(--codex-ai-panel) !important;
+    color: var(--codex-text) !important;
+    box-shadow: var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-ai-card {
+    background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent-color) 8%, var(--codex-panel-2)), var(--codex-ai-panel)) !important;
+    border-color: var(--codex-accent-line) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-card-h, .calls-kicker) {
+    color: var(--codex-muted) !important;
+    letter-spacing: 0.12em;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-tag, .pa-pro, .ai-banana-meter, .call-status-pill.active, .tier-badge.pro) {
+    border: 1px solid var(--codex-accent-line) !important;
+    background: color-mix(in srgb, var(--accent-color) 13%, var(--codex-panel-2)) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-banana-meter {
+    font-variant-numeric: tabular-nums;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-agent-status {
+    border: 1px solid var(--codex-border) !important;
+    border-left: 3px solid var(--codex-info) !important;
+    background: var(--codex-panel-2) !important;
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-agent-status-ready {
+    border-left-color: var(--codex-success) !important;
+    color: var(--codex-success) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-agent-status-error {
+    border-left-color: var(--codex-danger) !important;
+    color: var(--codex-danger) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-thread, .pa-thread) {
+    background: color-mix(in srgb, var(--codex-bg) 46%, transparent) !important;
+    scrollbar-width: thin;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-bubble, .pa-bubble) {
+    border: 1px solid var(--codex-border) !important;
+    background: var(--codex-ai-assistant-bg) !important;
+    color: var(--codex-text) !important;
+    line-height: 1.58;
+    overflow-wrap: anywhere;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-bubble-user, .pa-msg-user .pa-bubble) {
+    border-color: var(--codex-accent-line) !important;
+    background: var(--codex-ai-user-bg) !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.pa-orb, .pa-msg-orb) {
+    border-color: var(--codex-border-strong) !important;
+    background: linear-gradient(140deg, var(--codex-accent-fill), color-mix(in srgb, var(--accent-color) 40%, #7dd3fc)) !important;
+    color: var(--accent-ink) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-progress, .ai-spinner, .pa-spin, .cal-import-spinner) {
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.ai-spinner, .cal-import-spinner) {
+    border-color: color-mix(in srgb, var(--codex-muted) 35%, transparent) !important;
+    border-top-color: var(--codex-accent-fill) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-bar {
+    background: var(--codex-panel-2) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #ai-bar-fill {
+    background: var(--codex-accent-fill) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .calls-wrap {
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-rail {
+    scroll-snap-type: x proximity;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-card {
+    scroll-snap-align: start;
+    border: 1px solid var(--codex-border) !important;
+    background: var(--codex-panel) !important;
+    color: var(--codex-text) !important;
+    box-shadow: none !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-card:hover {
+    border-color: var(--codex-accent-line) !important;
+    background: color-mix(in srgb, var(--accent-color) 8%, var(--codex-panel-2)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-card.active {
+    border-color: var(--codex-accent-line) !important;
+    background: color-mix(in srgb, var(--accent-color) 14%, var(--codex-panel-2)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-card.live {
+    border-color: color-mix(in srgb, var(--codex-success) 58%, var(--codex-border)) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-meta,
+body.codex-mode:not(.marketing):not(.auth-screen) .call-channel-name {
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-lobby-stage,
+body.codex-mode:not(.marketing):not(.auth-screen) .call-stage {
+    border: 1px solid var(--codex-border-strong) !important;
+    background:
+        radial-gradient(circle at 28% 12%, color-mix(in srgb, var(--accent-color) 8%, transparent), transparent 28%),
+        #0b0f14 !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-lobby-glyph {
+    background: var(--codex-accent-fill) !important;
+    color: var(--accent-ink) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-tile {
+    border-color: rgba(226, 232, 240, 0.10) !important;
+    background: #121720 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-tile.is-self {
+    border-color: var(--codex-accent-line) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color) 12%, transparent) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-tile-foot {
+    background: linear-gradient(to top, rgba(8, 11, 18, 0.86), rgba(8, 11, 18, 0.22), transparent) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-tile-badge {
+    background: var(--codex-accent-fill) !important;
+    color: var(--accent-ink) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-dock {
+    border: 1px solid var(--codex-border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--codex-bg) 84%, transparent);
+    box-shadow: var(--codex-shadow-soft);
+    width: fit-content;
+    max-width: 100%;
+    margin-inline: auto;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-dock-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 999px !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-dock-btn.active {
+    background: var(--codex-accent-fill) !important;
+    color: var(--accent-ink) !important;
+    border-color: transparent !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-dock-btn.off {
+    background: #252a34 !important;
+    color: var(--codex-muted) !important;
+    border-color: var(--codex-border) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) .call-dock-btn.danger {
+    background: var(--codex-danger) !important;
+    border-color: transparent !important;
+    color: #19080b !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #loading-screen,
+body.codex-mode:not(.marketing):not(.auth-screen) .room-view-loading,
+body.codex-mode:not(.marketing):not(.auth-screen) .route-loading,
+body.codex-mode:not(.marketing):not(.auth-screen) .updates-state-loading,
+body.codex-mode:not(.marketing):not(.auth-screen) .stripe-embedded-loading {
+    background: var(--codex-bg) !important;
+    color: var(--codex-muted) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.loading-pulse-text, .room-view-loading span) {
+    color: var(--codex-muted) !important;
+}
+
+@media (max-width: 768px) {
+    body.codex-mode:not(.marketing):not(.auth-screen) div#mobile-nav-links.mobile-only {
+        left: 8px !important;
+        right: 8px !important;
+        bottom: max(8px, env(safe-area-inset-bottom, 0px)) !important;
+        width: auto !important;
+        border: 1px solid var(--codex-border-strong) !important;
+        border-radius: 20px !important;
+        background: color-mix(in srgb, var(--codex-bg) 88%, transparent) !important;
+        box-shadow: 0 -18px 54px -38px rgba(0, 0, 0, 0.92) !important;
+        backdrop-filter: blur(16px) saturate(1.15) !important;
+        -webkit-backdrop-filter: blur(16px) saturate(1.15) !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(.mobile-link, .mobile-link-btn) {
+        min-height: 48px !important;
+        margin: 0.28rem !important;
+        border: 1px solid transparent !important;
+        border-radius: 16px !important;
+        background: transparent !important;
+        color: var(--codex-muted) !important;
+        box-shadow: none !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(.mobile-link:active, .mobile-link-btn:active, .mobile-link-btn.active) {
+        border-color: var(--codex-accent-line) !important;
+        background: var(--codex-accent-soft) !important;
+        color: var(--codex-text) !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(.mobile-link::after, .mobile-link-btn::after) {
+        background: var(--codex-accent-fill) !important;
+        border-radius: 999px !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar {
+        width: min(88vw, 360px) !important;
+        border-right: 1px solid var(--codex-border-strong) !important;
+        background: var(--codex-bg) !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) #active-room-header {
+        background: color-mix(in srgb, var(--codex-bg) 96%, transparent) !important;
+        border-bottom: 1px solid var(--codex-border) !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(#contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel, #settings-modal.brutalist-settings, #room-settings-card) {
+        background: var(--codex-bg) !important;
+        border-color: var(--codex-border-strong) !important;
+        box-shadow: none !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(#messages, #pm-messages, .ai-thread, .pa-thread, #vault-root, #contacts-list, #updates-list) {
+        scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+        overscroll-behavior: contain;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(#active-room-name-display, .room-name, .update-title, .vault-item-head strong, #messages li, #pm-messages li, .msg-text, .contacts-panel-title) {
+        overflow-wrap: anywhere;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(#pm-form input, #pm-form textarea, #ai-chat-input, .pa-composer input) {
+        font-size: 16px !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) .call-dock {
+        border-radius: 24px;
+        padding-inline: 0.5rem;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) .call-dock-btn {
+        width: 50px;
+        height: 50px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(.room-item, .room-tab, .rail-icon, .theme-select-btn, .mobile-link-btn, .chat-message, .ai-spinner, .ai-typing span, .pa-spin, .pa-context-dot.pulsing, .pa-typing span, .call-channel-card, .call-dock-btn, .composer-send-btn) {
+        animation: none !important;
+        transition-duration: 1ms !important;
+        transform: none !important;
+    }
+}
+
+html.performance-low body.codex-mode:not(.marketing):not(.auth-screen) :is(div#mobile-nav-links.mobile-only, #desktop-room-sidebar, #settings-modal.brutalist-settings, #contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel, .search-pro-shell, .composer-dialog, .mention-suggest-menu, .call-dock),
+html.prefers-reduced-motion body.codex-mode:not(.marketing):not(.auth-screen) :is(div#mobile-nav-links.mobile-only, #desktop-room-sidebar, #settings-modal.brutalist-settings, #contacts-panel, #updates-panel, #personal-ai-agent-panel, #vault-panel, .search-pro-shell, .composer-dialog, .mention-suggest-menu, .call-dock) {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+    body.codex-mode:not(.marketing):not(.auth-screen) :is(nav, #desktop-room-sidebar, #active-room-header, #room-sub-nav, #mobile-nav-links, .room-item, .room-tab, .theme-select-btn, .settings-card, .chat-message, .ai-card, .call-channel-card, input, textarea, select, button) {
+        border-width: 2px !important;
+        box-shadow: none !important;
+    }
+
+    body.codex-mode:not(.marketing):not(.auth-screen) #main-chat-area,
+    body.codex-mode:not(.marketing):not(.auth-screen) .room-view,
+    body.codex-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page {
+        background: var(--codex-bg) !important;
+    }
+}

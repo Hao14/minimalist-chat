@@ -147,7 +147,7 @@ function setRoomsCollapsed(nextCollapsed, { persist = true, animate = true } = {
   if (persist) {
     try {
       window.localStorage?.setItem(ROOM_COLLAPSE_STORAGE_KEY, collapsed ? 'true' : 'false');
-    } catch (error) {
+    } catch {
       // Storage can be unavailable in private browsing; the UI should still animate.
     }
   }
@@ -169,7 +169,7 @@ function hydrateRoomCollapsePreference() {
   let collapsed = false;
   try {
     collapsed = window.localStorage?.getItem(ROOM_COLLAPSE_STORAGE_KEY) === 'true';
-  } catch (error) {
+  } catch {
     collapsed = false;
   }
 

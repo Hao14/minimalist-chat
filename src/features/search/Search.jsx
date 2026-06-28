@@ -2,6 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { get, limitToLast, query, ref, set } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
 
+function createRoomDiscoveryLog(userName) {
+  const timestamp = Date.now();
+  return {
+    key: timestamp,
+    value: {
+      text: `${userName || 'Someone'} joined from room discovery.`,
+      timestamp,
+    },
+  };
+}
+
 async function runSearch(queryText, getAvatarUrl) {
   const uid = window.currentUser?.uid;
   const [roomsSnapshot, usersSnapshot] = await Promise.all([get(ref(db, 'rooms_meta')), get(ref(db, 'user_directory'))]);
@@ -147,7 +158,8 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
   const goToRoom = async (room) => {
     if (!room.mine && room.discoverable && window.currentUser?.uid) {
       await set(ref(db, `rooms_meta/${room.id}/members/${window.currentUser.uid}`), window.userProfileName || 'Anonymous');
-      await set(ref(db, `rooms_meta/${room.id}/logs/${Date.now()}`), { text: `${window.userProfileName || 'Someone'} joined from room discovery.`, timestamp: Date.now() });
+      const joinLog = createRoomDiscoveryLog(window.userProfileName);
+      await set(ref(db, `rooms_meta/${room.id}/logs/${joinLog.key}`), joinLog.value);
       window.showToast?.(`Joined ${room.name}.`, false);
     }
     close();

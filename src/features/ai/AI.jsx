@@ -1,7 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { get, ref } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
-import { getRequiredIdToken } from '../../lib/authToken.js';
+import {
+  askPersonalAgent,
+  askRoomAgent,
+  getLocalAiConfig,
+  getLocalAiStatus,
+  localAiStatusMessage,
+  loadPersonalAiProfileFromServer,
+  savePersonalAiProfileToServer,
+  shouldUseGatewayAi,
+  shouldUseServerAiProfile,
+} from './localAiClient.js';
 
 const stopWords = new Set('a an the and or but if then is are was were be been being to of in on at for with as by from this that these those it its i you he she we they me him her them my your our their not no yes do does did have has had will would can could should just so about into out up down over under again more most some any all'.split(' '));
 
@@ -23,8 +33,12 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-async function gatherContext(roomId) {
-  const messagesPath = roomId === 'global' ? 'messages' : `rooms_data/${roomId}/messages`;
+async function gatherContext(roomId, channelId = 'general') {
+  const messagesPath = roomId === 'global'
+    ? 'messages'
+    : channelId && channelId !== 'general'
+      ? `rooms_data/${roomId}/channels/${channelId}/messages`
+      : `rooms_data/${roomId}/messages`;
   const [messagesSnapshot, tasksSnapshot, docsSnapshot, eventsSnapshot] = await Promise.all([
     get(ref(db, messagesPath)).catch(() => null),
     get(ref(db, `room_tasks/${roomId}`)).catch(() => null),
@@ -87,20 +101,11 @@ function actionItems(context) {
   return context.tasks.filter((task) => !task.done && task.text).slice(0, 8).map((task) => ({ text: task.text, owner: task.byName || 'Owner not specified' }));
 }
 
-function buildContextString(context) {
-  const lines = [];
-  if (context.messages.length) lines.push(`Recent messages:\n${context.messages.slice(-60).map((message) => `${message.name}: ${message.text}`).join('\n')}`);
-  if (context.tasks.length) lines.push(`Tasks:\n${context.tasks.map((task) => `- [${task.done ? 'done' : 'open'}] ${task.text}${task.byName ? ` (by ${task.byName})` : ''}`).join('\n')}`);
-  if (context.events.length) lines.push(`Events:\n${context.events.map((event) => `- ${event.date || ''} ${event.time || ''} ${event.title || ''}`.trim()).join('\n')}`);
-  if (context.docs.length) lines.push(`Documents: ${context.docs.map((document) => document.title || 'Untitled').join(', ')}`);
-  return lines.join('\n\n');
-}
-
 function buildTranscript(context) {
   return context.messages.slice(-120).map((message) => `${message.name}: ${message.text}`).join('\n');
 }
 
-function loadPersonalAgentProfile() {
+function loadLocalPersonalAgentProfile() {
   try {
     const saved = JSON.parse(localStorage.getItem(PERSONAL_AGENT_STORAGE_KEY) || 'null');
     return { ...DEFAULT_PERSONAL_AGENT_PROFILE, ...(saved || {}) };
@@ -109,7 +114,7 @@ function loadPersonalAgentProfile() {
   }
 }
 
-function savePersonalAgentProfile(profile) {
+function saveLocalPersonalAgentProfile(profile) {
   localStorage.setItem(PERSONAL_AGENT_STORAGE_KEY, JSON.stringify(profile));
 }
 
@@ -121,6 +126,89 @@ function Spinner({ label }) {
   return <div className="ai-progress"><div className="ai-spinner" /><span>{label}</span></div>;
 }
 
+function statusTone(state) {
+  if (state === 'ready') return 'ready';
+  if (state === 'checking' || state === 'warming') return 'loading';
+  return 'error';
+}
+
+function LocalAgentStatus({ onRetry, status }) {
+  const state = status?.state || 'checking';
+  return (
+    <div className={`ai-agent-status ai-agent-status-${statusTone(state)}`} role="status">
+      <span className={`ai-agent-dot ${state === 'checking' || state === 'warming' ? 'pulsing' : ''}`} />
+      <span>{status?.message || localAiStatusMessage({ state })}</span>
+      {state !== 'ready' && onRetry ? (
+        <button type="button" className="ai-status-retry" onClick={onRetry}>Retry</button>
+      ) : null}
+    </div>
+  );
+}
+
+function bananaResetLabel(value) {
+  const timestamp = Number(value || 0);
+  if (!timestamp) return '';
+  try {
+    return new Intl.DateTimeFormat([], {
+      weekday: 'short',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(new Date(timestamp));
+  } catch {
+    return '';
+  }
+}
+
+function bananaQuotaFromUsage(usage) {
+  const quota = usage?.bananas || usage;
+  const fiveHour = quota?.fiveHour || {
+    limit: usage?.fiveHourBananaLimit ?? usage?.bananaLimit,
+    remaining: usage?.fiveHourBananasRemaining ?? usage?.bananasRemaining,
+    used: usage?.fiveHourBananasUsed,
+    resetsAt: usage?.fiveHourBananaResetsAt ?? usage?.bananaResetsAt,
+  };
+  const weekly = quota?.weekly || {
+    limit: usage?.weeklyBananaLimit,
+    remaining: usage?.weeklyBananasRemaining,
+    used: usage?.weeklyBananasUsed,
+    resetsAt: usage?.weeklyBananaResetsAt,
+  };
+
+  const normalize = (window) => {
+    if (window?.limit == null || window?.remaining == null) return null;
+    const limit = Number(window.limit);
+    const remaining = Number(window.remaining);
+    const used = window.used == null ? Math.max(0, limit - remaining) : Number(window.used);
+    return {
+      limit,
+      remaining,
+      used: Math.max(0, used),
+      resetsAt: window.resetsAt,
+    };
+  };
+
+  return {
+    fiveHour: normalize(fiveHour),
+    weekly: normalize(weekly),
+  };
+}
+
+function BananaMeter({ usage }) {
+  const { fiveHour, weekly } = bananaQuotaFromUsage(usage);
+  if (!fiveHour) return null;
+  const fiveHourReset = bananaResetLabel(fiveHour.resetsAt);
+  const weeklyReset = bananaResetLabel(weekly?.resetsAt);
+  return (
+    <div className="ai-banana-meter" title="Bananas protect the shared public AI gateway from abuse. The short window resets every 5 hours, and the weekly cap resets once a week by subscription tier.">
+      <i className="ph-bold ph-shield-check" />
+      <span>
+        {fiveHour.used}/{fiveHour.limit} Bananas this 5h{fiveHourReset ? ` · resets ${fiveHourReset}` : ''}
+        {weekly ? ` · weekly ${weekly.used}/${weekly.limit}${weeklyReset ? ` resets ${weeklyReset}` : ''}` : ''}
+      </span>
+    </div>
+  );
+}
+
 function QuickStats({ stats }) {
   return (
     <div className="ai-card">
@@ -130,11 +218,15 @@ function QuickStats({ stats }) {
   );
 }
 
-function CloudAI({ aiChatEndpoint, context }) {
+function RoomAgent({ context, localAiConfig, roomId, channelId = 'general' }) {
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [bananaUsage, setBananaUsage] = useState(null);
+  const [agentStatus, setAgentStatus] = useState(() => ({ state: 'checking', message: localAiStatusMessage({ state: 'checking' }) }));
   const threadRef = useRef(null);
+  const config = useMemo(() => getLocalAiConfig(localAiConfig), [localAiConfig]);
+  const providerLabel = shouldUseGatewayAi(config) ? 'Gateway · Bananas' : 'Local Ollama';
   const quickActions = [
     ['Summarize', 'Summarize this room. Use sections: Summary, Key Decisions, Open Questions, Next Steps.'],
     ['Extract tasks', "Extract all action items. For each: owner — task — due date or priority. Use 'Owner not specified' if unknown."],
@@ -144,6 +236,21 @@ function CloudAI({ aiChatEndpoint, context }) {
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight; }, [busy, history]);
 
+  const refreshStatus = useCallback(async () => {
+    setAgentStatus({ state: 'checking', message: localAiStatusMessage({ state: 'checking' }), model: config.model });
+    const nextStatus = await getLocalAiStatus(config);
+    setAgentStatus(nextStatus);
+    return nextStatus;
+  }, [config]);
+
+  useEffect(() => {
+    let active = true;
+    getLocalAiStatus(config).then((nextStatus) => {
+      if (active) setAgentStatus(nextStatus);
+    });
+    return () => { active = false; };
+  }, [config]);
+
   const sendPrompt = async (text) => {
     const prompt = text.trim();
     if (!prompt || busy) return;
@@ -151,16 +258,21 @@ function CloudAI({ aiChatEndpoint, context }) {
     setHistory(nextHistory);
     setBusy(true);
     try {
-      const token = await getRequiredIdToken('Please sign in again before using workspace AI.');
-      const response = await fetch(aiChatEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ context: buildContextString(context), messages: nextHistory }),
-      });
-      const data = await response.json().catch(() => ({}));
-      setHistory([...nextHistory, { role: 'assistant', content: response.ok ? (data.reply || '(no response)') : (data.error || `Request failed (${response.status}).`) }]);
+      let currentStatus = agentStatus;
+      if (currentStatus?.state !== 'ready') currentStatus = await refreshStatus();
+      if (currentStatus?.state !== 'ready') {
+        setHistory([...nextHistory, { role: 'assistant', content: currentStatus.message || localAiStatusMessage(currentStatus) }]);
+        return;
+      }
+      const result = await askRoomAgent({ context, messages: nextHistory, config, roomId, channelId });
+      setBananaUsage(result);
+      const { reply } = result;
+      setHistory([...nextHistory, { role: 'assistant', content: reply }]);
     } catch (error) {
-      setHistory([...nextHistory, { role: 'assistant', content: `Could not reach the AI service: ${error.message}` }]);
+      const message = localAiStatusMessage(error);
+      if (error?.details?.bananas) setBananaUsage(error.details.bananas);
+      setAgentStatus({ state: error?.state || 'request-failed', message, model: config.model });
+      setHistory([...nextHistory, { role: 'assistant', content: message }]);
     } finally {
       setBusy(false);
     }
@@ -168,15 +280,17 @@ function CloudAI({ aiChatEndpoint, context }) {
 
   return (
     <div className="ai-card ai-ai-card">
-      <div className="ai-card-h">Workspace AI <span className="ai-tag">Groq · cloud</span></div>
-      <div className="ai-quick-actions">{quickActions.map(([label, prompt]) => <button key={label} type="button" className="ai-qa" onClick={() => sendPrompt(prompt)}>{label}</button>)}</div>
+      <div className="ai-card-h">Room agent <span className="ai-tag">{providerLabel}</span></div>
+      <LocalAgentStatus status={agentStatus} onRetry={refreshStatus} />
+      <BananaMeter usage={bananaUsage} />
+      <div className="ai-quick-actions">{quickActions.map(([label, prompt]) => <button key={label} type="button" className="ai-qa" disabled={busy} onClick={() => sendPrompt(prompt)}>{label}</button>)}</div>
       <div ref={threadRef} id="ai-thread" className="ai-thread">
         {history.map((message, index) => <div key={`${message.role}-${index}`} className={`ai-bubble ai-bubble-${message.role}`}>{message.content}</div>)}
         {busy ? <div className="ai-bubble ai-bubble-assistant ai-typing"><span /><span /><span /></div> : null}
       </div>
       <form id="ai-chat-form" className="ai-chat-form" onSubmit={(event) => { event.preventDefault(); sendPrompt(draft); setDraft(''); }}>
-        <input id="ai-chat-input" value={draft} onChange={(event) => setDraft(event.target.value)} type="text" placeholder="Ask anything about this room…" autoComplete="off" />
-        <button type="submit" className="ai-btn ai-send" id="ai-send-btn" title="Send"><i className="ph-bold ph-paper-plane-tilt" /></button>
+        <input id="ai-chat-input" value={draft} onChange={(event) => setDraft(event.target.value)} type="text" placeholder="Ask the room agent..." autoComplete="off" />
+        <button type="submit" className="ai-btn ai-send" id="ai-send-btn" title="Send" disabled={busy || !draft.trim()}><i className="ph-bold ph-paper-plane-tilt" /></button>
       </form>
     </div>
   );
@@ -200,17 +314,21 @@ function PersonalAgentShell({ children, className = '' }) {
   return <div className={`pa-shell ${className}`.trim()}>{children}</div>;
 }
 
-export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = false, error = '', onRefresh }) {
-  const [profile, setProfile] = useState(loadPersonalAgentProfile);
+export function PersonalAIAgent({ context, loading = false, error = '', localAiConfig, onRefresh, roomId = 'global', channelId = 'general' }) {
+  const [profile, setProfile] = useState(loadLocalPersonalAgentProfile);
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [bananaUsage, setBananaUsage] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [agentStatus, setAgentStatus] = useState(() => ({ state: 'checking', message: localAiStatusMessage({ state: 'checking' }) }));
   const threadRef = useRef(null);
   const pro = isProTier();
   const ctx = context || EMPTY_CONTEXT;
   const initial = agentInitial(profile.name);
+  const config = useMemo(() => getLocalAiConfig(localAiConfig), [localAiConfig]);
+  const serverProfile = shouldUseServerAiProfile(config);
 
   const contextBits = useMemo(() => {
     const bits = [];
@@ -223,17 +341,59 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = fa
 
   useEffect(() => { if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight; }, [busy, history]);
 
+  const refreshAgentStatus = useCallback(async () => {
+    setAgentStatus({ state: 'checking', message: localAiStatusMessage({ state: 'checking' }), model: config.model });
+    const nextStatus = await getLocalAiStatus(config);
+    setAgentStatus(nextStatus);
+    return nextStatus;
+  }, [config]);
+
+  useEffect(() => {
+    let active = true;
+    getLocalAiStatus(config).then((nextStatus) => {
+      if (active) setAgentStatus(nextStatus);
+    });
+    return () => { active = false; };
+  }, [config]);
+
+  useEffect(() => {
+    if (!serverProfile) return undefined;
+    let active = true;
+    loadPersonalAiProfileFromServer({ config })
+      .then((nextProfile) => {
+        if (active && nextProfile) setProfile({ ...DEFAULT_PERSONAL_AGENT_PROFILE, ...nextProfile });
+      })
+      .catch((profileError) => {
+        if (active) setAgentStatus({
+          state: profileError?.state || 'request-failed',
+          message: profileError?.message || 'Could not load server AI profile.',
+          model: config.model,
+          provider: config.provider,
+        });
+      });
+    return () => { active = false; };
+  }, [config, serverProfile]);
+
   const updateProfile = (field, value) => setProfile((current) => ({ ...current, [field]: value }));
 
-  const persistProfile = () => {
-    savePersonalAgentProfile(profile);
+  const persistProfile = async () => {
+    if (serverProfile) {
+      const savedProfile = await savePersonalAiProfileToServer({ profile, config });
+      if (savedProfile) setProfile({ ...DEFAULT_PERSONAL_AGENT_PROFILE, ...savedProfile });
+    } else {
+      saveLocalPersonalAgentProfile(profile);
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   };
 
-  const resetProfile = () => {
+  const resetProfile = async () => {
     setProfile(DEFAULT_PERSONAL_AGENT_PROFILE);
-    savePersonalAgentProfile(DEFAULT_PERSONAL_AGENT_PROFILE);
+    if (serverProfile) {
+      await savePersonalAiProfileToServer({ profile: DEFAULT_PERSONAL_AGENT_PROFILE, config });
+    } else {
+      saveLocalPersonalAgentProfile(DEFAULT_PERSONAL_AGENT_PROFILE);
+    }
     setSaved(true);
     window.setTimeout(() => setSaved(false), 1800);
   };
@@ -250,32 +410,38 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = fa
     setHistory(nextHistory);
     setBusy(true);
     try {
-      savePersonalAgentProfile(profile);
-      const token = await window.currentUser.getIdToken();
-      const response = await fetch(personalAiAgentEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ context: buildContextString(ctx), messages: nextHistory, agentProfile: profile }),
+      if (serverProfile) {
+        await savePersonalAiProfileToServer({ profile, config }).catch(() => null);
+      } else {
+        saveLocalPersonalAgentProfile(profile);
+      }
+      let currentStatus = agentStatus;
+      if (currentStatus?.state !== 'ready') currentStatus = await refreshAgentStatus();
+      if (currentStatus?.state !== 'ready') {
+        setHistory([...nextHistory, { role: 'assistant', content: currentStatus.message || localAiStatusMessage(currentStatus) }]);
+        return;
+      }
+      const result = await askPersonalAgent({
+        context: ctx,
+        messages: nextHistory,
+        profile,
+        userName: window.userProfileName || window.currentUser?.displayName || 'the user',
+        config,
+        roomId,
+        channelId,
       });
-      const data = await response.json().catch(() => ({}));
-      setHistory([...nextHistory, { role: 'assistant', content: response.ok ? (data.reply || '(no response)') : (data.error || `Request failed (${response.status}).`) }]);
+      setBananaUsage(result);
+      const { reply } = result;
+      setHistory([...nextHistory, { role: 'assistant', content: reply }]);
     } catch (requestError) {
-      setHistory([...nextHistory, { role: 'assistant', content: `Could not reach your personal agent: ${requestError.message}` }]);
+      const message = localAiStatusMessage(requestError);
+      if (requestError?.details?.bananas) setBananaUsage(requestError.details.bananas);
+      setAgentStatus({ state: requestError?.state || 'request-failed', message, model: config.model });
+      setHistory([...nextHistory, { role: 'assistant', content: message }]);
     } finally {
       setBusy(false);
     }
   };
-
-  // Endpoint not deployed yet.
-  if (!personalAiAgentEndpoint) {
-    return (
-      <PersonalAgentShell className="pa-notice">
-        <div className="pa-orb pa-orb-lg">{initial}</div>
-        <h3>Personal AI Agent <span className="pa-pro">Pro</span></h3>
-        <p>Your private assistant isn’t connected yet — the agent’s Firebase function endpoint still needs to be configured.</p>
-      </PersonalAgentShell>
-    );
-  }
 
   // Pro upsell.
   if (!pro) {
@@ -308,7 +474,7 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = fa
         <div className="pa-orb">{initial}</div>
         <div className="pa-id-meta">
           <strong>{profile.name || 'Your agent'}</strong>
-          <span><i className="ph-bold ph-shield-check" /> Private agent · Pro</span>
+          <span><i className="ph-bold ph-shield-check" /> {serverProfile ? 'Server profile · Bananas protected' : 'Private local profile · Pro'}</span>
         </div>
         <div className="pa-id-actions">
           <button type="button" className="pa-icon-btn" onClick={onRefresh} title="Re-read this room" disabled={loading}>
@@ -328,6 +494,10 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = fa
         ) : (
           <><span className="pa-context-dot" /> {contextBits.length ? `Using ${contextBits.join(' · ')}` : 'Room is quiet — ask me anything'}</>
         )}
+      </div>
+      <div className="pa-local-status">
+        <LocalAgentStatus status={agentStatus} onRetry={refreshAgentStatus} />
+        <BananaMeter usage={bananaUsage} />
       </div>
 
       {settingsOpen ? (
@@ -408,7 +578,7 @@ export function PersonalAIAgent({ personalAiAgentEndpoint, context, loading = fa
   );
 }
 
-export function PersonalAIAgentLauncher({ personalAiAgentEndpoint, roomId }) {
+export function PersonalAIAgentLauncher({ localAiConfig, roomId, channelId = window.activeChannelId || 'general' }) {
   const [context, setContext] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -418,13 +588,13 @@ export function PersonalAIAgentLauncher({ personalAiAgentEndpoint, roomId }) {
     setLoading(true);
     setError('');
     try {
-      setContext(await gatherContext(roomId));
+      setContext(await gatherContext(roomId, channelId));
     } catch (loadError) {
       setError(`Couldn't load room context: ${loadError.message}`);
     } finally {
       setLoading(false);
     }
-  }, [roomId]);
+  }, [channelId, roomId]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => load(), 0);
@@ -433,10 +603,13 @@ export function PersonalAIAgentLauncher({ personalAiAgentEndpoint, roomId }) {
 
   return (
     <PersonalAIAgent
-      personalAiAgentEndpoint={personalAiAgentEndpoint}
+      key={`${roomId || 'global'}:${channelId || 'general'}`}
       context={context}
+      localAiConfig={localAiConfig}
       loading={loading}
       error={error}
+      roomId={roomId}
+      channelId={channelId}
       onRefresh={load}
     />
   );
@@ -444,22 +617,26 @@ export function PersonalAIAgentLauncher({ personalAiAgentEndpoint, roomId }) {
 
 function LocalAI({ context }) {
   const [state, setState] = useState({ status: 'idle', message: '', percent: null, summary: '' });
+  const requestRef = useRef('');
 
   const generate = () => {
     const transcript = buildTranscript(context);
     if (!transcript.trim()) return setState({ status: 'error', message: 'No conversation text to summarize.', percent: null, summary: '' });
+    const requestId = String(timestamp());
+    requestRef.current = requestId;
     setState({ status: 'loading', message: modelReady ? 'Summarizing…' : 'Loading model…', percent: null, summary: '' });
     try {
       if (!worker) worker = new Worker('/js/ai-worker.js?v=30', { type: 'module' });
       worker.onmessage = (event) => {
         const data = event.data || {};
+        if (data.id && data.id !== requestRef.current) return;
         if (data.type === 'progress') setState({ status: 'loading', message: `Downloading model… ${data.pct != null ? `${data.pct}%` : ''}`, percent: data.pct ?? null, summary: '' });
         if (data.type === 'ready') { modelReady = true; setState({ status: 'loading', message: 'Summarizing…', percent: null, summary: '' }); }
         if (data.type === 'result') setState({ status: 'done', message: '', percent: null, summary: data.summary || '(no summary produced)' });
         if (data.type === 'error') setState({ status: 'error', message: `Local model failed: ${data.message}. The instant summary above still works.`, percent: null, summary: '' });
       };
       worker.onerror = (event) => setState({ status: 'error', message: `Couldn't start the local model: ${event.message || 'unknown error'}. The instant summary above still works.`, percent: null, summary: '' });
-      worker.postMessage({ type: 'summarize', text: transcript, id: timestamp() });
+      worker.postMessage({ type: 'summarize', text: transcript, id: requestId });
     } catch (error) {
       setState({ status: 'error', message: `Local AI isn't available on this browser: ${error.message}. The instant summary above still works.`, percent: null, summary: '' });
     }
@@ -476,7 +653,7 @@ function LocalAI({ context }) {
   );
 }
 
-export function AI({ aiChatEndpoint, roomId }) {
+export function AI({ localAiConfig, roomId, channelId = 'general' }) {
   const [context, setContext] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -486,7 +663,7 @@ export function AI({ aiChatEndpoint, roomId }) {
     setLoading(true);
     setError('');
     try {
-      const nextContext = await gatherContext(roomId);
+      const nextContext = await gatherContext(roomId, channelId);
       setContext(nextContext);
     } catch (loadError) {
       setError(`Couldn't load room data: ${loadError.message}`);
@@ -499,7 +676,7 @@ export function AI({ aiChatEndpoint, roomId }) {
     let active = true;
     const runInitialLoad = async () => {
       try {
-        const nextContext = await gatherContext(roomId);
+        const nextContext = await gatherContext(roomId, channelId);
         if (active) setContext(nextContext);
       } catch (loadError) {
         if (active) setError(`Couldn't load room data: ${loadError.message}`);
@@ -509,7 +686,7 @@ export function AI({ aiChatEndpoint, roomId }) {
     };
     runInitialLoad();
     return () => { active = false; };
-  }, [roomId]);
+  }, [channelId, roomId]);
 
   const stats = useMemo(() => context ? quickStats(context, dateKey) : [], [context, dateKey]);
   const summary = useMemo(() => context ? extractiveSummary(context) : [], [context]);
@@ -519,16 +696,16 @@ export function AI({ aiChatEndpoint, roomId }) {
   return (
     <div className="ai-wrap">
       <div className="ai-head">
-        <h3><i className="ph-bold ph-sparkle" /> AI Summary</h3>
+        <h3><i className="ph-bold ph-sparkle" /> AI Command Center</h3>
         <button type="button" id="ai-refresh-btn" className="rh-add-btn" title="Re-read the room" onClick={load}><i className="ph-bold ph-arrows-clockwise" /> Refresh</button>
       </div>
       <div id="ai-output" className="ai-output">
         {loading ? <Spinner label="Reading room…" /> : null}
         {error ? <div className="ai-empty">{error}</div> : null}
         {!loading && context ? <QuickStats stats={stats} /> : null}
-        {!loading && context && aiChatEndpoint ? <CloudAI aiChatEndpoint={aiChatEndpoint} context={context} /> : null}
-        {!loading && context && !aiChatEndpoint && empty ? <div className="ai-empty">Nothing to summarize in this room yet.</div> : null}
-        {!loading && context && !aiChatEndpoint && !empty ? (
+        {!loading && context ? <RoomAgent key={`${roomId || 'global'}:${channelId || 'general'}`} context={context} localAiConfig={localAiConfig} roomId={roomId} channelId={channelId} /> : null}
+        {!loading && context && empty ? <div className="ai-empty">Nothing to summarize in this room yet.</div> : null}
+        {!loading && context && !empty ? (
           <>
             <div className="ai-card"><div className="ai-card-h">Summary <span className="ai-tag">extractive · instant</span></div>{summary.length ? <ul className="ai-list">{summary.map((sentence) => <li key={sentence}>{sentence}</li>)}</ul> : <div className="ai-empty">Not enough text to summarize.</div>}</div>
             {actions.length ? <div className="ai-card"><div className="ai-card-h">Open action items</div><ul className="ai-list">{actions.map((item) => <li key={item.text}>{item.text} <span className="ai-owner">— {item.owner}</span></li>)}</ul></div> : null}

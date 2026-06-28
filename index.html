@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#ffd700" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="description" content="Minimalist.chat is a calmer rooms platform for friends, teams, students, creators, clubs, and communities — organized chat without the noise." />
     <meta property="og:title" content="Minimalist.chat | Calm rooms for real communities" />
     <meta property="og:description" content="Create private or public rooms with clean chat, profiles, files, events, moderation, AI summaries, and community memory — without the noisy feed." />
@@ -22,20 +23,22 @@
     <link rel="preload" as="style" href="/base.css?v=split22" data-load-css data-css-priority="critical" />
     <link data-load-css data-href="/desktop.css?v=split2" data-css-scope="app" />
     <link data-load-css data-href="/mobile.css?v=split8" data-css-scope="app" />
-    <link data-load-css data-href="/features.css?v=34" data-css-scope="app" data-css-lazy="feature" />
+    <link data-load-css data-href="/features.css?v=37" data-css-scope="app" data-css-lazy="feature" />
     <link data-load-css data-href="/themes/light.css?v=1" data-css-lazy="theme" />
     <link data-load-css data-href="/themes/dark.css?v=1" data-css-lazy="theme" />
     <link data-load-css data-href="/themes/gray.css?v=1" data-css-lazy="theme" />
     <link data-load-css data-href="/themes/modern.css?v=5" data-css-lazy="theme" />
+    <link data-load-css data-href="/themes/codex.css?v=2" data-css-lazy="theme" />
     <noscript>
       <link rel="stylesheet" href="/base.css?v=split22" />
       <link rel="stylesheet" href="/desktop.css?v=split2" />
       <link rel="stylesheet" href="/mobile.css?v=split8" />
-      <link rel="stylesheet" href="/features.css?v=34" />
+      <link rel="stylesheet" href="/features.css?v=37" />
       <link rel="stylesheet" href="/themes/light.css?v=1" />
       <link rel="stylesheet" href="/themes/dark.css?v=1" />
       <link rel="stylesheet" href="/themes/gray.css?v=1" />
       <link rel="stylesheet" href="/themes/modern.css?v=5" />
+      <link rel="stylesheet" href="/themes/codex.css?v=2" />
     </noscript>
     <style id="critical-app-shell">
       :root {
@@ -407,7 +410,7 @@
       }
 
       html.route-home .static-home-shell {
-        display: none;
+        display: block;
         position: fixed;
         inset: 0;
         z-index: 2147483000;
@@ -435,6 +438,23 @@
         justify-content: space-between;
         gap: 1rem;
         margin-bottom: clamp(2rem, 7vw, 5rem);
+      }
+
+      .static-home-links {
+        display: flex;
+        align-items: center;
+        gap: clamp(0.55rem, 2vw, 1rem);
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .static-home-links a:not(.static-home-open) {
+        color: #495163;
+        text-decoration: none;
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
       }
 
       .static-home-brand {
@@ -591,20 +611,34 @@
           grid-template-columns: 1fr;
         }
 
+        .static-home-nav {
+          align-items: flex-start;
+        }
+
+        .static-home-links {
+          max-width: 10.5rem;
+          gap: 0.42rem 0.7rem;
+        }
+
         .static-home-preview {
           min-height: 16rem;
         }
       }
     </style>
-    <script src="/load-css.js?v=2"></script>
-    <script defer src="/config.js?v=platform1"></script>
+    <script src="/load-css.js?v=3"></script>
+    <script defer src="/config.js?v=localai5"></script>
     <title>Minimalist.chat | Calm rooms for real communities</title>
   </head>
   <body>
     <main id="static-home-shell" class="static-home-shell" aria-label="Minimalist homepage preview">
       <nav class="static-home-nav" aria-label="Preview navigation">
         <span class="static-home-brand"><span class="static-home-logo" aria-hidden="true"></span>MINIMALIST</span>
-        <a class="static-home-open" href="/login">Sign up</a>
+        <span class="static-home-links">
+          <a href="/features">Features</a>
+          <a href="/download">Download</a>
+          <a href="/story">Story</a>
+          <a class="static-home-open" href="/chat">Open App</a>
+        </span>
       </nav>
       <section class="static-home-hero">
         <div>

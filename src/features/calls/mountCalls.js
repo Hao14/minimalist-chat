@@ -11,5 +11,8 @@ export function mountCalls(props) {
     host.replaceChildren();
     callsRoot = createRoot(host);
   }
-  callsRoot.render(createElement(Calls, { ...props, key: props.roomId }));
+  callsRoot.render(createElement(Calls, {
+    ...props,
+    key: `${props.roomId}:${props.activeChannelId || 'general'}:${props.enableCallChannelsV2 ? 'v2' : 'v1'}`,
+  }));
 }

@@ -39,6 +39,7 @@ window.createNotification = async function createNotification(targetUid, type, t
       type,
       text,
       from: from || null,
+      senderUid: window.currentUser?.uid || null,
       timestamp: Date.now(),
       ...meta,
     });

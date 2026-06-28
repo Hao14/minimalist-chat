@@ -1,6 +1,17 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ProfileCompleteness } from './SettingsWidgets.jsx';
+import {
+  DEFAULT_ACCENT_COLOR,
+  applySavedTheme,
+  applyTheme,
+  clearCustomAccent,
+  readCustomAccent,
+  readStoredTheme,
+  setCustomAccent,
+  updateThemeBrowserChrome,
+  updateThemeSelectionUI,
+} from './themeRuntime.js';
 
 const SETTINGS_TABS = ['profile', 'billing', 'app', 'performance', 'notifications'];
 let profileCompletenessRoot = null;
@@ -20,8 +31,6 @@ const safeSetText = (id, text) => {
   if (el) el.textContent = text ?? '';
 };
 
-const DEFAULT_ACCENT_COLOR = '#FFD700';
-const THEME_CLASSES = ['dark-mode', 'gray-mode', 'modern-mode'];
 const FEATURE_MODE_KEY = 'minimalistMarketingMode';
 const FEATURE_MODE_EVENT = 'minimalist:marketing-mode';
 const FEATURE_MODE_CLASSES = ['simple-feature-mode', 'power-feature-mode'];
@@ -104,35 +113,14 @@ window.getFeatureMode = readFeatureMode;
 window.setFeatureMode = applyFeatureMode;
 window.isSimpleFeatureMode = () => readFeatureMode() === 'simple';
 
-function setCustomAccent(color) {
-  document.documentElement.style.setProperty('--accent-color', color);
-  document.body.style.setProperty('--accent-color', color);
-}
-
-function clearCustomAccent() {
-  document.documentElement.style.removeProperty('--accent-color');
-  document.body.style.removeProperty('--accent-color');
-}
-
-function applySavedTheme() {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.body.classList.remove(...THEME_CLASSES);
-  if (savedTheme !== 'light') document.body.classList.add(`${savedTheme}-mode`);
-  const customAccent = localStorage.getItem('customAccentColor');
-  clearCustomAccent();
-  if (customAccent) setCustomAccent(customAccent);
-}
-
 applySavedTheme();
 applyFeatureMode(readFeatureMode());
 
-document.querySelectorAll('.theme-select-btn').forEach((btn) => {
-  btn.addEventListener('click', (e) => {
-    const selectedTheme = e.currentTarget.getAttribute('data-theme') || 'light';
-    document.body.classList.remove(...THEME_CLASSES);
-    if (selectedTheme !== 'light') document.body.classList.add(`${selectedTheme}-mode`);
-    localStorage.setItem('theme', selectedTheme);
-  });
+document.addEventListener('click', (event) => {
+  const themeButton = event.target?.closest?.('.theme-select-btn');
+  if (!themeButton) return;
+  const selectedTheme = themeButton.getAttribute('data-theme') || 'light';
+  applyTheme(selectedTheme);
 });
 
 function updateCustomThemeUI() {
@@ -140,14 +128,14 @@ function updateCustomThemeUI() {
   const applyBtn = document.getElementById('apply-custom-theme-btn');
   const resetBtn = document.getElementById('reset-custom-theme-btn');
   const note = document.getElementById('custom-theme-note');
-  const currentAccent = localStorage.getItem('customAccentColor') || window.userThemeColor || DEFAULT_ACCENT_COLOR;
+  const currentAccent = readCustomAccent() || window.userThemeColor || DEFAULT_ACCENT_COLOR;
 
   if (colorInput) {
     colorInput.value = currentAccent;
   }
 
   if (applyBtn) applyBtn.disabled = false;
-  if (resetBtn) resetBtn.disabled = !localStorage.getItem('customAccentColor');
+  if (resetBtn) resetBtn.disabled = !readCustomAccent();
 
   if (note) {
     note.textContent = 'Free for everyone — pick any accent color for this device.';
@@ -205,7 +193,8 @@ document.getElementById('apply-custom-theme-btn')?.addEventListener('click', () 
   const color = document.getElementById('custom-accent-color')?.value || DEFAULT_ACCENT_COLOR;
   setCustomAccent(color);
   localStorage.setItem('customAccentColor', color);
-  localStorage.setItem('theme', localStorage.getItem('theme') || 'light');
+  localStorage.setItem('theme', readStoredTheme());
+  updateThemeBrowserChrome(readStoredTheme(), color);
   updateCustomThemeUI();
   window.showToast?.('Custom theme applied.', false);
 });
@@ -213,7 +202,7 @@ document.getElementById('apply-custom-theme-btn')?.addEventListener('click', () 
 document.getElementById('reset-custom-theme-btn')?.addEventListener('click', () => {
   localStorage.removeItem('customAccentColor');
   clearCustomAccent();
-  applySavedTheme();
+  applyTheme(readStoredTheme(), { persist: false });
   updateCustomThemeUI();
   window.showToast?.('Accent color reset.', false);
 });
@@ -264,6 +253,7 @@ window.openSettings = function openSettings() {
 
   if (typeof window.switchTab === 'function') window.switchTab('pane-profile', 'tab-btn-profile');
   updateCustomThemeUI();
+  updateThemeSelectionUI();
   updateFeatureModeUI();
   window.renderPerformanceSettings?.();
   window.renderNotificationSettings?.();

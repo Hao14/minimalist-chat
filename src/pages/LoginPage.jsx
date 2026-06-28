@@ -1,4 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  loadGoogleIdentityScript,
+  renderGoogleIdentityButton,
+  signInWithGoogleIdentity,
+} from '../lib/googleIdentityAuth.js';
 
 const strengthLabels = ['', 'Weak', 'Weak', 'Fair', 'Good', 'Strong'];
 const strengthColors = ['#ccc', '#e53935', '#e53935', '#fb8c00', '#fdd835', '#43a047'];
@@ -49,20 +54,36 @@ function friendlyAuthError(error) {
     'auth/operation-not-allowed': 'Google sign-in is not enabled for this project yet.',
     'auth/operation-not-supported-in-this-environment': 'This browser needs Google sign-in to open in the current tab.',
     'auth/popup-blocked': 'The sign-in popup was blocked by your browser.',
+    'auth/popup-closed-by-user': 'Google sign-in was closed before it finished.',
+    'auth/redirect-cancelled-by-user': 'Google sign-in was closed before it finished.',
+    'google/popup_closed': 'Google sign-in was closed before it finished.',
+    'google/popup_failed_to_open': 'This browser blocked Google sign-in. Open Minimalist in Chrome or Safari and try again.',
+    'google/script_timeout': 'Google sign-in did not open in this browser. Try Chrome or Safari.',
+    'google/browser_not_supported': 'This browser does not support Google sign-in. Open Minimalist in Chrome or Safari and try again.',
+    'google/cancel_called': 'Google sign-in was closed before it finished.',
+    'google/flow_restarted': 'Google sign-in restarted. Please try again.',
+    'google/invalid_client': 'Google sign-in is not configured correctly for this app.',
+    'google/issuing_failed': 'Google could not issue a sign-in token. Please try again.',
+    'google/missing_client_id': 'Google sign-in is missing its client id.',
+    'google/missing_id_token': 'Google did not return a secure sign-in token.',
+    'google/opt_out_or_no_session': 'Google could not find an active account in this browser. Open Minimalist in Chrome or Safari and try again.',
+    'google/secure_http_required': 'Google sign-in requires a secure HTTPS page.',
+    'google/suppressed_by_user': 'Google sign-in is temporarily suppressed in this browser. Open Minimalist in Chrome or Safari and try again.',
+    'google/tap_outside': 'Google sign-in was closed before it finished.',
+    'google/unregistered_origin': 'This domain is not authorized for Google sign-in.',
+    'google/user_cancel': 'Google sign-in was closed before it finished.',
+    'google/unknown': 'Google sign-in could not finish in this browser. Try Chrome or Safari.',
     'auth/too-many-requests': 'Too many attempts. Please wait before trying again.',
     'auth/unauthorized-domain': 'This domain is not authorized for Google sign-in in Firebase.',
+    'auth/web-storage-unsupported': 'This browser blocks the storage Google sign-in needs. Try opening the site in Chrome or Safari.',
     'auth/weak-password': 'Use a stronger password with at least 6 characters.',
   };
-  return messages[error?.code] || 'Something went wrong. Please try again.';
+  if (messages[error?.code]) return messages[error.code];
+  const detail = error?.code || error?.message;
+  return detail ? `Google sign-in failed: ${detail}` : 'Something went wrong. Please try again.';
 }
 
-function createGoogleProvider(GoogleAuthProvider) {
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  return provider;
-}
-
-function prefersRedirectGoogleAuth() {
+function shouldAvoidRedirectGoogleAuth() {
   if (typeof window === 'undefined') return false;
   const userAgent = navigator.userAgent || '';
   const mobileAgent = /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(userAgent);
@@ -79,6 +100,53 @@ function shouldRedirectAfterPopupError(error) {
     'auth/operation-not-supported-in-this-environment',
     'auth/web-storage-unsupported',
   ].includes(error?.code);
+}
+
+function getSessionValue(key) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function setSessionValue(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Some mobile browsers partition or block sessionStorage during auth.
+  }
+}
+
+function removeSessionValue(key) {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Some mobile browsers partition or block sessionStorage during auth.
+  }
+}
+
+function postAuthRedirect() {
+  const pendingJoinUrl = getSessionValue('pendingJoinUrl') || '';
+  return pendingJoinUrl.startsWith('/join/') ? pendingJoinUrl : '/chat';
+}
+
+function navigateAfterAuth() {
+  const targetUrl = new URL(postAuthRedirect(), window.location.origin);
+  const targetPath = `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+  if (targetUrl.origin !== window.location.origin) {
+    window.location.replace('/chat');
+    return;
+  }
+
+  if (targetPath === currentPath) {
+    window.location.reload();
+    return;
+  }
+
+  window.location.replace(targetPath);
 }
 
 function PasswordField({ id, label, placeholder, value, onChange }) {
@@ -105,11 +173,83 @@ function PasswordField({ id, label, placeholder, value, onChange }) {
   );
 }
 
+function GoogleIdentityAuthButton({
+  busy,
+  mode,
+  remember,
+  buttonText,
+  onFallbackClick,
+  onResult,
+  onError,
+  setBusy,
+}) {
+  const mountRef = useRef(null);
+  const callbacksRef = useRef({ onResult, onError });
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    callbacksRef.current = { onResult, onError };
+  }, [onResult, onError]);
+
+  useEffect(() => {
+    let cancelled = false;
+    let cleanup = () => {};
+
+    const mountButton = async () => {
+      setMounted(false);
+      try {
+        const kit = await loadAuthKit();
+        if (cancelled || !mountRef.current) return;
+
+        cleanup = await renderGoogleIdentityButton({
+          container: mountRef.current,
+          auth: kit.auth,
+          GoogleAuthProvider: kit.GoogleAuthProvider,
+          signInWithCredential: kit.signInWithCredential,
+          text: mode === 'signup' ? 'signup_with' : 'signin_with',
+          beforeSignIn: async () => {
+            setBusy(true);
+            await kit.setPersistence(
+              kit.auth,
+              mode === 'login' && !remember ? kit.browserSessionPersistence : kit.browserLocalPersistence,
+            );
+          },
+          onResult: (credential) => callbacksRef.current.onResult?.(credential),
+          onError: (error) => callbacksRef.current.onError?.(error),
+        });
+
+        if (!cancelled) setMounted(true);
+      } catch {
+        if (!cancelled) setMounted(false);
+      }
+    };
+
+    mountButton();
+
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
+  }, [mode, remember, setBusy]);
+
+  return (
+    <div className={`google-identity-shell ${mounted ? 'is-mounted' : ''} ${busy ? 'is-disabled' : ''}`}>
+      <div ref={mountRef} className="google-identity-button" aria-hidden={!mounted} />
+      {!mounted && (
+        <button type="button" className="google-btn auth-google-primary" disabled={busy} onClick={onFallbackClick}>
+          <span className="google-mark" aria-hidden="true">G</span>
+          {buttonText}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function LoginPage() {
   const [mode, setMode] = useState('login');
   const [loginStep, setLoginStep] = useState(1);
   const [signupStep, setSignupStep] = useState(1);
-  const [busy, setBusy] = useState(() => sessionStorage.getItem('googleAuthRedirectPending') === '1');
+  const [busy, setBusy] = useState(() => getSessionValue('googleAuthRedirectPending') === '1');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [remember, setRemember] = useState(true);
@@ -127,17 +267,12 @@ export default function LoginPage() {
   const signupEmailInput = useRef(null);
   const signupNameInput = useRef(null);
   const isNative = Boolean(window.Capacitor?.isNativePlatform?.());
-  const usesRedirectGoogleAuth = prefersRedirectGoogleAuth();
+  const avoidsRedirectGoogleAuth = shouldAvoidRedirectGoogleAuth();
   const strength = useMemo(() => passwordStrength(signup.password), [signup.password]);
   const passwordsMatch = signup.confirm && signup.confirm === signup.password;
   const googleButtonText = mode === 'signup'
-    ? (usesRedirectGoogleAuth || isNative ? 'Continue with Google' : 'Sign Up with Google')
-    : (usesRedirectGoogleAuth || isNative ? 'Continue with Google' : 'Sign In with Google');
-
-  const postAuthRedirect = () => {
-    const pendingJoinUrl = sessionStorage.getItem('pendingJoinUrl') || '';
-    return pendingJoinUrl.startsWith('/join/') ? pendingJoinUrl : '/chat';
-  };
+    ? (avoidsRedirectGoogleAuth || isNative ? 'Continue with Google' : 'Sign Up with Google')
+    : (avoidsRedirectGoogleAuth || isNative ? 'Continue with Google' : 'Sign In with Google');
 
   const showToast = (message, isError = true) => {
     window.clearTimeout(toastTimer.current);
@@ -163,7 +298,7 @@ export default function LoginPage() {
     const finishSignedInUser = async (kit, user, welcome = false) => {
       if (!user || handledAuth) return;
       handledAuth = true;
-      sessionStorage.removeItem('googleAuthRedirectPending');
+      removeSessionValue('googleAuthRedirectPending');
       try {
         if (kit.isGoogleAuthUser(user)) await kit.ensureAuthProfile(user, { welcome });
       } catch (error) {
@@ -172,7 +307,7 @@ export default function LoginPage() {
         setBusy(false);
         return;
       }
-      window.location.replace(postAuthRedirect());
+      navigateAfterAuth();
     };
 
     const initAuthSessionWatcher = async () => {
@@ -181,9 +316,19 @@ export default function LoginPage() {
         if (cancelled) return;
 
         kit.getRedirectResult(kit.auth)
-          .then((result) => finishSignedInUser(kit, result?.user, true))
+          .then((result) => {
+            if (result?.user) {
+              finishSignedInUser(kit, result.user, true);
+              return;
+            }
+            if (kit.auth.currentUser) finishSignedInUser(kit, kit.auth.currentUser);
+            else {
+              removeSessionValue('googleAuthRedirectPending');
+              setBusy(false);
+            }
+          })
           .catch((error) => {
-            sessionStorage.removeItem('googleAuthRedirectPending');
+            removeSessionValue('googleAuthRedirectPending');
             if (error?.code !== 'auth/popup-closed-by-user') showToast(friendlyAuthError(error));
             setBusy(false);
           });
@@ -192,7 +337,7 @@ export default function LoginPage() {
           if (user) finishSignedInUser(kit, user);
         });
       } catch (error) {
-        sessionStorage.removeItem('googleAuthRedirectPending');
+        removeSessionValue('googleAuthRedirectPending');
         if (!cancelled) {
           showToast(friendlyAuthError(error));
           setBusy(false);
@@ -201,6 +346,7 @@ export default function LoginPage() {
     };
 
     initAuthSessionWatcher();
+    loadGoogleIdentityScript().catch(() => {});
 
     return () => {
       cancelled = true;
@@ -248,7 +394,7 @@ export default function LoginPage() {
       const kit = await loadAuthKit();
       await kit.setPersistence(kit.auth, remember ? kit.browserLocalPersistence : kit.browserSessionPersistence);
       await kit.signInWithEmailAndPassword(kit.auth, loginEmail.trim(), loginPassword);
-      window.location.replace(postAuthRedirect());
+      navigateAfterAuth();
     } catch (error) {
       showToast(friendlyAuthError(error));
       setBusy(false);
@@ -298,8 +444,8 @@ export default function LoginPage() {
       };
       await kit.set(kit.ref(kit.db, `users/${credential.user.uid}`), profile);
       await kit.syncPublicUserDirectory(credential.user, profile);
-      sessionStorage.setItem('showWelcomeTour', '1');
-      window.location.replace(postAuthRedirect());
+      setSessionValue('showWelcomeTour', '1');
+      navigateAfterAuth();
     } catch (error) {
       showToast(friendlyAuthError(error));
       setBusy(false);
@@ -311,31 +457,32 @@ export default function LoginPage() {
     try {
       const kit = await loadAuthKit();
       await kit.setPersistence(kit.auth, mode === 'login' && !remember ? kit.browserSessionPersistence : kit.browserLocalPersistence);
-      const provider = createGoogleProvider(kit.GoogleAuthProvider);
-      if (usesRedirectGoogleAuth) {
-        sessionStorage.setItem('googleAuthRedirectPending', '1');
-        await kit.signInWithRedirect(kit.auth, provider);
-        return;
-      }
-      const credential = await kit.signInWithPopup(kit.auth, provider);
+      const credential = await signInWithGoogleIdentity(kit);
       await kit.ensureAuthProfile(credential.user, { welcome: true });
-      window.location.replace(postAuthRedirect());
+      navigateAfterAuth();
     } catch (error) {
+      handleGoogleError(error);
+    }
+  };
+
+  const handleGoogleIdentityResult = async (credential) => {
+    try {
+      const kit = await loadAuthKit();
+      await kit.ensureAuthProfile(credential.user, { welcome: true });
+      navigateAfterAuth();
+    } catch (error) {
+      handleGoogleError(error);
+    }
+  };
+
+  const handleGoogleError = (error) => {
       if (shouldRedirectAfterPopupError(error)) {
-        try {
-          const kit = await loadAuthKit();
-          sessionStorage.setItem('googleAuthRedirectPending', '1');
-          await kit.signInWithRedirect(kit.auth, createGoogleProvider(kit.GoogleAuthProvider));
-        } catch (redirectError) {
-          sessionStorage.removeItem('googleAuthRedirectPending');
-          showToast(friendlyAuthError(redirectError));
-          setBusy(false);
-        }
+        showToast('This browser blocked the Google popup. Open Minimalist in Chrome or Safari and try again.');
+        setBusy(false);
         return;
       }
       if (error?.code !== 'auth/popup-closed-by-user') showToast(friendlyAuthError(error));
       setBusy(false);
-    }
   };
 
   const handlePasswordReset = async (event) => {
@@ -473,10 +620,16 @@ export default function LoginPage() {
                 <h3>{loginStepMeta.title}</h3>
                 <p>{loginStepMeta.copy}</p>
               </div>
-              <button type="button" className="google-btn auth-google-primary" disabled={busy} onClick={handleGoogle}>
-                <span className="google-mark" aria-hidden="true">G</span>
-                {googleButtonText}
-              </button>
+              <GoogleIdentityAuthButton
+                busy={busy}
+                mode={mode}
+                remember={remember}
+                buttonText={googleButtonText}
+                onFallbackClick={handleGoogle}
+                onResult={handleGoogleIdentityResult}
+                onError={handleGoogleError}
+                setBusy={setBusy}
+              />
               <div className="auth-divider"><span>OR USE EMAIL</span></div>
               {loginStep === 1 ? (
                 <div className="auth-step-content">
@@ -530,10 +683,16 @@ export default function LoginPage() {
                 <h3>{signupStepMeta.title}</h3>
                 <p>{signupStepMeta.copy}</p>
               </div>
-              <button type="button" className="google-btn auth-google-primary" disabled={busy} onClick={handleGoogle}>
-                <span className="google-mark" aria-hidden="true">G</span>
-                {googleButtonText}
-              </button>
+              <GoogleIdentityAuthButton
+                busy={busy}
+                mode={mode}
+                remember={remember}
+                buttonText={googleButtonText}
+                onFallbackClick={handleGoogle}
+                onResult={handleGoogleIdentityResult}
+                onError={handleGoogleError}
+                setBusy={setBusy}
+              />
               <div className="auth-divider"><span>OR USE EMAIL</span></div>
               {signupStep === 1 && (
                 <div className="auth-step-content">
@@ -637,10 +796,10 @@ export default function LoginPage() {
         </section>
       </main>
 
-      <div id="brutalist-toast" className={toast ? '' : 'toast-hidden'} role="status" aria-live="polite">
+      <div id="brutalist-toast" className={toast ? '' : 'toast-hidden'} role="status" aria-live="polite" aria-hidden={!toast} hidden={!toast}>
         <span id="toast-icon">{toast?.isError ? '⚠️' : '✅'}</span>
         <span id="toast-message">{toast?.message || ''}</span>
-        <button type="button" id="toast-close" aria-label="Close notification" onClick={() => setToast(null)}>✖</button>
+        <button type="button" id="toast-close" aria-label="Close notification" tabIndex={toast ? 0 : -1} onClick={() => setToast(null)}>✖</button>
       </div>
     </>
   );

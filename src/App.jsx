@@ -1,5 +1,5 @@
-import { Component, createElement, lazy, Suspense } from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Component, createElement, lazy, Suspense, useLayoutEffect } from 'react';
+import { Route, Routes, useLocation } from 'react-router-dom';
 
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
@@ -26,6 +26,15 @@ const pageRoutes = [
   ['/privacy', PrivacyPage],
   ['/terms', TermsPage],
 ];
+
+function isMarketingPath(pathname) {
+  return !(
+    pathname.startsWith('/chat')
+    || pathname.startsWith('/join')
+    || pathname.startsWith('/login')
+    || pathname.startsWith('/vault/share')
+  );
+}
 
 function RouteFallback() {
   const path = typeof window === 'undefined' ? '/' : window.location.pathname;
@@ -88,6 +97,14 @@ class AppErrorBoundary extends Component {
 }
 
 export default function App() {
+  const location = useLocation();
+
+  useLayoutEffect(() => {
+    if (!isMarketingPath(location.pathname)) return;
+    document.body.className = 'marketing marketing-scroll';
+    document.body.removeAttribute('style');
+  }, [location.pathname]);
+
   return (
     <AppErrorBoundary>
       <Suspense fallback={<RouteFallback />}>
@@ -97,7 +114,7 @@ export default function App() {
           ))}
           <Route path="/join/:roomId" element={<ChatPage />} />
           <Route path="/404" element={<NotFoundPage />} />
-          <Route path="*" element={<Navigate to="/404" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </AppErrorBoundary>

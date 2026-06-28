@@ -892,6 +892,7 @@ async function forwardInviteThroughPm(target, inviteLink) {
 
     await set(ref(db, `inbox/${target.uid}/${myUid}`), {
         fromName: window.userProfileName || 'Someone',
+        senderUid: myUid,
         timestamp: Date.now(),
         lastText,
         read: false,
@@ -899,6 +900,7 @@ async function forwardInviteThroughPm(target, inviteLink) {
 
     await set(ref(db, `inbox/${myUid}/${target.uid}`), {
         fromName: target.name,
+        senderUid: target.uid,
         timestamp: Date.now(),
         lastText,
         read: true,
@@ -1251,7 +1253,10 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
                         destructive: true,
                     });
                     if (!confirmed) return;
-                    await remove(ref(db, `rooms_meta/${window.activeRoomId}/channels/${id}`));
+                    await Promise.all([
+                        remove(ref(db, `rooms_meta/${window.activeRoomId}/channels/${id}`)),
+                        remove(ref(db, `room_calls/${window.activeRoomId}/channels/${id}`)),
+                    ]);
                     window.showToast(`#${id} deleted.`, false);
                     document.getElementById('room-drop-settings')?.click();
                 },
@@ -1662,8 +1667,8 @@ document.getElementById('confirm-leave-btn')?.addEventListener('click', async ()
         const roomIdToLeave = window.activeRoomId;
         document.getElementById('room-settings-modal')?.classList.add('hidden');
         window.switchRoom('global', 'Global Chat', 'GLOBAL');
-        await remove(ref(db, `rooms_meta/${roomIdToLeave}/members/${window.currentUser.uid}`));
         await set(ref(db, `rooms_meta/${roomIdToLeave}/logs/${Date.now()}`), { text: `${window.userProfileName} left the room.`, timestamp: Date.now() });
+        await remove(ref(db, `rooms_meta/${roomIdToLeave}/members/${window.currentUser.uid}`));
         window.showToast("You left the room.", false);
     } catch (e) { window.showToast("Error leaving room: " + e.message); }
 });
@@ -1681,8 +1686,8 @@ document.getElementById('confirm-delete-btn')?.addEventListener('click', async (
             const roomIdToDelete = window.activeRoomId;
             document.getElementById('room-settings-modal')?.classList.add('hidden');
             window.switchRoom('global', 'Global Chat', 'GLOBAL');
-            await remove(ref(db, `rooms_meta/${roomIdToDelete}`));
             await remove(ref(db, `rooms_data/${roomIdToDelete}`));
+            await remove(ref(db, `rooms_meta/${roomIdToDelete}`));
             window.showToast("Room deleted successfully.", false);
         } catch (e) { window.showToast("Error deleting room: " + e.message); }
     } else { window.showToast("You must type 'confirm' exactly."); }

@@ -11,5 +11,5 @@ export function mountAI(props) {
     host.replaceChildren();
     aiRoot = createRoot(host);
   }
-  aiRoot.render(createElement(AI, { ...props, key: props.roomId }));
+  aiRoot.render(createElement(AI, { ...props, key: `${props.roomId || 'global'}:${props.channelId || 'general'}` }));
 }

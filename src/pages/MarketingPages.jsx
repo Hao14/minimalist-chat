@@ -258,7 +258,7 @@ function MarketingMotionLayer() {
 function MarketingHeader() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [user, setUser] = useState(null);
+  const [authState, setAuthState] = useState('pending');
 
   useEffect(() => {
     let cancelled = false;
@@ -273,14 +273,15 @@ function MarketingHeader() {
         ]);
         if (cancelled) return;
         unsubscribe = onAuthStateChanged(auth, (nextUser) => {
-          if (!cancelled) setUser(nextUser);
+          if (!cancelled) setAuthState(nextUser ? 'auth' : 'guest');
         });
       } catch {
+        if (!cancelled) setAuthState('guest');
         // The public marketing shell should never fail because auth was slow.
       }
     };
 
-    authTimer = window.setTimeout(loadAuthState, 6500);
+    authTimer = window.setTimeout(loadAuthState, 0);
 
     return () => {
       cancelled = true;
@@ -295,6 +296,8 @@ function MarketingHeader() {
     ['/download', 'Download'],
     ['/story', 'Story'],
   ];
+  const signedIn = authState === 'auth';
+  const pendingAuth = authState === 'pending';
 
   return (
     <nav>
@@ -303,22 +306,29 @@ function MarketingHeader() {
         {navItems.map(([path, label]) => (
           <Link key={path} to={path} className={location.pathname === path ? 'active' : ''}>{label}</Link>
         ))}
-        {user ? <a href="/chat">Chat</a> : <Link to="/login">Login</Link>}
-        {!user && <Link to="/login" className="nav-cta">Sign Up</Link>}
+        {signedIn || pendingAuth ? <Link to="/chat">{pendingAuth ? 'Open App' : 'Chat'}</Link> : <Link to="/login">Login</Link>}
+        {!signedIn && !pendingAuth && <Link to="/login" className="nav-cta">Sign Up</Link>}
       </div>
       <button
         type="button"
         id="mobile-menu-btn"
         className="mobile-only nav-btn"
         aria-expanded={menuOpen}
-        aria-controls="mobile-nav-links"
+        aria-controls="marketing-mobile-nav-links"
         onClick={() => setMenuOpen((open) => !open)}
       >
         MENU
       </button>
-      <div id="mobile-nav-links" className={`mobile-only ${menuOpen ? '' : 'hidden'}`}>
+      <div id="marketing-mobile-nav-links" className={`mobile-only marketing-mobile-nav-links ${menuOpen ? '' : 'hidden'}`}>
         {navItems.map(([path, label]) => <Link key={path} to={path} className="mobile-link" onClick={() => setMenuOpen(false)}>{label.toUpperCase()}</Link>)}
-        {user ? <a href="/chat" className="mobile-link">CHAT</a> : <Link to="/login" className="mobile-link">LOGIN</Link>}
+        {signedIn || pendingAuth ? (
+          <Link to="/chat" className="mobile-link" onClick={() => setMenuOpen(false)}>{pendingAuth ? 'OPEN APP' : 'CHAT'}</Link>
+        ) : (
+          <>
+            <Link to="/login" className="mobile-link">LOGIN</Link>
+            <Link to="/login" className="mobile-link">SIGN UP</Link>
+          </>
+        )}
       </div>
     </nav>
   );
@@ -343,7 +353,7 @@ function MarketingFooter() {
             <span>MINIMALIST</span>
           </Link>
           <p>Calm rooms for friends, teams, students, creators, clubs, and communities.</p>
-          <a className="footer-primary-link" href="/chat">Create your first room <i className="ph-bold ph-arrow-right" /></a>
+          <Link className="footer-primary-link" to="/chat">Create your first room <i className="ph-bold ph-arrow-right" /></Link>
         </div>
 
         <div className="footer-grid" aria-label="Footer navigation">
@@ -437,10 +447,10 @@ function MarketingShell({ title, children, shape = 'yellow-circle', description 
 
 function Toast({ message, onClose, icon = '📦' }) {
   return (
-    <div id="brutalist-toast" className={message ? '' : 'toast-hidden'} role="status" aria-live="polite">
+    <div id="brutalist-toast" className={message ? '' : 'toast-hidden'} role="status" aria-live="polite" aria-hidden={!message} hidden={!message}>
       <span id="toast-icon">{icon}</span>
       <span id="toast-message">{message}</span>
-      <button type="button" id="toast-close" aria-label="Close notification" onClick={onClose}>✖</button>
+      <button type="button" id="toast-close" aria-label="Close notification" tabIndex={message ? 0 : -1} onClick={onClose}>✖</button>
     </div>
   );
 }
@@ -664,7 +674,8 @@ function InteractiveChatPreview() {
 
   const sendMessage = (event) => {
     event.preventDefault();
-    const clean = draft.trim();
+    const formValue = event.currentTarget.querySelector('input')?.value || '';
+    const clean = (draft || formValue).trim();
     if (!clean) return;
     const id = `you-${idRef.current++}`;
     setMessages((cur) => [...cur, { id, from: 'You', text: clean, self: true }].slice(-7));
@@ -766,14 +777,14 @@ function InteractiveChatPreview() {
       </div>
 
       <form className="idemo-form" onSubmit={sendMessage}>
-        <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a message…" aria-label="Type a demo message" />
+        <input name="demo-message" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a message…" aria-label="Type a demo message" />
         <button type="submit" aria-label="Send"><i className="ph-bold ph-paper-plane-tilt" /></button>
       </form>
 
       <p className={`idemo-note ${allDone ? 'win' : ''}`}>
         {allDone ? '🎉 That’s a whole room running itself — ready to make yours?' : notice}
       </p>
-      {allDone ? <a href="/chat" className="lp-btn lp-btn-primary idemo-cta">Create your first room <i className="ph-bold ph-arrow-right" /></a> : null}
+      {allDone ? <Link to="/chat" className="lp-btn lp-btn-primary idemo-cta">Create your first room <i className="ph-bold ph-arrow-right" /></Link> : null}
     </div>
   );
 }
@@ -819,7 +830,7 @@ export function HomePage() {
             <h1>Catch up in minutes. Stay focused for hours.</h1>
             <p className="fade-in-up delay-1">Minimalist.chat turns group chat into an organized room with Catch-Me-Up digests, quiet-by-default focus modes, decisions, action items, scheduled messages, templates, roles, and offline-first reading.</p>
             <div className="lp-cta fade-in-up delay-2">
-              <a href="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></a>
+              <Link to="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></Link>
               <a href="#home-live-demo" className="lp-btn lp-btn-secondary">Try demo room</a>
             </div>
             <div className="home-proof-row" aria-label="Platform highlights">
@@ -918,7 +929,7 @@ export function HomePage() {
 
         <section className="home-final-cta">
           <h2>Create a room. Invite your people. Let it grow only as much as it needs to.</h2>
-          <a href="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></a>
+          <Link to="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></Link>
           <div className="home-faq-pills" aria-label="Quick FAQ">
             {homeFaq.slice(0, 4).map(([question, answer]) => (
               <details key={question}>
@@ -993,7 +1004,7 @@ export function FeaturesPage() {
             <span>Actions</span>
             <span>Focus</span>
           </div>
-          <a href="/chat" className="lp-btn lp-btn-primary feat-start">Create your first room <i className="ph-bold ph-arrow-right" /></a>
+          <Link to="/chat" className="lp-btn lp-btn-primary feat-start">Create your first room <i className="ph-bold ph-arrow-right" /></Link>
         </div>
 
         <section className="feat-mode-panel" aria-label="Feature mode selector">
@@ -1038,7 +1049,7 @@ export function FeaturesPage() {
           </section>
         )}
 
-        <div className="feat-cta"><h2>Ready to dive in?</h2><div className="lp-cta centered"><a href="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></a><Link to="/download" className="lp-btn lp-btn-secondary"><i className="ph-bold ph-download-simple" /> Download</Link></div></div>
+        <div className="feat-cta"><h2>Ready to dive in?</h2><div className="lp-cta centered"><Link to="/chat" className="lp-btn lp-btn-primary">Create your first room <i className="ph-bold ph-arrow-right" /></Link><Link to="/download" className="lp-btn lp-btn-secondary"><i className="ph-bold ph-download-simple" /> Download</Link></div></div>
       </main>
     </MarketingShell>
   );
@@ -1124,11 +1135,26 @@ function detectedPlatform() {
 export function DownloadPage() {
   const platform = useMemo(() => detectedPlatform(), []);
   const [toast, setToast] = useState('');
+  const [installState, setInstallState] = useState(() => window.getMinimalistInstallState?.() || { canInstall: false, installed: false });
   const detectedLabel = downloads.find((item) => item.id === platform)?.name;
   const recommendedId = platform || 'web';
 
+  useEffect(() => {
+    const syncInstallState = (event) => setInstallState(event.detail || window.getMinimalistInstallState?.() || { canInstall: false, installed: false });
+    syncInstallState({});
+    window.addEventListener('minimalist:pwa-install-state', syncInstallState);
+    return () => window.removeEventListener('minimalist:pwa-install-state', syncInstallState);
+  }, []);
+
   const comingSoon = (label) => {
     setToast(`${label} is coming soon. Use the web app for now.`);
+    window.setTimeout(() => setToast(''), 3500);
+  };
+
+  const installApp = async () => {
+    const result = await window.promptMinimalistInstall?.();
+    if (result?.outcome === 'accepted') setToast('Minimalist is installing.');
+    else setToast('Install is available from your browser menu anytime.');
     window.setTimeout(() => setToast(''), 3500);
   };
 
@@ -1141,10 +1167,17 @@ export function DownloadPage() {
             <h1>Use your rooms <span>anywhere.</span></h1>
             <p>Minimalist is ready in the browser today. Native apps are on the roadmap, but the web app already gives you the clean room workspace without waiting.</p>
             <div className="lp-cta">
-              <a href="/chat" className="lp-btn lp-btn-primary">Open Web App <i className="ph-bold ph-arrow-right" /></a>
+              <Link to="/chat" className="lp-btn lp-btn-primary">Open Web App <i className="ph-bold ph-arrow-right" /></Link>
+              {installState.canInstall ? (
+                <button type="button" className="lp-btn lp-btn-primary" onClick={installApp}><i className="ph-bold ph-download-simple" /> Install App</button>
+              ) : null}
               <a href="#platforms" className="lp-btn lp-btn-secondary"><i className="ph-bold ph-devices" /> View Platforms</a>
             </div>
+            {installState.installed ? <p className="dl-detected">Installed app detected on this device.</p> : null}
             {detectedLabel && <p className="dl-detected">Detected: {detectedLabel}. The matching platform card is highlighted below.</p>}
+            {!installState.canInstall && !installState.installed ? (
+              <p className="dl-detected">Install from your browser menu: Chrome/Edge → Install app, or Safari → Add to Home Screen.</p>
+            ) : null}
           </div>
           <aside className="dl-device-card" aria-label="Download status">
             <div className="dl-device-top">
@@ -1183,7 +1216,7 @@ export function DownloadPage() {
               <h2>{item.name}</h2>
               <p className="dl-meta">{item.meta}</p>
               {item.href ? (
-                <a className="dl-btn" href={item.href}>{item.cta}</a>
+                <Link className="dl-btn" to={item.href}>{item.cta}</Link>
               ) : (
                 <button type="button" className="dl-btn dl-btn-ghost" onClick={() => comingSoon(item.name)}>{item.cta}</button>
               )}

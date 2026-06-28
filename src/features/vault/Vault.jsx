@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ref, remove, set } from 'firebase/database';
+import { ref, remove } from 'firebase/database';
 import { db as firebaseDb } from '../../lib/firebase.js';
 
 const DB_NAME = 'minimalist-private-vault';
@@ -129,6 +129,22 @@ function savedBookmarkList(bookmarks = {}) {
 
 function shareUrlFor(id) {
   return `${window.location.origin}/vault/share/${id}`;
+}
+
+async function postAuthedJson(url, body) {
+  if (!window.currentUser?.getIdToken) throw new Error('Please sign in again first.');
+  const token = await window.currentUser.getIdToken();
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || data?.message || `Request failed (${response.status}).`);
+  return data;
 }
 
 function useDebouncedValue(value, delay = 150) {
@@ -470,17 +486,23 @@ export function VaultPanel({ userId, userName = 'You', initialView = 'all', book
     if (!item || item.type !== 'note' || !userId) return;
     setShareBusy(true);
     try {
-      const shareId = newId();
-      const expiresAt = Date.now() + durationMs;
-      await set(ref(firebaseDb, `vault_shares/${shareId}`), {
-        type: 'note',
-        title: item.title || 'Untitled private note',
-        body: item.body || '',
-        ownerId: userId,
-        ownerName: item.ownerName || userName,
-        createdAt: Date.now(),
-        expiresAt,
+      let expiresAt = Date.now() + durationMs;
+      const endpoint = String(window.VAULT_SHARE_ENDPOINT || '').trim();
+      if (window.MINIMALIST_FLAGS?.vaultShareBackend === false || !endpoint) {
+        throw new Error('Secure Vault sharing is not configured for this deployment.');
+      }
+      const result = await postAuthedJson(endpoint, {
+        item: {
+          type: 'note',
+          title: item.title || 'Untitled private note',
+          body: item.body || '',
+          ownerName: item.ownerName || userName,
+        },
+        durationMs,
       });
+      const shareId = result.shareId;
+      expiresAt = result.expiresAt || expiresAt;
+      if (!shareId) throw new Error('Share endpoint did not return a link id.');
 
       const url = shareUrlFor(shareId);
       setLastShare({ itemId: item.id, url, expiresAt });

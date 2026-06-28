@@ -1,8 +1,9 @@
-import { deleteUser, GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut } from 'firebase/auth';
+import { deleteUser, GoogleAuthProvider, signInWithCredential, signOut } from 'firebase/auth';
 import { ref, remove, set, update } from 'firebase/database';
 import { auth, db } from '../../lib/firebase.js';
 import { syncPublicUserDirectory } from '../../lib/authProfile.js';
 import { getStorageUploadTools } from '../../lib/firebaseStorage.js';
+import { loadGoogleIdentityScript, signInWithGoogleIdentity } from '../../lib/googleIdentityAuth.js';
 
 document.getElementById('save-new-profile-btn')?.addEventListener('click', async () => {
   try {
@@ -193,21 +194,6 @@ function closeSwitchAccountDialog() {
   document.getElementById('switch-account-overlay')?.classList.add('hidden');
 }
 
-function createGoogleProvider() {
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
-  return provider;
-}
-
-function prefersRedirectGoogleAuth() {
-  const userAgent = navigator.userAgent || '';
-  const mobileAgent = /Android|iPhone|iPad|iPod|Mobile|IEMobile|Opera Mini/i.test(userAgent);
-  const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches;
-  const narrowScreen = window.matchMedia?.('(max-width: 820px)')?.matches;
-  const standalone = window.matchMedia?.('(display-mode: standalone)')?.matches || navigator.standalone;
-  return Boolean(mobileAgent || (coarsePointer && narrowScreen) || standalone);
-}
-
 function shouldRedirectAfterPopupError(error) {
   return [
     'auth/popup-blocked',
@@ -272,29 +258,20 @@ function ensureSwitchAccountDialog() {
     button.disabled = true;
     button.innerHTML = '<i class="ph-bold ph-spinner-gap"></i> Opening account picker…';
     try {
-      const provider = createGoogleProvider();
-      if (prefersRedirectGoogleAuth()) {
-        sessionStorage.setItem('minimalistAddUserRedirect', '1');
-        await signInWithRedirect(auth, provider);
-        return;
-      }
-      await signInWithPopup(auth, provider);
+      await signInWithGoogleIdentity({
+        auth,
+        GoogleAuthProvider,
+        signInWithCredential,
+      });
       closeSwitchAccountDialog();
       closeSettingsForSessionChange();
       window.showToast?.('Account added. You are now using the selected account.', false);
       window.location.reload();
     } catch (error) {
-      if (shouldRedirectAfterPopupError(error)) {
-        try {
-          sessionStorage.setItem('minimalistAddUserRedirect', '1');
-          await signInWithRedirect(auth, createGoogleProvider());
-          return;
-        } catch (redirectError) {
-          sessionStorage.removeItem('minimalistAddUserRedirect');
-          window.showToast?.(`Could not open account picker: ${redirectError.message}`);
-        }
+      if (shouldRedirectAfterPopupError(error) || error?.code === 'google/popup_failed_to_open') {
+        window.showToast?.('This browser blocked the Google popup. Open Minimalist in Chrome or Safari and try again.');
       } else {
-        window.showToast?.(error?.code === 'auth/popup-closed-by-user' ? 'Account picker closed.' : `Could not add account: ${error.message}`);
+        window.showToast?.((error?.code === 'auth/popup-closed-by-user' || error?.code === 'google/popup_closed') ? 'Account picker closed.' : `Could not add account: ${error.message}`);
       }
     } finally {
       button.disabled = false;
@@ -307,6 +284,7 @@ function ensureSwitchAccountDialog() {
 
 function openSwitchAccountDialog() {
   const overlay = ensureSwitchAccountDialog();
+  loadGoogleIdentityScript().catch(() => {});
   const displayName = window.userProfileName || window.currentUser?.displayName || 'Current account';
   const email = window.currentUser?.email || 'Signed in';
   const avatar = overlay.querySelector('#switch-account-avatar');

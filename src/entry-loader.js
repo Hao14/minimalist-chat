@@ -10,8 +10,7 @@ const loadApp = () => {
 
 if (isHomeRoute) {
   const loadSoon = () => {
-    const idle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 0));
-    idle(loadApp, { timeout: 500 });
+    loadApp();
   };
 
   if (document.readyState === 'loading') {

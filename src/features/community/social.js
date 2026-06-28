@@ -7,7 +7,7 @@
 import { db } from '../../lib/firebase.js';
 import { ref, get, set, remove, runTransaction } from 'firebase/database';
 import { escapeHtml } from '../../lib/text.js';
-import { getRequiredIdToken } from '../../lib/authToken.js';
+import { askProfileSpotlight, getLocalAiConfig, getLocalAiStatus, localAiStatusMessage } from '../ai/localAiClient.js';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import Leaderboard from './Leaderboard.jsx';
@@ -219,7 +219,7 @@ window.openProfileByRef = async function (val) {
 };
 window.profileShareLink = (uid) => `${location.origin}/chat?profile=${uid}`;
 
-/* ---------- AI member spotlight (Groq; graceful if not deployed) ---------- */
+/* ---------- AI member spotlight (local Ollama; graceful if unavailable) ---------- */
 window.generateSpotlight = async function (uid, user) {
     const el = document.getElementById('up-spotlight');
     if (!el) return;
@@ -230,26 +230,18 @@ window.generateSpotlight = async function (uid, user) {
             el.textContent = payload.text || payload.error || '';
         }
     };
-    if (!window.AI_CHAT_ENDPOINT) {
-        renderSpotlight({ status: 'error', error: 'AI spotlight needs the aiChat function deployed.' });
-        return;
-    }
     renderSpotlight({ status: 'loading' });
-    const ctx = `Member: ${user.displayName || 'Member'}\nBio: ${user.bio || '—'}\nStatus: ${user.status || '—'}\nReputation: ${window.computeRep(user)}\nBadges: ${Object.keys(user.badges || {}).join(', ') || 'none'}\nKudos: ${user.kudos || 0}\nMessages: ${(user.stats && user.stats.messages) || 0}`;
     try {
-        const token = await getRequiredIdToken('Please sign in again before generating an AI spotlight.');
-        const r = await fetch(window.AI_CHAT_ENDPOINT, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ context: ctx, messages: [{ role: 'user', content: 'Write a warm 1–2 sentence community spotlight for this member based only on the context. Do not invent facts.' }] })
-        });
-        const data = await r.json().catch(() => ({}));
-        if (r.ok && data.reply) {
-            renderSpotlight({ status: 'ready', text: data.reply });
-        } else {
-            renderSpotlight({ status: 'error', error: data.error || 'Spotlight unavailable.' });
+        const config = getLocalAiConfig();
+        const status = await getLocalAiStatus(config);
+        if (status.state !== 'ready') {
+            renderSpotlight({ status: 'error', error: status.message || localAiStatusMessage(status) });
+            return;
         }
+        const { reply } = await askProfileSpotlight({ user, reputation: window.computeRep(user), config });
+        renderSpotlight({ status: 'ready', text: reply });
     } catch (e) {
-        renderSpotlight({ status: 'error', error: `Couldn't reach AI: ${e.message}` });
+        renderSpotlight({ status: 'error', error: localAiStatusMessage(e) });
     }
 };
 
@@ -474,7 +466,9 @@ window.giveCommunityAward = async function giveCommunityAward(targetRef, badgeId
     await window.awardBadge(uid, BADGES[badgeId] ? badgeId : 'community_award');
     try {
         await window.awardXP?.(window.currentUser.uid, 'leadership', 5);
-    } catch {}
+    } catch {
+        // XP is a best-effort community bonus; the award itself should still succeed.
+    }
     window.createNotification?.(uid, 'award', `${window.userProfileName || 'Someone'} gave you a community award.`, {
         groupId: `${window.currentUser.uid}_${badgeId}`,
         from: window.userProfileName,

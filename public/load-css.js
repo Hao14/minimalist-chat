@@ -13,6 +13,13 @@
   var compactViewport = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
   var mobileOrTablet = coarsePointer || compactViewport;
   var loaded = {};
+  var savedTheme = 'light';
+  var deferredCssReadyResolve = null;
+  try {
+    savedTheme = String(localStorage.getItem('theme') || 'light').toLowerCase();
+  } catch {
+    savedTheme = 'light';
+  }
   document.documentElement.classList.add(isAppRoute ? 'route-app' : 'route-marketing');
   document.documentElement.classList.add('route-' + routeName);
   if (isHomeRoute) document.documentElement.classList.add('route-home');
@@ -29,10 +36,15 @@
     return getLazyType(link) === 'feature' || /\/features\.css(?:[?#]|$)/.test(getHref(link));
   }
 
+  function isSavedThemeStylesheet(link) {
+    return getLazyType(link) === 'theme' && getHref(link).indexOf('/themes/' + savedTheme + '.css') !== -1;
+  }
+
   function shouldLoadNow(link) {
     var scope = link.getAttribute('data-css-scope');
     var lazy = getLazyType(link);
     if (link.getAttribute('data-css-priority') === 'critical') return true;
+    if (isSavedThemeStylesheet(link)) return true;
     if (lazy) return false;
     if (scope === 'app') return isAppRoute;
     return false;
@@ -83,6 +95,9 @@
   });
 
   window.__minimalistCssReady = Promise.race([ready, timeout]);
+  window.__minimalistDeferredCssReady = new Promise(function deferredReady(resolve) {
+    deferredCssReadyResolve = resolve;
+  });
 
   function loadBrandFonts() {
     if (loaded.__brandFonts) return;
@@ -109,7 +124,9 @@
   }
 
   function loadDeferredStyles() {
-    routineDeferredLinks.forEach(convertPreload);
+    Promise.all(routineDeferredLinks.map(convertPreload)).then(function doneDeferred() {
+      if (deferredCssReadyResolve) deferredCssReadyResolve();
+    });
     loadBrandFonts();
     routineDeferredLinks = [];
     removeDeferredListeners(loadDeferredStyles);
@@ -142,9 +159,11 @@
       };
       idle(loadDeferredStyles, { timeout: 2200 });
     } else {
-      window.setTimeout(loadDeferredStyles, 15000);
+      window.setTimeout(loadDeferredStyles, isHomeRoute ? 220 : 520);
     }
     addDeferredListeners(loadDeferredStyles);
+  } else if (deferredCssReadyResolve) {
+    deferredCssReadyResolve();
   }
 
   if (featureLinks.length) {
