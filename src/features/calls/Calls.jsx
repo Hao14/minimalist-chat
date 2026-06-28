@@ -95,6 +95,18 @@ function streamHasVideo(stream) {
   return Boolean(stream && stream.getVideoTracks && stream.getVideoTracks().length);
 }
 
+function callPathForChannel(roomId, channelId = 'general', channelsV2 = false) {
+  if (!channelsV2 || channelId === 'general') return `room_calls/${roomId}`;
+  return `room_calls/${roomId}/channels/${channelId}`;
+}
+
+function stripNestedChannels(callData) {
+  if (!callData) return null;
+  const { channels, ...generalCall } = callData;
+  void channels;
+  return generalCall.status || generalCall.participants ? generalCall : null;
+}
+
 // Binds a MediaStream to a <video> element imperatively (srcObject can't be set via JSX).
 function MediaVideo({ stream, mirror, className }) {
   const videoRef = useRef(null);
@@ -126,8 +138,10 @@ function RemoteAudio({ stream }) {
   return <audio ref={audioRef} autoPlay />;
 }
 
-export function Calls({ adminUid, roomId, user }) {
-  const [call, setCall] = useState(null);
+export function Calls({ adminUid, roomId, user, activeChannelId = 'general', enableCallChannelsV2 = false }) {
+  const [allCallData, setAllCallData] = useState(null);
+  const [roomChannels, setRoomChannels] = useState({});
+  const [selectedChannelId, setSelectedChannelId] = useState(activeChannelId || 'general');
   const [remoteMedia, setRemoteMedia] = useState({}); // { uid: { camera, screen } }
   const [localStream, setLocalStream] = useState(null);
   const [screenStream, setScreenStream] = useState(null);
@@ -141,41 +155,90 @@ export function Calls({ adminUid, roomId, user }) {
   const micOnRef = useRef(true);
   const wantCamRef = useRef(false);
 
-  const callPath = `room_calls/${roomId}`;
+  const rootCallPath = `room_calls/${roomId}`;
   const myUid = user?.uid || '';
+  const callChannels = useMemo(() => ([
+    { id: 'general', name: 'general' },
+    ...Object.entries(roomChannels || {})
+      .map(([id, channel]) => ({ id, name: channel?.name || id }))
+      .filter((channel) => channel.id !== 'general')
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  ]), [roomChannels]);
+  const selectedChannelExists = useMemo(
+    () => callChannels.some((channel) => channel.id === selectedChannelId),
+    [callChannels, selectedChannelId],
+  );
+  const effectiveSelectedChannelId = selectedChannelExists ? selectedChannelId : 'general';
+  const callPath = useMemo(
+    () => callPathForChannel(roomId, effectiveSelectedChannelId, enableCallChannelsV2),
+    [effectiveSelectedChannelId, enableCallChannelsV2, roomId],
+  );
+
+  const channelCallsById = useMemo(() => ({
+    general: stripNestedChannels(allCallData),
+    ...((allCallData && typeof allCallData.channels === 'object') ? allCallData.channels : {}),
+  }), [allCallData]);
+
+  const call = enableCallChannelsV2
+    ? channelCallsById[effectiveSelectedChannelId] || null
+    : channelCallsById.general || null;
+  const joinedChannelId = useMemo(() => {
+    if (!myUid) return '';
+    return Object.entries(channelCallsById)
+      .find(([, channelCall]) => channelCall?.participants?.[myUid])?.[0] || '';
+  }, [channelCallsById, myUid]);
+  const isJoinedElsewhere = Boolean(enableCallChannelsV2 && joinedChannelId && joinedChannelId !== selectedChannelId);
+  const joinedCall = enableCallChannelsV2 && joinedChannelId
+    ? channelCallsById[joinedChannelId] || null
+    : call;
+  const joinedCallPath = useMemo(
+    () => callPathForChannel(roomId, joinedChannelId || effectiveSelectedChannelId, enableCallChannelsV2),
+    [effectiveSelectedChannelId, enableCallChannelsV2, joinedChannelId, roomId],
+  );
 
   const participants = useMemo(() => (
     Object.values(call?.participants || {})
       .filter((participant) => participant?.uid)
       .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0))
   ), [call?.participants]);
+  const joinedParticipants = useMemo(() => (
+    Object.values(joinedCall?.participants || {})
+      .filter((participant) => participant?.uid)
+      .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0))
+  ), [joinedCall?.participants]);
 
-  const participantKey = useMemo(() => participants.map((p) => `${p.uid}:${p.camOn ? 1 : 0}${p.screenOn ? 1 : 0}${p.screenStreamId || ''}`).join('|'), [participants]);
+  const participantKey = useMemo(() => joinedParticipants.map((p) => `${p.uid}:${p.camOn ? 1 : 0}${p.screenOn ? 1 : 0}${p.screenStreamId || ''}`).join('|'), [joinedParticipants]);
 
   const isActive = call?.status === 'active';
-  const myParticipant = myUid ? call?.participants?.[myUid] : null;
+  const isJoinedInSelectedChannel = Boolean(myUid && call?.participants?.[myUid]);
+  const myParticipant = myUid ? joinedCall?.participants?.[myUid] : null;
   const isJoined = Boolean(myParticipant);
   const canEnd = Boolean(myUid && (call?.hostUid === myUid || myUid === adminUid));
   const canUseVideoCalls = Boolean(myUid && ((window.userTier || 'free') === 'pro' || myUid === adminUid));
   const screenShareProfile = screenShareProfileForTier(window.userTier || 'free', myUid === adminUid);
 
-  // Live snapshot of the room call (status, host, participants).
+  useEffect(() => {
+    if (!roomId || !enableCallChannelsV2 || roomId === 'global') return undefined;
+    return onValue(ref(db, `rooms_meta/${roomId}/channels`), (snapshot) => setRoomChannels(snapshot.val() || {}));
+  }, [enableCallChannelsV2, roomId]);
+
+  // Live snapshot of all room calls (status, host, participants).
   useEffect(() => {
     if (!roomId) return undefined;
-    const callRef = ref(db, callPath);
-    return onValue(callRef, (snapshot) => setCall(snapshot.val()));
-  }, [callPath, roomId]);
+    const callRef = ref(db, rootCallPath);
+    return onValue(callRef, (snapshot) => setAllCallData(snapshot.val()));
+  }, [rootCallPath, roomId]);
 
   // Presence heartbeat + auto-cleanup if the tab dies.
   useEffect(() => {
     if (!isJoined || !myUid || !roomId) return undefined;
-    const meRef = ref(db, `${callPath}/participants/${myUid}`);
+    const meRef = ref(db, `${joinedCallPath}/participants/${myUid}`);
     const markSeen = () => update(meRef, { lastSeen: Date.now() }).catch(() => {});
     const interval = setInterval(markSeen, 15000);
     onDisconnect(meRef).remove();
     markSeen();
     return () => clearInterval(interval);
-  }, [callPath, isJoined, roomId, myUid]);
+  }, [isJoined, joinedCallPath, roomId, myUid]);
 
   // Ticking clock for the call timer.
   useEffect(() => {
@@ -198,9 +261,9 @@ export function Calls({ adminUid, roomId, user }) {
     let screen = null;
     let unsubSignals = null;
 
-    const meRef = ref(db, `${callPath}/participants/${myUid}`);
+    const meRef = ref(db, `${joinedCallPath}/participants/${myUid}`);
     const sendSignal = (toUid, data) => {
-      push(ref(db, `${callPath}/signals/${toUid}`), { from: myUid, ...data, ts: Date.now() }).catch(() => {});
+      push(ref(db, `${joinedCallPath}/signals/${toUid}`), { from: myUid, ...data, ts: Date.now() }).catch(() => {});
     };
 
     const setRemote = (uid, kind, stream) => {
@@ -380,7 +443,7 @@ export function Calls({ adminUid, roomId, user }) {
         update(meRef, { micOn: micOnRef.current, camOn: hasVideo }).catch(() => {});
       }
 
-      unsubSignals = onChildAdded(ref(db, `${callPath}/signals/${myUid}`), (snapshot) => {
+      unsubSignals = onChildAdded(ref(db, `${joinedCallPath}/signals/${myUid}`), (snapshot) => {
         const message = snapshot.val();
         remove(snapshot.ref).catch(() => {});
         handleSignal(message);
@@ -398,29 +461,42 @@ export function Calls({ adminUid, roomId, user }) {
       pcs.clear();
       local?.getTracks().forEach((track) => track.stop());
       screen?.getTracks().forEach((track) => track.stop());
-      remove(ref(db, `${callPath}/signals/${myUid}`)).catch(() => {});
+      remove(ref(db, `${joinedCallPath}/signals/${myUid}`)).catch(() => {});
       setRemoteMedia({});
       setLocalStream(null);
       setScreenStream(null);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isJoined, roomId, myUid]);
+  }, [canUseVideoCalls, isJoined, joinedCallPath, roomId, myUid]);
 
   // Keep the peer mesh in sync with who is in the room.
   useEffect(() => {
     if (!engineReady) return;
-    engineRef.current?.reconcile(participants);
+    engineRef.current?.reconcile(joinedParticipants);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [engineReady, participantKey]);
 
+  const switchCallChannel = useCallback((channelId) => {
+    const nextChannelId = channelId || 'general';
+    setSelectedChannelId(nextChannelId);
+    window.switchRoomChannel?.(nextChannelId);
+  }, []);
+
   const joinCall = useCallback(async (callType = 'voice') => {
     if (!myUid) return false;
+    if (enableCallChannelsV2 && !selectedChannelExists) {
+      window.showToast?.('That call channel no longer exists.');
+      setSelectedChannelId('general');
+      return false;
+    }
     if (callType === 'video' && !canUseVideoCalls) {
       window.showToast?.('Video calls are a Pro feature. Voice and screen share are on every plan.');
       return false;
     }
     if (!(await canUseRoomPermission(roomId, user, adminUid, 'calls', 'Voice calls are disabled in this room.'))) return false;
     if (callType === 'video' && !(await canUseRoomPermission(roomId, user, adminUid, 'video', 'Video calls are disabled in this room.'))) return false;
+    if (enableCallChannelsV2 && joinedChannelId && joinedChannelId !== effectiveSelectedChannelId) {
+      await remove(ref(db, `${callPathForChannel(roomId, joinedChannelId, true)}/participants/${myUid}`)).catch(() => {});
+    }
 
     const wantVideo = callType === 'video' && canUseVideoCalls;
     wantCamRef.current = wantVideo;
@@ -448,7 +524,7 @@ export function Calls({ adminUid, roomId, user }) {
     await set(meRef, participantFor(user, { micOn: true, camOn: wantVideo }));
     onDisconnect(meRef).remove();
     return true;
-  }, [adminUid, callPath, canUseVideoCalls, myUid, roomId, user]);
+  }, [adminUid, callPath, canUseVideoCalls, effectiveSelectedChannelId, enableCallChannelsV2, joinedChannelId, myUid, roomId, selectedChannelExists, user]);
 
   const leaveCall = useCallback(async () => {
     if (!myUid) return;
@@ -458,25 +534,53 @@ export function Calls({ adminUid, roomId, user }) {
     setMicOn(true);
     micOnRef.current = true;
     wantCamRef.current = false;
-    await remove(ref(db, `${callPath}/participants/${myUid}`));
+    const callRef = ref(db, joinedCallPath);
+    await remove(ref(db, `${joinedCallPath}/participants/${myUid}`));
+    const snapshot = await get(callRef).catch(() => null);
+    const nextCall = snapshot?.val() || {};
+    const remaining = Object.values(nextCall.participants || {})
+      .filter((participant) => participant?.uid)
+      .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+    if (!remaining.length) {
+      if (enableCallChannelsV2 && (joinedChannelId || selectedChannelId) === 'general') {
+        await update(callRef, { status: null, type: null, hostUid: null, hostName: null, startedAt: null, signals: null }).catch(() => {});
+      } else {
+        await remove(callRef).catch(() => {});
+      }
+    } else if (nextCall.hostUid === myUid) {
+      const nextHost = remaining[0];
+      await update(callRef, { hostUid: nextHost.uid, hostName: nextHost.name || 'Anonymous' }).catch(() => {});
+    }
     window.showToast?.('You left the call.', false);
-  }, [callPath, myUid]);
+  }, [enableCallChannelsV2, joinedCallPath, joinedChannelId, myUid, selectedChannelId]);
 
   const endCall = useCallback(async () => {
     if (!canEnd) return;
     setScreenStream(null);
     setScreenOn(false);
-    await remove(ref(db, callPath));
-    window.showToast?.('Call ended for the room.', false);
-  }, [callPath, canEnd]);
+    if (enableCallChannelsV2 && selectedChannelId === 'general') {
+      await update(ref(db, rootCallPath), {
+        status: null,
+        type: null,
+        hostUid: null,
+        hostName: null,
+        startedAt: null,
+        participants: null,
+        signals: null,
+      });
+    } else {
+      await remove(ref(db, callPath));
+    }
+    window.showToast?.(`Call ended for #${selectedChannelId}.`, false);
+  }, [callPath, canEnd, enableCallChannelsV2, rootCallPath, selectedChannelId]);
 
   const toggleMic = useCallback(() => {
     const next = !micOn;
     setMicOn(next);
     micOnRef.current = next;
     engineRef.current?.setMicEnabled(next);
-    if (myUid) update(ref(db, `${callPath}/participants/${myUid}`), { micOn: next, lastSeen: Date.now() }).catch(() => {});
-  }, [callPath, micOn, myUid]);
+    if (myUid) update(ref(db, `${joinedCallPath}/participants/${myUid}`), { micOn: next, lastSeen: Date.now() }).catch(() => {});
+  }, [joinedCallPath, micOn, myUid]);
 
   const toggleCamera = useCallback(async () => {
     if (!engineRef.current) return;
@@ -484,7 +588,7 @@ export function Calls({ adminUid, roomId, user }) {
       window.showToast?.('Video calls are a Pro feature.');
       return;
     }
-    const meRef = ref(db, `${callPath}/participants/${myUid}`);
+    const meRef = ref(db, `${joinedCallPath}/participants/${myUid}`);
     if (camOn) {
       engineRef.current.removeCamera();
       setCamOn(false);
@@ -503,15 +607,15 @@ export function Calls({ adminUid, roomId, user }) {
     } catch (error) {
       window.showToast?.(`Camera unavailable: ${error.message}`);
     }
-  }, [callPath, camOn, canUseVideoCalls, myUid]);
+  }, [camOn, canUseVideoCalls, joinedCallPath, myUid]);
 
   const stopScreenShare = useCallback((notify = true) => {
     engineRef.current?.removeScreen();
     setScreenStream(null);
     setScreenOn(false);
-    if (myUid) update(ref(db, `${callPath}/participants/${myUid}`), { screenOn: false, screenStreamId: null }).catch(() => {});
+    if (myUid) update(ref(db, `${joinedCallPath}/participants/${myUid}`), { screenOn: false, screenStreamId: null }).catch(() => {});
     if (notify) window.showToast?.('Screen sharing stopped.', false);
-  }, [callPath, myUid]);
+  }, [joinedCallPath, myUid]);
 
   const startScreenShare = useCallback(async () => {
     if (!engineRef.current) return;
@@ -531,7 +635,7 @@ export function Calls({ adminUid, roomId, user }) {
       setScreenStream(stream);
       setScreenOn(true);
       if (myUid) {
-        update(ref(db, `${callPath}/participants/${myUid}`), {
+        update(ref(db, `${joinedCallPath}/participants/${myUid}`), {
           screenOn: true,
           screenStreamId: stream.id,
           screenQuality: screenShareProfile.label,
@@ -544,7 +648,7 @@ export function Calls({ adminUid, roomId, user }) {
         window.showToast?.(`Screen share failed: ${error.message}`);
       }
     }
-  }, [adminUid, callPath, myUid, roomId, screenShareProfile, stopScreenShare, user]);
+  }, [adminUid, joinedCallPath, myUid, roomId, screenShareProfile, stopScreenShare, user]);
 
   const elapsed = useMemo(() => {
     if (!call?.startedAt) return '';
@@ -557,11 +661,39 @@ export function Calls({ adminUid, roomId, user }) {
   }, [call?.startedAt, nowTs]);
 
   const avatarFor = (name, photoUrl) => photoUrl || window.getAvatarUrl?.(name || 'Anonymous', '') || '';
+  const channelRail = enableCallChannelsV2 ? (
+    <div className="call-channel-rail" aria-label="Call channels">
+      {callChannels.map((channel) => {
+        const channelParticipants = Object.values(channelCallsById[channel.id]?.participants || {});
+        const live = channelCallsById[channel.id]?.status === 'active';
+        return (
+          <button
+            type="button"
+            key={channel.id}
+            className={`call-channel-card ${selectedChannelId === channel.id ? 'active' : ''} ${live ? 'live' : ''}`}
+            onClick={() => switchCallChannel(channel.id)}
+          >
+            <span className="call-channel-name"># {channel.name}</span>
+            <span className="call-channel-meta">
+              <i className="ph-bold ph-users-three" /> {channelParticipants.length}
+              {live ? <em>Live</em> : null}
+            </span>
+            <span className="call-channel-faces" aria-hidden="true">
+              {channelParticipants.slice(0, 4).map((participant) => (
+                <img key={participant.uid} src={avatarFor(participant.name, participant.photoUrl)} alt="" />
+              ))}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  ) : null;
 
   // ── Pre-join lobby ─────────────────────────────────────────────────────────
-  if (!isJoined) {
+  if (!isJoinedInSelectedChannel) {
     return (
       <div className="calls-wrap calls-lobby">
+        {channelRail}
         <div className="call-lobby">
           <div className="call-lobby-stage">
             {isActive && participants.length ? (
@@ -578,9 +710,11 @@ export function Calls({ adminUid, roomId, user }) {
 
           <div className="call-lobby-panel">
             <div className="calls-kicker"><i className="ph-bold ph-broadcast" /> Room call</div>
-            <h3>{isActive ? 'Call in progress' : 'Start a call'}</h3>
+            <h3>{isActive ? `Call in #${selectedChannelId}` : `Start a call in #${selectedChannelId}`}</h3>
             <p>
-              {isActive
+              {isJoinedElsewhere
+                ? `You are already in #${joinedChannelId}. Join this channel to move meetings.`
+                : isActive
                 ? `${participants.length} ${participants.length === 1 ? 'person is' : 'people are'} on the call · live since ${formatStartedAt(call.startedAt)}.`
                 : 'Real-time voice, video and screen sharing for everyone in this room.'}
             </p>
@@ -655,9 +789,10 @@ export function Calls({ adminUid, roomId, user }) {
 
   return (
     <div className="calls-wrap calls-live">
+      {channelRail}
       <div className="call-topbar">
         <span className={`call-status-pill ${isActive ? 'active' : ''}`}>
-          <span className="call-dot" /> Live · {elapsed}
+          <span className="call-dot" /> #{selectedChannelId} · {elapsed}
         </span>
         <span className="call-topbar-meta">
           <i className="ph-bold ph-users-three" /> {participants.length}

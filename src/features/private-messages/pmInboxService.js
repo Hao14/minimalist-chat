@@ -1,6 +1,5 @@
 import { onChildAdded, onChildChanged, onValue, ref, set } from 'firebase/database';
-import { getMessaging, getToken, isSupported } from 'firebase/messaging';
-import { app, db } from '../../lib/firebase.js';
+import { db } from '../../lib/firebase.js';
 
 let blinkInterval = null;
 let audioContext = null;
@@ -73,6 +72,7 @@ window.updatePmUnreadBadge = function updatePmUnreadBadge(count, inbox = null) {
   if (inbox) {
     latestInbox = inbox;
     window.latestPmInbox = inbox;
+    window.dispatchEvent(new CustomEvent('minimalist:pm-inbox', { detail: { inbox, unreadCount: count } }));
   }
   const label = count > 9 ? '9+' : String(count);
   unreadRailTargets.forEach((id) => {
@@ -176,6 +176,10 @@ async function syncFirebasePushToken() {
   if (!vapidKey || !window.currentUser || !navigator.serviceWorker) return false;
 
   try {
+    const [{ getMessaging, getToken, isSupported }, { app }] = await Promise.all([
+      import('firebase/messaging'),
+      import('../../lib/firebase.js'),
+    ]);
     const supported = await isSupported();
     if (!supported) return false;
 

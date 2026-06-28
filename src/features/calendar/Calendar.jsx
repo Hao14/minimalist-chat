@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { get, onValue, push, ref, remove, set } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
-import { getRequiredIdToken } from '../../lib/authToken.js';
+import {
+  extractCalendarEventsFromGateway,
+  extractCalendarEventsFromPhoto,
+  getLocalAiStatus,
+  getLocalVisionAiConfig,
+  localAiStatusMessage,
+  shouldUseGatewayAi,
+} from '../ai/localAiClient.js';
 
 const accents = ['#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#60a5fa'];
 const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -9,6 +16,10 @@ const mon = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT
 const fullMon = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthColors = ['#B5742B', '#9B86C4', '#4FB3A1', '#C8443A', '#6FA84B', '#E0A82E', '#F2766B', '#F47A1F', '#4E6FAF', '#8E6FA0', '#9E2A3B', '#1E7A93'];
 const gcalScope = 'https://www.googleapis.com/auth/calendar.events';
+const photoPassthroughMaxBytes = 900_000;
+const photoMaxBase64Chars = 3_200_000;
+const photoMaxSide = 1800;
+const preservePhotoMimeTypes = new Set(['image/png', 'image/webp', 'image/jpeg', 'image/jpg']);
 
 let gcalToken = null;
 let gcalSilentTried = false;
@@ -68,13 +79,84 @@ function loadScript(src) {
   });
 }
 
-function fileToBase64(file) {
+function readFileBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(',')[1]);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read this image file.'));
+    };
+    image.src = url;
+  });
+}
+
+function canvasBase64(canvas, quality) {
+  return canvas.toDataURL('image/jpeg', quality).split(',')[1];
+}
+
+function approxBase64Size(bytes) {
+  return Math.ceil(Number(bytes || 0) * 1.37);
+}
+
+function unsupportedMobileImage(file) {
+  const type = String(file?.type || '').toLowerCase();
+  const name = String(file?.name || '').toLowerCase();
+  return type.includes('heic') || type.includes('heif') || /\.(heic|heif)$/i.test(name);
+}
+
+async function prepareCalendarPhoto(file) {
+  if (!file?.type?.startsWith('image/')) {
+    throw new Error('Choose a screenshot or photo file for calendar import.');
+  }
+  if (unsupportedMobileImage(file)) {
+    throw new Error('This image format is not supported yet. Use a screenshot, JPEG, or PNG.');
+  }
+  const fileType = String(file.type || '').toLowerCase();
+  if (preservePhotoMimeTypes.has(fileType) && file.size <= photoPassthroughMaxBytes && approxBase64Size(file.size) <= photoMaxBase64Chars) {
+    return { image: await readFileBase64(file), mimeType: file.type };
+  }
+  try {
+    const source = await loadImage(file);
+    let maxSide = photoMaxSide;
+    let quality = 0.86;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const scale = Math.min(1, maxSide / Math.max(source.naturalWidth || source.width, source.naturalHeight || source.height));
+      const width = Math.max(1, Math.round((source.naturalWidth || source.width) * scale));
+      const height = Math.max(1, Math.round((source.naturalHeight || source.height) * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d', { alpha: false });
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, width, height);
+      context.imageSmoothingEnabled = true;
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(source, 0, 0, width, height);
+      const image = canvasBase64(canvas, quality);
+      if (image.length <= photoMaxBase64Chars || attempt === 4) {
+        return { image, mimeType: 'image/jpeg' };
+      }
+      maxSide = Math.max(1200, Math.round(maxSide * 0.84));
+      quality = Math.max(0.7, quality - 0.05);
+    }
+  } catch {
+    throw new Error('Could not read this image. Use a screenshot, JPEG, or PNG.');
+  }
+  throw new Error('Could not prepare this image for calendar import.');
 }
 
 function minutesBetween(start, end) {
@@ -84,6 +166,15 @@ function minutesBetween(start, end) {
   let diff = (endHour * 60 + (endMinute || 0)) - (startHour * 60 + (startMinute || 0));
   if (diff < 0) diff += 1440;
   return diff;
+}
+
+function eventFingerprint(event = {}) {
+  return [
+    String(event.date || '').trim(),
+    String(event.time || '').trim(),
+    String(event.title || '').trim().toLowerCase().replace(/\s+/g, ' '),
+    String(event.location || '').trim().toLowerCase().replace(/\s+/g, ' '),
+  ].join('|');
 }
 
 function toLocalGoogleEvent(item) {
@@ -123,7 +214,7 @@ function CalendarEvent({ canEdit, event, index, onDelete }) {
   );
 }
 
-export function Calendar({ adminUid, aiCalendarEndpoint, gcalClientId, roomId, user }) {
+export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }) {
   const [{ selectedKey, todayKey, weekStart }, setPosition] = useState(() => makeToday());
   const [roomEvents, setRoomEvents] = useState([]);
   const [googleEvents, setGoogleEvents] = useState([]);
@@ -133,6 +224,8 @@ export function Calendar({ adminUid, aiCalendarEndpoint, gcalClientId, roomId, u
   const [draft, setDraft] = useState({ title: '', time: '', duration: '', location: '' });
   const [photoImport, setPhotoImport] = useState({ active: false, progress: 0, label: '' });
   const photoInput = useRef(null);
+  const visionConfig = useMemo(() => getLocalVisionAiConfig(localAiConfig), [localAiConfig]);
+  const useCalendarGateway = useMemo(() => shouldUseGatewayAi(localAiConfig) && Boolean(localAiConfig?.calendarEndpoint), [localAiConfig]);
 
   useEffect(() => onValue(ref(db, `rooms_meta/${roomId}/events`), (snapshot) => {
     const value = snapshot.val() || {};
@@ -258,11 +351,18 @@ export function Calendar({ adminUid, aiCalendarEndpoint, gcalClientId, roomId, u
 
   const saveAndSync = async (event) => {
     const eventRef = push(ref(db, `rooms_meta/${roomId}/events`));
-    await set(eventRef, event);
+    const eventPayload = {
+      ...event,
+      createdAt: event.createdAt || Date.now(),
+      updatedAt: Date.now(),
+    };
+    await set(eventRef, eventPayload);
     if (gcalToken) {
-      const googleId = await pushEventToGoogle(event);
+      const googleId = await pushEventToGoogle(eventPayload);
       if (googleId) await set(ref(db, `rooms_meta/${roomId}/events/${eventRef.key}/gId`), googleId);
+      return Boolean(googleId);
     }
+    return false;
   };
 
   const saveEvent = async (submitEvent) => {
@@ -289,33 +389,51 @@ export function Calendar({ adminUid, aiCalendarEndpoint, gcalClientId, roomId, u
   };
 
   const importFromPhoto = async (file) => {
-    if (!aiCalendarEndpoint) return window.showToast?.("AI photo import isn't set up yet. Deploy the vision function and set AI_CALENDAR_ENDPOINT.");
     if (photoImport.active) return;
     setPhotoImport({ active: true, progress: 10, label: 'Preparing photo…' });
     try {
-      setPhotoImport({ active: true, progress: 24, label: 'Reading image…' });
-      const image = await fileToBase64(file);
-      setPhotoImport({ active: true, progress: 46, label: 'Finding events…' });
-      const token = await getRequiredIdToken('Please sign in again before importing a calendar photo.');
-      const response = await fetch(aiCalendarEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ image, mimeType: file.type }),
-      });
-      if (!response.ok) throw new Error('Extraction service error');
+      setPhotoImport({ active: true, progress: 24, label: 'Optimizing image…' });
+      const preparedPhoto = await prepareCalendarPhoto(file);
+      const { image, mimeType } = preparedPhoto;
+      let data;
+      if (useCalendarGateway) {
+        setPhotoImport({ active: true, progress: 48, label: 'Checking secure AI gateway…' });
+        data = await extractCalendarEventsFromGateway({ image, mimeType, config: localAiConfig });
+      } else if (localAiConfig?.provider === 'gateway') {
+        throw new Error('Calendar photo import needs AI_CALENDAR_ENDPOINT in public gateway mode.');
+      } else {
+        setPhotoImport({ active: true, progress: 42, label: 'Checking Ollama vision…' });
+        const status = await getLocalAiStatus({ baseUrl: visionConfig.baseUrl, model: visionConfig.model });
+        if (status.state !== 'ready') throw new Error(status.message || localAiStatusMessage(status));
+        setPhotoImport({ active: true, progress: 58, label: 'Finding events locally…' });
+        data = await extractCalendarEventsFromPhoto({ image, mimeType, config: visionConfig });
+      }
       setPhotoImport({ active: true, progress: 72, label: 'Checking details…' });
-      const data = await response.json();
       if (!data.events?.length) return window.showToast?.('No events found in that image.');
+      const seen = new Set(roomEvents.map(eventFingerprint));
       let added = 0;
+      let skipped = 0;
+      let synced = 0;
       for (const event of data.events) {
         if (!event.title || !event.date) continue;
-        setPhotoImport({ active: true, progress: Math.min(92, 72 + added * 6), label: `Saving event ${added + 1}…` });
         const duration = event.time && event.endTime ? minutesBetween(event.time, event.endTime) : (parseInt(event.duration, 10) || 0);
-        await saveAndSync({ title: event.title, date: event.date, time: event.time || '', duration, location: event.location || '', by: user.uid });
+        const nextEvent = { title: event.title, date: event.date, time: event.time || '', duration, location: event.location || '', by: user.uid };
+        const fingerprint = eventFingerprint(nextEvent);
+        if (seen.has(fingerprint)) {
+          skipped += 1;
+          continue;
+        }
+        seen.add(fingerprint);
+        setPhotoImport({ active: true, progress: Math.min(92, 72 + added * 6), label: `Saving event ${added + 1}…` });
+        if (await saveAndSync(nextEvent)) synced += 1;
         added += 1;
       }
+      if (!added && skipped) return window.showToast?.('Those photo events are already on this calendar.', false);
       setPhotoImport({ active: true, progress: 100, label: 'Import complete' });
-      window.showToast?.(`Added ${added} event(s) from the photo${gcalToken ? ' and synced to Google Calendar' : ''}.`, false);
+      const parts = [`Added ${added} event(s)`];
+      if (skipped) parts.push(`skipped ${skipped} duplicate(s)`);
+      if (gcalToken) parts.push(synced ? `synced ${synced} to Google Calendar` : 'Google sync did not confirm');
+      window.showToast?.(`${parts.join(' · ')}.`, false);
     } catch (error) {
       window.showToast?.(`Photo import failed: ${error.message}`);
     } finally {
@@ -358,7 +476,7 @@ export function Calendar({ adminUid, aiCalendarEndpoint, gcalClientId, roomId, u
           <div className="cal-import-spinner" />
           <div className="cal-import-copy">
             <strong>{photoImport.label}</strong>
-            <span>Calendar photo import</span>
+            <span>Local Ollama vision import</span>
           </div>
           <div className="cal-import-track">
             <span style={{ width: `${Math.max(8, Math.min(100, photoImport.progress))}%` }} />

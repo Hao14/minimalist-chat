@@ -2,10 +2,34 @@
   "name": "Minimalist Chat",
   "short_name": "Minimalist",
   "description": "A calmer rooms platform for organized communities, private groups, teams, students, and creators.",
-  "start_url": "/chat",
+  "id": "/?app=minimalist",
+  "scope": "/",
+  "start_url": "/chat?source=pwa",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui", "browser"],
   "background_color": "#ffffff",
   "theme_color": "#FFD700",
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Open Chat",
+      "short_name": "Chat",
+      "url": "/chat?source=pwa-shortcut",
+      "description": "Open your Minimalist rooms."
+    },
+    {
+      "name": "Live Demo",
+      "short_name": "Demo",
+      "url": "/#home-live-demo",
+      "description": "Try the public demo room."
+    },
+    {
+      "name": "Features",
+      "short_name": "Features",
+      "url": "/features",
+      "description": "View Minimalist features."
+    }
+  ],
   "icons": [
     {
       "src": "icon.svg",

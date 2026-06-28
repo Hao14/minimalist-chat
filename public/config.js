@@ -9,18 +9,40 @@
 //   http://localhost:5000   (Firebase hosting emulator)
 //   https://chat-app-356c1.web.app   and your custom domain
 window.GCAL_CLIENT_ID = '327658376387-4k2vr4612m66vtqlo7e96fqsf2jdt54q.apps.googleusercontent.com';
+window.GOOGLE_AUTH_CLIENT_ID = '327658376387-48ots8pnboooefrb13i3i42jn9v073jv.apps.googleusercontent.com';
 
-// AI photo import — the deployed extractCalendar Cloud Function URL.
-// Fill this in after `firebase deploy --only functions` prints the URL, e.g.:
-//   https://us-central1-chat-app-356c1.cloudfunctions.net/extractCalendar
+// AI — public deployments use the authenticated Firebase gateway; local dev can switch this back to local.
+// Keep this loopback-only. Do not put secrets here.
+window.OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
+window.OLLAMA_MODEL = 'llama3.1:latest';
+window.OLLAMA_VISION_MODEL = 'qwen2.5vl:7b';
+
+// AI runtime mode:
+//   local   = browser talks to loopback Ollama on this device.
+//   gateway = browser talks to authenticated Firebase Functions, which can proxy a private Ollama server.
+window.AI_PROVIDER = 'gateway';
+window.AI_GATEWAY_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/aiGateway';
+window.AI_PROFILE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/personalAiProfile';
+window.VAULT_SHARE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/createVaultShare';
+window.MINIMALIST_FLAGS = {
+  aiGateway: true,
+  aiServerProfile: true,
+  bananas: true,
+  // Vault share links must be created through the authenticated Cloud Function.
+  vaultShareBackend: true,
+  callsV2: true,
+  pwaInstall: true,
+};
+window.CALLS_V2_ENABLED = true;
+
+// Calendar photo import uses the authenticated Firebase gateway in public mode.
 window.AI_CALENDAR_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/extractCalendar';
 
-// AI assistant chat — the deployed aiChat Cloud Function URL (Groq-backed). Same deploy step:
-//   https://us-central1-chat-app-356c1.cloudfunctions.net/aiChat
-window.AI_CHAT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/aiChat';
+// Legacy cloud text AI endpoints are intentionally disabled for webpage text AI.
+window.AI_CHAT_ENDPOINT = '';
 
-// Pro personal AI agent — authenticated and tier-checked in Firebase Functions.
-window.PERSONAL_AI_AGENT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/personalAiAgent';
+// Legacy Pro personal AI Function endpoint. The webpage now uses local Ollama text AI.
+window.PERSONAL_AI_AGENT_ENDPOINT = '';
 
 // Bot Marketplace — authenticated stock quote endpoint for the Stock Price Tracker bot.
 window.STOCK_QUOTE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stockQuote';

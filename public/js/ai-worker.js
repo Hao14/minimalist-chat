@@ -45,7 +45,7 @@ self.onmessage = async (e) => {
         const model = await getSummarizer();
         post('ready', {});
         // distilbart handles ~1024 input tokens; keep the prompt well under that.
-        const input = String(text || '').slice(0, 3500);
+        const input = String(text || '').slice(-3500);
         const out = await model(input, { max_new_tokens: 140, min_new_tokens: 30, no_repeat_ngram_size: 3, do_sample: false });
         post('result', { id, summary: (out?.[0]?.summary_text || '').trim() });
     } catch (err) {

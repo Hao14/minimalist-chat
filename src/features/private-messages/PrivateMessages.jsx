@@ -17,6 +17,7 @@ import { createRoot } from 'react-dom/client';
 import { db } from '../../lib/firebase.js';
 
 const pmKeys = new Map();
+const pmDecryptCache = new Map();
 const sessions = new Map();
 const listeners = new Set();
 let activeUid = null;
@@ -142,6 +143,30 @@ async function decryptPmText(roomId, message) {
   }
 }
 
+function pmDecryptCacheKey(roomId, message, encryptionVersion) {
+  if (!message?.encrypted) return `${roomId}:${message?.id}:plain:${message?.text || ''}`;
+  return [
+    roomId,
+    message.id,
+    encryptionVersion,
+    message.iv || '',
+    String(message.ciphertext || '').length,
+    String(message.ciphertext || '').slice(0, 36),
+  ].join(':');
+}
+
+async function cachedDecryptPmText(roomId, message, encryptionVersion) {
+  const key = pmDecryptCacheKey(roomId, message, encryptionVersion);
+  if (pmDecryptCache.has(key)) return pmDecryptCache.get(key);
+  const decrypted = await decryptPmText(roomId, message);
+  pmDecryptCache.set(key, decrypted);
+  if (pmDecryptCache.size > 600) {
+    const firstKey = pmDecryptCache.keys().next().value;
+    pmDecryptCache.delete(firstKey);
+  }
+  return decrypted;
+}
+
 function formatTime(timestamp) {
   if (!timestamp) return '';
   const value = typeof timestamp === 'number' ? timestamp : timestamp;
@@ -218,6 +243,7 @@ function PrivateMessagesDock() {
   const [micState, setMicState] = useState('idle');
   const [encryptionVersion, setEncryptionVersion] = useState(0);
   const [passphraseOpen, setPassphraseOpen] = useState(false);
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const messagesRef = useRef(null);
 
   const activeSession = useMemo(
@@ -240,9 +266,7 @@ function PrivateMessagesDock() {
 
   useEffect(() => {
     if (!myUid) return undefined;
-    const inboxRef = ref(db, `inbox/${myUid}`);
-    const unsubscribe = onValue(inboxRef, (snapshot) => {
-      const inbox = snapshot.val() || {};
+    const applyInbox = (inbox = {}) => {
       Object.entries(inbox).forEach(([targetUid, data]) => {
         upsertSession(targetUid, {
           targetName: sessions.get(targetUid)?.targetName || data.fromName || 'User',
@@ -251,8 +275,11 @@ function PrivateMessagesDock() {
           timestamp: data.timestamp || 0,
         });
       });
-    });
-    return () => unsubscribe();
+    };
+    applyInbox(window.latestPmInbox || {});
+    const handleInbox = (event) => applyInbox(event.detail?.inbox || {});
+    window.addEventListener('minimalist:pm-inbox', handleInbox);
+    return () => window.removeEventListener('minimalist:pm-inbox', handleInbox);
   }, [myUid]);
 
   useEffect(() => {
@@ -277,14 +304,17 @@ function PrivateMessagesDock() {
 
       const decrypted = await Promise.all(nextMessages.map(async (message) => ({
         ...message,
-        decryptedText: await decryptPmText(roomId, message),
+        decryptedText: await cachedDecryptPmText(roomId, message, encryptionVersion),
       })));
 
+      const readAt = Date.now();
+      const readUpdates = {};
       decrypted
         .filter((message) => message.uid !== myUid && !message.readBy?.[myUid])
         .forEach((message) => {
-          update(ref(db, `private_messages/${roomId}/${message.id}/readBy`), { [myUid]: Date.now() }).catch(() => {});
+          readUpdates[`private_messages/${roomId}/${message.id}/readBy/${myUid}`] = readAt;
         });
+      if (Object.keys(readUpdates).length) update(ref(db), readUpdates).catch(() => {});
 
       setMessages(decrypted);
     });
@@ -302,7 +332,34 @@ function PrivateMessagesDock() {
   useEffect(() => {
     if (!messagesRef.current) return;
     messagesRef.current.scrollTo(0, messagesRef.current.scrollHeight);
-  }, [messages, activeSession?.targetUid]);
+  }, [messages, activeSession?.targetUid, keyboardInset]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const popup = document.getElementById('pm-popup');
+    if (!viewport || !popup) return undefined;
+    let frame = 0;
+
+    const syncKeyboardInset = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+      const inset = Math.max(0, Math.round(window.innerHeight - viewport.height - viewport.offsetTop));
+      setKeyboardInset(inset);
+      popup.style.setProperty('--pm-keyboard-offset', `${inset}px`);
+      });
+    };
+
+    syncKeyboardInset();
+    viewport.addEventListener('resize', syncKeyboardInset);
+    viewport.addEventListener('scroll', syncKeyboardInset);
+    return () => {
+      viewport.removeEventListener('resize', syncKeyboardInset);
+      viewport.removeEventListener('scroll', syncKeyboardInset);
+      if (frame) window.cancelAnimationFrame(frame);
+      popup.style.removeProperty('--pm-keyboard-offset');
+    };
+  }, []);
 
   const closeDock = useCallback(() => {
     document.getElementById('pm-popup')?.classList.add('hidden');
@@ -370,12 +427,14 @@ function PrivateMessagesDock() {
 
     await set(ref(db, `inbox/${activeSession.targetUid}/${myUid}`), {
       fromName: window.userProfileName || 'Someone',
+      senderUid: myUid,
       timestamp: Date.now(),
       lastText: messagePayload.encrypted ? 'Encrypted message' : text,
       read: false,
     });
     await set(ref(db, `inbox/${myUid}/${activeSession.targetUid}`), {
       fromName: activeSession.targetName,
+      senderUid: activeSession.targetUid,
       timestamp: Date.now(),
       lastText: messagePayload.encrypted ? 'Encrypted message' : text,
       read: true,
@@ -423,6 +482,7 @@ function PrivateMessagesDock() {
 
       await set(ref(db, `inbox/${activeSession.targetUid}/${myUid}`), {
         fromName: window.userProfileName || 'Someone',
+        senderUid: myUid,
         timestamp: Date.now(),
         lastText: 'Voice call started',
         read: false,

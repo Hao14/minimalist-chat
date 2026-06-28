@@ -8,22 +8,35 @@
         ".read": "auth != null",
         ".write": "auth != null && auth.uid === $uid && newData.child('tier').val() === data.child('tier').val() && newData.child('stripeCustomerId').val() === data.child('stripeCustomerId').val() && newData.child('stripeSubscriptionId').val() === data.child('stripeSubscriptionId').val() && newData.child('stripeSubscriptionStatus').val() === data.child('stripeSubscriptionStatus').val() && newData.child('stripePriceId').val() === data.child('stripePriceId').val() && newData.child('stripeCancelAtPeriodEnd').val() === data.child('stripeCancelAtPeriodEnd').val() && newData.child('stripeCurrentPeriodEnd').val() === data.child('stripeCurrentPeriodEnd').val() && newData.child('stripeUpdatedAt').val() === data.child('stripeUpdatedAt').val()",
         "badges": {
-          ".write": "auth != null"
+          "$badgeId": {
+            ".write": "auth != null && newData.exists() && !data.exists() && newData.isNumber() && ($badgeId === 'liked' || $badgeId === 'popular' || $badgeId === 'first_friend' || $badgeId === 'social' || $badgeId === 'community_award' || $badgeId === 'member_week' || $badgeId === 'top_contributor' || $badgeId === 'anniversary' || $badgeId === 'birthday')"
+          }
         },
         "kudos": {
-          ".write": "auth != null"
+          ".write": "auth != null && auth.uid !== $uid && root.child('users').child($uid).child('kudosFrom').child(auth.uid).exists() && newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
         },
         "kudosFrom": {
-          ".write": "auth != null"
+          "$giverUid": {
+            ".write": "auth != null && auth.uid === $giverUid && auth.uid !== $uid && newData.exists() && !data.exists() && newData.isNumber()"
+          }
         },
         "skills": {
-          ".write": "auth != null"
+          "$skillId": {
+            "by": {
+              "$endorserUid": {
+                ".write": "auth != null && auth.uid === $endorserUid && auth.uid !== $uid && newData.val() === true && !data.exists()"
+              }
+            },
+            "count": {
+              ".write": "auth != null && auth.uid !== $uid && root.child('users').child($uid).child('skills').child($skillId).child('by').child(auth.uid).exists() && newData.isNumber() && ((!data.exists() && newData.val() === 1) || (data.isNumber() && newData.val() === data.val() + 1))"
+            }
+          }
         },
         "stats": {
-          ".write": "auth != null"
+          ".write": "auth != null && auth.uid === $uid"
         },
         "activityByDay": {
-          ".write": "auth != null"
+          ".write": "auth != null && auth.uid === $uid"
         },
         "xp": {
           ".write": "auth != null && auth.uid === $uid"
@@ -94,7 +107,12 @@
     "inbox": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null"
+        "$senderUid": {
+          ".write": "auth != null && (auth.uid === $uid || (auth.uid === $senderUid && newData.exists() && newData.child('senderUid').val() === auth.uid && newData.child('timestamp').isNumber() && newData.child('lastText').isString() && newData.child('read').val() === false))",
+          "read": {
+            ".write": "auth != null && auth.uid === $uid && newData.isBoolean()"
+          }
+        }
       }
     },
     "messages": {
@@ -103,57 +121,110 @@
     },
     "rooms": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": false
     },
     "rooms_data": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+      }
     },
     "rooms_meta": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".write": "auth != null && (($roomId === 'global') || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || (!data.exists() && newData.exists() && newData.child('creatorId').val() === auth.uid && newData.child('members').child(auth.uid).exists()) || (data.exists() && data.child('creatorId').val() === auth.uid))",
+        "members": {
+          "$memberUid": {
+            ".write": "auth != null && root.child('rooms_meta').child($roomId).exists() && (auth.uid === $memberUid || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid)"
+          }
+        },
+        "logs": {
+          "$logId": {
+            ".write": "auth != null && root.child('rooms_meta').child($roomId).exists() && (auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists()) && (!newData.exists() || (newData.child('text').isString() && newData.child('timestamp').isNumber()))"
+          }
+        },
+        "lastMessage": {
+          ".write": "auth != null && root.child('rooms_meta').child($roomId).exists() && (auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists()) && (!newData.exists() || newData.isString())"
+        }
+      }
     },
     "typing": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        "$uid": {
+          ".write": "auth != null && auth.uid === $uid && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+        }
+      }
     },
     "presence": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null && auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' && !newData.exists()",
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid"
+      }
     },
     "friends": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        "$otherUid": {
+          ".write": "auth != null && (auth.uid === $uid || auth.uid === $otherUid)"
+        }
+      }
     },
     "following": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$uid": {
+        "$targetUid": {
+          ".write": "auth != null && auth.uid === $uid"
+        }
+      }
     },
     "followers": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$uid": {
+        "$followerUid": {
+          ".write": "auth != null && auth.uid === $followerUid"
+        }
+      }
     },
     "notifications": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null"
+        "$notificationId": {
+          ".write": "auth != null && (auth.uid === $uid || (newData.exists() && newData.child('senderUid').val() === auth.uid && newData.child('timestamp').isNumber()))"
+        }
       }
     },
     "private_messages": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$threadId": {
+        ".read": "auth != null && ($threadId.beginsWith(auth.uid + '_') || $threadId.endsWith('_' + auth.uid))",
+        "$messageId": {
+          ".write": "auth != null && ($threadId.beginsWith(auth.uid + '_') || $threadId.endsWith('_' + auth.uid)) && ((!data.exists() && newData.exists() && newData.child('uid').val() === auth.uid) || (data.exists() && data.child('uid').val() === auth.uid))",
+          "readBy": {
+            "$uid": {
+              ".write": "auth != null && auth.uid === $uid && ($threadId.beginsWith(auth.uid + '_') || $threadId.endsWith('_' + auth.uid)) && newData.isNumber()"
+            }
+          }
+        }
+      }
     },
     "room_calls": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+      }
     },
     "pm_calls": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$threadId": {
+        ".read": "auth != null && ($threadId.beginsWith(auth.uid + '_') || $threadId.endsWith('_' + auth.uid))",
+        ".write": "auth != null && ($threadId.beginsWith(auth.uid + '_') || $threadId.endsWith('_' + auth.uid))"
+      }
     },
     "whiteboards": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+      }
     },
     "user_room_preferences": {
       "$uid": {
@@ -173,22 +244,53 @@
         ".write": "auth != null && auth.uid === $uid"
       }
     },
+    "user_private": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "ai_usage": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
+    "ai_audit": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
+      }
+    },
     "room_tasks": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+      }
     },
     "room_docs": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+      }
     },
     "room_pages": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      "$roomId": {
+        ".read": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())",
+        ".write": "auth != null && ($roomId === 'global' || auth.uid === 'WsREhwYvPxaCSAjz0aqvwAU1leg2' || root.child('rooms_meta').child($roomId).child('creatorId').val() === auth.uid || root.child('rooms_meta').child($roomId).child('members').child(auth.uid).exists())"
+      }
     },
     "vaults": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "vault_shares": {
+      ".indexOn": ["expiresAt", "ownerId"],
+      "$shareId": {
+        ".read": "data.exists() && data.child('type').val() === 'note' && data.child('expiresAt').isNumber() && data.child('expiresAt').val() > now",
+        ".write": false
       }
     }
   }

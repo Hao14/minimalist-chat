@@ -12,6 +12,13 @@ import ContactsList from './ContactsList.jsx';
 
 let contactsRoot = null;
 let contactsUnsubscribers = [];
+let contactsRenderTimer = 0;
+let contactsRenderVersion = 0;
+let contactSearchInput = null;
+let contactSearchHandler = null;
+const mutualRoomCache = new Map();
+const mutualRoomLoads = new Map();
+const MUTUAL_ROOM_CACHE_TTL = 5 * 60 * 1000;
 
 function getCurrentUid() {
   return window.currentUser?.uid || null;
@@ -61,7 +68,7 @@ async function runContactAction(action) {
   try {
     if (!getCurrentUid()) throw new Error('Please sign in first.');
     await action();
-    window.renderContactsUI?.();
+    scheduleContactsRender({ debounceMs: 40 });
   } catch (error) {
     window.showToast?.(`Contact action failed: ${error.message}`);
   }
@@ -101,15 +108,35 @@ function pushSection(sections, id, title, items, options = {}) {
 function stopContactSubscriptions() {
   contactsUnsubscribers.forEach((unsubscribe) => unsubscribe?.());
   contactsUnsubscribers = [];
+  window.clearTimeout(contactsRenderTimer);
 }
 
 function startContactSubscriptions(uid) {
   stopContactSubscriptions();
   contactsUnsubscribers = [
-    onValue(ref(db, `friends/${uid}`), () => window.renderContactsUI?.()),
-    onValue(ref(db, 'presence'), () => window.renderContactsUI?.()),
-    onValue(ref(db, `inbox/${uid}`), () => window.renderContactsUI?.()),
+    onValue(ref(db, `friends/${uid}`), () => scheduleContactsRender({ debounceMs: 120 })),
+    onValue(ref(db, 'presence'), () => scheduleContactsRender({ debounceMs: 160 })),
+    onValue(ref(db, `inbox/${uid}`), () => scheduleContactsRender({ debounceMs: 100 })),
   ];
+}
+
+function scheduleContactsRender({ debounceMs = 140 } = {}) {
+  window.clearTimeout(contactsRenderTimer);
+  contactsRenderTimer = window.setTimeout(() => window.renderContactsUI?.(), debounceMs);
+}
+
+function bindContactSearchInput() {
+  const input = document.getElementById('contact-search-input');
+  if (input === contactSearchInput && contactSearchHandler) return;
+  if (contactSearchInput && contactSearchHandler) {
+    contactSearchInput.removeEventListener('input', contactSearchHandler);
+  }
+  contactSearchInput = input;
+  contactSearchHandler = (event) => {
+    event.stopPropagation();
+    scheduleContactsRender({ debounceMs: 170 });
+  };
+  contactSearchInput?.addEventListener('input', contactSearchHandler);
 }
 
 function openContactsPanel() {
@@ -117,6 +144,7 @@ function openContactsPanel() {
   if (!panel) return;
 
   panel.classList.add('open');
+  bindContactSearchInput();
   renderContactsStatus('Loading contacts…');
 
   const uid = getCurrentUid();
@@ -127,7 +155,7 @@ function openContactsPanel() {
   }
 
   startContactSubscriptions(uid);
-  window.renderContactsUI?.();
+  scheduleContactsRender({ debounceMs: 0 });
 }
 
 function closeContactsPanel() {
@@ -220,6 +248,37 @@ async function readMutualRoomUids(uid) {
   return mutualUids;
 }
 
+function getCachedMutualRoomUids(uid) {
+  const cached = mutualRoomCache.get(uid);
+  if (!cached) return new Set();
+  if (Date.now() - cached.loadedAt > MUTUAL_ROOM_CACHE_TTL) return new Set();
+  return cached.uids;
+}
+
+function isContactsPanelOpen() {
+  return Boolean(document.getElementById('contacts-panel')?.classList.contains('open'));
+}
+
+function scheduleMutualRoomRefresh(uid) {
+  const cached = mutualRoomCache.get(uid);
+  if (cached && Date.now() - cached.loadedAt < MUTUAL_ROOM_CACHE_TTL) return;
+  if (mutualRoomLoads.has(uid)) return;
+
+  const run = async () => {
+    try {
+      const uids = await readMutualRoomUids(uid);
+      mutualRoomCache.set(uid, { uids, loadedAt: Date.now() });
+      if (getCurrentUid() === uid && isContactsPanelOpen()) scheduleContactsRender({ debounceMs: 180 });
+    } finally {
+      mutualRoomLoads.delete(uid);
+    }
+  };
+
+  const idle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 600));
+  const handle = idle(run, { timeout: 2500 });
+  mutualRoomLoads.set(uid, handle);
+}
+
 async function loadContactUsers(candidateUids, directoryData, currentUid) {
   const entries = await Promise.all([...candidateUids].map(async (uid) => {
     if (!uid || uid === currentUid) return null;
@@ -237,6 +296,7 @@ async function loadContactUsers(candidateUids, directoryData, currentUid) {
 }
 
 window.renderContactsUI = async function renderContactsUI() {
+  const renderVersion = ++contactsRenderVersion;
   const list = document.getElementById('contacts-list');
   if (!list) return;
 
@@ -250,22 +310,38 @@ window.renderContactsUI = async function renderContactsUI() {
     const searchInput = document.getElementById('contact-search-input');
     const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
 
-    const [directoryData, myFriends, presenceData, currentRoomMembers, mutualUids, myInbox] = await Promise.all([
-      safeGetValue('user_directory', {}, { quiet: true }),
+    const mutualUids = getCachedMutualRoomUids(uid);
+    const [myFriends, presenceData, currentRoomMembers, myInbox] = await Promise.all([
       safeGetValue(`friends/${uid}`, {}, { quiet: true }),
       safeGetValue('presence', {}, { quiet: true }),
       readCurrentRoomMembers(),
-      readMutualRoomUids(uid),
       safeGetValue(`inbox/${uid}`, {}, { quiet: true }),
     ]);
+    scheduleMutualRoomRefresh(uid);
 
-    const candidateUids = new Set(Object.keys(directoryData || {}));
+    let directoryData = {};
+    const candidateUids = new Set();
     Object.keys(myFriends || {}).forEach((friendUid) => candidateUids.add(friendUid));
     Object.keys(currentRoomMembers || {}).forEach((memberUid) => candidateUids.add(memberUid));
     Object.keys(myInbox || {}).forEach((inboxUid) => candidateUids.add(inboxUid));
     mutualUids.forEach((memberUid) => candidateUids.add(memberUid));
 
-    const allUsers = await loadContactUsers(candidateUids, directoryData || {}, uid);
+    if (searchQuery.length >= 2) {
+      directoryData = await safeGetValue('user_directory', {}, { quiet: true });
+      let matchedDirectoryCount = 0;
+      Object.entries(directoryData || {}).some(([candidateUid, record]) => {
+        const normalized = normalizeUserRecord(record);
+        const haystack = `${normalized.displayName} ${normalized.shortId}`.toLowerCase();
+        if (haystack.includes(searchQuery)) {
+          candidateUids.add(candidateUid);
+          matchedDirectoryCount += 1;
+        }
+        return matchedDirectoryCount >= 80;
+      });
+    }
+
+    const limitedCandidates = new Set([...candidateUids].slice(0, searchQuery ? 100 : 140));
+    const allUsers = await loadContactUsers(limitedCandidates, directoryData || {}, uid);
     const requests = [];
     const unreadPm = [];
     const online = [];
@@ -311,6 +387,7 @@ window.renderContactsUI = async function renderContactsUI() {
       pushSection(sections, 'requests', 'Requests', requests);
     }
 
+    if (renderVersion !== contactsRenderVersion) return;
     mountContactsList(list, sections);
   } catch (error) {
     console.error('Contacts render failed', error);

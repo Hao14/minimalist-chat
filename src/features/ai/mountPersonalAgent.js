@@ -11,5 +11,8 @@ export function mountPersonalAgent(props) {
     host.replaceChildren();
     personalAgentRoot = createRoot(host);
   }
-  personalAgentRoot.render(createElement(PersonalAIAgentLauncher, props));
+  personalAgentRoot.render(createElement(PersonalAIAgentLauncher, {
+    ...props,
+    key: `${props.roomId || 'global'}:${props.channelId || 'general'}`,
+  }));
 }

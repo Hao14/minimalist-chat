@@ -698,7 +698,7 @@ function renderChatShell() {
                 id: "join-room-btn",
                 className: "room-action-btn btn-light",
               },
-              "→] Join"
+              "Join"
             ),
             "\n                "
           ),
@@ -2593,6 +2593,8 @@ function renderChatShell() {
               "div",
               {
                 className: "theme-selection-row",
+                role: "radiogroup",
+                "aria-label": "Theme selection",
                 style: { display: "flex", gap: "1rem" },
               },
               "\n                        ",
@@ -2601,6 +2603,7 @@ function renderChatShell() {
                 {
                   className: "action-btn theme-select-btn",
                   "data-theme": "light",
+                  type: "button",
                   style: { flex: "1", margin: "0" },
                 },
                 "Light ☀️"
@@ -2611,6 +2614,7 @@ function renderChatShell() {
                 {
                   className: "action-btn theme-select-btn",
                   "data-theme": "dark",
+                  type: "button",
                   style: { flex: "1", margin: "0" },
                 },
                 "Dark 🌙"
@@ -2621,6 +2625,7 @@ function renderChatShell() {
                 {
                   className: "action-btn theme-select-btn",
                   "data-theme": "gray",
+                  type: "button",
                   style: { flex: "1", margin: "0" },
                 },
                 "Gray ☁️"
@@ -2631,9 +2636,21 @@ function renderChatShell() {
                 {
                   className: "action-btn theme-select-btn",
                   "data-theme": "modern",
+                  type: "button",
                   style: { flex: "1", margin: "0" },
                 },
                 "Modern ✨"
+              ),
+              "\n                        ",
+              h(
+                "button",
+                {
+                  className: "action-btn theme-select-btn",
+                  "data-theme": "codex",
+                  type: "button",
+                  style: { flex: "1", margin: "0" },
+                },
+                "Codex"
               ),
               "\n                    "
             ),

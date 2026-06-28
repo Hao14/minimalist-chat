@@ -359,7 +359,6 @@ async function getRoomBotConfig(roomId) {
 function detectAutoModeration(text, config) {
   const clean = String(text || '').trim();
   if (!config?.enabled || !clean) return null;
-  const lowered = clean.toLowerCase();
 
   const matchedWord = (config.blockedWords || []).find((word) => {
     if (!word) return false;
@@ -1359,12 +1358,8 @@ function ComposerActionDialog({ mode, onClose, onSubmit, submitting }) {
   );
 }
 
-function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
-  const [value, setValue] = useState('');
-  useEffect(() => {
-    setValue(dialog?.defaultValue || '');
-  }, [dialog]);
-
+function SimpleActionDialogContent({ dialog, onCancel, onSubmit }) {
+  const [value, setValue] = useState(() => dialog?.defaultValue || '');
   if (!dialog) return null;
   const isConfirm = dialog.type === 'confirm';
   const isChannelDialog = dialog.variant === 'channel';
@@ -1436,6 +1431,25 @@ function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
         </div>
       </form>
     </div>
+  );
+}
+
+function SimpleActionDialog({ dialog, onCancel, onSubmit }) {
+  if (!dialog) return null;
+  const dialogKey = [
+    dialog.type || 'dialog',
+    dialog.variant || 'default',
+    dialog.title || '',
+    dialog.defaultValue || '',
+  ].join(':');
+
+  return (
+    <SimpleActionDialogContent
+      dialog={dialog}
+      key={dialogKey}
+      onCancel={onCancel}
+      onSubmit={onSubmit}
+    />
   );
 }
 
@@ -2044,10 +2058,20 @@ export function ChatCore({ user, registerApi }) {
     setActiveChannelId(nextChannelId);
     activeChannelRef.current = nextChannelId;
     window.activeChannelId = nextChannelId;
+    window.dispatchEvent(new CustomEvent('minimalist:room-channel-change', {
+      detail: { roomId: activeRoomRef.current.id, channelId: nextChannelId },
+    }));
     writeLastRoomPreference(activeRoomRef.current, nextChannelId, user?.uid);
     shouldStickToBottomRef.current = true;
     forceScrollToLatestRef.current = true;
   }, [user?.uid]);
+
+  useEffect(() => {
+    window.switchRoomChannel = switchChannel;
+    return () => {
+      if (window.switchRoomChannel === switchChannel) delete window.switchRoomChannel;
+    };
+  }, [switchChannel]);
 
   const addChannel = useCallback(async () => {
     if (activeRoomRef.current.id === 'global') return;

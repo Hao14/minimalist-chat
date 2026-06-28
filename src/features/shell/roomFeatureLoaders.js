@@ -1,6 +1,7 @@
 const featureModules = new Map();
 let searchMounted = false;
 let searchMountPromise = null;
+let vaultPrewarmPromise = null;
 
 function importOnce(key, importer) {
   if (!featureModules.has(key)) {
@@ -36,6 +37,19 @@ function markFeatureMounted(view) {
 
 function loadFeatureStyles() {
   window.__minimalistLoadFeatureStyles?.();
+}
+
+function aiConfigFromWindow() {
+  return {
+    baseUrl: window.OLLAMA_BASE_URL || '',
+    model: window.OLLAMA_MODEL || '',
+    visionModel: window.OLLAMA_VISION_MODEL || '',
+    provider: window.AI_PROVIDER || 'local',
+    gatewayEndpoint: window.AI_GATEWAY_ENDPOINT || window.AI_CHAT_ENDPOINT || '',
+    profileEndpoint: window.AI_PROFILE_ENDPOINT || '',
+    calendarEndpoint: window.AI_CALENDAR_ENDPOINT || '',
+    flags: window.MINIMALIST_FLAGS || {},
+  };
 }
 
 function mountSearchOnce({ initialOpen = false } = {}) {
@@ -151,14 +165,15 @@ window.loadRoomCalendar = function loadRoomCalendar() {
     user: { uid: context.user.uid },
     adminUid: context.adminUid,
     gcalClientId: window.GCAL_CLIENT_ID || '',
-    aiCalendarEndpoint: window.AI_CALENDAR_ENDPOINT || '',
+    localAiConfig: aiConfigFromWindow(),
   }));
 };
 
 window.loadRoomAI = function loadRoomAI() {
   return mountDeferredRoomView('ai', () => import('../ai/mountAI.js'), 'mountAI', (context) => ({
     roomId: context.roomId,
-    aiChatEndpoint: window.AI_CHAT_ENDPOINT || '',
+    channelId: window.activeChannelId || 'general',
+    localAiConfig: aiConfigFromWindow(),
   }));
 };
 
@@ -167,6 +182,8 @@ window.loadRoomCalls = function loadRoomCalls() {
     roomId: context.roomId,
     adminUid: context.adminUid,
     user: context.user,
+    activeChannelId: window.activeChannelId || 'general',
+    enableCallChannelsV2: window.CALLS_V2_ENABLED === true || window.MINIMALIST_FLAGS?.callsV2 === true,
   }));
 };
 
@@ -193,8 +210,29 @@ window.openPersonalAgent = async function openPersonalAgent() {
   const { mountPersonalAgent } = await importOnce('personal-agent', () => import('../ai/mountPersonalAgent.js'));
   mountPersonalAgent({
     roomId: window.activeRoomId || 'global',
-    personalAiAgentEndpoint: window.PERSONAL_AI_AGENT_ENDPOINT || '',
+    channelId: window.activeChannelId || 'general',
+    localAiConfig: aiConfigFromWindow(),
   });
+};
+
+window.refreshPersonalAgentContext = function refreshPersonalAgentContext() {
+  const panel = document.getElementById('personal-ai-agent-panel');
+  if (!panel?.classList.contains('open')) return;
+  window.openPersonalAgent?.();
+};
+
+window.addEventListener('minimalist:room-channel-change', () => {
+  window.refreshPersonalAgentContext?.();
+});
+
+window.prewarmVault = function prewarmVault() {
+  if (vaultPrewarmPromise) return vaultPrewarmPromise;
+  loadFeatureStyles();
+  vaultPrewarmPromise = importOnce('vault', () => import('../vault/mountVault.js')).catch((error) => {
+    vaultPrewarmPromise = null;
+    throw error;
+  });
+  return vaultPrewarmPromise;
 };
 
 window.openVault = async function openVault(initialView = 'all') {
@@ -209,7 +247,7 @@ window.openVault = async function openVault(initialView = 'all') {
   panel.dataset.vaultView = initialView || 'all';
   panel.classList.add('open');
   window.dispatchEvent(new CustomEvent('minimalist:vault-open', { detail: { view: initialView || 'all' } }));
-  const { mountVault } = await importOnce('vault', () => import('../vault/mountVault.js'));
+  const { mountVault } = await (vaultPrewarmPromise || importOnce('vault', () => import('../vault/mountVault.js')));
   mountVault({
     userId: window.currentUser.uid,
     userName: window.userProfileName || window.currentUser.displayName || 'You',
@@ -217,3 +255,16 @@ window.openVault = async function openVault(initialView = 'all') {
     bookmarks: window.__bookmarkIds || {},
   });
 };
+
+['#open-vault-btn', '#open-vault-btn-mobile'].forEach((selector) => {
+  const shouldPrewarm = (target) => target instanceof Element && target.closest(selector);
+  document.addEventListener('pointerenter', (event) => {
+    if (shouldPrewarm(event.target)) window.prewarmVault?.();
+  }, true);
+  document.addEventListener('touchstart', (event) => {
+    if (shouldPrewarm(event.target)) window.prewarmVault?.();
+  }, { passive: true, capture: true });
+  document.addEventListener('focusin', (event) => {
+    if (shouldPrewarm(event.target)) window.prewarmVault?.();
+  }, true);
+});

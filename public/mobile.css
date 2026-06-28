@@ -128,6 +128,7 @@
     .profile-edit-page-head { align-items: flex-start !important; flex-direction: column !important; }
     .profile-edit-page-head #cancel-profile-edit-btn { align-self: flex-start !important; }
     .theme-selection-row { flex-direction: column; }
+    #settings-modal.brutalist-settings .theme-selection-row { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)) !important; }
     .custom-theme-panel { flex-direction: column; align-items: stretch; }
     .custom-theme-controls { width: 100%; justify-content: space-between; }
     .custom-theme-controls button { flex: 1; }

@@ -53,6 +53,58 @@ if (import.meta.env.DEV && isLocalDevelopmentHost && 'serviceWorker' in navigato
     });
 }
 
+const installState = {
+  canInstall: false,
+  installed: window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true,
+  promptEvent: null,
+};
+
+function emitInstallState() {
+  window.dispatchEvent(new CustomEvent('minimalist:pwa-install-state', {
+    detail: {
+      canInstall: installState.canInstall,
+      installed: installState.installed,
+    },
+  }));
+}
+
+window.getMinimalistInstallState = () => ({
+  canInstall: installState.canInstall,
+  installed: installState.installed,
+});
+
+window.promptMinimalistInstall = async () => {
+  if (!installState.promptEvent) return { outcome: 'unavailable' };
+  const promptEvent = installState.promptEvent;
+  installState.promptEvent = null;
+  installState.canInstall = false;
+  emitInstallState();
+  await promptEvent.prompt();
+  return promptEvent.userChoice || { outcome: 'dismissed' };
+};
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  installState.promptEvent = event;
+  installState.canInstall = true;
+  emitInstallState();
+});
+
+window.addEventListener('appinstalled', () => {
+  installState.installed = true;
+  installState.canInstall = false;
+  installState.promptEvent = null;
+  emitInstallState();
+});
+
+if (!import.meta.env.DEV && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // Registration is best effort; the app remains usable without offline mode.
+    });
+  }, { once: true });
+}
+
 if (shouldLoadIconsImmediately && 'requestIdleCallback' in window) {
   window.requestIdleCallback(loadIconStyles, { timeout: 1200 });
 } else if (shouldLoadIconsImmediately) {
@@ -70,13 +122,23 @@ createRoot(document.getElementById('root')).render(
 );
 
 const hideStaticHomeShell = () => {
-  const staticShell = document.getElementById('static-home-shell');
-  if (!staticShell) return;
-  staticShell.classList.add('static-home-hide');
-  window.setTimeout(() => staticShell.remove(), 220);
+  if (window.location.pathname && window.location.pathname !== '/') {
+    document.getElementById('static-home-shell')?.remove();
+    return;
+  }
+  Promise.race([
+    window.__minimalistDeferredCssReady || Promise.resolve(),
+    new Promise((resolve) => window.setTimeout(resolve, 900)),
+  ]).then(() => {
+    const staticShell = document.getElementById('static-home-shell');
+    if (!staticShell) return;
+    staticShell.classList.add('static-home-hide');
+    window.setTimeout(() => staticShell.remove(), 220);
+  });
 };
 
 window.addEventListener('minimalist:marketing-mounted', hideStaticHomeShell, { once: true });
+window.requestAnimationFrame(hideStaticHomeShell);
 
 const hideBootShell = () => {
   window.requestAnimationFrame(() => {

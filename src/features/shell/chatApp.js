@@ -1,5 +1,6 @@
 // Chat app entrypoint for the React/Vite shell.
 import './globalState.js';
+import { applySavedTheme } from '../settings/themeRuntime.js';
 import './uiShell.js';
 import './dialogHost.jsx';
 import '../performance/performanceSettings.js';
@@ -22,6 +23,8 @@ import '../presence/presenceService.js';
 import '../private-messages/PrivateMessages.jsx';
 import '../private-messages/pmInboxService.js';
 import { initializeBillingActions } from '../billing/billingActions.js';
+
+applySavedTheme({ updateSelection: false });
 
 const lazyServices = new Map();
 

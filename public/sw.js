@@ -1,14 +1,10 @@
-const CACHE_NAME = 'minimalist-offline-v14';
+const CACHE_NAME = 'minimalist-offline-v21';
+const STATIC_CACHE = `${CACHE_NAME}-static`;
 const APP_SHELL = [
   '/',
   '/chat',
   '/index.html',
-  '/base.css',
-  '/desktop.css',
-  '/mobile.css',
-  '/features.css',
   '/manifest.json',
-  '/config.js',
 ];
 
 self.addEventListener('install', (event) => {
@@ -22,10 +18,25 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME && key !== STATIC_CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
+
+function networkOnly(request) {
+  return fetch(request, { cache: 'no-store' });
+}
+
+function staleWhileRevalidate(request) {
+  return caches.open(STATIC_CACHE).then(async (cache) => {
+    const cached = await cache.match(request);
+    const refresh = fetch(request).then((response) => {
+      if (response.ok) cache.put(request, response.clone());
+      return response;
+    }).catch(() => cached);
+    return cached || refresh;
+  });
+}
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -34,6 +45,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/__/auth')) return;
+  if (url.pathname === '/config.js' || url.pathname === '/sw.js' || url.pathname === '/service-worker.js') {
+    event.respondWith(networkOnly(request));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -49,13 +64,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => cached || fetch(request).then((response) => {
-      if (response.ok) {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-      }
-      return response;
-    })),
+    staleWhileRevalidate(request),
   );
 });
 
