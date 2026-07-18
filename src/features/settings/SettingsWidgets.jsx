@@ -40,7 +40,16 @@ function fallbackAvatarFor(user = {}) {
   return '';
 }
 
-function ProfileCardPreviewBase({ user = {}, avatar, bannerStyle, reputation }) {
+function ProfileCardPreviewBase({
+  user = {},
+  avatar,
+  bannerStyle,
+  reputation,
+  variant = 'full',
+  onCopyLink,
+  onEdit,
+  onOpenFullProfile,
+}) {
   const links = useMemo(() => (Array.isArray(user.links) ? user.links : []), [user.links]);
   const badges = useMemo(() => Object.keys(user.badges || {})
     .map((id) => ({ id, ...(window.BADGE_DEFS?.[id] || {}) }))
@@ -54,7 +63,7 @@ function ProfileCardPreviewBase({ user = {}, avatar, bannerStyle, reputation }) 
   const statusText = user.status || 'Available';
   const avatarSrc = avatar || fallbackAvatarFor(user);
   const uid = user.uid || user.id;
-  const publicLinkReady = Boolean(uid && window.profileShareLink);
+  const publicLinkReady = Boolean(uid && (onCopyLink || window.profileShareLink));
   const profileStats = [
     { label: 'Rep', value: reputation || 0, icon: 'ph-trophy' },
     { label: 'Badges', value: badges.length, icon: 'ph-medal' },
@@ -63,6 +72,10 @@ function ProfileCardPreviewBase({ user = {}, avatar, bannerStyle, reputation }) 
   ];
 
   const copyProfileLink = async () => {
+    if (onCopyLink) {
+      await onCopyLink(user);
+      return;
+    }
     if (!publicLinkReady) {
       window.showToast?.('Profile link is not ready yet.', true);
       return;
@@ -77,6 +90,10 @@ function ProfileCardPreviewBase({ user = {}, avatar, bannerStyle, reputation }) 
   };
 
   const openPublicCard = () => {
+    if (onOpenFullProfile) {
+      onOpenFullProfile(user);
+      return;
+    }
     if (!uid || !window.viewUserProfile) {
       window.showToast?.('Profile card is not ready yet.', true);
       return;
@@ -85,7 +102,10 @@ function ProfileCardPreviewBase({ user = {}, avatar, bannerStyle, reputation }) 
   };
 
   return (
-    <article className="scp-card profile-card-premium profile-card-redesign" aria-label={`${displayName}'s profile card`}>
+    <article
+      className={`scp-card profile-card-premium profile-card-redesign${variant === 'settings' ? ' profile-card-settings-preview' : ''}`}
+      aria-label={`${displayName}'s profile card`}
+    >
       <div className="scp-banner" style={bannerStyle}>
         <div className="profile-card-orbit" aria-hidden="true" />
         <div className="profile-card-banner-meta">
@@ -161,38 +181,42 @@ function ProfileCardPreviewBase({ user = {}, avatar, bannerStyle, reputation }) 
           <button type="button" onClick={copyProfileLink} disabled={!publicLinkReady}>
             <i className="ph-bold ph-link-simple" aria-hidden="true" /> Copy link
           </button>
-          <button type="button" onClick={openPublicCard} disabled={!uid || !window.viewUserProfile}>
-            <i className="ph-bold ph-identification-card" aria-hidden="true" /> View card
+          <button type="button" onClick={openPublicCard} disabled={!uid || (!onOpenFullProfile && !window.viewUserProfile)}>
+            <i className="ph-bold ph-identification-card" aria-hidden="true" /> View full profile
           </button>
-          <button type="button" onClick={() => document.getElementById('toggle-edit-btn')?.click()}>
+          <button type="button" onClick={() => (onEdit ? onEdit(user) : document.getElementById('toggle-edit-btn')?.click())}>
             <i className="ph-bold ph-pencil-simple" aria-hidden="true" /> Edit
           </button>
         </div>
-        <div className="profile-section-label">Skill Trees</div>
-        <div className="skilltree">
-          {skills.map((skill) => (
-            <div className="st-row" key={skill.key}>
-              <span className="st-ico" style={{ color: skill.color }}>
-                <i className={`ph-bold ${skill.icon}`} />
-              </span>
-              <span className="st-name">{skill.label}</span>
-              <span className="st-lv">Lv {skill.level}</span>
-              <div className="st-bar">
-                <div className="st-fill" style={{ width: `${skill.progress}%`, background: skill.color }} />
-              </div>
+        {variant !== 'settings' ? (
+          <>
+            <div className="profile-section-label">Skill Trees</div>
+            <div className="skilltree">
+              {skills.map((skill) => (
+                <div className="st-row" key={skill.key}>
+                  <span className="st-ico" style={{ color: skill.color }}>
+                    <i className={`ph-bold ${skill.icon}`} />
+                  </span>
+                  <span className="st-name">{skill.label}</span>
+                  <span className="st-lv">Lv {skill.level}</span>
+                  <div className="st-bar">
+                    <div className="st-fill" style={{ width: `${skill.progress}%`, background: skill.color }} />
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        {badges.length ? (
-          <div className="profile-badges">
-            {badges.map((badge) => (
-              <span className="earned-badge" title={badge.label} style={{ '--badge-color': badge.color }} key={badge.id}>
-                <i className={`ph-bold ${badge.icon}`} /> {badge.label}
-              </span>
-            ))}
-          </div>
+            {badges.length ? (
+              <div className="profile-badges">
+                {badges.map((badge) => (
+                  <span className="earned-badge" title={badge.label} style={{ '--badge-color': badge.color }} key={badge.id}>
+                    <i className={`ph-bold ${badge.icon}`} /> {badge.label}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <div className="profile-rep"><i className="ph-bold ph-trophy" /> {reputation || 0} reputation</div>
+          </>
         ) : null}
-        <div className="profile-rep"><i className="ph-bold ph-trophy" /> {reputation || 0} reputation</div>
       </div>
     </article>
   );

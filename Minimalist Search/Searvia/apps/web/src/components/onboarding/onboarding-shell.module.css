@@ -1,0 +1,806 @@
+.shell {
+  font-family: var(--font-manrope, var(--font-geist-sans), Arial, sans-serif);
+}
+
+.canvas {
+  background:
+    radial-gradient(circle at 88% 9%, rgba(31, 89, 255, 0.055), transparent 23rem), #f7f8fa;
+}
+
+.path {
+  stroke-dasharray: 10 9;
+}
+
+.dot {
+  transform-origin: center;
+}
+
+.loadingLine {
+  position: relative;
+  width: 144px;
+  height: 2px;
+  overflow: hidden;
+  background: #dfe3ea;
+}
+
+.loadingLine::after {
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(90deg, #1f59ff, #0aa99e);
+  content: "";
+}
+
+.onboardingHeader {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.headerSignal {
+  position: absolute;
+  z-index: -1;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #1f59ff, #91a8ff 54%, #0aa99e);
+  opacity: 0.5;
+}
+
+.headerSignal span {
+  position: absolute;
+  top: 50%;
+  left: -24px;
+  width: 22px;
+  height: 5px;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  background: #1f59ff;
+  box-shadow: 0 0 0 1px rgb(31 89 255 / 0.2);
+  opacity: 0;
+  transform: translateY(-50%);
+}
+
+.headerSignal span:nth-child(2) {
+  width: 15px;
+  background: #0aa99e;
+}
+
+.savedBadge {
+  position: relative;
+  z-index: 1;
+  padding: 6px 9px;
+  border: 1px solid #d8e5e3;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.9);
+}
+
+.savedBadge > span {
+  box-shadow: 0 0 0 0 rgb(10 169 158 / 0.22);
+}
+
+.layout {
+  position: relative;
+}
+
+.stepAside {
+  position: relative;
+  contain: paint;
+  overflow: hidden;
+}
+
+.stepAside::after {
+  position: absolute;
+  top: -16%;
+  bottom: -16%;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgb(31 89 255 / 0.05), transparent);
+  content: "";
+  opacity: 0;
+  transform: skewX(-12deg);
+}
+
+.stepNavigation {
+  position: relative;
+}
+
+.stepNavigation::before {
+  position: absolute;
+  top: 22px;
+  bottom: 22px;
+  left: 16px;
+  width: 2px;
+  background: linear-gradient(#1f59ff, #aab8d9 52%, #0aa99e);
+  content: "";
+  opacity: 0.38;
+}
+
+.stepItem {
+  transform-origin: left center;
+}
+
+.stepConnector {
+  z-index: 1;
+  overflow: hidden;
+  background: #d8dde6;
+}
+
+.stepConnectorComplete {
+  background: linear-gradient(#1f59ff, #0aa99e);
+}
+
+.stepButton {
+  position: relative;
+  z-index: 2;
+  overflow: hidden;
+  transition:
+    background-color 180ms ease,
+    box-shadow 240ms ease,
+    color 180ms ease,
+    transform 240ms var(--ease-standard);
+}
+
+.stepButton::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -50%;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgb(31 89 255 / 0.14), transparent);
+  content: "";
+  opacity: 0;
+  transform: skewX(-14deg);
+}
+
+.stepButton:not(:disabled):hover {
+  transform: translateX(7px);
+}
+
+.stepButtonCurrent {
+  box-shadow:
+    inset 3px 0 #1f59ff,
+    0 7px 18px rgb(31 89 255 / 0.09);
+}
+
+.stepButtonComplete:hover {
+  background: #f3fbfa;
+}
+
+.stepButtonLocked {
+  opacity: 0.68;
+}
+
+.stepIcon {
+  position: relative;
+  z-index: 1;
+  transition:
+    box-shadow 240ms ease,
+    transform 240ms var(--ease-standard);
+}
+
+.stepButton:not(:disabled):hover .stepIcon {
+  transform: scale(1.14) rotate(-5deg);
+}
+
+.stepCanvas {
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.stepCanvas::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(rgb(31 89 255 / 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(31 89 255 / 0.022) 1px, transparent 1px);
+  background-size: 52px 52px;
+  content: "";
+  mask-image: radial-gradient(circle at 62% 32%, #000, transparent 68%);
+}
+
+.pathCanvas {
+  z-index: -1;
+}
+
+.pathPacket {
+  fill: none;
+  stroke-dasharray: 10 420;
+  stroke-linecap: round;
+  opacity: 0;
+}
+
+.mobileStepMeta {
+  position: relative;
+}
+
+.mobileProgress {
+  position: relative;
+  overflow: visible;
+}
+
+.mobileProgressFill {
+  position: relative;
+}
+
+.mobileProgressFill::after {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  width: 13px;
+  height: 13px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: #1f59ff;
+  box-shadow: 0 0 0 1px #1f59ff;
+  content: "";
+  transform: translate(50%, -50%);
+}
+
+.flowForm {
+  position: relative;
+}
+
+.stepStage {
+  transform-origin: center top;
+}
+
+.stepHeading h1 {
+  position: relative;
+  width: fit-content;
+}
+
+.stepHeading h1::after {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-left: 9px;
+  border-radius: 50%;
+  background: #0aa99e;
+  content: "";
+  vertical-align: 0.12em;
+}
+
+.stepCard {
+  position: relative;
+  isolation: isolate;
+  transition:
+    border-color 260ms ease,
+    box-shadow 320ms ease,
+    transform 320ms var(--ease-standard);
+}
+
+.stepCard:hover {
+  border-color: #b6c5ef;
+  box-shadow: 0 24px 60px rgb(24 34 54 / 0.11);
+  transform: translateY(-4px);
+}
+
+.cardScan {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -24%;
+  width: 14%;
+  background: linear-gradient(90deg, transparent, rgb(31 89 255 / 0.08), transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: skewX(-12deg);
+}
+
+.stepContent,
+.stepFooter {
+  position: relative;
+  z-index: 1;
+}
+
+.stepContentGroup > * {
+  transform-origin: center top;
+}
+
+.field {
+  position: relative;
+}
+
+.field::after {
+  position: absolute;
+  right: 8px;
+  bottom: -5px;
+  left: 8px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1f59ff, #0aa99e);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.12);
+  transition:
+    opacity 160ms ease,
+    transform 420ms var(--ease-out);
+}
+
+.field:focus-within::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.control,
+.textArea {
+  box-shadow: 0 0 0 0 rgb(31 89 255 / 0);
+  transition:
+    border-color 180ms ease,
+    box-shadow 260ms ease,
+    transform 180ms ease;
+}
+
+.control:hover:not(:disabled),
+.textArea:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.control:focus,
+.textArea:focus {
+  box-shadow:
+    0 0 0 4px rgb(31 89 255 / 0.09),
+    0 12px 24px rgb(31 89 255 / 0.08);
+  transform: translateY(-2px);
+}
+
+.selectControl svg {
+  transition: transform 260ms var(--ease-standard);
+}
+
+.selectControl:focus-within svg {
+  transform: rotate(180deg);
+}
+
+.notice,
+.choiceCard,
+.integrationCard,
+.comparisonPanel,
+.auditSummary > div,
+.auditDemo {
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color 220ms ease,
+    box-shadow 280ms ease,
+    transform 280ms var(--ease-standard);
+}
+
+.notice:hover,
+.choiceCard:hover,
+.integrationCard:hover,
+.comparisonPanel:hover,
+.auditSummary > div:hover,
+.auditDemo:hover {
+  border-color: #aebff0;
+  box-shadow: 0 15px 32px rgb(31 48 82 / 0.09);
+  transform: translateY(-4px);
+}
+
+.notice::after,
+.choiceCard::after,
+.integrationCard::after,
+.auditDemo::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -36%;
+  width: 24%;
+  background: linear-gradient(90deg, transparent, rgb(31 89 255 / 0.1), transparent);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transform: skewX(-13deg);
+}
+
+.nextButton,
+.backButton {
+  position: relative;
+  overflow: hidden;
+  transition:
+    background-color 180ms ease,
+    box-shadow 220ms ease,
+    transform 180ms ease;
+}
+
+.nextButton:hover:not(:disabled) {
+  box-shadow: 0 15px 28px rgb(31 89 255 / 0.26);
+  transform: translate3d(0, -3px, 0) scale(1.015);
+}
+
+.nextButton:active:not(:disabled),
+.backButton:active {
+  transform: scale(0.98);
+}
+
+.nextButton svg,
+.backButton svg {
+  transition: transform 260ms var(--ease-standard);
+}
+
+.nextButton:hover svg {
+  transform: translateX(5px);
+}
+
+.backButton:hover svg {
+  transform: translateX(-5px);
+}
+
+.nextButton::after {
+  position: absolute;
+  top: -50%;
+  bottom: -50%;
+  left: -28%;
+  width: 20%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.52), transparent);
+  content: "";
+  opacity: 0;
+  transform: rotate(12deg);
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .path {
+  animation: travel 9s linear infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .dot,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .mobileProgressFill::after,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .savedBadge > span {
+  animation: dot-pulse 2.15s var(--ease-standard) infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .loadingLine::after {
+  animation: loading 1.15s ease-in-out infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .headerSignal span {
+  animation: headerPacket 5.4s linear infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .headerSignal span:nth-child(2) {
+  animation-delay: 2.15s;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepAside::after {
+  animation: onboardingAsideScan 7s var(--ease-inout) 900ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepButtonCurrent::after {
+  animation: stepButtonScan 3.3s var(--ease-inout) 500ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepButtonCurrent .stepIcon {
+  animation: currentStepPulse 2.2s var(--ease-standard) infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .pathPacket {
+  opacity: 1;
+  animation: onboardingPathPacket 3.6s linear infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepStage {
+  animation: stepStageArrive 720ms var(--ease-out) both;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepHeading h1::after {
+  animation: headingNode 2.5s var(--ease-standard) 640ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .cardScan {
+  animation: onboardingCardScan 5.8s var(--ease-inout) 1.3s infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepContentGroup > * {
+  animation: stepPieceArrive 560ms var(--ease-out) both;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepContentGroup > :nth-child(2) {
+  animation-delay: 80ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .stepContentGroup > :nth-child(3) {
+  animation-delay: 160ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"])
+  .stepContentGroup
+  > :nth-child(n + 4) {
+  animation-delay: 230ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .notice::after,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .choiceCard::after,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .integrationCard::after,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .auditDemo::after {
+  animation: onboardingSurfaceScan 6.4s var(--ease-inout) 1.8s infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .choiceCard:nth-child(2)::after,
+:global(html[data-motion-mode="full"][data-motion-ready="true"])
+  .integrationCard:nth-child(2)::after {
+  animation-delay: 2.25s;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .choiceCard:nth-child(3)::after,
+:global(html[data-motion-mode="full"][data-motion-ready="true"])
+  .integrationCard:nth-child(3)::after {
+  animation-delay: 2.7s;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .nextButton::after {
+  animation: onboardingButtonScan 3.4s var(--ease-inout) 1.2s infinite;
+}
+
+@keyframes travel {
+  to {
+    stroke-dashoffset: -190;
+  }
+}
+
+@keyframes dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes loading {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes headerPacket {
+  0% {
+    opacity: 0;
+    transform: translate3d(-30px, -50%, 0);
+  }
+
+  8%,
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(100vw + 40px), -50%, 0);
+  }
+}
+
+@keyframes onboardingAsideScan {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translateX(0) skewX(-12deg);
+  }
+
+  32%,
+  62% {
+    opacity: 1;
+  }
+
+  82%,
+  100% {
+    opacity: 0;
+    transform: translateX(520%) skewX(-12deg);
+  }
+}
+
+@keyframes stepButtonScan {
+  0%,
+  48% {
+    opacity: 0;
+    transform: translateX(0) skewX(-14deg);
+  }
+
+  62%,
+  76% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(500%) skewX(-14deg);
+  }
+}
+
+@keyframes currentStepPulse {
+  0%,
+  62%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(31 89 255 / 0.18);
+    transform: scale(1);
+  }
+
+  78% {
+    box-shadow: 0 0 0 9px rgb(31 89 255 / 0);
+    transform: scale(1.12);
+  }
+}
+
+@keyframes onboardingPathPacket {
+  to {
+    stroke-dashoffset: -560;
+  }
+}
+
+@keyframes stepStageArrive {
+  from {
+    opacity: 0;
+    transform: translate3d(42px, 0, 0) scale(0.985);
+  }
+
+  72% {
+    opacity: 1;
+    transform: translate3d(-4px, 0, 0) scale(1.002);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes headingNode {
+  0%,
+  58%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(10 169 158 / 0.22);
+    transform: scale(1);
+  }
+
+  76% {
+    box-shadow: 0 0 0 11px rgb(10 169 158 / 0);
+    transform: scale(1.14);
+  }
+}
+
+@keyframes onboardingCardScan {
+  0%,
+  50% {
+    opacity: 0;
+    transform: translateX(0) skewX(-12deg);
+  }
+
+  62%,
+  78% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(900%) skewX(-12deg);
+  }
+}
+
+@keyframes stepPieceArrive {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes onboardingSurfaceScan {
+  0%,
+  56% {
+    opacity: 0;
+    transform: translateX(0) skewX(-13deg);
+  }
+
+  68%,
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(620%) skewX(-13deg);
+  }
+}
+
+@keyframes onboardingButtonScan {
+  0%,
+  54% {
+    opacity: 0;
+    transform: translateX(0) rotate(12deg);
+  }
+
+  66%,
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(680%) rotate(12deg);
+  }
+}
+
+:global(html[data-motion-budget="low"]) .path,
+:global(html[data-motion-budget="low"]) .dot,
+:global(html[data-motion-budget="low"]) .mobileProgressFill::after,
+:global(html[data-motion-budget="low"]) .savedBadge > span,
+:global(html[data-motion-budget="low"]) .headerSignal span:nth-child(2),
+:global(html[data-motion-budget="low"]) .stepAside::after,
+:global(html[data-motion-budget="low"]) .stepButtonCurrent::after,
+:global(html[data-motion-budget="low"]) .stepButtonCurrent .stepIcon,
+:global(html[data-motion-budget="low"]) .pathPacket,
+:global(html[data-motion-budget="low"]) .stepHeading h1::after,
+:global(html[data-motion-budget="low"]) .cardScan,
+:global(html[data-motion-budget="low"]) .notice::after,
+:global(html[data-motion-budget="low"]) .choiceCard::after,
+:global(html[data-motion-budget="low"]) .integrationCard::after,
+:global(html[data-motion-budget="low"]) .auditDemo::after,
+:global(html[data-motion-budget="low"]) .nextButton::after {
+  animation: none !important;
+}
+
+:global(html[data-motion-mode="reduced"]) .path {
+  stroke-dashoffset: 0;
+}
+
+:global(html[data-motion-mode="reduced"]) .pathPacket,
+:global(html[data-motion-mode="reduced"]) .headerSignal span,
+:global(html[data-motion-mode="reduced"]) .stepAside::after,
+:global(html[data-motion-mode="reduced"]) .stepButton::after,
+:global(html[data-motion-mode="reduced"]) .cardScan,
+:global(html[data-motion-mode="reduced"]) .notice::after,
+:global(html[data-motion-mode="reduced"]) .choiceCard::after,
+:global(html[data-motion-mode="reduced"]) .integrationCard::after,
+:global(html[data-motion-mode="reduced"]) .auditDemo::after,
+:global(html[data-motion-mode="reduced"]) .nextButton::after {
+  display: none;
+}
+
+:global(html[data-motion-mode="reduced"]) .stepButton:hover,
+:global(html[data-motion-mode="reduced"]) .stepButton:hover .stepIcon,
+:global(html[data-motion-mode="reduced"]) .stepCard:hover,
+:global(html[data-motion-mode="reduced"]) .control:hover,
+:global(html[data-motion-mode="reduced"]) .control:focus,
+:global(html[data-motion-mode="reduced"]) .textArea:hover,
+:global(html[data-motion-mode="reduced"]) .textArea:focus,
+:global(html[data-motion-mode="reduced"]) .notice:hover,
+:global(html[data-motion-mode="reduced"]) .choiceCard:hover,
+:global(html[data-motion-mode="reduced"]) .integrationCard:hover,
+:global(html[data-motion-mode="reduced"]) .comparisonPanel:hover,
+:global(html[data-motion-mode="reduced"]) .auditSummary > div:hover,
+:global(html[data-motion-mode="reduced"]) .auditDemo:hover,
+:global(html[data-motion-mode="reduced"]) .nextButton:hover,
+:global(html[data-motion-mode="reduced"]) .nextButton:active,
+:global(html[data-motion-mode="reduced"]) .backButton:active,
+:global(html[data-motion-mode="reduced"]) .nextButton:hover svg,
+:global(html[data-motion-mode="reduced"]) .backButton:hover svg,
+:global(html[data-motion-mode="reduced"]) .selectControl:focus-within svg {
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .headerSignal span {
+    animation-duration: 3.8s;
+  }
+
+  .stepCard:hover,
+  .notice:hover,
+  .choiceCard:hover,
+  .integrationCard:hover,
+  .comparisonPanel:hover,
+  .auditSummary > div:hover,
+  .auditDemo:hover {
+    transform: none;
+  }
+}

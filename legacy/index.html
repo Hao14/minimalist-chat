@@ -11,20 +11,20 @@
             window.location.replace('/chat');
         }
     </script>
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     <meta name="theme-color" content="#FFD700">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="apple-touch-icon" href="/icon.svg">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
-    <link rel="stylesheet" href="base.css?v=split14">
-    <link rel="stylesheet" href="desktop.css?v=split1">
-    <link rel="stylesheet" href="mobile.css?v=split1">
+    <link rel="stylesheet" href="/base.css?v=split24">
+    <link rel="stylesheet" href="/desktop.css?v=split2">
+    <link rel="stylesheet" href="/mobile.css?v=split9">
 </head>
 <body class="marketing">
     <div class="shape yellow-circle"></div>
     <div class="shape outline-square"></div>
 
-    <nav>
+    <nav aria-label="Primary">
         <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
@@ -41,8 +41,8 @@
             <a href="/login" class="guest-only">Login</a>
             <a href="/login" class="nav-cta guest-only">Sign Up</a>
         </div>
-        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
-        <div id="mobile-nav-links" class="mobile-only hidden">
+        <button id="mobile-menu-btn" class="mobile-only nav-btn" type="button" aria-expanded="false" aria-controls="marketing-mobile-nav-links">MENU</button>
+        <div id="marketing-mobile-nav-links" class="mobile-only hidden marketing-mobile-nav-links" aria-hidden="true">
             <a href="/" class="mobile-link">HOME</a>
             <a href="/features" class="mobile-link">FEATURES</a>
             <a href="/download" class="mobile-link">DOWNLOAD</a>
@@ -92,7 +92,7 @@
         </div>
         <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
     </footer>
-<script type="module" src="js/app.js?v=30"></script>
+<script defer src="/legacy/marketing-nav.js"></script>
     <div id="brutalist-toast" class="toast-hidden">
     <span id="toast-icon">⚠️</span>
     <span id="toast-message">Error message goes here</span>

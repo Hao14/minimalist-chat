@@ -1,0 +1,24 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+autoInstallPeers: false
+injectWorkspacePackages: true
+
+allowBuilds:
+  # Native/build steps required by Vitest, Next image optimization, ESLint resolution,
+  # and Cloudflare's local Workers runtime.
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true
+
+overrides:
+  "@esbuild-kit/core-utils>esbuild": 0.25.12
+  postcss: 8.5.19
+
+strictPeerDependencies: true
+
+minimumReleaseAgeExclude:
+  - bullmq@5.80.5

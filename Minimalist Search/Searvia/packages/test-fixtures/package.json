@@ -1,0 +1,38 @@
+{
+  "name": "@searvia/test-fixtures",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint src test --max-warnings=0",
+    "test": "vitest run --config ../../vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@searvia/audit-engine": "workspace:*",
+    "@searvia/config": "workspace:*",
+    "@searvia/crawler-core": "workspace:*",
+    "@searvia/database": "workspace:*",
+    "@searvia/logging": "workspace:*",
+    "@searvia/provider-adapters": "workspace:*",
+    "@searvia/scoring": "workspace:*",
+    "@searvia/shared-types": "workspace:*",
+    "@searvia/ui": "workspace:*",
+    "react": "19.2.4"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -1,4 +1,31 @@
-export function MessageMenu({ menu, onAction }) {
+function handleMessageMenuKeyDown(event, onClose) {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    onClose({ restoreFocus: true });
+    return;
+  }
+
+  const items = Array.from(event.currentTarget.querySelectorAll('[role="menuitem"]:not(:disabled)'));
+  const currentIndex = items.indexOf(document.activeElement);
+  if (currentIndex < 0 || items.length < 2) return;
+
+  let nextIndex = null;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
+    nextIndex = (currentIndex + 1) % items.length;
+  } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
+    nextIndex = (currentIndex - 1 + items.length) % items.length;
+  } else if (event.key === 'Home') {
+    nextIndex = 0;
+  } else if (event.key === 'End') {
+    nextIndex = items.length - 1;
+  }
+
+  if (nextIndex === null) return;
+  event.preventDefault();
+  items[nextIndex]?.focus();
+}
+
+export function MessageMenu({ menu, onAction, onClose }) {
   if (!menu?.open) return null;
 
   return (
@@ -7,21 +34,35 @@ export function MessageMenu({ menu, onAction }) {
       className="msg-menu"
       style={{ left: `${menu.x}px`, top: `${menu.y}px` }}
       onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => handleMessageMenuKeyDown(event, onClose)}
+      role="menu"
+      aria-label="Message actions"
     >
-      <button type="button" onClick={() => onAction('forward')}>
-        <i className="ph-bold ph-share-fat" /> Forward
-      </button>
-      <button type="button" onClick={() => onAction('bookmark')}>
-        <i className="ph-bold ph-bookmark-simple" /> {menu.saved ? 'Remove from saved' : 'Save / bookmark'}
-      </button>
-      {menu.canFlag ? (
-        <button type="button" onClick={() => onAction('flag')}>
-          <i className="ph-bold ph-flag" /> {menu.important ? 'Unflag important' : 'Flag important'}
+      {menu.canEdit ? (
+        <button type="button" role="menuitem" autoFocus onClick={() => onAction('edit')}>
+          <i className="ph-bold ph-pencil-simple" aria-hidden="true" /> Edit message
         </button>
       ) : null}
-      <button type="button" onClick={() => onAction('impact')}>
-        <i className="ph-bold ph-fire" /> View impact
+      <button type="button" role="menuitem" autoFocus={!menu.canEdit} onClick={() => onAction('forward')}>
+        <i className="ph-bold ph-share-fat" aria-hidden="true" /> Forward
       </button>
+      <button type="button" role="menuitem" onClick={() => onAction('bookmark')}>
+        <i className="ph-bold ph-bookmark-simple" aria-hidden="true" /> {menu.saved ? 'Remove from saved' : 'Save / bookmark'}
+      </button>
+      {menu.canFlag ? (
+        <button type="button" role="menuitem" onClick={() => onAction('flag')}>
+          <i className="ph-bold ph-flag" aria-hidden="true" /> {menu.important ? 'Unflag important' : 'Flag important'}
+        </button>
+      ) : null}
+      <button type="button" role="menuitem" onClick={() => onAction('impact')}>
+        <i className="ph-bold ph-fire" aria-hidden="true" /> View impact
+      </button>
+      {menu.canDelete ? <div className="msg-menu-divider" role="separator" /> : null}
+      {menu.canDelete ? (
+        <button className="msg-menu-danger" type="button" role="menuitem" onClick={() => onAction('delete')}>
+          <i className="ph-bold ph-trash" aria-hidden="true" /> Delete message
+        </button>
+      ) : null}
     </div>
   );
 }

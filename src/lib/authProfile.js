@@ -5,6 +5,14 @@ function randomShortId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
+function setSessionValue(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Some mobile auth webviews block storage while redirect/popup flows settle.
+  }
+}
+
 export function isGoogleAuthUser(user) {
   return Boolean(user?.providerData?.some((provider) => provider?.providerId === 'google.com'));
 }
@@ -20,6 +28,11 @@ export function publicDirectoryProfileFromUser(user, profile = {}) {
     displayName,
     photoUrl: profile.photoUrl || user?.photoURL || '',
     shortId: profile.shortId || '',
+    username: profile.username || '',
+    pronouns: profile.pronouns || '',
+    bio: profile.bio || '',
+    status: profile.status || '',
+    flair: profile.flair || '',
     themeColor: profile.themeColor || '#FFD700',
     updatedAt: Date.now(),
   };
@@ -65,14 +78,18 @@ export async function ensureAuthProfile(user, { welcome = false } = {}) {
   if (snapshot.exists()) {
     const profile = snapshot.val();
     if (welcome) {
-      const result = await ensureWelcomeBadge(user.uid, profile);
-      if (result.awardedAt) {
-        profile.badges = {
-          ...(profile.badges || {}),
-          welcome: result.awardedAt,
-        };
+      try {
+        const result = await ensureWelcomeBadge(user.uid, profile);
+        if (result.awardedAt) {
+          profile.badges = {
+            ...(profile.badges || {}),
+            welcome: result.awardedAt,
+          };
+        }
+        if (result.newlyAwarded) setSessionValue('showWelcomeTour', '1');
+      } catch (error) {
+        console.warn('Welcome badge award skipped', error);
       }
-      if (result.newlyAwarded) sessionStorage.setItem('showWelcomeTour', '1');
     }
     syncPublicUserDirectory(user, profile);
     return profile;
@@ -93,13 +110,18 @@ export async function ensureAuthProfile(user, { welcome = false } = {}) {
     bio: "I'm new here!",
     pronouns: '',
     createdAt: user.metadata?.creationTime || new Date().toISOString(),
-    badges: {
-      welcome: Date.now(),
-    },
   };
 
   await set(profileRef, profile);
+  if (welcome) {
+    try {
+      const result = await ensureWelcomeBadge(user.uid, profile);
+      if (result.awardedAt) profile.badges = { welcome: result.awardedAt };
+    } catch (error) {
+      console.warn('Welcome badge award skipped', error);
+    }
+  }
   await syncPublicUserDirectory(user, profile);
-  if (welcome) sessionStorage.setItem('showWelcomeTour', '1');
+  if (welcome) setSessionValue('showWelcomeTour', '1');
   return profile;
 }

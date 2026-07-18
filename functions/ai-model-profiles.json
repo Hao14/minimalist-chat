@@ -1,0 +1,22 @@
+{
+  "defaultProfile": "fast",
+  "visionModel": "qwen2.5vl:7b",
+  "profiles": [
+    {
+      "id": "fast",
+      "label": "Fast",
+      "description": "Quick summaries and everyday answers",
+      "model": "qwen3:4b-instruct",
+      "contextWindow": 8192,
+      "thinking": false
+    },
+    {
+      "id": "smart",
+      "label": "Smart",
+      "description": "Stronger answers from an efficient larger model",
+      "model": "qwen3:14b",
+      "contextWindow": 8192,
+      "thinking": false
+    }
+  ]
+}

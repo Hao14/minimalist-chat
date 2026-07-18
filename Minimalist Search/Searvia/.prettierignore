@@ -1,0 +1,12 @@
+.next
+.data
+.pnpm-store
+.turbo
+coverage
+dist
+node_modules
+.npm-cache
+pnpm-lock.yaml
+graphify-out
+design
+apps/web/public

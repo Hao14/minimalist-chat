@@ -1,5 +1,3 @@
-const path = window.location.pathname || '/';
-const isHomeRoute = path === '/' || path === '';
 let appLoading = false;
 
 const loadApp = () => {
@@ -8,16 +6,6 @@ const loadApp = () => {
   import('./main.jsx');
 };
 
-if (isHomeRoute) {
-  const loadSoon = () => {
-    loadApp();
-  };
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', loadSoon, { once: true });
-  } else {
-    loadSoon();
-  }
-} else {
-  loadApp();
-}
+// This module is loaded after #root in index.html, so delaying the home route
+// until DOMContentLoaded only extends the static-to-React handoff.
+loadApp();

@@ -3,9 +3,71 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './react-shell.css';
 
+const VITE_PRELOAD_RECOVERY_KEY = 'minimalist:vite-preload-recovery';
+const VITE_PRELOAD_RECOVERY_WINDOW_MS = 60_000;
+
+function recoverFromStaleDeploymentChunk() {
+  const now = Date.now();
+  let lastRecovery = 0;
+  try {
+    lastRecovery = Number(window.sessionStorage?.getItem(VITE_PRELOAD_RECOVERY_KEY) || 0);
+    if (now - lastRecovery < VITE_PRELOAD_RECOVERY_WINDOW_MS) return false;
+    window.sessionStorage?.setItem(VITE_PRELOAD_RECOVERY_KEY, String(now));
+  } catch {
+    // Avoid a reload loop when storage cannot record the recovery attempt.
+    return false;
+  }
+  window.location.reload();
+  return true;
+}
+
+window.addEventListener('vite:preloadError', (event) => {
+  if (recoverFromStaleDeploymentChunk()) event.preventDefault();
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  const message = String(event.reason?.message || event.reason || '');
+  if (!/failed to fetch dynamically imported module|importing a module script failed/i.test(message)) return;
+  if (recoverFromStaleDeploymentChunk()) event.preventDefault();
+});
+
+window.setTimeout(() => {
+  try {
+    window.sessionStorage?.removeItem(VITE_PRELOAD_RECOVERY_KEY);
+  } catch {
+    // Best-effort cleanup only.
+  }
+}, VITE_PRELOAD_RECOVERY_WINDOW_MS);
+
 const isLocalDevelopmentHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
-const iconStylesHref = '/phosphor-bold-subset.css?v=1';
+const launchPath = window.location.pathname || '/';
+const isAppLaunchRoute = /^\/(?:chat|join|login)(?:\/|$)/.test(launchPath);
+let hasAuthPresenceHint = false;
+try {
+  hasAuthPresenceHint = window.localStorage?.getItem('minimalist.auth.present.v1') === '1';
+} catch {
+  hasAuthPresenceHint = false;
+}
+const isChatLaunchRoute = hasAuthPresenceHint && /^\/(?:chat|join)(?:\/|$)/.test(launchPath);
+const iconStylesHref = '/phosphor-bold-subset.css?v=2';
+const launchStartedAt = Date.now();
 let iconStylesPromise;
+
+const wait = (ms) => new Promise((resolve) => {
+  window.setTimeout(resolve, ms);
+});
+
+const withTimeout = (promise, timeoutMs) => Promise.race([
+  Promise.resolve(promise),
+  wait(timeoutMs),
+]).catch(() => undefined);
+
+const afterPaintFrames = () => new Promise((resolve) => {
+  window.requestAnimationFrame(() => {
+    window.requestAnimationFrame(resolve);
+  });
+});
+
 const loadIconStyles = () => {
   if (iconStylesPromise) return iconStylesPromise;
 
@@ -121,24 +183,31 @@ createRoot(document.getElementById('root')).render(
   </BrowserRouter>,
 );
 
+let staticHomeHideStarted = false;
 const hideStaticHomeShell = () => {
   if (window.location.pathname && window.location.pathname !== '/') {
     document.getElementById('static-home-shell')?.remove();
     return;
   }
+  if (staticHomeHideStarted) return;
+  const staticShell = document.getElementById('static-home-shell');
+  if (!staticShell) return;
+  if (!document.querySelector('#root .landing-v3')) return;
+
+  staticHomeHideStarted = true;
   Promise.race([
-    window.__minimalistDeferredCssReady || Promise.resolve(),
+    window.__minimalistCssReady || Promise.resolve(),
     new Promise((resolve) => window.setTimeout(resolve, 900)),
-  ]).then(() => {
-    const staticShell = document.getElementById('static-home-shell');
-    if (!staticShell) return;
-    staticShell.classList.add('static-home-hide');
-    window.setTimeout(() => staticShell.remove(), 220);
+  ]).then(afterPaintFrames).then(() => {
+    // Keep the first-paint shell fully opaque until the styled React landing
+    // page has painted, then swap once. A crossfade exposes both page trees and
+    // reads as a second load even though React only mounted once.
+    staticShell.remove();
   });
 };
 
 window.addEventListener('minimalist:marketing-mounted', hideStaticHomeShell, { once: true });
-window.requestAnimationFrame(hideStaticHomeShell);
+window.setTimeout(hideStaticHomeShell, 2200);
 
 const hideBootShell = () => {
   window.requestAnimationFrame(() => {
@@ -160,7 +229,24 @@ const fallbackCssReady = new Promise((resolve) => {
   window.addEventListener('load', resolve, { once: true });
 });
 
-Promise.race([
-  window.__minimalistCssReady || fallbackCssReady,
-  new Promise((resolve) => window.setTimeout(resolve, 2400)),
-]).then(hideBootShell);
+function documentReadyForLaunch() {
+  if (document.readyState === 'complete') return Promise.resolve();
+  return new Promise((resolve) => window.addEventListener('load', resolve, { once: true }));
+}
+
+async function waitForLaunchReadiness() {
+  const minVisibleMs = isChatLaunchRoute ? 180 : isAppLaunchRoute ? 180 : 0;
+  const maxVisibleMs = isAppLaunchRoute ? 4600 : 1900;
+  const elapsed = Date.now() - launchStartedAt;
+  const minDisplay = wait(Math.max(0, minVisibleMs - elapsed));
+  const readiness = Promise.allSettled([
+    window.__minimalistCssReady || fallbackCssReady,
+    loadIconStyles(),
+    documentReadyForLaunch(),
+    minDisplay,
+  ]).then(afterPaintFrames);
+
+  await withTimeout(readiness, maxVisibleMs);
+}
+
+waitForLaunchReadiness().then(hideBootShell);

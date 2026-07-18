@@ -1,0 +1,2 @@
+CREATE INDEX "crawls_tenant_config_idx" ON "crawls" USING btree ("organization_id","project_id","crawl_config_id");--> statement-breakpoint
+CREATE INDEX "job_outbox_expired_lease_idx" ON "job_outbox" USING btree ("lease_expires_at") WHERE "job_outbox"."status" = 'publishing';

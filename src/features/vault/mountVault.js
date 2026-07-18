@@ -1,17 +1,11 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { VaultPanel } from './Vault.jsx';
 
-let vaultRoot = null;
+const vaultRoot = createHostAwareRoot();
 
 export function mountVault(props) {
   const host = document.getElementById('vault-root');
   if (!host) return;
-
-  if (!vaultRoot) {
-    host.replaceChildren();
-    vaultRoot = createRoot(host);
-  }
-
-  vaultRoot.render(createElement(VaultPanel, props));
+  vaultRoot.render(host, createElement(VaultPanel, props));
 }

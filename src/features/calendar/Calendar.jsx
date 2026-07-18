@@ -4,11 +4,25 @@ import { db } from '../../lib/firebase.js';
 import {
   extractCalendarEventsFromGateway,
   extractCalendarEventsFromPhoto,
+  getLocalAiConfig,
   getLocalAiStatus,
   getLocalVisionAiConfig,
   localAiStatusMessage,
   shouldUseGatewayAi,
 } from '../ai/localAiClient.js';
+import { GoogleCalendarLink } from './GoogleCalendarLink.jsx';
+import { useRoomTabActivity, useRoomTabDataActivity } from '../shell/roomTabActivity.js';
+import {
+  activateGoogleCalendarSession,
+  disconnectGoogleCalendarConnection,
+  getGoogleCalendarConnectionState,
+  GOOGLE_CALENDAR_CONNECTION_EVENT,
+  googleCalendarTokenFor,
+  isGoogleCalendarSessionActive,
+  revokeGoogleCalendarToken,
+  setGoogleCalendarTokenFor,
+  setGoogleCalendarConnectionState,
+} from './googleCalendarConnectionState.js';
 
 const accents = ['#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#60a5fa'];
 const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -16,12 +30,10 @@ const mon = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT
 const fullMon = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const monthColors = ['#B5742B', '#9B86C4', '#4FB3A1', '#C8443A', '#6FA84B', '#E0A82E', '#F2766B', '#F47A1F', '#4E6FAF', '#8E6FA0', '#9E2A3B', '#1E7A93'];
 const gcalScope = 'https://www.googleapis.com/auth/calendar.events';
-const photoPassthroughMaxBytes = 900_000;
-const photoMaxBase64Chars = 3_200_000;
+const photoMaxBase64Chars = 2_160_000;
 const photoMaxSide = 1800;
-const preservePhotoMimeTypes = new Set(['image/png', 'image/webp', 'image/jpeg', 'image/jpg']);
+const emptyGoogleEvents = [];
 
-let gcalToken = null;
 let gcalSilentTried = false;
 
 const pad = (number) => String(number).padStart(2, '0');
@@ -54,6 +66,12 @@ function formatDuration(minutes) {
   return `${mins} min`;
 }
 
+function displayUserName(user = {}) {
+  const profileName = String(user.displayName || '').trim();
+  if (profileName && profileName !== 'Anonymous') return profileName;
+  return String(user.email || '').split('@')[0] || 'Room member';
+}
+
 function weekLabel(weekStart) {
   const end = addDays(weekStart, 6);
   if (weekStart.getMonth() === end.getMonth()) return `${fullMon[weekStart.getMonth()]} ${weekStart.getFullYear()}`;
@@ -79,15 +97,6 @@ function loadScript(src) {
   });
 }
 
-function readFileBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1]);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 function loadImage(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -108,10 +117,6 @@ function canvasBase64(canvas, quality) {
   return canvas.toDataURL('image/jpeg', quality).split(',')[1];
 }
 
-function approxBase64Size(bytes) {
-  return Math.ceil(Number(bytes || 0) * 1.37);
-}
-
 function unsupportedMobileImage(file) {
   const type = String(file?.type || '').toLowerCase();
   const name = String(file?.name || '').toLowerCase();
@@ -124,10 +129,6 @@ async function prepareCalendarPhoto(file) {
   }
   if (unsupportedMobileImage(file)) {
     throw new Error('This image format is not supported yet. Use a screenshot, JPEG, or PNG.');
-  }
-  const fileType = String(file.type || '').toLowerCase();
-  if (preservePhotoMimeTypes.has(fileType) && file.size <= photoPassthroughMaxBytes && approxBase64Size(file.size) <= photoMaxBase64Chars) {
-    return { image: await readFileBase64(file), mimeType: file.type };
   }
   try {
     const source = await loadImage(file);
@@ -147,8 +148,11 @@ async function prepareCalendarPhoto(file) {
       context.imageSmoothingQuality = 'high';
       context.drawImage(source, 0, 0, width, height);
       const image = canvasBase64(canvas, quality);
-      if (image.length <= photoMaxBase64Chars || attempt === 4) {
+      if (image.length <= photoMaxBase64Chars) {
         return { image, mimeType: 'image/jpeg' };
+      }
+      if (attempt === 4) {
+        throw new Error('This image is still too large after compression. Crop the schedule area or upload a smaller screenshot.');
       }
       maxSide = Math.max(1200, Math.round(maxSide * 0.84));
       quality = Math.max(0.7, quality - 0.05);
@@ -209,30 +213,77 @@ function CalendarEvent({ canEdit, event, index, onDelete }) {
           {event.location ? <span className="cal-loc"><i className="ph-bold ph-map-pin" /> {event.location}</span> : null}
         </div>
       </div>
-      {canEdit && !event._google ? <button type="button" className="cal-ev-del" title="Delete" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event)}>&times;</button> : null}
+      {!event._google ? (
+        <div className="cal-ev-actions">
+          <GoogleCalendarLink event={event} />
+          {canEdit ? <button type="button" className="cal-ev-del" title="Delete" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event)}>&times;</button> : null}
+        </div>
+      ) : null}
     </article>
   );
 }
 
 export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }) {
+  const tabActive = useRoomTabActivity('calendar');
+  const tabDataActive = useRoomTabDataActivity('calendar');
+  const connectionUid = String(user.uid || '').trim();
   const [{ selectedKey, todayKey, weekStart }, setPosition] = useState(() => makeToday());
   const [roomEvents, setRoomEvents] = useState([]);
-  const [googleEvents, setGoogleEvents] = useState([]);
+  const [googleEventsState, setGoogleEventsState] = useState(() => ({ events: [], uid: connectionUid }));
   const [canEdit, setCanEdit] = useState(false);
-  const [connected, setConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState(() => ({
+    connected: getGoogleCalendarConnectionState(connectionUid),
+    uid: connectionUid,
+  }));
+  const [disconnectingUid, setDisconnectingUid] = useState('');
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({ title: '', time: '', duration: '', location: '' });
   const [photoImport, setPhotoImport] = useState({ active: false, progress: 0, label: '' });
+  const [eventsStatus, setEventsStatus] = useState({ roomId: null, loading: true, error: '' });
   const photoInput = useRef(null);
-  const visionConfig = useMemo(() => getLocalVisionAiConfig(localAiConfig), [localAiConfig]);
-  const useCalendarGateway = useMemo(() => shouldUseGatewayAi(localAiConfig) && Boolean(localAiConfig?.calendarEndpoint), [localAiConfig]);
-
-  useEffect(() => onValue(ref(db, `rooms_meta/${roomId}/events`), (snapshot) => {
-    const value = snapshot.val() || {};
-    setRoomEvents(Object.entries(value).map(([id, event]) => ({ id, ...event })));
-  }), [roomId]);
+  const aiConfig = useMemo(() => getLocalAiConfig(localAiConfig), [localAiConfig]);
+  const visionConfig = useMemo(() => getLocalVisionAiConfig(aiConfig), [aiConfig]);
+  const useCalendarGateway = useMemo(() => shouldUseGatewayAi(aiConfig) && Boolean(aiConfig.calendarEndpoint), [aiConfig]);
+  const eventsLoading = eventsStatus.roomId !== roomId || eventsStatus.loading;
+  const eventsError = eventsStatus.roomId === roomId ? eventsStatus.error : '';
+  const googleEvents = googleEventsState.uid === connectionUid ? googleEventsState.events : emptyGoogleEvents;
+  const persistedConnectionState = useMemo(() => getGoogleCalendarConnectionState(connectionUid), [connectionUid]);
+  const connected = Boolean(gcalClientId && (connectionState.uid === connectionUid ? connectionState.connected : persistedConnectionState));
+  const disconnecting = disconnectingUid === connectionUid;
+  const setConnected = (value) => setConnectionState({ connected: Boolean(value), uid: connectionUid });
+  const setGoogleEvents = (events) => setGoogleEventsState({ events, uid: connectionUid });
+  const setDisconnecting = (value) => setDisconnectingUid(value ? connectionUid : '');
 
   useEffect(() => {
+    if (!tabActive) return;
+    if (activateGoogleCalendarSession(connectionUid)) gcalSilentTried = false;
+  }, [connectionUid, tabActive]);
+
+  useEffect(() => {
+    const syncConnectionState = (event) => {
+      if (String(event.detail?.uid || '') !== connectionUid) return;
+      const nextConnected = event.detail?.connected === true;
+      setConnectionState({ connected: nextConnected, uid: connectionUid });
+      if (!nextConnected) setGoogleEventsState({ events: [], uid: connectionUid });
+    };
+    window.addEventListener(GOOGLE_CALENDAR_CONNECTION_EVENT, syncConnectionState);
+    return () => window.removeEventListener(GOOGLE_CALENDAR_CONNECTION_EVENT, syncConnectionState);
+  }, [connectionUid]);
+
+  useEffect(() => {
+    if (!tabDataActive) return undefined;
+    return onValue(ref(db, `rooms_meta/${roomId}/events`), (snapshot) => {
+      const value = snapshot.val() || {};
+      setRoomEvents(Object.entries(value).map(([id, event]) => ({ id, ...event })));
+      setEventsStatus({ roomId, loading: false, error: '' });
+    }, (error) => {
+      setRoomEvents([]);
+      setEventsStatus({ roomId, loading: false, error: error.message || 'Could not load events.' });
+    });
+  }, [roomId, tabDataActive]);
+
+  useEffect(() => {
+    if (!tabDataActive) return undefined;
     let active = true;
     const checkPermission = async () => {
       let editable = user.uid === adminUid;
@@ -247,11 +298,10 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       await Promise.resolve();
       if (!active) return;
       setCanEdit(editable);
-      setConnected(Boolean(gcalClientId && localStorage.getItem('gcalConnected')));
     };
     checkPermission();
     return () => { active = false; };
-  }, [adminUid, gcalClientId, roomId, user.uid]);
+  }, [adminUid, roomId, tabDataActive, user.uid]);
 
   const linkedGoogleIds = useMemo(() => new Set(roomEvents.map((event) => event.gId).filter(Boolean)), [roomEvents]);
   const buckets = useMemo(() => bucketEvents(roomEvents, googleEvents), [googleEvents, roomEvents]);
@@ -261,8 +311,8 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
   const setWeek = (date) => setPosition((current) => ({ ...current, weekStart: startOfWeek(date), selectedKey: keyOf(startOfWeek(date)) }));
   const selectToday = () => setPosition(makeToday());
 
-  const fetchGoogleEvents = async (token = gcalToken) => {
-    if (!token) return;
+  const fetchGoogleEvents = async (token = googleCalendarTokenFor(connectionUid)) => {
+    if (!token || !isGoogleCalendarSessionActive(connectionUid) || googleCalendarTokenFor(connectionUid) !== token) return;
     const min = new Date();
     min.setMonth(min.getMonth() - 1);
     const max = new Date();
@@ -272,38 +322,60 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
       if (!response.ok) {
         if (response.status === 401) {
-          gcalToken = null;
-          localStorage.removeItem('gcalConnected');
-          setConnected(false);
+          if (googleCalendarTokenFor(connectionUid) === token) {
+            setGoogleCalendarTokenFor(connectionUid, null);
+            setGoogleCalendarConnectionState(connectionUid, false);
+            setConnected(false);
+            setGoogleEvents([]);
+          }
         }
         window.showToast?.(`Could not load Google Calendar (${response.status}).`);
         return;
       }
       const data = await response.json();
+      if (!isGoogleCalendarSessionActive(connectionUid) || googleCalendarTokenFor(connectionUid) !== token) return;
       const imported = (data.items || []).map(toLocalGoogleEvent).filter(Boolean).filter((event) => !linkedGoogleIds.has(event._gid));
       setGoogleEvents(imported);
       window.showToast?.(`Imported ${imported.length} Google event(s).`, false);
     } catch (error) {
+      if (!isGoogleCalendarSessionActive(connectionUid) || googleCalendarTokenFor(connectionUid) !== token) return;
       window.showToast?.(`Could not load Google Calendar: ${error.message}`);
     }
   };
 
   const runGoogleAuth = async (silent, thenFetch = true) => {
     if (!gcalClientId) return window.showToast?.("Google Calendar isn't set up yet. Set GCAL_CLIENT_ID in config.js.");
+    if (!connectionUid) return window.showToast?.('Sign in before connecting Google Calendar.');
+    activateGoogleCalendarSession(connectionUid);
+    const authorizationUid = connectionUid;
     try {
       await loadScript('https://accounts.google.com/gsi/client');
+      if (!isGoogleCalendarSessionActive(authorizationUid)) return;
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: gcalClientId,
         scope: gcalScope,
         callback: async (response) => {
+          if (!isGoogleCalendarSessionActive(authorizationUid)) {
+            if (response.access_token) void revokeGoogleCalendarToken(response.access_token);
+            return;
+          }
           if (response.error) {
             if (!silent) window.showToast?.('Google authorization failed.');
             return;
           }
-          gcalToken = response.access_token;
-          localStorage.setItem('gcalConnected', '1');
+          const accessToken = String(response.access_token || '').trim();
+          if (!accessToken) {
+            if (!silent) window.showToast?.('Google authorization did not return an access token.');
+            return;
+          }
+          if (!isGoogleCalendarSessionActive(authorizationUid)) {
+            void revokeGoogleCalendarToken(accessToken);
+            return;
+          }
+          setGoogleCalendarTokenFor(authorizationUid, accessToken);
+          setGoogleCalendarConnectionState(authorizationUid, true);
           setConnected(true);
-          if (thenFetch) await fetchGoogleEvents(response.access_token);
+          if (thenFetch) await fetchGoogleEvents(accessToken);
         },
       });
       tokenClient.requestAccessToken(silent ? { prompt: '' } : {});
@@ -314,15 +386,32 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
 
   // Silent OAuth refresh should run once per page session; the auth function closes over fresh state intentionally.
   useEffect(() => {
-    if (canEdit && connected && gcalClientId && !gcalToken && !gcalSilentTried) {
+    if (tabActive && canEdit && connected && gcalClientId && isGoogleCalendarSessionActive(connectionUid) && !googleCalendarTokenFor(connectionUid) && !gcalSilentTried) {
       gcalSilentTried = true;
       runGoogleAuth(true, false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canEdit, connected, gcalClientId]);
+  }, [canEdit, connected, connectionUid, gcalClientId, tabActive]);
+
+  const disconnectGoogleCalendar = async () => {
+    if (!connectionUid || disconnecting) return;
+    setDisconnecting(true);
+    gcalSilentTried = false;
+    setConnected(false);
+    setGoogleEvents([]);
+
+    const result = await disconnectGoogleCalendarConnection(connectionUid);
+    if (result.hadToken && !result.revoked) {
+      window.showToast?.('Google Calendar disconnected here, but token revocation could not be confirmed.');
+    } else {
+      window.showToast?.('Google Calendar disconnected.', false);
+    }
+    setDisconnecting(false);
+  };
 
   const pushEventToGoogle = async (event) => {
-    if (!gcalToken) return null;
+    const accessToken = googleCalendarTokenFor(connectionUid);
+    if (!accessToken) return null;
     const resource = { summary: event.title, location: event.location || '' };
     if (event.time) {
       const start = new Date(`${event.date}T${event.time}:00`);
@@ -339,9 +428,10 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     try {
       const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${gcalToken}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(resource),
       });
+      if (googleCalendarTokenFor(connectionUid) !== accessToken) return null;
       if (!response.ok) return null;
       return (await response.json()).id || null;
     } catch {
@@ -353,11 +443,13 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     const eventRef = push(ref(db, `rooms_meta/${roomId}/events`));
     const eventPayload = {
       ...event,
+      by: event.by || user.uid,
+      byName: event.byName || displayUserName(user),
       createdAt: event.createdAt || Date.now(),
       updatedAt: Date.now(),
     };
     await set(eventRef, eventPayload);
-    if (gcalToken) {
+    if (googleCalendarTokenFor(connectionUid)) {
       const googleId = await pushEventToGoogle(eventPayload);
       if (googleId) await set(ref(db, `rooms_meta/${roomId}/events/${eventRef.key}/gId`), googleId);
       return Boolean(googleId);
@@ -367,6 +459,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
 
   const saveEvent = async (submitEvent) => {
     submitEvent.preventDefault();
+    if (!canEdit) return window.showToast?.('Only room managers can add events.');
     const title = draft.title.trim();
     if (!title) return window.showToast?.('Event needs a title.');
     try {
@@ -379,16 +472,19 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
   };
 
   const deleteGoogleEvent = async (googleId) => {
-    if (!gcalToken || !googleId) return;
-    try { await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${gcalToken}` } }); } catch { /* best-effort Google cleanup */ }
+    const accessToken = googleCalendarTokenFor(connectionUid);
+    if (!accessToken || !googleId) return;
+    try { await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${accessToken}` } }); } catch { /* best-effort Google cleanup */ }
   };
 
   const deleteEvent = async (event) => {
+    if (!canEdit) return window.showToast?.('Only room managers can delete events.');
     if (event.gId) await deleteGoogleEvent(event.gId);
     await remove(ref(db, `rooms_meta/${roomId}/events/${event.id}`));
   };
 
   const importFromPhoto = async (file) => {
+    if (!canEdit) return window.showToast?.('Only room managers can import events.');
     if (photoImport.active) return;
     setPhotoImport({ active: true, progress: 10, label: 'Preparing photo…' });
     try {
@@ -410,7 +506,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       }
       setPhotoImport({ active: true, progress: 72, label: 'Checking details…' });
       if (!data.events?.length) return window.showToast?.('No events found in that image.');
-      const seen = new Set(roomEvents.map(eventFingerprint));
+      const seen = new Set([...roomEvents, ...googleEvents].map(eventFingerprint));
       let added = 0;
       let skipped = 0;
       let synced = 0;
@@ -432,7 +528,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       setPhotoImport({ active: true, progress: 100, label: 'Import complete' });
       const parts = [`Added ${added} event(s)`];
       if (skipped) parts.push(`skipped ${skipped} duplicate(s)`);
-      if (gcalToken) parts.push(synced ? `synced ${synced} to Google Calendar` : 'Google sync did not confirm');
+      if (googleCalendarTokenFor(connectionUid)) parts.push(synced ? `synced ${synced} to Google Calendar` : 'Google sync did not confirm');
       window.showToast?.(`${parts.join(' · ')}.`, false);
     } catch (error) {
       window.showToast?.(`Photo import failed: ${error.message}`);
@@ -446,11 +542,11 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
   return (
     <div className="cal-wrap">
       <div className="cal-nav">
-        <button type="button" className="cal-nav-btn" title="Previous month" onClick={() => { const date = new Date(weekStart); date.setDate(1); date.setMonth(date.getMonth() - 1); setWeek(date); }}><i className="ph-bold ph-caret-double-left" /></button>
-        <button type="button" className="cal-nav-btn" title="Previous week" onClick={() => setWeek(addDays(weekStart, -7))}><i className="ph-bold ph-caret-left" /></button>
+        <button type="button" className="cal-nav-btn" title="Previous month" aria-label="Previous month" onClick={() => { const date = new Date(weekStart); date.setDate(1); date.setMonth(date.getMonth() - 1); setWeek(date); }}><i className="ph-bold ph-caret-double-left" /></button>
+        <button type="button" className="cal-nav-btn" title="Previous week" aria-label="Previous week" onClick={() => setWeek(addDays(weekStart, -7))}><i className="ph-bold ph-caret-left" /></button>
         <div className="cal-nav-label" id="cal-nav-label">{weekLabel(weekStart)}</div>
-        <button type="button" className="cal-nav-btn" title="Next week" onClick={() => setWeek(addDays(weekStart, 7))}><i className="ph-bold ph-caret-right" /></button>
-        <button type="button" className="cal-nav-btn" title="Next month" onClick={() => { const date = new Date(weekStart); date.setDate(1); date.setMonth(date.getMonth() + 1); setWeek(date); }}><i className="ph-bold ph-caret-double-right" /></button>
+        <button type="button" className="cal-nav-btn" title="Next week" aria-label="Next week" onClick={() => setWeek(addDays(weekStart, 7))}><i className="ph-bold ph-caret-right" /></button>
+        <button type="button" className="cal-nav-btn" title="Next month" aria-label="Next month" onClick={() => { const date = new Date(weekStart); date.setDate(1); date.setMonth(date.getMonth() + 1); setWeek(date); }}><i className="ph-bold ph-caret-double-right" /></button>
         <button type="button" className="cal-nav-btn cal-today-btn" title="Jump to today" onClick={selectToday}>Today</button>
       </div>
       <div className="cal-top">
@@ -468,7 +564,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
             );
           })}
         </div>
-        {canEdit ? <button type="button" id="cal-photo-btn" className="cal-photo-btn" title="Import events from a photo (AI)" aria-busy={photoImport.active} disabled={photoImport.active} onClick={() => photoInput.current?.click()}><i className="ph-bold ph-camera" /></button> : null}
+        {canEdit ? <button type="button" id="cal-photo-btn" className="cal-photo-btn" title="Import events from a photo (AI)" aria-label="Import events from a photo" aria-busy={photoImport.active} disabled={photoImport.active} onClick={() => photoInput.current?.click()}><i className="ph-bold ph-camera" /></button> : null}
       </div>
 
       {photoImport.active ? (
@@ -476,7 +572,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
           <div className="cal-import-spinner" />
           <div className="cal-import-copy">
             <strong>{photoImport.label}</strong>
-            <span>Local Ollama vision import</span>
+            <span>{useCalendarGateway ? 'Secure AI calendar import' : 'Local Ollama vision import'}</span>
           </div>
           <div className="cal-import-track">
             <span style={{ width: `${Math.max(8, Math.min(100, photoImport.progress))}%` }} />
@@ -484,7 +580,12 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
         </div>
       ) : null}
 
-      {canEdit && gcalClientId && !connected ? (
+      {gcalClientId && connected ? (
+        <div className="cal-connect-banner" id="cal-connect-banner" role="status" aria-live="polite">
+          <div className="cal-connect-left"><i className="ph-bold ph-google-logo" /><span>Google Calendar is connected for this Minimalist account.</span></div>
+          <button type="button" id="cal-gcal-disconnect-btn" className="cal-connect-link" disabled={disconnecting} aria-busy={disconnecting} onClick={disconnectGoogleCalendar}>{disconnecting ? 'Disconnecting…' : 'Disconnect'}</button>
+        </div>
+      ) : canEdit && gcalClientId ? (
         <div className="cal-connect-banner" id="cal-connect-banner">
           <div className="cal-connect-left"><i className="ph-bold ph-warning-circle" /><span>Connect Google Calendar to sync your real events.</span></div>
           <button type="button" id="cal-gcal-btn" className="cal-connect-link" onClick={() => runGoogleAuth(false)}>Connect</button>
@@ -492,17 +593,19 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       ) : null}
 
       <div className="cal-agenda" id="cal-agenda">
-        {agenda.length ? agenda.map((event, index) => <CalendarEvent key={event.id} event={event} index={index} canEdit={canEdit} onDelete={deleteEvent} />) : <div className="cal-empty">No events for this day.</div>}
+        {eventsLoading || eventsError ? (
+          <div className={`cal-empty ${eventsError ? 'error' : ''}`} role={eventsLoading ? 'status' : 'alert'}>{eventsLoading ? 'Loading events...' : eventsError}</div>
+        ) : agenda.length ? agenda.map((event, index) => <CalendarEvent key={event.id} event={event} index={index} canEdit={canEdit} onDelete={deleteEvent} />) : <div className="cal-empty">No events for this day.</div>}
       </div>
 
       {canEdit && addOpen ? (
         <form className="cal-add-form" id="cal-add-form" onSubmit={saveEvent}>
-          <input id="cal-f-title" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Event title..." />
+          <input id="cal-f-title" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Event title..." aria-label="Event title" required />
           <div className="cal-form-row">
-            <input type="time" id="cal-f-time" value={draft.time} onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))} />
-            <input type="number" id="cal-f-dur" min="0" step="5" value={draft.duration} onChange={(event) => setDraft((current) => ({ ...current, duration: event.target.value }))} placeholder="Duration (min)" />
+            <input type="time" id="cal-f-time" value={draft.time} onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))} aria-label="Event time" />
+            <input type="number" id="cal-f-dur" min="0" step="5" value={draft.duration} onChange={(event) => setDraft((current) => ({ ...current, duration: event.target.value }))} placeholder="Duration (min)" aria-label="Duration in minutes" />
           </div>
-          <input id="cal-f-loc" value={draft.location} onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))} placeholder="Location (optional)" />
+          <input id="cal-f-loc" value={draft.location} onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))} placeholder="Location (optional)" aria-label="Event location" />
           <div className="cal-form-actions">
             <button type="submit" className="rh-save-btn" id="cal-f-save">Add Event</button>
             <button type="button" className="rh-add-btn" id="cal-f-cancel" onClick={() => setAddOpen(false)}>Cancel</button>
@@ -513,7 +616,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       {canEdit ? (
         <div className="cal-add-row" id="cal-add-row">
           <button type="button" id="cal-add-btn" className="cal-add-btn" onClick={() => setAddOpen((open) => !open)}><i className="ph-bold ph-plus" /> Add New Event</button>
-          {gcalClientId && connected ? <button type="button" id="cal-import-btn" className="cal-add-btn" onClick={() => (gcalToken ? fetchGoogleEvents() : runGoogleAuth(false, true))}><i className="ph-bold ph-arrows-clockwise" /> Import from Google</button> : null}
+          {gcalClientId && connected ? <button type="button" id="cal-import-btn" className="cal-add-btn" onClick={() => (googleCalendarTokenFor(connectionUid) ? fetchGoogleEvents() : runGoogleAuth(false, true))}><i className="ph-bold ph-arrows-clockwise" /> Import from Google</button> : null}
         </div>
       ) : null}
       <input ref={photoInput} type="file" id="cal-photo-input" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) importFromPhoto(file); event.target.value = ''; }} />

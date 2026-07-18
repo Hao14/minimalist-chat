@@ -53,9 +53,15 @@ function ensureToolsRoot() {
     documentClickBound = true;
     document.addEventListener('click', () => {
       if (!state.menu?.open) return;
-      state.menu = null;
-      renderMessageTools();
+      closeMenu();
     });
+    document.addEventListener('scroll', (event) => {
+      if (!state.menu?.open) return;
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest?.('#msg-menu')) return;
+      closeMenu();
+    }, true);
+    window.addEventListener('resize', () => closeMenu());
   }
 
   return toolsRoot;
@@ -66,9 +72,14 @@ function setToolState(patch) {
   renderMessageTools();
 }
 
-function closeMenu() {
+function closeMenu({ restoreFocus = false } = {}) {
   if (!state.menu) return;
+  const trigger = state.menu.trigger;
+  trigger?.setAttribute?.('aria-expanded', 'false');
   setToolState({ menu: null });
+  if (restoreFocus && trigger?.isConnected) {
+    window.requestAnimationFrame(() => trigger.focus());
+  }
 }
 
 function closeForward() {
@@ -90,6 +101,7 @@ function renderMessageTools() {
     createElement(MessageMenu, {
       menu: state.menu,
       onAction: handleMenuAction,
+      onClose: closeMenu,
     }),
     createElement(ForwardModal, {
       forward: state.forward,
@@ -118,13 +130,41 @@ window.openMsgMenu = function openMsgMenu(event, id) {
   const message = window.msgCache?.[id];
   if (!message) return;
 
-  const mine = message.uid === window.currentUser.uid;
-  const canFlag = mine || window.currentUser.uid === window.MY_ADMIN_UID;
+  const uid = window.currentUser?.uid;
+  const mine = message.uid === uid;
+  const canFlag = mine || uid === window.MY_ADMIN_UID;
+  const canDelete = mine || uid === window.MY_ADMIN_UID;
   const saved = !!(window.__bookmarkIds && window.__bookmarkIds[id]);
-  let x = event.pageX;
-  let y = event.pageY;
-  if (x + 200 > window.innerWidth) x -= 200;
-  if (y + 180 > window.innerHeight) y -= 180;
+  const trigger = event.currentTarget instanceof Element ? event.currentTarget : null;
+  if (state.menu?.open && state.menu.trigger === trigger) {
+    closeMenu({ restoreFocus: true });
+    return;
+  }
+
+  state.menu?.trigger?.setAttribute?.('aria-expanded', 'false');
+  trigger?.setAttribute?.('aria-expanded', 'true');
+  const margin = 12;
+  const rootStyle = getComputedStyle(document.documentElement);
+  const safeLeft = Number.parseFloat(rootStyle.getPropertyValue('--app-safe-left')) || 0;
+  const safeRight = Number.parseFloat(rootStyle.getPropertyValue('--app-safe-right')) || 0;
+  const safeTop = Number.parseFloat(rootStyle.getPropertyValue('--app-safe-top')) || 0;
+  const safeBottom = Number.parseFloat(rootStyle.getPropertyValue('--app-safe-bottom')) || 0;
+  const minLeft = margin + safeLeft;
+  const maxRight = margin + safeRight;
+  const minTop = margin + safeTop;
+  const maxBottom = margin + safeBottom;
+  const menuWidth = Math.min(280, Math.max(220, window.innerWidth - minLeft - maxRight));
+  const menuItemCount = 3 + (mine ? 1 : 0) + (canFlag ? 1 : 0) + (canDelete ? 1 : 0);
+  const menuHeight = Math.min(360, (menuItemCount * 44) + 16);
+  const triggerRect = trigger?.getBoundingClientRect?.();
+  let x = triggerRect ? triggerRect.left : (event.clientX || minLeft);
+  let y = triggerRect ? triggerRect.bottom + 8 : (event.clientY || minTop);
+
+  x = Math.min(Math.max(minLeft, x), Math.max(minLeft, window.innerWidth - menuWidth - maxRight));
+  if (y + menuHeight > window.innerHeight - maxBottom) {
+    y = triggerRect ? triggerRect.top - menuHeight - 8 : y - menuHeight;
+  }
+  y = Math.min(Math.max(minTop, y), Math.max(minTop, window.innerHeight - menuHeight - maxBottom));
 
   setToolState({
     menu: {
@@ -134,15 +174,49 @@ window.openMsgMenu = function openMsgMenu(event, id) {
       y,
       saved,
       canFlag,
+      canEdit: mine,
+      canDelete,
       important: !!message.important,
+      roomId: window.activeRoomId,
+      channelId: window.activeChannelId || 'general',
+      trigger,
     },
   });
 };
 
 async function handleMenuAction(action) {
-  const id = state.menu?.messageId;
+  const menu = state.menu;
+  const id = menu?.messageId;
   closeMenu();
   if (!id) return;
+
+  if (action === 'edit' || action === 'delete') {
+    const currentChannelId = window.activeChannelId || 'general';
+    if (menu.roomId !== window.activeRoomId || menu.channelId !== currentChannelId) {
+      window.showToast?.('That message belongs to a different room. Open its menu again.');
+      return;
+    }
+
+    const message = window.msgCache?.[id];
+    const uid = window.currentUser?.uid;
+    const isMine = message?.uid === uid;
+    const isAdmin = uid === window.MY_ADMIN_UID;
+    if (action === 'edit') {
+      if (!isMine) {
+        window.showToast?.('Only the author can edit this message.');
+        return;
+      }
+      await window.editMessage?.(id);
+      return;
+    }
+
+    if (!(isMine || isAdmin)) {
+      window.showToast?.('You do not have permission to delete this message.');
+      return;
+    }
+    await window.deleteMessage?.(id);
+    return;
+  }
 
   if (action === 'forward') await openForward(id);
   else if (action === 'bookmark') await toggleBookmark(id);
@@ -188,13 +262,10 @@ async function openForward(id) {
 
   let rooms = [{ id: 'global', name: 'Global Chat' }];
   try {
-    const snapshot = await get(ref(db, 'rooms_meta'));
-    const uid = window.currentUser.uid;
+    const snapshot = await get(ref(db, `user_rooms/${window.currentUser.uid}`));
     snapshot.forEach((child) => {
       const room = child.val() || {};
-      if ((room.members && room.members[uid]) || room.creatorId === uid) {
-        rooms.push({ id: child.key, name: room.name || 'Room' });
-      }
+      rooms.push({ id: child.key, name: room.name || 'Room' });
     });
   } catch {
     rooms = [{ id: 'global', name: 'Global Chat' }];
@@ -215,9 +286,10 @@ async function forwardTo(id, roomId) {
   if (!message) return;
 
   try {
+    const senderName = window.userProfileName || window.currentUser?.displayName || 'Anonymous';
     await set(push(roomMessagesRef(roomId)), {
       uid: window.currentUser.uid,
-      name: window.userProfileName,
+      name: senderName,
       photoUrl: window.userPhotoUrl,
       text: message.text || '',
       attachedImage: message.attachedImage || null,
@@ -226,6 +298,17 @@ async function forwardTo(id, roomId) {
       tier: window.userTier,
       forwardedFrom: message.name || '',
     });
+
+    if (roomId !== 'global') {
+      const preview = message.text
+        ? `${senderName}: ${message.text}`
+        : `${senderName} sent ${message.attachedImage ? 'an image' : 'a file'}`;
+      await set(
+        ref(db, `rooms_meta/${roomId}/lastMessage`),
+        preview.length > 30 ? `${preview.substring(0, 30)}...` : preview,
+      );
+    }
+
     window.showToast?.('Message forwarded.', false);
   } catch (error) {
     window.showToast?.(`Forward failed: ${error.message}`);
@@ -282,7 +365,20 @@ async function saveBookmarkFromPrompt(collectionInput) {
 
 function openBookmark(bookmark) {
   if (!bookmark?.roomId) return;
-  window.switchRoom?.(bookmark.roomId, bookmark.roomName, bookmark.shortId, { channelId: bookmark.channelId || 'general' });
+  const channelId = bookmark.channelId || 'general';
+  const jump = {
+    messageId: bookmark.id,
+    roomId: bookmark.roomId,
+    roomName: bookmark.roomName || '',
+    shortId: bookmark.shortId || '',
+    channelId,
+    source: 'saved',
+    messageText: bookmark.text || '',
+  };
+
+  window.pendingMessageJump = jump;
+  window.switchRoom?.(bookmark.roomId, bookmark.roomName, bookmark.shortId, { channelId });
+  window.dispatchEvent(new CustomEvent('minimalist:message-jump', { detail: jump }));
   setTimeout(() => document.querySelector('.room-tab[data-target="chat"]')?.click(), 400);
   closeBookmarksPanel();
 }
@@ -301,9 +397,23 @@ window.openBookmarks = function openBookmarks() {
   if (typeof window.closeFloatingUI === 'function') {
     window.closeFloatingUI({ keep: 'bookmarks-panel' });
   } else {
-    document.getElementById('updates-panel')?.classList.remove('open');
-    document.getElementById('contacts-panel')?.classList.remove('open');
-    document.getElementById('personal-ai-agent-panel')?.classList.remove('open');
+    if (typeof window.closeUpdatesPanel === 'function') window.closeUpdatesPanel();
+    else document.getElementById('updates-panel')?.classList.remove('open');
+    const contactsPanel = document.getElementById('contacts-panel');
+    if (contactsPanel?.classList.contains('open')) {
+      if (typeof window.closeContactsPanel === 'function') window.closeContactsPanel();
+      else contactsPanel.classList.remove('open');
+    }
+    if (typeof window.closePersonalAgent === 'function') {
+      window.closePersonalAgent({ restoreFocus: false });
+    } else {
+      const personalAgentPanel = document.getElementById('personal-ai-agent-panel');
+      personalAgentPanel?.classList.remove('open');
+      personalAgentPanel?.setAttribute('aria-hidden', 'true');
+      personalAgentPanel?.setAttribute('aria-modal', 'false');
+      document.getElementById('open-personal-agent-btn')?.setAttribute('aria-expanded', 'false');
+      document.getElementById('open-personal-agent-btn-mobile')?.setAttribute('aria-expanded', 'false');
+    }
   }
   setToolState({ bookmarksOpen: true });
 };

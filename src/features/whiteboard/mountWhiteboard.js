@@ -1,15 +1,11 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { Whiteboard } from './Whiteboard.jsx';
 
-let whiteboardRoot = null;
+const whiteboardRoot = createHostAwareRoot();
 
 export function mountWhiteboard(props) {
   const host = document.getElementById('room-view-whiteboard');
   if (!host) return;
-  if (!whiteboardRoot) {
-    host.replaceChildren();
-    whiteboardRoot = createRoot(host);
-  }
-  whiteboardRoot.render(createElement(Whiteboard, props));
+  whiteboardRoot.render(host, createElement(Whiteboard, { ...props, key: props.roomId || 'global' }));
 }

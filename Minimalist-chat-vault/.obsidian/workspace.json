@@ -1,0 +1,221 @@
+{
+  "main": {
+    "id": "c54f4ede5f109b5f",
+    "type": "split",
+    "children": [
+      {
+        "id": "395314b5e6e6c5d6",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a219c6bd1c8f45dd",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "639200cd25577255",
+    "type": "split",
+    "children": [
+      {
+        "id": "c721ccc621999e40",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5e56349cb23c33da",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "89c094a57a90e786",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "99ada3f47a5fe8f7",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "4eae2433f654b36c",
+    "type": "split",
+    "children": [
+      {
+        "id": "c259de0ea8e9711b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "9047031cb1e7510b",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Welcome.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Welcome"
+            }
+          },
+          {
+            "id": "4a7590ae285e9861",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Welcome.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Welcome"
+            }
+          },
+          {
+            "id": "05fe347dcfa5c61e",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "8884903e847e778a",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "4e1e9dfaec28c76e",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Welcome.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Welcome"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "a219c6bd1c8f45dd",
+  "lastOpenFiles": [
+    "skills/book-mirror/SKILL.md",
+    "skills/minion-orchestrator/SKILL.md",
+    "skills/minion-orchestrator",
+    "skills/meeting-ingestion/SKILL.md",
+    "skills/meeting-ingestion",
+    "skills/media-ingest/SKILL.md",
+    "skills/media-ingest",
+    "skills/maintain/SKILL.md",
+    "skills/maintain",
+    "graphify-out/cost.json",
+    "graphify-out/manifest.json",
+    "graphify-out/graph.html",
+    "graphify-out/GRAPH_REPORT.md",
+    "graphify-out/graph.json",
+    "skills/GBrain Skill Catalog.md",
+    "graphify-out/cache/semantic",
+    "graphify-out/cache/stat-index.json",
+    "skills/reports/SKILL.md",
+    "skills/ingest/SKILL.md",
+    "skills/idea-lineage/SKILL.md",
+    "skills/idea-ingest/SKILL.md",
+    "skills/gbrain-advisor/SKILL.md",
+    "skills/functional-area-resolver/SKILL.md",
+    "skills/_output-rules.md",
+    "skills/_brain-filing-rules.md",
+    "skills/_AGENT_README.md",
+    "skills/conventions/test-before-bulk.md",
+    "skills/conventions/subagent-routing.md",
+    "skills/conventions/search-modes.md",
+    "skills/conventions/salience-and-recency.md",
+    "skills/conventions/schema-evolution.md",
+    "skills/conventions/quality.md",
+    "skills/conventions/model-routing.md",
+    "skills/conventions/cron-via-minions.md",
+    "skills/conventions/calibration.md",
+    "skills/conventions/brain-routing.md"
+  ]
+}

@@ -7,14 +7,14 @@
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
     
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">    
-<link rel="stylesheet" href="base.css?v=split14">
-<link rel="stylesheet" href="desktop.css?v=split1">
-<link rel="stylesheet" href="mobile.css?v=split1">
+<link rel="stylesheet" href="/base.css?v=split24">
+<link rel="stylesheet" href="/desktop.css?v=split2">
+<link rel="stylesheet" href="/mobile.css?v=split9">
 </head>
 <body class="marketing">
     <div class="shape yellow-square"></div>
 
-    <nav>
+    <nav aria-label="Primary">
         <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
@@ -22,35 +22,24 @@
             </div>
             <span class="logo-text">MINIMALIST</span>
         </a>
-
-        <!-- DESKTOP LEFT RAIL -->
         <div class="desktop-nav">
-            <a href="/" class="rail-icon" title="Home"><i class="ph-bold ph-house"></i></a>
-            <a href="/story" class="rail-icon" title="Story"><i class="ph-bold ph-book-open"></i></a>
-            <a href="/chat" class="rail-icon auth-only hidden" title="Chat"><i class="ph-bold ph-chats"></i></a>
-            
-            <div style="flex-grow: 1; width: 100%; min-height: 20px;"></div>
-
-            <a href="#" id="open-updates-btn-desktop" class="rail-icon auth-only hidden" title="Updates"><i class="ph-bold ph-bell"></i></a>
-            <button class="rail-icon auth-only hidden" id="open-contacts-btn" title="Contacts"><i class="ph-bold ph-users"></i></button>
-            <button class="rail-icon auth-only hidden" id="open-settings-btn" title="Settings"><i class="ph-bold ph-gear"></i></button>
-            <a href="/login" class="rail-icon guest-only" title="Login"><i class="ph-bold ph-sign-in"></i></a>
+            <a href="/">Home</a>
+            <a href="/features">Features</a>
+            <a href="/download">Download</a>
+            <a href="/story" class="active">Story</a>
+            <a href="/chat" class="auth-only hidden">Chat</a>
+            <a href="/login" class="guest-only">Login</a>
+            <a href="/login" class="nav-cta guest-only">Sign Up</a>
         </div>
-        
-        <!-- MOBILE BOTTOM NAV -->
-        <div id="mobile-nav-links" class="mobile-only">
-            <button class="action-btn mobile-link-btn auth-only" id="open-rooms-btn-mobile">
-                <i class="ph-bold ph-chats"></i><span>ROOMS</span>
-            </button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-contacts-btn-mobile">
-                <i class="ph-bold ph-users"></i><span>CONTACTS</span>
-            </button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-updates-btn-mobile">
-                <i class="ph-bold ph-bell"></i><span>UPDATES</span>
-            </button>
-            <button class="action-btn mobile-link-btn auth-only" id="open-settings-btn-mobile">
-                <i class="ph-bold ph-gear"></i><span>SETTINGS</span>
-            </button>
+        <button id="mobile-menu-btn" class="mobile-only nav-btn" type="button" aria-expanded="false" aria-controls="marketing-mobile-nav-links">MENU</button>
+        <div id="marketing-mobile-nav-links" class="mobile-only hidden marketing-mobile-nav-links" aria-hidden="true">
+            <a href="/" class="mobile-link">HOME</a>
+            <a href="/features" class="mobile-link">FEATURES</a>
+            <a href="/download" class="mobile-link">DOWNLOAD</a>
+            <a href="/story" class="mobile-link" style="color: var(--accent-color); font-weight: 800;">STORY</a>
+            <a href="/chat" class="mobile-link auth-only hidden">CHAT</a>
+            <a href="/login" class="mobile-link guest-only">LOGIN</a>
+            <a href="/login" class="mobile-link guest-only">SIGN UP</a>
         </div>
     </nav>
     <div class="container fade-in-up">
@@ -72,7 +61,7 @@
         </div>
         <div class="footer-info" id="live-clock">SYSTEM TIME: LOADING...</div>
     </footer>
-<script type="module" src="js/app.js?v=30"></script>
+<script defer src="/legacy/marketing-nav.js"></script>
     <div id="brutalist-toast" class="toast-hidden">
     <span id="toast-icon">⚠️</span>
     <span id="toast-message">Error message goes here</span>

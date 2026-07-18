@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 
 export function RoomPicturePreview({ url, initials }) {
-  if (url) return <img src={url} alt="" />;
+  if (url) return <img src={url} alt="" width="76" height="76" decoding="async" />;
   return <span>{initials || 'R'}</span>;
 }
 
@@ -53,7 +53,9 @@ export function RoomInvitePanel({
               onClick={() => onForward(target)}
             >
               <span className="room-invite-avatar">
-                {target.photoUrl ? <img src={target.photoUrl} alt="" /> : target.initials}
+                {target.photoUrl ? (
+                  <img src={target.photoUrl} alt="" width="42" height="42" loading="lazy" decoding="async" />
+                ) : target.initials}
               </span>
               <span className="room-invite-target-copy">
                 <strong>{target.name}</strong>

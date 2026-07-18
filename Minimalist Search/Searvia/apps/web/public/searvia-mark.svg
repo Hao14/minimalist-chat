@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-labelledby="title desc">
+  <title id="title">Searvia path mark</title>
+  <desc id="desc">Two curved visibility paths forming an abstract letter S with a discovered result point.</desc>
+  <path d="M38 8H20C12.268 8 8 11.448 8 16s4.268 8 12 8h8c7.732 0 12 3.448 12 8s-4.268 8-12 8H10" fill="none" stroke="#4650D6" stroke-width="3.25" stroke-linecap="round"/>
+  <path d="M40 12H21c-5.925 0-9 1.687-9 4s3.075 4 9 4h7c10.151 0 16 4.831 16 12 0 7.168-5.849 12-16 12H8" fill="none" stroke="#0B7568" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="28" cy="24" r="4.25" fill="#fff" stroke="#5661E3" stroke-width="2.5"/>
+</svg>

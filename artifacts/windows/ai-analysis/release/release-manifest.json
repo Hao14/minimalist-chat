@@ -1,0 +1,17 @@
+﻿{
+    "schemaVersion":  1,
+    "product":  "Minimalist Analysis",
+    "company":  "Minimalist.chat",
+    "version":  "1.0.0",
+    "platform":  "windows",
+    "architecture":  "x64",
+    "runtimeIdentifier":  "win-x64",
+    "distribution":  "self-contained-single-file",
+    "executable":  "MinimalistAIAnalysis.exe",
+    "executableBytes":  51910414,
+    "executableSha256":  "49046d65c967dc48bdbd23904754bafbf688322ea7bf940fe6a526b9b6ff9031",
+    "checksum":  "MinimalistAIAnalysis.exe.sha256",
+    "portablePackage":  "MinimalistAIAnalysis-1.0.0-win-x64-portable.zip",
+    "signed":  false,
+    "builtAtUtc":  "2026-07-15T07:36:02.4629312Z"
+}

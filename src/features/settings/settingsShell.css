@@ -1,0 +1,1319 @@
+/* Account Settings v3 ------------------------------------------------------
+   This is the authoritative shell layer for Account Settings. Keep every
+   selector rooted to .settings-shell-v3 so Room Settings remains independent. */
+
+html body #settings-modal.settings-shell-v3.brutalist-settings {
+  --settings-accent: var(--accent-color, #ffd400);
+  --settings-ink: var(--text-color, #111317);
+  --settings-bg: color-mix(in srgb, var(--bg-color, #fff) 94%, var(--settings-accent) 6%);
+  --settings-surface: color-mix(in srgb, var(--bg-color, #fff) 97%, var(--settings-ink) 3%);
+  --settings-surface-strong: var(--bg-color, #fff);
+  --settings-surface-soft: color-mix(in srgb, var(--bg-color, #fff) 92%, var(--settings-ink) 8%);
+  --settings-muted: color-mix(in srgb, var(--settings-ink) 58%, transparent);
+  --settings-line: color-mix(in srgb, var(--settings-ink) 13%, transparent);
+  --settings-line-strong: color-mix(in srgb, var(--settings-ink) 22%, transparent);
+  --settings-danger: #dc3a44;
+  --settings-nav-width: 216px;
+  --settings-preview-width: 360px;
+  position: fixed !important;
+  inset: 50% auto auto 50% !important;
+  width: min(1040px, calc(100vw - 64px)) !important;
+  max-width: min(1040px, calc(100vw - 64px)) !important;
+  height: min(840px, calc(100dvh - 32px)) !important;
+  max-height: calc(100dvh - 32px) !important;
+  display: grid !important;
+  grid-template-columns: var(--settings-nav-width) minmax(0, 1fr) !important;
+  grid-template-rows: minmax(0, 1fr) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  border: 1px solid var(--settings-line-strong) !important;
+  border-radius: 26px !important;
+  background: var(--settings-bg) !important;
+  box-shadow: 0 28px 80px -38px color-mix(in srgb, #111 52%, transparent) !important;
+  color: var(--settings-ink) !important;
+  text-align: left !important;
+  transform: translate(-50%, -50%) !important;
+  isolation: isolate;
+  z-index: 11000 !important;
+  transition: width 220ms cubic-bezier(0.16, 1, 0.3, 1), max-width 220ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings.hidden {
+  display: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open {
+  width: min(1280px, calc(100vw - 64px)) !important;
+  max-width: min(1280px, calc(100vw - 64px)) !important;
+  grid-template-columns: var(--settings-nav-width) minmax(0, 1fr) var(--settings-preview-width) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings::before,
+html body #settings-modal.settings-shell-v3.brutalist-settings::after {
+  display: none !important;
+  content: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings > * {
+  min-width: 0;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings #close-settings-btn.brutalist-close {
+  position: absolute !important;
+  top: 18px !important;
+  right: 18px !important;
+  left: auto !important;
+  z-index: 30 !important;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 14px !important;
+  background: var(--settings-surface-strong) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+  font-size: 1.15rem !important;
+  line-height: 1 !important;
+  transform: none !important;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open #close-settings-btn {
+  right: calc(var(--settings-preview-width) + 18px) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings #close-settings-btn:is(:hover, :focus-visible) {
+  border-color: var(--settings-line-strong) !important;
+  background: var(--settings-surface-soft) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Navigation ------------------------------------------------------------- */
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0 !important;
+  padding: 24px 16px 18px !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-right: 1px solid var(--settings-line) !important;
+  background: color-mix(in srgb, var(--settings-surface-strong) 82%, transparent) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar-head {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0 8px 20px;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar-kicker {
+  color: var(--settings-muted) !important;
+  font-size: 0.67rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar-head strong {
+  color: var(--settings-ink) !important;
+  font-size: 1rem !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.015em;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tablist {
+  display: grid;
+  gap: 6px;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab {
+  position: relative !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 46px !important;
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr) !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid transparent !important;
+  border-radius: 13px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--settings-muted) !important;
+  font-size: 0.86rem !important;
+  font-weight: 780 !important;
+  line-height: 1.15 !important;
+  text-align: left !important;
+  transform: none !important;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab i {
+  font-size: 1.06rem;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab::before {
+  content: '' !important;
+  position: absolute;
+  inset: 9px auto 9px -1px;
+  width: 3px;
+  border-radius: 0 999px 999px 0;
+  background: transparent;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab::after {
+  content: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab:is(:hover, :focus-visible) {
+  border-color: var(--settings-line) !important;
+  background: var(--settings-surface) !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab.active {
+  border-color: color-mix(in srgb, var(--settings-accent) 55%, var(--settings-line)) !important;
+  background: color-mix(in srgb, var(--settings-accent) 15%, var(--settings-surface-strong)) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-tab.active::before {
+  background: var(--settings-accent);
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-divider {
+  height: 1px !important;
+  margin: 18px 8px !important;
+  background: var(--settings-line) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-session-actions {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 7px !important;
+  margin: auto 0 0 !important;
+  padding: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-session-btn {
+  width: 100% !important;
+  min-height: 42px !important;
+  display: flex !important;
+  justify-content: flex-start !important;
+  gap: 9px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font-size: 0.8rem !important;
+}
+
+/* Main pane -------------------------------------------------------------- */
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-content {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: block !important;
+  padding: 30px 34px 40px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: transparent !important;
+  color: var(--settings-ink) !important;
+  text-align: left !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-pane {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings #pane-profile {
+  max-width: 760px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-pane.hidden {
+  display: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-pane-header {
+  display: grid;
+  gap: 0.32rem;
+  margin: 0 60px 22px 0;
+  padding: 0 !important;
+  border: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-pane-kicker,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-section-heading h3,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-kicker {
+  color: var(--settings-muted) !important;
+  font-size: 0.68rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.13em !important;
+  text-transform: uppercase;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-pane-header h2,
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__header h2 {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  color: var(--settings-ink) !important;
+  font-size: clamp(1.75rem, 2.4vw, 2.2rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.04 !important;
+  letter-spacing: -0.045em !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-pane-header p {
+  max-width: 620px;
+  margin: 0 !important;
+  color: var(--settings-muted) !important;
+  font-size: 0.88rem !important;
+  font-weight: 560 !important;
+  line-height: 1.5 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card,
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-edit-card,
+html body #settings-modal.settings-shell-v3.brutalist-settings .custom-theme-panel,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-feature-mode-panel {
+  margin: 0 0 14px !important;
+  overflow: hidden !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 18px !important;
+  background: var(--settings-surface-strong) !important;
+  box-shadow: 0 12px 30px -28px color-mix(in srgb, var(--settings-ink) 52%, transparent) !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card-body {
+  gap: 16px !important;
+  padding: 20px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card-header {
+  min-height: 82px !important;
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto !important;
+  gap: 14px !important;
+  padding: 14px 16px !important;
+  border: 0 !important;
+  background: var(--settings-surface-strong) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card-header img {
+  width: 52px !important;
+  height: 52px !important;
+  border: 1px solid var(--settings-line-strong) !important;
+  border-radius: 16px !important;
+  background: var(--settings-surface-soft) !important;
+  object-fit: cover;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card-title {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card-title .title-name {
+  overflow: hidden;
+  color: var(--settings-ink) !important;
+  font-size: 1.08rem !important;
+  font-weight: 880 !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-card-subtitle {
+  color: var(--settings-muted) !important;
+  font-size: 0.75rem !important;
+  font-weight: 620 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-trigger,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-edit-profile-btn {
+  width: auto !important;
+  min-height: 40px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  margin: 0 !important;
+  padding: 0 13px !important;
+  border: 1px solid var(--settings-line-strong) !important;
+  border-radius: 12px !important;
+  background: var(--settings-surface-strong) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+  font-size: 0.78rem !important;
+  font-weight: 820 !important;
+  line-height: 1 !important;
+  transform: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-trigger[aria-expanded='true'] {
+  border-color: color-mix(in srgb, var(--settings-accent) 75%, var(--settings-line)) !important;
+  background: color-mix(in srgb, var(--settings-accent) 14%, var(--settings-surface-strong)) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-edit-profile-btn {
+  border-color: var(--settings-ink) !important;
+  background: var(--settings-ink) !important;
+  color: var(--settings-surface-strong) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-section-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-section-heading h3 {
+  margin: 0 !important;
+  color: var(--settings-ink) !important;
+  font-size: 0.86rem !important;
+  letter-spacing: 0.06em !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-section-heading p {
+  margin: 0 !important;
+  color: var(--settings-muted) !important;
+  font-size: 0.78rem !important;
+  font-weight: 560 !important;
+  line-height: 1.4 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-list {
+  display: grid;
+  border-top: 1px solid var(--settings-line);
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row {
+  min-height: 46px;
+  display: grid;
+  grid-template-columns: 20px 86px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px;
+  border-bottom: 1px solid var(--settings-line);
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row:last-child {
+  border-bottom: 0;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row i {
+  color: var(--settings-muted);
+  font-size: 1rem;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row span {
+  color: var(--settings-muted) !important;
+  font-size: 0.76rem !important;
+  font-weight: 720 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--settings-ink) !important;
+  font-size: 0.8rem !important;
+  font-weight: 760 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-completeness {
+  margin: 2px 0 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+  margin-top: 4px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact > div,
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact > p {
+  min-height: 70px !important;
+  display: grid !important;
+  align-content: center !important;
+  gap: 4px !important;
+  margin: 0 !important;
+  padding: 12px !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 13px !important;
+  background: var(--settings-surface) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact > p {
+  grid-column: 1 / -1 !important;
+  min-height: 58px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact span {
+  color: var(--settings-muted) !important;
+  font-size: 0.64rem !important;
+  font-weight: 880 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact strong,
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact p {
+  color: var(--settings-ink) !important;
+  font-size: 0.82rem !important;
+  font-weight: 740 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-card .settings-card-body {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+  padding: 16px 18px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-copy {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-copy > i {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--settings-danger) 10%, var(--settings-surface));
+  color: var(--settings-danger);
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-copy h3,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-copy p {
+  margin: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-copy h3 {
+  color: var(--settings-ink) !important;
+  font-size: 0.84rem !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-copy p {
+  color: var(--settings-muted) !important;
+  font-size: 0.74rem !important;
+  line-height: 1.4 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-delete-account-btn {
+  flex: 0 0 auto;
+  width: auto !important;
+  min-height: 38px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  border: 1px solid color-mix(in srgb, var(--settings-danger) 45%, var(--settings-line)) !important;
+  border-radius: 11px !important;
+  background: color-mix(in srgb, var(--settings-danger) 7%, var(--settings-surface-strong)) !important;
+  box-shadow: none !important;
+  color: var(--settings-danger) !important;
+  font-size: 0.75rem !important;
+  font-weight: 800 !important;
+}
+
+/* Profile edit and the other Settings panes ------------------------------ */
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-edit-card {
+  padding: 18px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .input-group input,
+html body #settings-modal.settings-shell-v3.brutalist-settings .input-group textarea,
+html body #settings-modal.settings-shell-v3.brutalist-settings .input-group select,
+html body #settings-modal.settings-shell-v3.brutalist-settings .custom-theme-controls .color-input {
+  width: 100% !important;
+  min-height: 44px !important;
+  border: 1px solid var(--settings-line-strong) !important;
+  border-radius: 12px !important;
+  background: var(--settings-surface) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .input-group :is(input, textarea, select):focus {
+  border-color: color-mix(in srgb, var(--settings-accent) 75%, var(--settings-line)) !important;
+  outline: 3px solid color-mix(in srgb, var(--settings-accent) 18%, transparent) !important;
+  outline-offset: 1px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings #pane-app > .settings-card {
+  padding: 20px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .theme-selection-row {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 8px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .theme-select-btn {
+  min-width: 0 !important;
+  min-height: 44px !important;
+  margin: 0 !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 12px !important;
+  background: var(--settings-surface) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .theme-select-btn.active {
+  border-color: color-mix(in srgb, var(--settings-accent) 72%, var(--settings-line)) !important;
+  background: color-mix(in srgb, var(--settings-accent) 14%, var(--settings-surface-strong)) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .custom-theme-panel,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-feature-mode-panel,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-personal-ai-panel {
+  margin-top: 12px !important;
+  padding: 16px !important;
+  border-width: 1px !important;
+  border-color: var(--settings-line) !important;
+  border-radius: 15px !important;
+  background: var(--settings-surface) !important;
+  box-shadow: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing {
+  --billing-ink: var(--settings-ink);
+  --billing-surface: var(--settings-surface-strong);
+  --billing-soft: color-mix(in srgb, var(--settings-accent) 12%, var(--settings-surface-strong));
+  gap: 14px !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__header {
+  margin: 0 60px 8px 0;
+  padding: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__header p,
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__plan p,
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__footnotes p {
+  color: var(--settings-muted) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__current,
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__plan,
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__status {
+  border-color: var(--settings-line) !important;
+  border-radius: 16px !important;
+  background: var(--settings-surface-strong) !important;
+  box-shadow: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__current {
+  background: color-mix(in srgb, var(--settings-accent) 11%, var(--settings-surface-strong)) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .account-billing__plan--featured {
+  border-color: color-mix(in srgb, var(--settings-accent) 72%, var(--settings-line)) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-notifications-hero,
+html body #settings-modal.settings-shell-v3.brutalist-settings .notification-phone-card {
+  box-shadow: none !important;
+}
+
+/* Attached profile preview ---------------------------------------------- */
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-rail {
+  grid-column: 3 !important;
+  grid-row: 1 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  border: 0 !important;
+  border-left: 1px solid var(--settings-line) !important;
+  background: var(--settings-surface) !important;
+  color: var(--settings-ink) !important;
+  animation: settingsPreviewIn 210ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-rail.hidden {
+  display: none !important;
+}
+
+@keyframes settingsPreviewIn {
+  from { opacity: 0; transform: translate3d(10px, 0, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header {
+  flex: 0 0 auto;
+  min-height: 96px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+  border-bottom: 1px solid var(--settings-line);
+  background: var(--settings-surface-strong);
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header h2,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header p {
+  margin: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header h2 {
+  color: var(--settings-ink) !important;
+  font-size: 1rem !important;
+  font-weight: 880 !important;
+  letter-spacing: -0.02em !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header p {
+  color: var(--settings-muted) !important;
+  font-size: 0.7rem !important;
+  line-height: 1.35 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-close {
+  flex: 0 0 auto;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 12px !important;
+  background: var(--settings-surface) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-close span,
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-back-icon {
+  display: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-x-icon {
+  display: inline-block !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 14px 22px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings #settings-card-inline-preview {
+  --surface-raised: var(--settings-surface-strong);
+  --surface-soft: var(--settings-surface);
+  --surface-quiet: var(--settings-surface-soft);
+  --text-strong: var(--settings-ink);
+  --text-muted: var(--settings-muted);
+  --border-soft: var(--settings-line);
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 19px !important;
+  background: var(--settings-surface-strong) !important;
+  box-shadow: none !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .scp-banner {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  min-height: 132px !important;
+  aspect-ratio: auto !important;
+  box-sizing: border-box !important;
+  padding: 14px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-banner-meta {
+  min-width: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .scp-avatar {
+  width: 72px !important;
+  height: 72px !important;
+  border-radius: 22px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .scp-body {
+  gap: 12px !important;
+  padding: 16px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-display-name {
+  color: var(--settings-ink) !important;
+  font-size: 1.15rem !important;
+  font-weight: 900 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stats {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  padding: 8px 0 !important;
+  border-block: 1px solid var(--settings-line) !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat {
+  min-width: 0;
+  display: grid !important;
+  justify-items: center !important;
+  gap: 2px !important;
+  padding: 2px 4px !important;
+  border-right: 1px solid var(--settings-line) !important;
+  background: transparent !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat:last-child {
+  border-right: 0 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat i {
+  display: none;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat strong {
+  color: var(--settings-ink) !important;
+  font-size: 0.82rem !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat small {
+  overflow: hidden;
+  color: var(--settings-muted) !important;
+  font-size: 0.58rem !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-bio {
+  min-height: 42px;
+  color: var(--settings-ink) !important;
+  font-size: 0.78rem !important;
+  line-height: 1.5 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-actions {
+  display: grid !important;
+  grid-template-columns: 1fr !important;
+  gap: 7px !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-actions button {
+  width: 100% !important;
+  min-height: 40px !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  border: 1px solid var(--settings-line) !important;
+  border-radius: 11px !important;
+  background: var(--settings-surface) !important;
+  box-shadow: none !important;
+  color: var(--settings-ink) !important;
+  font-size: 0.72rem !important;
+  font-weight: 780 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-actions button:first-child {
+  border-color: color-mix(in srgb, var(--settings-accent) 75%, var(--settings-line)) !important;
+  background: var(--settings-accent) !important;
+  color: #111 !important;
+}
+
+html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0 !important;
+  padding: 0 4px !important;
+  color: var(--settings-muted) !important;
+  font-size: 0.68rem !important;
+  line-height: 1.45 !important;
+}
+
+/* Theme harmonization ---------------------------------------------------- */
+
+body:is(.dark-mode, .codex-mode) #settings-modal.settings-shell-v3 {
+  --settings-bg: color-mix(in srgb, var(--bg-color, #0d1320) 92%, var(--settings-accent) 8%);
+  --settings-surface: color-mix(in srgb, var(--bg-color, #0d1320) 92%, white 8%);
+  --settings-surface-strong: color-mix(in srgb, var(--bg-color, #0d1320) 96%, white 4%);
+  --settings-surface-soft: color-mix(in srgb, var(--bg-color, #0d1320) 84%, white 16%);
+  --settings-muted: color-mix(in srgb, var(--text-color, #f8fafc) 62%, transparent);
+  --settings-line: color-mix(in srgb, var(--text-color, #f8fafc) 13%, transparent);
+  --settings-line-strong: color-mix(in srgb, var(--text-color, #f8fafc) 23%, transparent);
+}
+
+body.modern-mode #settings-modal.settings-shell-v3 {
+  --settings-bg: color-mix(in srgb, var(--bg-color, #fff) 94%, var(--accent-color, #ffd400) 6%);
+  --settings-surface: color-mix(in srgb, var(--bg-color, #fff) 97%, var(--text-color, #111) 3%);
+  --settings-surface-strong: var(--bg-color, #fff);
+  --settings-muted: color-mix(in srgb, var(--text-color, #111) 58%, transparent);
+  --settings-line: color-mix(in srgb, var(--text-color, #111) 13%, transparent);
+}
+
+/* Tablet: keep navigation visible; preview becomes an internal side sheet. */
+@media (min-width: 821px) and (max-width: 1180px) {
+  html body #settings-modal.settings-shell-v3.brutalist-settings,
+  html body #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open {
+    --settings-nav-width: clamp(188px, 22vw, 216px);
+    inset: 50% auto auto calc(50% + 36px) !important;
+    width: min(940px, calc(100vw - 104px)) !important;
+    max-width: calc(100vw - 104px) !important;
+    grid-template-columns: var(--settings-nav-width) minmax(0, 1fr) !important;
+  }
+
+  html body #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open #close-settings-btn {
+    right: 18px !important;
+  }
+
+  html body #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-rail {
+    position: absolute !important;
+    inset: 0 0 0 auto !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: min(370px, calc(100% - var(--settings-nav-width))) !important;
+    z-index: 20 !important;
+    border-left: 1px solid var(--settings-line) !important;
+    box-shadow: -24px 0 54px -42px color-mix(in srgb, var(--settings-ink) 60%, transparent) !important;
+  }
+
+  html body #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open #close-settings-btn {
+    display: none !important;
+  }
+}
+
+/* Phone and small tablet: Settings becomes a full-height native workspace. */
+@media (max-width: 820px) {
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings:not(.hidden),
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open:not(.hidden) {
+    --settings-preview-width: 100%;
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    display: grid !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings #close-settings-btn.brutalist-close,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open #close-settings-btn.brutalist-close {
+    top: calc(10px + env(safe-area-inset-top, 0px)) !important;
+    right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+    width: 44px !important;
+    height: 44px !important;
+    display: grid !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    gap: 8px !important;
+    padding:
+      calc(10px + env(safe-area-inset-top, 0px))
+      calc(64px + env(safe-area-inset-right, 0px))
+      10px
+      calc(12px + env(safe-area-inset-left, 0px)) !important;
+    overflow: visible !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--settings-line) !important;
+    background: var(--settings-surface-strong) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings.settings-profile-preview-open .settings-sidebar {
+    display: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar-head {
+    min-height: 44px;
+    align-content: center;
+    gap: 0;
+    padding: 0 2px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar-kicker {
+    display: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-sidebar-head strong {
+    font-size: 1rem !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-tablist {
+    width: 100%;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 7px !important;
+    padding: 0 0 1px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-tablist::-webkit-scrollbar {
+    display: none;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-tab {
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: max-content !important;
+    min-height: 42px !important;
+    display: inline-flex !important;
+    gap: 7px !important;
+    padding: 0 12px !important;
+    border-radius: 12px !important;
+    scroll-snap-align: start;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-tab::before {
+    inset: auto 10px -1px !important;
+    width: auto !important;
+    height: 3px !important;
+    border-radius: 999px 999px 0 0 !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-divider,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-session-actions {
+    display: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-content {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    padding:
+      18px
+      calc(18px + env(safe-area-inset-right, 0px))
+      calc(28px + env(safe-area-inset-bottom, 0px))
+      calc(18px + env(safe-area-inset-left, 0px)) !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-gutter: auto;
+    background: var(--settings-bg) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-pane-header {
+    margin: 0 0 18px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-pane-header h2,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .account-billing__header h2 {
+    font-size: clamp(1.55rem, 7vw, 1.9rem) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .account-session-actions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    margin-bottom: 14px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-card,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .profile-edit-card,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .custom-theme-panel,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-feature-mode-panel {
+    border-radius: 17px !important;
+    box-shadow: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-rail {
+    position: relative !important;
+    inset: auto !important;
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    z-index: 25 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border: 0 !important;
+    background: var(--settings-bg) !important;
+    box-shadow: none !important;
+    animation-name: settingsPreviewMobileIn;
+  }
+
+  @keyframes settingsPreviewMobileIn {
+    from { opacity: 0; transform: translate3d(12px, 0, 0); }
+    to { opacity: 1; transform: translate3d(0, 0, 0); }
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding:
+      calc(16px + env(safe-area-inset-top, 0px))
+      calc(18px + env(safe-area-inset-right, 0px))
+      14px
+      calc(18px + env(safe-area-inset-left, 0px));
+    background: var(--settings-bg);
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header > div {
+    order: 2;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header h2 {
+    font-size: 1.55rem !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-header p {
+    font-size: 0.78rem !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-close {
+    order: 1;
+    width: fit-content !important;
+    min-width: 0 !important;
+    height: 40px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    justify-self: start;
+    padding: 0 12px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-close span,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-back-icon {
+    display: inline-block !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-close span {
+    color: var(--settings-ink) !important;
+    font-size: 0.76rem !important;
+    font-weight: 780 !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-x-icon {
+    display: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-body {
+    padding:
+      14px
+      calc(18px + env(safe-area-inset-right, 0px))
+      calc(28px + env(safe-area-inset-bottom, 0px))
+      calc(18px + env(safe-area-inset-left, 0px));
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-card-host,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-note {
+    width: min(100%, 600px) !important;
+    margin-inline: auto !important;
+  }
+}
+
+@media (max-width: 520px) {
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-content,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-body {
+    padding-right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+    padding-left: calc(12px + env(safe-area-inset-left, 0px)) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-card-body {
+    padding: 16px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-card-header {
+    grid-template-columns: 48px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-card-header img {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 15px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-trigger {
+    padding-inline: 10px !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-trigger i {
+    display: none;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row {
+    grid-template-columns: 18px 62px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-public-profile-head {
+    align-items: center;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-public-profile-head p {
+    display: none !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-danger-card .settings-card-body {
+    align-items: stretch !important;
+    flex-direction: column !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-delete-account-btn {
+    width: 100% !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .theme-selection-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .account-billing__header {
+    margin-right: 0 !important;
+  }
+}
+
+@media (max-width: 360px) {
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-card-header {
+    grid-template-columns: 46px minmax(0, 1fr) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+    align-items: start;
+    padding-block: 9px;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row > span,
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row > strong {
+    grid-column: 2;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-detail-row > strong {
+    overflow-wrap: anywhere;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .settings-preview-trigger {
+    grid-column: 1 / -1;
+    width: 100% !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact {
+    grid-template-columns: 1fr !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .profile-summary-compact > p {
+    grid-column: auto !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat:nth-child(2) {
+    border-right: 0 !important;
+  }
+
+  html body:not(.marketing):not(.auth-screen) #settings-modal.settings-shell-v3.brutalist-settings .profile-card-settings-preview .profile-card-stat:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--settings-line) !important;
+  }
+}
+
+html.performance-low body #settings-modal.settings-shell-v3,
+html.performance-gpu body #settings-modal.settings-shell-v3 {
+  contain: layout paint;
+}
+
+html.performance-low body #settings-modal.settings-shell-v3,
+html.performance-low body #settings-modal.settings-shell-v3 .settings-preview-rail {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html body #settings-modal.settings-shell-v3,
+  html body #settings-modal.settings-shell-v3 * {
+    scroll-behavior: auto !important;
+  }
+
+  html body #settings-modal.settings-shell-v3,
+  html body #settings-modal.settings-shell-v3 .settings-preview-rail {
+    animation: none !important;
+    transition: none !important;
+  }
+}

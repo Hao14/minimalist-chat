@@ -1,0 +1,1 @@
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "directive_scope_preserved" boolean DEFAULT false NOT NULL;

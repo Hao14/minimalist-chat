@@ -1,15 +1,11 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { RoomHome } from './RoomHome.jsx';
 
-let homeRoot = null;
+const homeRoot = createHostAwareRoot();
 
 export function mountRoomHome(props) {
   const host = document.getElementById('room-view-home');
   if (!host) return;
-  if (!homeRoot) {
-    host.replaceChildren();
-    homeRoot = createRoot(host);
-  }
-  homeRoot.render(createElement(RoomHome, { ...props, key: props.roomId }));
+  homeRoot.render(host, createElement(RoomHome, { ...props, key: props.roomId }));
 }

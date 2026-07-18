@@ -22,12 +22,21 @@ window.showToast = function showToast(message, isError = true) {
   if (toast && toastMsg) {
     toastMsg.textContent = message;
     if (toastIcon) toastIcon.textContent = isError ? '!' : '✓';
+    toast.hidden = false;
+    toast.setAttribute('aria-hidden', 'false');
+    toast.setAttribute('role', isError ? 'alert' : 'status');
+    toast.querySelector('#toast-close')?.setAttribute('tabindex', '0');
     toast.classList.toggle('toast-error', Boolean(isError));
     toast.classList.toggle('toast-success', !isError);
     toast.classList.remove('toast-hidden');
     window.clearTimeout(window.__toastTimer);
     window.__toastTimer = setTimeout(() => {
       toast.classList.add('toast-hidden');
+      toast.hidden = true;
+      toast.setAttribute('aria-hidden', 'true');
+      toast.querySelector('#toast-close')?.setAttribute('tabindex', '-1');
+      toastMsg.textContent = '';
+      if (toastIcon) toastIcon.textContent = '';
     }, 4000);
     return;
   }
@@ -60,7 +69,22 @@ window.showScreen = function showScreen(screenId) {
 })();
 
 document.addEventListener('click', (event) => {
-  if (event.target.id === 'toast-close') document.getElementById('brutalist-toast')?.classList.add('toast-hidden');
+  if (event.target.id === 'toast-close') {
+    const toast = document.getElementById('brutalist-toast');
+    toast?.classList.add('toast-hidden');
+    if (toast) {
+      toast.hidden = true;
+      toast.setAttribute('aria-hidden', 'true');
+      toast.querySelector('#toast-close')?.setAttribute('tabindex', '-1');
+      const message = toast.querySelector('#toast-message');
+      const icon = toast.querySelector('#toast-icon');
+      if (message) message.textContent = '';
+      if (icon) icon.textContent = '';
+    }
+  }
   if (event.target.id === 'close-mobile-rooms-btn') document.getElementById('desktop-room-sidebar')?.classList.remove('open');
-  if (event.target.id === 'close-updates-btn') document.getElementById('updates-panel')?.classList.remove('open');
+  if (event.target.closest?.('#close-updates-btn')) {
+    if (typeof window.closeUpdatesPanel === 'function') window.closeUpdatesPanel();
+    else document.getElementById('updates-panel')?.classList.remove('open');
+  }
 });

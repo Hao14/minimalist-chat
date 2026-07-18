@@ -1,0 +1,207 @@
+{
+  "00 Home/Minimalist Chat Knowledge Hub.md": {
+    "mtime": 1784045168.5393853,
+    "ast_hash": "2f7774aebf86b0132a4c559493b5fb8d",
+    "semantic_hash": "2f7774aebf86b0132a4c559493b5fb8d"
+  },
+  "10 Product/Current/Current Product Overview.md": {
+    "mtime": 1784091971.2882812,
+    "ast_hash": "a8ded82c39a94bcbfb38068e431cdfee",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Download.md": {
+    "mtime": 1784091971.2952175,
+    "ast_hash": "7f19a86938f5195df81a45afe7ca4011",
+    "semantic_hash": "7f19a86938f5195df81a45afe7ca4011"
+  },
+  "11 Product/Legacy/Legacy - FAQ.md": {
+    "mtime": 1784091971.2997475,
+    "ast_hash": "f995435da57e404c7bf6905b7c072488",
+    "semantic_hash": "f995435da57e404c7bf6905b7c072488"
+  },
+  "11 Product/Legacy/Legacy - Features.md": {
+    "mtime": 1784091971.3125453,
+    "ast_hash": "70599323293cd5d7125be34fe9c859c4",
+    "semantic_hash": "70599323293cd5d7125be34fe9c859c4"
+  },
+  "11 Product/Legacy/Legacy - Home.md": {
+    "mtime": 1784091971.316122,
+    "ast_hash": "fe2c78f55cad3f8ae8444bfb24b8e9ad",
+    "semantic_hash": "fe2c78f55cad3f8ae8444bfb24b8e9ad"
+  },
+  "11 Product/Legacy/Legacy - Privacy Policy.md": {
+    "mtime": 1784091971.3191192,
+    "ast_hash": "96540621ed89a5507087844a4659cfa6",
+    "semantic_hash": "96540621ed89a5507087844a4659cfa6"
+  },
+  "11 Product/Legacy/Legacy - Story.md": {
+    "mtime": 1784091971.3232286,
+    "ast_hash": "173a32d9db993066a28ffdf73db82b92",
+    "semantic_hash": "173a32d9db993066a28ffdf73db82b92"
+  },
+  "11 Product/Legacy/Legacy - Terms of Service.md": {
+    "mtime": 1784091971.3283846,
+    "ast_hash": "6197d799034522bcedcee194193495ff",
+    "semantic_hash": "6197d799034522bcedcee194193495ff"
+  },
+  "20 Research/Claude Feature Research and Implementation Plan.md": {
+    "mtime": 1784091971.2630265,
+    "ast_hash": "eafcce2d3691367d57b3a0ccf3276eba",
+    "semantic_hash": "eafcce2d3691367d57b3a0ccf3276eba"
+  },
+  "30 Audits/Full Stack Audit Follow-up.md": {
+    "mtime": 1784091971.26502,
+    "ast_hash": "42030b164044fb97c7fcb80826044130",
+    "semantic_hash": "42030b164044fb97c7fcb80826044130"
+  },
+  "30 Audits/Lighthouse History.md": {
+    "mtime": 1784091971.5342958,
+    "ast_hash": "bd16cad16578a444ac5c000dfa869d81",
+    "semantic_hash": "bd16cad16578a444ac5c000dfa869d81"
+  },
+  "40 Operations/Protected Ollama Public Gateway.md": {
+    "mtime": 1784091971.2609477,
+    "ast_hash": "b58f9a43827df500d4d5c41d4373f81d",
+    "semantic_hash": ""
+  },
+  "50 Skills/Prompt Library/Competitor Research and Feature Implementation.md": {
+    "mtime": 1784091971.2660165,
+    "ast_hash": "04b194c1c744d454945043f629b42ea8",
+    "semantic_hash": "04b194c1c744d454945043f629b42ea8"
+  },
+  "50 Skills/Prompt Library/Feature Research to Implementation Prompt.md": {
+    "mtime": 1784091971.2674508,
+    "ast_hash": "ba9f9d08cb11cfefa008b178c60aa5ca",
+    "semantic_hash": "ba9f9d08cb11cfefa008b178c60aa5ca"
+  },
+  "50 Skills/Prompt Library/Mobile-first UI and Performance Audit.md": {
+    "mtime": 1784091971.2674508,
+    "ast_hash": "dbc799e53af73dfad9aba963c9fbaa77",
+    "semantic_hash": "dbc799e53af73dfad9aba963c9fbaa77"
+  },
+  "50 Skills/Prompt Library/Performance Error and Bug Audit.md": {
+    "mtime": 1784091971.268447,
+    "ast_hash": "364d1991d1df5891f72bea1d4e558ec0",
+    "semantic_hash": "364d1991d1df5891f72bea1d4e558ec0"
+  },
+  "50 Skills/Prompt Library/Prompt Library.md": {
+    "mtime": 1783724755.041905,
+    "ast_hash": "18341e3c949f35bba8fec699c5ce1416",
+    "semantic_hash": "18341e3c949f35bba8fec699c5ce1416"
+  },
+  "90 Memory/GBrain Setup.md": {
+    "mtime": 1783729612.2017663,
+    "ast_hash": "49954c3836fa49496d7687ed9f05edc8",
+    "semantic_hash": "49954c3836fa49496d7687ed9f05edc8"
+  },
+  "90 Memory/Inbox.md": {
+    "mtime": 1783724755.0406547,
+    "ast_hash": "e92e391834d2576a898fe962c27a02ff",
+    "semantic_hash": "e92e391834d2576a898fe962c27a02ff"
+  },
+  "90 Memory/Memory Protocol.md": {
+    "mtime": 1783724755.0406547,
+    "ast_hash": "eea9ac17c3a19ee58ac5fd9e7dfae1b9",
+    "semantic_hash": "eea9ac17c3a19ee58ac5fd9e7dfae1b9"
+  },
+  "90 Memory/Project Memory.md": {
+    "mtime": 1784045168.5403821,
+    "ast_hash": "a6ec41eea982d385ecdebd0cfcd41bd5",
+    "semantic_hash": "a6ec41eea982d385ecdebd0cfcd41bd5"
+  },
+  "90 Memory/Source Catalog.md": {
+    "mtime": 1784091971.5342958,
+    "ast_hash": "9f939261d0f6ca16bfef5270536b065a",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1783729495.42112,
+    "ast_hash": "af88b81e1a6490ae493b7e1669dca537",
+    "semantic_hash": "af88b81e1a6490ae493b7e1669dca537"
+  },
+  "Welcome.md": {
+    "mtime": 1783723689.9833057,
+    "ast_hash": "5dce4937496ad2d20178a7578f1a1368",
+    "semantic_hash": "5dce4937496ad2d20178a7578f1a1368"
+  },
+  "create a link.md": {
+    "mtime": 1783724016.283294,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "graphify-out/memory/query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and.md": {
+    "mtime": 1783914209.579244,
+    "ast_hash": "b4e32a4a41271d34e4ed66081fb6d8bd",
+    "semantic_hash": "b4e32a4a41271d34e4ed66081fb6d8bd"
+  },
+  "graphify-out/memory/query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in.md": {
+    "mtime": 1783918919.4704244,
+    "ast_hash": "dbdc5a50ecd7a24932942e2e4bc1994b",
+    "semantic_hash": "dbdc5a50ecd7a24932942e2e4bc1994b"
+  },
+  "30 Audits/Minimalist Analysis Desktop App Review 2026-07-13.md": {
+    "mtime": 1783997192.6718397,
+    "ast_hash": "a888e24a7aef4d15f75e534f866c58c5",
+    "semantic_hash": "a888e24a7aef4d15f75e534f866c58c5"
+  },
+  "40 Operations/Remote Analysis Access.md": {
+    "mtime": 1784091971.2620304,
+    "ast_hash": "aa16201c5d32772ad33e796f8cd7f0f5",
+    "semantic_hash": "aa16201c5d32772ad33e796f8cd7f0f5"
+  },
+  "graphify-out/memory/query_20260714_145807_remote_analysis_agent_path_sonnd_good_can_we_get_s.md": {
+    "mtime": 1784041087.3361998,
+    "ast_hash": "f2bf216594dad61fac993b6ba73d73c2",
+    "semantic_hash": "f2bf216594dad61fac993b6ba73d73c2"
+  },
+  "graphify-out/memory/query_20260714_155154_implement_the_windows_analysis_app_remote_mode_wit.md": {
+    "mtime": 1784044314.5880563,
+    "ast_hash": "7c9c0cee8493a2827d3e9a0403fcad52",
+    "semantic_hash": "7c9c0cee8493a2827d3e9a0403fcad52"
+  },
+  "graphify-out/memory/query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio.md": {
+    "mtime": 1784046385.232964,
+    "ast_hash": "93dd7986a0ae679c57a80eb19f002222",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi.md": {
+    "mtime": 1784047461.4760964,
+    "ast_hash": "873a5f68594f5efecfff6e0d20af0cd9",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s.md": {
+    "mtime": 1784049212.0818207,
+    "ast_hash": "ca891df3c52c6943f8cac90cdfe94da8",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi.md": {
+    "mtime": 1784060594.7286239,
+    "ast_hash": "60057aa00e2ba05a224c2992b19cccef",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260714_205308_there_are_more_different_console_errors_while_a_us.md": {
+    "mtime": 1784062388.902496,
+    "ast_hash": "6b9f1a07bde68d32b6f52869adb3f00f",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot.md": {
+    "mtime": 1784063830.6785207,
+    "ast_hash": "c83b7bd22546469265691198e34a4dbb",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260715_043740_re_work_regular_subscription_page_and_billing__als.md": {
+    "mtime": 1784090260.3117821,
+    "ast_hash": "14f2d17d00de6728d14dd7dcdb27ad54",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in.md": {
+    "mtime": 1784090867.8401473,
+    "ast_hash": "dd24c9f2d1b777fa0da55b4953d0b76d",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260715_050624_re_work_regular_subscription_page_and_billing__als.md": {
+    "mtime": 1784091984.637789,
+    "ast_hash": "c8c5ab3c4e022b2a18861e9f7ae4c03c",
+    "semantic_hash": ""
+  }
+}

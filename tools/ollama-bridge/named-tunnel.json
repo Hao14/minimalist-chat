@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "serviceName": "Cloudflared",
+  "tunnelId": "ed357000-fc0e-430d-8c76-e66c48f75cdf",
+  "publicUrl": "https://ai.minimalist.chat",
+  "originUrl": "http://127.0.0.1:8790",
+  "executablePath": "C:\\Program Files (x86)\\cloudflared\\cloudflared.exe",
+  "recoveryTaskName": "Minimalist Chat Public Gateway Recovery"
+}

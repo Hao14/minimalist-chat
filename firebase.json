@@ -3,6 +3,7 @@
     {
       "source": "functions",
       "codebase": "default",
+      "runtime": "nodejs22",
       "disallowLegacyRuntimeConfig": true,
       "ignore": [
         "node_modules",
@@ -17,6 +18,7 @@
     "site": "chat-app-356c1",
     "public": "dist",
     "cleanUrls": true,
+    "trailingSlash": false,
     "headers": [
       {
         "source": "/assets/**",
@@ -32,12 +34,21 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "public, max-age=31536000, immutable"
+            "value": "public, max-age=3600, must-revalidate"
           }
         ]
       },
       {
         "source": "/themes/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/*.woff2",
         "headers": [
           {
             "key": "Cache-Control",
@@ -56,6 +67,96 @@
       },
       {
         "source": "/index.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/features",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/pricing",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/download",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/story",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/faq",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/privacy",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/terms",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/login",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/chat",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/404.html",
         "headers": [
           {
             "key": "Cache-Control",
@@ -126,7 +227,7 @@
           },
           {
             "key": "Content-Security-Policy",
-            "value": "default-src 'self'; script-src 'self' https://js.stripe.com https://accounts.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://ui-avatars.com https://lh3.googleusercontent.com https://*.googleusercontent.com https://firebasestorage.googleapis.com; media-src 'self' data: blob: https://firebasestorage.googleapis.com; connect-src 'self' https://api.github.com https://accounts.google.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://api.stripe.com https://checkout.stripe.com https://r.stripe.com https://m.stripe.network https://huggingface.co https://cdn-lfs.huggingface.co https://*.hf.co; frame-src 'self' https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://accounts.google.com https://minimalist.chat https://www.minimalist.chat https://chat-app-356c1.web.app https://chat-app-356c1.firebaseapp.com https://*.firebaseapp.com; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests"
+            "value": "default-src 'self'; script-src 'self' https://*.firebaseio.com/.lp https://js.stripe.com https://accounts.google.com https://apis.google.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/ https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://ui-avatars.com https://lh3.googleusercontent.com https://*.googleusercontent.com https://firebasestorage.googleapis.com; media-src 'self' data: blob: https://firebasestorage.googleapis.com; connect-src 'self' https://api.github.com https://accounts.google.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firebasestorage.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.cloudfunctions.net https://api.stripe.com https://checkout.stripe.com https://r.stripe.com https://m.stripe.network https://huggingface.co https://cdn-lfs.huggingface.co https://*.hf.co; frame-src 'self' https://*.firebaseio.com/.lp https://js.stripe.com https://hooks.stripe.com https://checkout.stripe.com https://accounts.google.com https://www.google.com/recaptcha/ https://recaptcha.google.com/recaptcha/ https://minimalist.chat https://www.minimalist.chat https://chat-app-356c1.web.app https://chat-app-356c1.firebaseapp.com https://*.firebaseapp.com; worker-src 'self' blob: https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; manifest-src 'self'; upgrade-insecure-requests"
           },
           {
             "key": "X-Frame-Options",
@@ -149,7 +250,11 @@
     ],
     "rewrites": [
       {
-        "source": "**",
+        "source": "/join/*",
+        "destination": "/index.html"
+      },
+      {
+        "source": "/vault/share/*",
         "destination": "/index.html"
       }
     ],

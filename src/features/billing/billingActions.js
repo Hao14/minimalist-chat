@@ -1,5 +1,6 @@
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../../lib/firebase.js';
+import { getAuthedJsonHeaders } from '../../lib/authToken.js';
 
 const DEFAULT_STRIPE_ENDPOINTS = {
   checkout: 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeCreateCheckoutSession',
@@ -22,27 +23,43 @@ const planLabels = {
   pro: 'Pro',
 };
 
-let stripeJsPromise = null;
-let stripeInstance = null;
-let stripeInstanceKey = '';
-let embeddedCheckout = null;
 let pendingSyncPromise = null;
 
-function setBusy(button, busy, busyText = 'Loading…') {
-  if (!button) return () => {};
+class BillingRequestError extends Error {
+  constructor(message, { code = 'billing_request_failed', status = 0 } = {}) {
+    super(message);
+    this.name = 'BillingRequestError';
+    this.code = code;
+    this.status = status;
+  }
+}
 
+function setBusy(button, busy, busyText = 'Opening…') {
+  if (!button) return () => {};
   const previous = {
     disabled: button.disabled,
     text: button.textContent,
+    ariaBusy: button.getAttribute('aria-busy'),
   };
 
   button.disabled = busy;
+  button.setAttribute('aria-busy', busy ? 'true' : 'false');
   if (busy) button.textContent = busyText;
 
   return () => {
     button.disabled = previous.disabled;
     button.textContent = previous.text;
+    if (previous.ariaBusy == null) button.removeAttribute('aria-busy');
+    else button.setAttribute('aria-busy', previous.ariaBusy);
   };
+}
+
+function setBillingStatus(message = '', tone = 'neutral') {
+  const status = document.getElementById('account-billing-action-status');
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.tone = tone;
+  status.hidden = !message;
 }
 
 function currentFirebaseUser() {
@@ -58,7 +75,7 @@ function waitForCurrentUser(timeoutMs = 10000) {
   return new Promise((resolve, reject) => {
     const timeoutId = window.setTimeout(() => {
       unsubscribe();
-      reject(new Error('Please sign in first.'));
+      reject(new BillingRequestError('Please sign in first.', { code: 'auth_required', status: 401 }));
     }, timeoutMs);
 
     const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
@@ -72,16 +89,14 @@ function waitForCurrentUser(timeoutMs = 10000) {
 }
 
 async function authedPost(endpoint, payload = {}) {
-  const user = await waitForCurrentUser();
-  if (!endpoint) throw new Error('Stripe billing endpoint is not configured yet.');
+  await waitForCurrentUser();
+  if (!endpoint) {
+    throw new BillingRequestError('Stripe billing is not configured yet.', { code: 'endpoint_missing' });
+  }
 
-  const token = await user.getIdToken();
   const response = await fetch(endpoint, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers: await getAuthedJsonHeaders('Please sign in first.'),
     body: JSON.stringify(payload),
   });
 
@@ -89,10 +104,15 @@ async function authedPost(endpoint, payload = {}) {
   try {
     data = await response.json();
   } catch {
-    // Some infrastructure errors return HTML/text.
+    // Infrastructure errors can return HTML or an empty body.
   }
 
-  if (!response.ok) throw new Error(data.error || 'Billing request failed.');
+  if (!response.ok) {
+    throw new BillingRequestError(data.error || 'Billing request failed. Please try again.', {
+      code: data.code || 'billing_request_failed',
+      status: response.status,
+    });
+  }
   return data;
 }
 
@@ -102,144 +122,54 @@ function cleanupBillingParams() {
   window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
 }
 
-function getStripePublishableKey() {
-  return String(window.STRIPE_PUBLISHABLE_KEY || '').trim();
-}
-
-function loadStripeJs() {
-  if (window.Stripe) return Promise.resolve();
-  if (stripeJsPromise) return stripeJsPromise;
-
-  stripeJsPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-stripe-js]');
-    if (existing) {
-      existing.addEventListener('load', resolve, { once: true });
-      existing.addEventListener('error', reject, { once: true });
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.dataset.stripeJs = 'true';
-    script.src = 'https://js.stripe.com/v3/';
-    script.async = true;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('Stripe.js failed to load.'));
-    document.head.appendChild(script);
-  });
-
-  return stripeJsPromise;
-}
-
-async function getStripeInstance() {
-  const publishableKey = getStripePublishableKey();
-  if (!publishableKey) return null;
-
-  await loadStripeJs();
-  if (!stripeInstance || stripeInstanceKey !== publishableKey) {
-    stripeInstance = window.Stripe(publishableKey);
-    stripeInstanceKey = publishableKey;
+function validatedStripeUrl(rawUrl) {
+  let url;
+  try {
+    url = new URL(String(rawUrl || ''));
+  } catch {
+    throw new BillingRequestError('Stripe did not return a valid secure URL.', { code: 'stripe_url_invalid' });
   }
-
-  return stripeInstance;
-}
-
-function embeddedCard() {
-  return document.getElementById('stripe-embedded-checkout-card');
-}
-
-function embeddedCheckoutContainer() {
-  return document.getElementById('stripe-embedded-checkout');
-}
-
-function clearEmbeddedCheckoutContainer(container = embeddedCheckoutContainer()) {
-  if (!container) return;
-  if (typeof container.replaceChildren === 'function') {
-    container.replaceChildren();
-    return;
+  if (url.protocol !== 'https:') {
+    throw new BillingRequestError('Stripe did not return a secure checkout URL.', { code: 'stripe_url_insecure' });
   }
-  while (container.firstChild) container.removeChild(container.firstChild);
+  return url.href;
 }
 
-function nextPaint() {
-  return new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
-}
-
-function portalEmbeddedCard() {
-  const card = embeddedCard();
-  if (card && card.parentElement !== document.body) document.body.appendChild(card);
-  return card;
-}
-
-function setEmbeddedStatus(message, isError = false) {
-  const status = document.getElementById('stripe-embedded-status');
-  if (!status) return;
-  status.textContent = message || '';
-  status.classList.toggle('stripe-status-error', !!isError);
-}
-
-function destroyEmbeddedCheckout() {
-  if (embeddedCheckout?.destroy) embeddedCheckout.destroy();
-  embeddedCheckout = null;
-  const container = embeddedCheckoutContainer();
-  if (container) {
-    container.classList.remove('is-loading');
-    clearEmbeddedCheckoutContainer(container);
+function billingErrorMessage(error, action) {
+  if (error.code === 'account_subscription_active') {
+    return 'You already have an account subscription. Use Manage in Stripe to change plans or payment details.';
   }
+  if (error.code === 'stripe_customer_not_found' || error.code === 'account_subscription_not_found') {
+    return 'Your old billing record was repaired. Choose Advanced or Pro to start a live subscription.';
+  }
+  return `${action} failed: ${error.message}`;
 }
 
-function showEmbeddedPanel(plan) {
-  const card = portalEmbeddedCard();
-  const title = document.getElementById('stripe-embedded-title');
-  const container = embeddedCheckoutContainer();
-  if (!card || !container) return;
-
-  destroyEmbeddedCheckout();
-  if (title) title.textContent = `Upgrade to ${planLabels[plan] || plan}`;
-  clearEmbeddedCheckoutContainer(container);
-  container.classList.add('is-loading');
-  setEmbeddedStatus('Stripe is loading securely inside this page…');
-  card.setAttribute('role', 'dialog');
-  card.setAttribute('aria-modal', 'true');
-  card.setAttribute('aria-labelledby', 'stripe-embedded-title');
-  document.body.classList.add('stripe-checkout-open');
-  card.classList.remove('hidden');
-  document.getElementById('stripe-embedded-close')?.focus();
-}
-
-function hideEmbeddedPanel() {
-  destroyEmbeddedCheckout();
-  embeddedCard()?.classList.add('hidden');
-  document.body.classList.remove('stripe-checkout-open');
-  setEmbeddedStatus('');
-}
-
-async function syncCheckoutSession(sessionId, { showSuccess = true } = {}) {
+async function syncCheckoutSession(sessionId) {
   const data = await authedPost(billingEndpoints.sync(), { sessionId });
-
   if (data.tier) {
     window.userTier = data.tier;
     window.updateBillingUI?.();
   }
-
-  if (showSuccess) {
-    window.showToast?.(`Billing updated: ${data.tier === 'pro' ? 'Pro' : data.tier === 'advanced' ? 'Advanced' : 'Base'}.`, false);
-  }
-
   return data;
 }
 
-async function syncPendingCheckout() {
-  const sessionId = sessionStorage.getItem('pendingStripeCheckoutSession');
+async function syncPendingCheckout(sessionId) {
   if (!sessionId || pendingSyncPromise) return pendingSyncPromise;
 
   pendingSyncPromise = (async () => {
     try {
+      setBillingStatus('Finalizing your subscription…', 'progress');
       window.showToast?.('Finalizing your subscription…', false);
-      await syncCheckoutSession(sessionId);
+      const data = await syncCheckoutSession(sessionId);
       sessionStorage.removeItem('pendingStripeCheckoutSession');
-      hideEmbeddedPanel();
+      const plan = data.tier === 'pro' ? 'Pro' : data.tier === 'advanced' ? 'Advanced' : 'Base';
+      setBillingStatus(`Your ${plan} subscription is active.`, 'success');
+      window.showToast?.(`Billing updated: ${plan}.`, false);
     } catch (error) {
-      window.showToast?.(`Payment succeeded, but billing sync needs a retry: ${error.message}`);
+      const message = `Payment returned successfully, but plan sync needs a retry: ${error.message}`;
+      setBillingStatus(message, 'error');
+      window.showToast?.(message);
     } finally {
       pendingSyncPromise = null;
     }
@@ -248,150 +178,100 @@ async function syncPendingCheckout() {
   return pendingSyncPromise;
 }
 
-async function handleEmbeddedComplete(sessionId) {
-  try {
-    setEmbeddedStatus('Payment succeeded. Updating your plan…');
-    sessionStorage.setItem('pendingStripeCheckoutSession', sessionId);
-    await syncPendingCheckout();
-  } catch (error) {
-    setEmbeddedStatus(`Payment succeeded, but sync needs a retry: ${error.message}`, true);
-  }
-}
-
-async function openHostedCheckout(plan) {
-  const data = await authedPost(billingEndpoints.checkout(), {
-    plan,
-    embedded: false,
-    origin: window.location.origin,
-  });
-
-  if (!data.url) throw new Error('Stripe did not return a checkout URL.');
-  window.location.href = data.url;
-}
-
 async function openStripeCheckout(plan, button) {
   const label = planLabels[plan] || plan;
-  const reset = setBusy(button, true, 'Opening…');
+  const reset = setBusy(button, true, 'Opening Stripe…');
+  setBillingStatus(`Creating your secure ${label} checkout…`, 'progress');
 
   try {
-    const stripe = await getStripeInstance();
-    if (!stripe) {
-      window.showToast?.('Embedded checkout needs a Stripe publishable key. Opening hosted checkout for now…', false);
-      await openHostedCheckout(plan);
-      return;
-    }
-    const createEmbeddedCheckout = stripe.createEmbeddedCheckoutPage || stripe.initEmbeddedCheckout;
-    if (typeof createEmbeddedCheckout !== 'function') {
-      window.showToast?.('This browser cannot load embedded checkout. Opening hosted checkout instead…', false);
-      await openHostedCheckout(plan);
-      return;
-    }
-
-    showEmbeddedPanel(plan);
     const data = await authedPost(billingEndpoints.checkout(), {
       plan,
-      embedded: true,
+      embedded: false,
       origin: window.location.origin,
     });
-
-    if (!data.clientSecret || !data.sessionId) throw new Error('Stripe did not return an embedded checkout session.');
-
-    embeddedCheckout = await createEmbeddedCheckout.call(stripe, {
-      fetchClientSecret: () => Promise.resolve(data.clientSecret),
-      onComplete: () => handleEmbeddedComplete(data.sessionId),
-    });
-
-    const container = embeddedCheckoutContainer();
-    if (!container) throw new Error('Checkout container is missing.');
-    container.classList.remove('is-loading');
-    clearEmbeddedCheckoutContainer(container);
-    await nextPaint();
-    try {
-      embeddedCheckout.mount(container);
-    } catch (mountError) {
-      if (!/contains no child nodes/i.test(mountError?.message || '')) throw mountError;
-      clearEmbeddedCheckoutContainer(container);
-      await nextPaint();
-      embeddedCheckout.mount(container);
+    const checkoutUrl = validatedStripeUrl(data.url);
+    if (!data.sessionId) {
+      throw new BillingRequestError('Stripe did not return a checkout session.', { code: 'checkout_session_missing' });
     }
-    setEmbeddedStatus('Secure checkout is ready.');
+
+    sessionStorage.setItem('pendingStripeCheckoutSession', data.sessionId);
+    setBillingStatus('Secure checkout is ready. Taking you to Stripe…', 'success');
+    window.location.assign(checkoutUrl);
   } catch (error) {
-    embeddedCheckoutContainer()?.classList.remove('is-loading');
-    setEmbeddedStatus(`${label} checkout failed: ${error.message}`, true);
-    window.showToast?.(`${label} checkout failed: ${error.message}`);
-  } finally {
     reset();
+    const message = billingErrorMessage(error, `${label} checkout`);
+    setBillingStatus(message, 'error');
+    window.showToast?.(message);
   }
 }
 
 async function openBillingPortal(button) {
-  const reset = setBusy(button, true, 'Opening…');
+  const reset = setBusy(button, true, 'Opening Stripe…');
+  setBillingStatus('Opening secure subscription management…', 'progress');
 
   try {
-    const data = await authedPost(billingEndpoints.portal(), {
-      origin: window.location.origin,
-    });
-
-    if (!data.url) throw new Error('Stripe did not return a portal URL.');
-    window.location.href = data.url;
+    const data = await authedPost(billingEndpoints.portal(), { origin: window.location.origin });
+    const portalUrl = validatedStripeUrl(data.url);
+    setBillingStatus('Billing management is ready. Taking you to Stripe…', 'success');
+    window.location.assign(portalUrl);
   } catch (error) {
     reset();
-    window.showToast?.(`Billing portal failed: ${error.message}`);
+    const message = billingErrorMessage(error, 'Billing management');
+    setBillingStatus(message, 'error');
+    window.showToast?.(message);
   }
 }
 
-async function syncReturnedCheckout() {
+function syncReturnedCheckout() {
   const params = new URLSearchParams(window.location.search);
   const billingStatus = params.get('billing');
-  const sessionId = params.get('session_id');
+  const returnedSessionId = params.get('session_id');
 
   if (billingStatus === 'cancelled') {
-    window.showToast?.('Checkout cancelled. No changes made.', false);
+    sessionStorage.removeItem('pendingStripeCheckoutSession');
     cleanupBillingParams();
+    setBillingStatus('Checkout was cancelled. No billing changes were made.', 'neutral');
+    window.showToast?.('Checkout cancelled. No changes made.', false);
     return;
   }
 
-  if (billingStatus !== 'success' || !sessionId) {
-    syncPendingCheckout();
+  if (billingStatus === 'portal-return') {
+    cleanupBillingParams();
+    setBillingStatus('Your latest Stripe billing details will appear here automatically.', 'success');
     return;
   }
 
-  sessionStorage.setItem('pendingStripeCheckoutSession', sessionId);
+  if (billingStatus !== 'success') return;
+  const sessionId = returnedSessionId || sessionStorage.getItem('pendingStripeCheckoutSession');
   cleanupBillingParams();
-  syncPendingCheckout();
+  if (sessionId) {
+    sessionStorage.setItem('pendingStripeCheckoutSession', sessionId);
+    syncPendingCheckout(sessionId);
+  }
+}
+
+function bindBillingButton(button, action) {
+  if (!button || button.dataset.billingBound === 'true') return;
+  button.dataset.billingBound = 'true';
+  button.dataset.billingReady = 'stripe';
+  button.addEventListener('click', action);
 }
 
 export function initializeBillingActions() {
   document.documentElement.dataset.billingProvider = 'stripe';
 
-  const advancedButton = document.getElementById('upgrade-advanced-btn');
-  const proButton = document.getElementById('upgrade-pro-btn');
-  const portalButton = document.getElementById('manage-billing-btn');
-  const closeEmbeddedButton = document.getElementById('stripe-embedded-close');
-
-  advancedButton?.addEventListener('click', (event) => {
+  bindBillingButton(document.getElementById('upgrade-advanced-btn'), (event) => {
     openStripeCheckout('advanced', event.currentTarget);
   });
-
-  proButton?.addEventListener('click', (event) => {
+  bindBillingButton(document.getElementById('upgrade-pro-btn'), (event) => {
     openStripeCheckout('pro', event.currentTarget);
   });
-
-  portalButton?.addEventListener('click', (event) => {
+  bindBillingButton(document.getElementById('manage-billing-btn'), (event) => {
     openBillingPortal(event.currentTarget);
   });
 
-  closeEmbeddedButton?.addEventListener('click', hideEmbeddedPanel);
-
-  [advancedButton, proButton, portalButton].forEach((button) => {
-    if (button) button.dataset.billingReady = 'stripe';
-  });
-
   onAuthStateChanged(auth, (user) => {
-    if (user) {
-      window.currentUser = user;
-      syncPendingCheckout();
-    }
+    if (user) window.currentUser = user;
   });
 
   syncReturnedCheckout();

@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { BootSequence } from './BootSequence.jsx';
 
 let bootSequenceRoot = null;
+const BOOT_TASK_TIMEOUT_MS = 900;
+const FIRST_BOOT_MIN_MS = 450;
+const WARM_BOOT_MIN_MS = 120;
+const BOOT_FADE_MS = 220;
 
 const wait = (ms) => new Promise((resolve) => {
   window.setTimeout(resolve, ms);
@@ -13,13 +17,17 @@ const withTimeout = (work, ms = 900) => Promise.race([
   wait(ms),
 ]).catch(() => undefined);
 
-const warmStaticAsset = (url) => withTimeout(() => fetch(url, {
+const nextFrame = () => new Promise((resolve) => {
+  window.requestAnimationFrame(() => resolve());
+});
+
+const warmStaticAsset = (url, timeoutMs = 850) => withTimeout(() => fetch(url, {
   cache: 'force-cache',
   credentials: 'same-origin',
   mode: 'same-origin',
-}).catch(() => undefined), 850);
+}).catch(() => undefined), timeoutMs);
 
-const warmImage = (src) => withTimeout(() => new Promise((resolve) => {
+const warmImage = (src, timeoutMs = 850) => withTimeout(() => new Promise((resolve) => {
   if (!src) {
     resolve();
     return;
@@ -29,30 +37,41 @@ const warmImage = (src) => withTimeout(() => new Promise((resolve) => {
   image.onload = resolve;
   image.onerror = resolve;
   image.src = src;
-}), 850);
+}), timeoutMs);
 
-function warmCriticalStyles() {
-  return withTimeout(() => window.__minimalistCssReady || Promise.resolve(), 1400);
+function warmCriticalStyles(timeoutMs = 1400) {
+  return withTimeout(() => window.__minimalistCssReady || Promise.resolve(), timeoutMs);
 }
 
-function warmCriticalFonts() {
+function warmFeatureStyles(timeoutMs = 1400) {
+  return withTimeout(() => {
+    if (typeof window.__minimalistLoadFeatureStyles === 'function') {
+      return window.__minimalistLoadFeatureStyles();
+    }
+    return window.__minimalistFeatureCssReady || Promise.resolve();
+  }, timeoutMs);
+}
+
+function warmCriticalFonts(timeoutMs = 1000) {
   return withTimeout(async () => {
     if (!document.fonts?.load) return;
     await Promise.allSettled([
       document.fonts.load('700 14px Inter'),
       document.fonts.load('700 14px "Space Grotesk"'),
     ]);
-  }, 1000);
+  }, timeoutMs);
 }
 
-function warmShellAssets() {
+function warmShellAssets(timeoutMs = 850) {
   const icon = document.querySelector('link[rel~="icon"]')?.href || '/icon.svg';
   const manifest = document.querySelector('link[rel="manifest"]')?.href || '/manifest.json';
+  const config = document.querySelector('script[data-minimalist-config]')?.getAttribute('src') || '/config.js?v=localai7';
   return Promise.allSettled([
-    warmStaticAsset('/config.js?v=6'),
-    warmStaticAsset(manifest),
-    warmStaticAsset('/icon.svg'),
-    warmImage(icon),
+    warmStaticAsset(config, timeoutMs),
+    warmStaticAsset(manifest, timeoutMs),
+    warmStaticAsset('/icon.svg', timeoutMs),
+    warmStaticAsset('/phosphor-bold-subset.css?v=2', timeoutMs),
+    warmImage(icon, timeoutMs),
   ]);
 }
 
@@ -101,17 +120,6 @@ window.enterChat = function enterChat() {
         }
       };
 
-      if (window.chatInitialized) {
-        handlePendingJoinRoute();
-        return;
-      }
-
-      if (window.initializeRooms) window.initializeRooms();
-      window.listenForPmInbox();
-      window.listenForNotifications();
-      if (window.initializePresence) window.initializePresence();
-      if (window.initMessageTools) window.initMessageTools();
-      window.chatInitialized = true;
       if (window.maybeShowWelcomeTour) window.maybeShowWelcomeTour();
 
       handlePendingJoinRoute();
@@ -123,41 +131,78 @@ window.enterChat = function enterChat() {
       }
     };
 
+    const initializeChatRuntime = async () => {
+      if (window.chatInitialized) return;
+
+      await window.ensureNotificationRuntime?.();
+      if (window.initializeRooms) await Promise.resolve().then(() => window.initializeRooms());
+      await Promise.allSettled([
+        Promise.resolve().then(() => window.listenForPmInbox?.()),
+        Promise.resolve().then(() => window.listenForNotifications?.()),
+        Promise.resolve().then(() => window.initializePresence?.()),
+      ]);
+      window.chatInitialized = true;
+    };
+
     const performanceSettings = window.getPerformanceSettings?.();
-    if (performanceSettings?.effectiveLowPerformanceMode) {
+    const reducedMotion = performanceSettings?.reducedMotion || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+    const completeBoot = () => {
       sessionStorage.setItem('blipLoaded', 'true');
       launchChatUI();
+    };
+    const hasBootedThisSession = sessionStorage.getItem('blipLoaded') === 'true';
+    const launchAfterWarmStart = (minVisibleMs = WARM_BOOT_MIN_MS) => {
+      window.showScreen('loading-screen');
+      if (desktopNavActions) desktopNavActions.replaceChildren();
+
+      Promise.allSettled([
+        initializeChatRuntime(),
+        warmCriticalStyles(BOOT_TASK_TIMEOUT_MS),
+        warmFeatureStyles(BOOT_TASK_TIMEOUT_MS),
+        warmCriticalFonts(BOOT_TASK_TIMEOUT_MS),
+        warmShellAssets(BOOT_TASK_TIMEOUT_MS),
+        wait(minVisibleMs),
+      ])
+        .then(nextFrame)
+        .then(completeBoot)
+        .catch((error) => window.showToast(`Error launching chat interface: ${error.message}`));
+    };
+
+    if (performanceSettings?.effectiveLowPerformanceMode || reducedMotion) {
+      launchAfterWarmStart(hasBootedThisSession ? WARM_BOOT_MIN_MS : FIRST_BOOT_MIN_MS);
       return;
     }
 
-    if (sessionStorage.getItem('blipLoaded') === 'true') {
-      launchChatUI();
+    if (hasBootedThisSession) {
+      launchAfterWarmStart(WARM_BOOT_MIN_MS);
       return;
     }
 
     window.showScreen('loading-screen');
     if (desktopNavActions) desktopNavActions.replaceChildren();
 
+    const stylesReady = Promise.allSettled([
+      warmCriticalStyles(BOOT_TASK_TIMEOUT_MS),
+      warmFeatureStyles(BOOT_TASK_TIMEOUT_MS),
+    ]);
+    const fontsReady = warmCriticalFonts(BOOT_TASK_TIMEOUT_MS);
+    const assetsReady = warmShellAssets(BOOT_TASK_TIMEOUT_MS);
+    const runtimeReady = initializeChatRuntime();
+    const minBootReady = wait(FIRST_BOOT_MIN_MS);
+
     const bootLines = [
-      { scope: 'core', action: 'hydrate', target: 'react-root', note: 'claim app shell', duration: 160 },
-      { scope: 'theme', action: 'resolve', target: 'css-graph', note: 'critical styles', run: warmCriticalStyles, duration: 220 },
-      { scope: 'font', action: 'warm', target: 'brand-type', note: 'swap-safe text', run: warmCriticalFonts, duration: 190 },
-      { scope: 'asset', action: 'cache', target: 'icons+manifest', note: 'logo pack ready', run: warmShellAssets, duration: 240 },
-      { scope: 'security', action: 'mount', target: 'protocols', note: 'attach guards', duration: 140 },
-      { scope: 'auth', action: 'verify', target: 'identity', note: 'session accepted', duration: 180 },
-      { scope: 'module', action: 'bind', target: 'rooms.js', note: 'map room rail', duration: 150 },
-      { scope: 'module', action: 'bind', target: 'chat.js', note: 'composer + messages', duration: 150 },
-      { scope: 'database', action: 'prime', target: 'firebase', note: 'listeners queued', duration: 180 },
-      { scope: 'notify', action: 'arm', target: 'pm+mentions', note: 'sound + inbox bridge', duration: 130 },
-      { scope: 'surface', action: 'paint', target: 'minimalist.ui', note: 'handoff frame', duration: 360 },
+      { scope: 'theme', action: 'resolve', target: 'css-graph', note: 'app styles', run: () => stylesReady },
+      { scope: 'font', action: 'warm', target: 'brand-type', note: 'swap-safe text', run: () => fontsReady },
+      { scope: 'asset', action: 'cache', target: 'icons+manifest', note: 'logo pack ready', run: () => assetsReady },
+      { scope: 'runtime', action: 'bind', target: 'chat-core', note: 'listeners + composer', run: () => runtimeReady },
+      { scope: 'surface', action: 'paint', target: 'minimalist.ui', note: 'handoff frame', run: () => Promise.allSettled([stylesReady, fontsReady, assetsReady, runtimeReady, minBootReady]).then(nextFrame) },
     ];
 
     const seqContainer = document.getElementById('boot-sequence');
     if (!seqContainer) {
-      setTimeout(() => {
-        sessionStorage.setItem('blipLoaded', 'true');
-        launchChatUI();
-      }, 2000);
+      runtimeReady
+        .then(completeBoot)
+        .catch((error) => window.showToast(`Error launching chat interface: ${error.message}`));
       return;
     }
 
@@ -167,6 +212,7 @@ window.enterChat = function enterChat() {
     }
     let visibleCount = 0;
     let completedCount = 0;
+    const bootLineWork = bootLines.map((line) => Promise.resolve().then(() => line.run?.()));
 
     const renderBootSequence = () => {
       bootSequenceRoot.render(createElement(BootSequence, {
@@ -185,30 +231,33 @@ window.enterChat = function enterChat() {
       }
 
       if (visibleCount < bootLines.length) {
-        const line = bootLines[visibleCount];
-        const isLast = visibleCount === bootLines.length - 1;
+        const lineIndex = visibleCount;
         visibleCount += 1;
         completedCount = visibleCount - 1;
         renderBootSequence();
-        const delay = isLast ? 520 : Math.floor(Math.random() * 120) + (line.duration || 120);
-        await Promise.all([line.run ? line.run() : Promise.resolve(), wait(delay)]);
-        showNextLine();
+        await bootLineWork[lineIndex];
+        completedCount = visibleCount;
+        renderBootSequence();
+        await nextFrame();
+        await showNextLine();
         return;
       }
 
       const loader = document.getElementById('loading-screen');
-      if (!loader) return;
+      if (!loader) {
+        completeBoot();
+        return;
+      }
 
       loader.style.opacity = '0';
-      setTimeout(() => {
-        sessionStorage.setItem('blipLoaded', 'true');
-        launchChatUI();
+      window.setTimeout(() => {
+        completeBoot();
         loader.classList.add('hidden');
         loader.style.opacity = '1';
-      }, 500);
+      }, reducedMotion ? 0 : BOOT_FADE_MS);
     };
 
-    setTimeout(showNextLine, 300);
+    window.setTimeout(showNextLine, 32);
   } catch (error) {
     window.showToast(`Error launching chat interface: ${error.message}`);
   }

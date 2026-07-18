@@ -1,0 +1,5 @@
+/bin/
+/obj/
+/graphify-out/
+/TestResults/
+*.trx

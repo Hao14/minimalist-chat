@@ -39,6 +39,7 @@ export function initModernThemeMotion() {
   let revealObserver = null;
   let mutationObserver = null;
   let themeObserver = null;
+  let reduceMotionHandler = null;
 
   const syncStaticAmbientVars = () => {
     root.style.setProperty('--modern-pointer-x', '72vw');
@@ -75,6 +76,20 @@ export function initModernThemeMotion() {
     }
   };
 
+  const registerRevealTargets = (scope = document) => {
+    if (!revealObserver || !(scope instanceof Element || scope === document)) return;
+    const targets = [];
+    if (scope instanceof Element && scope.matches(REVEAL_SELECTORS)) targets.push(scope);
+    scope.querySelectorAll?.(REVEAL_SELECTORS).forEach((element) => targets.push(element));
+
+    targets.forEach((element, index) => {
+      if (!(element instanceof HTMLElement) || element.classList.contains('modern-reveal-in')) return;
+      element.classList.add('modern-reveal-target');
+      element.style.setProperty('--modern-reveal-delay', `${Math.min(index, 12) * 22}ms`);
+      revealObserver.observe(element);
+    });
+  };
+
   const setupRevealObserver = () => {
     revealObserver?.disconnect();
 
@@ -92,14 +107,7 @@ export function initModernThemeMotion() {
       { rootMargin: '0px 0px -10% 0px', threshold: 0.08 },
     );
 
-    const targets = Array.from(document.querySelectorAll(REVEAL_SELECTORS))
-      .filter((element) => element instanceof HTMLElement && !element.closest('[hidden]'));
-
-    targets.forEach((element, index) => {
-      element.classList.add('modern-reveal-target');
-      element.style.setProperty('--modern-reveal-delay', `${Math.min(index, 12) * 22}ms`);
-      revealObserver.observe(element);
-    });
+    registerRevealTargets(document);
   };
 
   const scheduleRevealSetup = () => {
@@ -122,12 +130,17 @@ export function initModernThemeMotion() {
     attachTabRail();
     scheduleRevealSetup();
 
-    mutationObserver = new MutationObserver(scheduleRevealSetup);
+    mutationObserver = new MutationObserver((records) => {
+      attachTabRail();
+      records.forEach((record) => {
+        record.addedNodes.forEach((node) => {
+          if (node instanceof Element) registerRevealTargets(node);
+        });
+      });
+    });
     mutationObserver.observe(document.getElementById('root') || body, {
       childList: true,
       subtree: true,
-      attributes: true,
-      attributeFilter: ['class'],
     });
   };
 
@@ -152,15 +165,17 @@ export function initModernThemeMotion() {
   themeObserver = new MutationObserver(syncThemeState);
   themeObserver.observe(body, { attributes: true, attributeFilter: ['class'] });
 
-  reduceMotionQuery?.addEventListener?.('change', () => {
+  reduceMotionHandler = () => {
     stop();
     syncThemeState();
-  });
+  };
+  reduceMotionQuery?.addEventListener?.('change', reduceMotionHandler);
 
   syncThemeState();
 
   return () => {
     stop();
     themeObserver?.disconnect();
+    reduceMotionQuery?.removeEventListener?.('change', reduceMotionHandler);
   };
 }

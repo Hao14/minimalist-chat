@@ -1,7 +1,65 @@
 const GOOGLE_IDENTITY_SCRIPT = 'https://accounts.google.com/gsi/client';
 const DEFAULT_GOOGLE_AUTH_CLIENT_ID = '327658376387-48ots8pnboooefrb13i3i42jn9v073jv.apps.googleusercontent.com';
+const GOOGLE_IDENTITY_SCRIPT_TIMEOUT_MS = 20000;
+const GOOGLE_IDENTITY_SIGN_IN_TIMEOUT_MS = 30000;
+const GOOGLE_IDENTITY_RESET_KEY = 'googleIdentityResetPending';
+const GOOGLE_IDENTITY_LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const GOOGLE_IDENTITY_PRODUCTION_HOSTS = new Set([
+  'minimalist.chat',
+  'www.minimalist.chat',
+  'chat-app-356c1.web.app',
+  'chat-app-356c1.firebaseapp.com',
+]);
 
 let googleIdentityScriptPromise = null;
+let googleIdentityInitializedClientId = '';
+let googleIdentityResponseHandler = null;
+
+function setGoogleIdentityResetPending(pending) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (pending) window.sessionStorage.setItem(GOOGLE_IDENTITY_RESET_KEY, '1');
+    else window.sessionStorage.removeItem(GOOGLE_IDENTITY_RESET_KEY);
+  } catch {
+    // Some embedded or privacy-focused browsers block session storage.
+  }
+}
+
+function isGoogleIdentityResetPending() {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.sessionStorage.getItem(GOOGLE_IDENTITY_RESET_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function applyGoogleIdentitySessionReset(
+  google = typeof window === 'undefined' ? null : window.google,
+) {
+  if (!google?.accounts?.id?.disableAutoSelect) return false;
+  try {
+    google.accounts.id.disableAutoSelect();
+    setGoogleIdentityResetPending(false);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function requestGoogleIdentitySessionReset() {
+  setGoogleIdentityResetPending(true);
+  applyGoogleIdentitySessionReset();
+}
+
+export function cancelGoogleIdentitySessionReset() {
+  setGoogleIdentityResetPending(false);
+}
+
+function consumeGoogleIdentitySessionReset(google) {
+  if (!isGoogleIdentityResetPending()) return false;
+  return applyGoogleIdentitySessionReset(google);
+}
 
 function googleIdentityError(error, fallback = 'Google sign-in failed.') {
   const code = error?.type || error?.error || error?.code || 'unknown';
@@ -31,6 +89,86 @@ export function googleAuthClientId() {
   return window.GOOGLE_AUTH_CLIENT_ID || DEFAULT_GOOGLE_AUTH_CLIENT_ID;
 }
 
+function configuredGoogleIdentityHosts() {
+  if (typeof window === 'undefined') return GOOGLE_IDENTITY_PRODUCTION_HOSTS;
+
+  const configuredHosts = new Set();
+  const hostValues = [
+    ...(Array.isArray(window.GOOGLE_AUTH_ALLOWED_HOSTS) ? window.GOOGLE_AUTH_ALLOWED_HOSTS : []),
+    ...String(window.GOOGLE_AUTH_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ];
+  const originValues = [
+    ...(Array.isArray(window.GOOGLE_AUTH_ALLOWED_ORIGINS) ? window.GOOGLE_AUTH_ALLOWED_ORIGINS : []),
+    ...String(window.GOOGLE_AUTH_ALLOWED_ORIGINS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ];
+
+  hostValues.forEach((value) => configuredHosts.add(value));
+  originValues.forEach((value) => {
+    try {
+      configuredHosts.add(new URL(value).hostname);
+    } catch {
+      configuredHosts.add(value);
+    }
+  });
+
+  return configuredHosts.size ? configuredHosts : GOOGLE_IDENTITY_PRODUCTION_HOSTS;
+}
+
+export function shouldUseGoogleIdentityAuth() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  const configuredHosts = configuredGoogleIdentityHosts();
+  if (GOOGLE_IDENTITY_LOCAL_HOSTS.has(host) && !configuredHosts.has(host)) return false;
+  if (!configuredHosts.has(host)) return false;
+  return window.location.protocol === 'https:' || GOOGLE_IDENTITY_LOCAL_HOSTS.has(host);
+}
+
+export function shouldUseGoogleRedirectAuth() {
+  if (typeof window === 'undefined') return false;
+  if (window.Capacitor?.isNativePlatform?.()) return false;
+
+  const browser = window.navigator || {};
+  if (browser.userAgentData?.mobile === true) return true;
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(String(browser.userAgent || ''))) return true;
+
+  const compactViewport = window.matchMedia?.('(max-width: 1024px)')?.matches === true;
+  const coarsePointer = window.matchMedia?.('(pointer: coarse)')?.matches === true;
+  return compactViewport && (coarsePointer || Number(browser.maxTouchPoints) > 0);
+}
+
+function requireGoogleAuthClientId() {
+  const clientId = googleAuthClientId();
+  if (!clientId) {
+    throw googleIdentityError({
+      code: 'missing_client_id',
+      message: 'Google sign-in client id is missing.',
+    });
+  }
+  return clientId;
+}
+
+function initializeGoogleIdentity(google, clientId, callback) {
+  googleIdentityResponseHandler = callback;
+  if (googleIdentityInitializedClientId === clientId) return;
+
+  google.accounts.id.initialize({
+    client_id: clientId,
+    auto_select: false,
+    cancel_on_tap_outside: true,
+    itp_support: true,
+    use_fedcm_for_button: true,
+    ux_mode: 'popup',
+    callback: (response) => googleIdentityResponseHandler?.(response),
+  });
+  googleIdentityInitializedClientId = clientId;
+}
+
 async function signInWithGoogleIdToken({
   auth,
   GoogleAuthProvider,
@@ -48,7 +186,10 @@ async function signInWithGoogleIdToken({
 }
 
 export function loadGoogleIdentityScript() {
-  if (window.google?.accounts?.id) return Promise.resolve(window.google);
+  if (window.google?.accounts?.id) {
+    consumeGoogleIdentitySessionReset(window.google);
+    return Promise.resolve(window.google);
+  }
 
   if (!googleIdentityScriptPromise) {
     googleIdentityScriptPromise = new Promise((resolve, reject) => {
@@ -71,8 +212,10 @@ export function loadGoogleIdentityScript() {
       }
 
       const timer = window.setTimeout(() => {
-        done(timer, poller, reject, new Error('Google sign-in script took too long to load.'));
-      }, 8000);
+        const error = new Error('Google sign-in script took too long to load.');
+        error.code = 'google/script_timeout';
+        done(timer, poller, reject, error);
+      }, GOOGLE_IDENTITY_SCRIPT_TIMEOUT_MS);
 
       const poller = window.setInterval(() => {
         if (window.google?.accounts?.id) done(timer, poller, resolve, window.google);
@@ -82,10 +225,19 @@ export function loadGoogleIdentityScript() {
         if (window.google?.accounts?.id) done(timer, poller, resolve, window.google);
       }, { once: true });
       script.addEventListener('error', () => {
-        done(timer, poller, reject, new Error('Google sign-in script failed to load.'));
+        done(timer, poller, reject, googleIdentityError({
+          code: 'script_failed',
+          message: 'Google sign-in script failed to load.',
+        }));
       }, { once: true });
     }).then((google) => {
-      if (!google?.accounts?.id) throw new Error('Google sign-in script is unavailable.');
+      if (!google?.accounts?.id) {
+        throw googleIdentityError({
+          code: 'script_failed',
+          message: 'Google sign-in script is unavailable.',
+        });
+      }
+      consumeGoogleIdentitySessionReset(google);
       return google;
     }).catch((error) => {
       googleIdentityScriptPromise = null;
@@ -102,46 +254,39 @@ async function runGoogleIdentitySignIn({
   signInWithCredential,
 }) {
   const google = await loadGoogleIdentityScript();
-  const clientId = googleAuthClientId();
-
-  if (!clientId) throw new Error('Google sign-in client id is missing.');
+  const clientId = requireGoogleAuthClientId();
 
   return new Promise((resolve, reject) => {
     let settled = false;
+    const responseHandler = async (response) => {
+      if (!response?.credential) {
+        settle(reject, googleIdentityError({
+          code: 'missing_id_token',
+          message: 'Google did not return an ID token.',
+        }));
+        return;
+      }
+
+      try {
+        const userCredential = await signInWithGoogleIdToken({
+          auth,
+          GoogleAuthProvider,
+          signInWithCredential,
+        }, response);
+        settle(resolve, userCredential);
+      } catch (error) {
+        settle(reject, error);
+      }
+    };
+
     const settle = (fn, value) => {
       if (settled) return;
       settled = true;
+      if (googleIdentityResponseHandler === responseHandler) googleIdentityResponseHandler = null;
       fn(value);
     };
 
-    google.accounts.id.initialize({
-      client_id: clientId,
-      auto_select: false,
-      cancel_on_tap_outside: true,
-      itp_support: true,
-      use_fedcm_for_prompt: true,
-      ux_mode: 'popup',
-      callback: async (response) => {
-        if (!response?.credential) {
-          settle(reject, googleIdentityError({
-            code: 'missing_id_token',
-            message: 'Google did not return an ID token.',
-          }));
-          return;
-        }
-
-        try {
-          const userCredential = await signInWithGoogleIdToken({
-            auth,
-            GoogleAuthProvider,
-            signInWithCredential,
-          }, response);
-          settle(resolve, userCredential);
-        } catch (error) {
-          settle(reject, error);
-        }
-      },
-    });
+    initializeGoogleIdentity(google, clientId, responseHandler);
 
     google.accounts.id.prompt((notification) => {
       if (settled) return;
@@ -180,8 +325,8 @@ async function runGoogleIdentitySignIn({
 export function signInWithGoogleIdentity(options) {
   return withTimeout(
     runGoogleIdentitySignIn(options),
-    12000,
-    'Google sign-in did not open in this browser. Try Chrome or Safari.',
+    GOOGLE_IDENTITY_SIGN_IN_TIMEOUT_MS,
+    'Google sign-in is taking too long on this connection. Please try again.',
   );
 }
 
@@ -198,47 +343,59 @@ export async function renderGoogleIdentityButton({
   if (!container) return () => {};
 
   const google = await loadGoogleIdentityScript();
-  const clientId = googleAuthClientId();
-  if (!clientId) throw new Error('Google sign-in client id is missing.');
+  const clientId = requireGoogleAuthClientId();
 
-  google.accounts.id.initialize({
-    client_id: clientId,
-    auto_select: false,
-    cancel_on_tap_outside: true,
-    itp_support: true,
-    use_fedcm_for_button: true,
-    ux_mode: 'popup',
-    callback: async (response) => {
-      try {
-        await beforeSignIn?.();
-        const userCredential = await signInWithGoogleIdToken({
-          auth,
-          GoogleAuthProvider,
-          signInWithCredential,
-        }, response);
-        await onResult?.(userCredential);
-      } catch (error) {
-        onError?.(error);
-      }
-    },
-  });
+  const responseHandler = async (response) => {
+    try {
+      await beforeSignIn?.();
+      const userCredential = await signInWithGoogleIdToken({
+        auth,
+        GoogleAuthProvider,
+        signInWithCredential,
+      }, response);
+      await onResult?.(userCredential);
+    } catch (error) {
+      onError?.(error);
+    }
+  };
 
-  container.replaceChildren();
-  const width = Math.min(
-    400,
-    Math.max(220, Math.floor(container.getBoundingClientRect().width || 320)),
-  );
-  google.accounts.id.renderButton(container, {
-    type: 'standard',
-    theme: 'outline',
-    size: 'large',
-    text,
-    shape: 'rectangular',
-    logo_alignment: 'left',
-    width,
-  });
+  initializeGoogleIdentity(google, clientId, responseHandler);
+
+  let renderedWidth = 0;
+  let resizeFrame = 0;
+  const renderButton = () => {
+    const width = Math.min(
+      400,
+      Math.max(220, Math.floor(container.getBoundingClientRect().width || 320)),
+    );
+    if (width === renderedWidth) return;
+
+    renderedWidth = width;
+    container.replaceChildren();
+    google.accounts.id.renderButton(container, {
+      type: 'standard',
+      theme: 'filled_black',
+      size: 'large',
+      text,
+      shape: 'pill',
+      logo_alignment: 'left',
+      width,
+    });
+  };
+
+  renderButton();
+  const resizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => {
+        window.cancelAnimationFrame(resizeFrame);
+        resizeFrame = window.requestAnimationFrame(renderButton);
+      })
+    : null;
+  resizeObserver?.observe(container);
 
   return () => {
+    resizeObserver?.disconnect();
+    window.cancelAnimationFrame(resizeFrame);
+    if (googleIdentityResponseHandler === responseHandler) googleIdentityResponseHandler = null;
     container.replaceChildren();
   };
 }

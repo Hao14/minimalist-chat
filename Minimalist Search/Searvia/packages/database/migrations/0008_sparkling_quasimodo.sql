@@ -1,0 +1,2 @@
+ALTER TABLE "job_outbox" DROP CONSTRAINT "job_outbox_job_type_check";--> statement-breakpoint
+ALTER TABLE "job_outbox" ADD CONSTRAINT "job_outbox_job_type_check" CHECK ("job_outbox"."job_type" in ('crawl.execute', 'crawl.dead-letter', 'audit.evaluate'));

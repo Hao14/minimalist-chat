@@ -1,0 +1,1184 @@
+#personal-ai-agent-panel {
+  --pa-bg: var(--bg-color, #fff);
+  --pa-surface: color-mix(in srgb, var(--bg-color, #fff) 94%, var(--text-color, #111));
+  --pa-surface-strong: color-mix(in srgb, var(--bg-color, #fff) 87%, var(--text-color, #111));
+  --pa-ink: var(--text-color, #111);
+  --pa-muted: color-mix(in srgb, var(--text-color, #111) 72%, var(--bg-color, #fff));
+  --pa-line: color-mix(in srgb, var(--text-color, #111) 16%, transparent);
+  --pa-line-strong: color-mix(in srgb, var(--text-color, #111) 25%, transparent);
+  --pa-accent: var(--accent-color, #ffd400);
+  --pa-green: #159455;
+  --pa-red: #d9363e;
+  background: var(--pa-bg) !important;
+}
+
+@media (min-width: 769px) {
+  #personal-ai-agent-panel {
+    width: min(430px, calc(100vw - 24px)) !important;
+  }
+}
+
+#personal-ai-agent-panel > .contacts-header {
+  position: absolute !important;
+  inset: 0 0 auto auto !important;
+  z-index: 12 !important;
+  width: 62px !important;
+  min-width: 62px !important;
+  height: 68px !important;
+  min-height: 0 !important;
+  padding: 12px 12px 8px 8px !important;
+  display: grid !important;
+  place-items: start end !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+#personal-ai-agent-panel > .contacts-header > span {
+  display: none !important;
+}
+
+#personal-ai-agent-panel #close-personal-agent-btn {
+  width: 40px !important;
+  min-width: 40px !important;
+  height: 40px !important;
+  min-height: 40px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid transparent !important;
+  border-radius: 10px !important;
+  background: transparent !important;
+  color: var(--pa-ink) !important;
+  box-shadow: none !important;
+  pointer-events: auto;
+}
+
+#personal-ai-agent-panel #close-personal-agent-btn:hover {
+  border-color: var(--pa-line) !important;
+  background: var(--pa-surface) !important;
+  transform: none !important;
+}
+
+#personal-ai-agent-panel #personal-ai-agent-root {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 !important;
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-shell-redesign {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-family: inherit;
+}
+
+#personal-ai-agent-panel .pa-winston-avatar {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #d6aa55;
+  object-fit: cover;
+  object-position: center;
+}
+
+#personal-ai-agent-panel .pa-agent-header {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 68px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 10px 62px 10px 14px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--pa-line);
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-agent-header .pa-agent-avatar {
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--pa-ink);
+  border-radius: 50%;
+  box-shadow: 0 8px 18px -13px color-mix(in srgb, var(--pa-accent) 85%, #111);
+}
+
+#personal-ai-agent-panel .pa-agent-identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-agent-identity strong {
+  overflow: hidden;
+  color: var(--pa-ink);
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.08;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-agent-identity span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: var(--pa-muted);
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-agent-actions {
+  display: flex;
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .pa-agent-actions .pa-icon-btn {
+  width: 36px !important;
+  min-width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 11px !important;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: 0 5px 12px -12px color-mix(in srgb, var(--pa-ink) 80%, transparent);
+  font-size: 0.96rem;
+}
+
+#personal-ai-agent-panel .pa-agent-actions .pa-icon-btn:hover:not(:disabled),
+#personal-ai-agent-panel .pa-agent-actions .pa-icon-btn.active {
+  border-color: color-mix(in srgb, var(--pa-accent) 70%, var(--pa-ink));
+  background: color-mix(in srgb, var(--pa-accent) 13%, var(--pa-bg));
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-agent-workspace {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#personal-ai-agent-panel .pa-agent-workspace.is-settings-open {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#personal-ai-agent-panel .pa-agent-workspace.is-settings-open .pa-agent-overview {
+  padding-bottom: 14px;
+}
+
+#personal-ai-agent-panel .pa-agent-overview {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 14px 0;
+  display: grid;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+#personal-ai-agent-panel .pa-lifecycle {
+  min-width: 0;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border: 1.5px solid color-mix(in srgb, var(--pa-accent) 82%, #b07900);
+  border-radius: 12px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pa-accent) 11%, var(--pa-bg)), var(--pa-bg) 76%);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-main {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--pa-accent);
+  color: #111;
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-warming .pa-lifecycle-icon i {
+  animation: paWakeSpin 1s linear infinite;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-ready {
+  border-color: color-mix(in srgb, var(--pa-green) 55%, var(--pa-line));
+  background: color-mix(in srgb, var(--pa-green) 6%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-lifecycle-ready .pa-lifecycle-icon {
+  background: var(--pa-green);
+  color: #fff;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-unavailable,
+#personal-ai-agent-panel .pa-lifecycle-missing-model,
+#personal-ai-agent-panel .pa-lifecycle-blocked {
+  border-color: color-mix(in srgb, var(--pa-red) 45%, var(--pa-line));
+  background: color-mix(in srgb, var(--pa-red) 5%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-lifecycle-unavailable .pa-lifecycle-icon,
+#personal-ai-agent-panel .pa-lifecycle-missing-model .pa-lifecycle-icon,
+#personal-ai-agent-panel .pa-lifecycle-blocked .pa-lifecycle-icon {
+  background: color-mix(in srgb, var(--pa-red) 14%, var(--pa-bg));
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-copy {
+  min-width: 0;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-copy h3 {
+  margin: 0;
+  color: var(--pa-ink);
+  font-size: 0.9rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-copy p {
+  margin: 2px 0 0;
+  color: var(--pa-muted);
+  font-size: 0.65rem;
+  font-weight: 650;
+  line-height: 1.38;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-action {
+  width: auto !important;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 70%, #9a7000);
+  border-radius: 9px;
+  background: var(--pa-accent);
+  color: #111;
+  box-shadow: 0 6px 13px -10px #8c6900;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-action:hover {
+  filter: brightness(0.98);
+  transform: translateY(-1px);
+}
+
+#personal-ai-agent-panel .pa-wake-progress {
+  padding: 9px 10px;
+  display: grid;
+  gap: 7px;
+  border: 1px solid var(--pa-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--pa-bg) 92%, transparent);
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-wake-progress > div {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pa-accent) 24%, var(--pa-surface-strong));
+}
+
+#personal-ai-agent-panel .pa-wake-progress > div i {
+  width: 56%;
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--pa-accent);
+  animation: paWakeProgress 1.8s ease-in-out infinite alternate;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps {
+  padding: 8px 9px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  border: 1px solid var(--pa-line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--pa-bg) 94%, transparent);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps > div {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--pa-muted);
+  opacity: 0.66;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps > div.is-current,
+#personal-ai-agent-panel .pa-lifecycle-steps > div.is-complete {
+  color: var(--pa-ink);
+  opacity: 1;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps > div.is-current > i {
+  color: var(--pa-accent);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps > div:last-child.is-current > i,
+#personal-ai-agent-panel .pa-lifecycle-steps > div:last-child.is-complete > i {
+  color: var(--pa-green);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps > div:nth-child(2).is-current > i {
+  animation: paWakeSpin 1s linear infinite;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps i {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  font-size: 0.82rem;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps strong,
+#personal-ai-agent-panel .pa-lifecycle-steps small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps strong {
+  font-size: 0.62rem;
+  font-weight: 850;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps small {
+  color: var(--pa-muted);
+  font-size: 0.55rem;
+  font-weight: 650;
+}
+
+#personal-ai-agent-panel .pa-context-summary {
+  min-height: 38px;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  border: 1px solid var(--pa-line);
+  border-radius: 10px;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-context-copy {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  color: var(--pa-muted);
+  font-size: 0.67rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-context-copy.is-error {
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-context-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--pa-green);
+}
+
+#personal-ai-agent-panel .pa-context-dot.pulsing {
+  background: var(--pa-accent);
+}
+
+#personal-ai-agent-panel .pa-banana-summary {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pa-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-banana-summary strong {
+  color: var(--pa-ink);
+  font-weight: 900;
+}
+
+#personal-ai-agent-panel .pa-model-control {
+  width: 100%;
+  min-height: 40px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#personal-ai-agent-panel .pa-model-control > span {
+  color: var(--pa-ink);
+  font-size: 0.7rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-model-control .ai-model-profile-picker {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 248px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+#personal-ai-agent-panel .pa-model-control .ai-model-profile-picker > button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--pa-line);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-size: 0.7rem;
+  font-weight: 850;
+}
+
+#personal-ai-agent-panel .pa-model-control .ai-model-profile-picker > button.is-selected {
+  border-color: var(--pa-line-strong);
+  background: var(--pa-surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa-ink) 7%, transparent);
+}
+
+#personal-ai-agent-panel .pa-routing-disclosure {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--pa-muted);
+  font-size: 0.62rem;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-routing-disclosure i {
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
+#personal-ai-agent-panel .pa-profile-sync,
+#personal-ai-agent-panel .pa-request-notice {
+  padding: 8px 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  border-radius: 9px;
+  font-size: 0.66rem;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+#personal-ai-agent-panel .pa-profile-sync {
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 62%, var(--pa-line));
+  background: color-mix(in srgb, var(--pa-accent) 8%, var(--pa-bg));
+  color: var(--pa-ink);
+}
+
+#personal-ai-agent-panel .pa-request-notice {
+  border: 1px solid color-mix(in srgb, var(--pa-red) 35%, var(--pa-line));
+  background: color-mix(in srgb, var(--pa-red) 5%, var(--pa-bg));
+  color: color-mix(in srgb, var(--pa-red) 80%, var(--pa-ink));
+}
+
+#personal-ai-agent-panel .pa-settings {
+  max-height: min(42vh, 390px);
+  margin: 0;
+  padding: 11px;
+  overflow-y: auto;
+  border: 1px solid var(--pa-line);
+  border-radius: 11px;
+  background: var(--pa-surface);
+}
+
+#personal-ai-agent-panel .pa-agent-workspace.is-settings-open .pa-settings {
+  max-height: none;
+  overflow: visible;
+}
+
+#personal-ai-agent-panel .pa-settings label {
+  color: var(--pa-muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+}
+
+#personal-ai-agent-panel .pa-settings input,
+#personal-ai-agent-panel .pa-settings textarea {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-size: 0.78rem;
+}
+
+#personal-ai-agent-panel .pa-settings-actions {
+  flex-wrap: wrap;
+}
+
+#personal-ai-agent-panel .pa-settings .pa-btn {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: none;
+  font-size: 0.7rem;
+}
+
+#personal-ai-agent-panel .pa-settings .pa-btn-accent {
+  border-color: color-mix(in srgb, var(--pa-accent) 72%, #806000);
+  background: var(--pa-accent);
+  color: #111;
+}
+
+#personal-ai-agent-panel .pa-agent-thread {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 2px;
+  padding: 10px 14px;
+  overflow-y: auto;
+}
+
+#personal-ai-agent-panel .pa-empty-thread {
+  display: grid;
+  gap: 12px;
+}
+
+#personal-ai-agent-panel .pa-welcome-message {
+  margin: 0;
+  align-items: flex-start;
+}
+
+#personal-ai-agent-panel .pa-suggest-compact {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+#personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card {
+  min-height: 72px;
+  margin: 0;
+  padding: 11px;
+  align-items: center;
+  border: 1px solid var(--pa-line);
+  border-radius: 11px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--pa-accent) 75%, var(--pa-line));
+  background: color-mix(in srgb, var(--pa-accent) 6%, var(--pa-bg));
+  transform: translateY(-1px);
+}
+
+#personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card > i {
+  color: var(--pa-accent);
+  font-size: 1.1rem;
+}
+
+#personal-ai-agent-panel .pa-suggest-copy strong {
+  color: var(--pa-ink);
+  font-size: 0.72rem;
+}
+
+#personal-ai-agent-panel .pa-suggest-copy small {
+  color: var(--pa-muted);
+  font-size: 0.62rem;
+}
+
+#personal-ai-agent-panel .pa-msg {
+  gap: 7px;
+}
+
+#personal-ai-agent-panel .pa-msg-avatar {
+  width: 27px;
+  height: 27px;
+  border: 1.5px solid var(--pa-ink);
+  box-shadow: 0 4px 10px -8px var(--pa-ink);
+}
+
+#personal-ai-agent-panel .pa-bubble {
+  max-width: 86%;
+  padding: 9px 11px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  line-height: 1.48;
+}
+
+#personal-ai-agent-panel .pa-msg-user .pa-bubble {
+  background: var(--pa-accent);
+  color: #111;
+}
+
+#personal-ai-agent-panel .pa-msg-assistant .pa-bubble {
+  max-width: calc(100% - 34px);
+  border: 1px solid var(--pa-line);
+  background: var(--pa-surface);
+  color: var(--pa-ink);
+}
+
+#personal-ai-agent-panel .pa-bubble > span {
+  white-space: pre-wrap;
+}
+
+#personal-ai-agent-panel .pa-sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+#personal-ai-agent-panel .pa-provider-disclosure {
+  display: block;
+  margin-top: 6px;
+  color: var(--pa-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+#personal-ai-agent-panel .pa-composer {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 11px 16px 14px;
+  gap: 9px;
+  border-top: 1px solid var(--pa-line);
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-composer input {
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 13px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 11px !important;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+#personal-ai-agent-panel .pa-composer input:focus {
+  border-color: color-mix(in srgb, var(--pa-accent) 80%, #806000);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pa-accent) 18%, transparent);
+}
+
+#personal-ai-agent-panel .pa-composer .pa-send {
+  width: 46px;
+  min-width: 46px;
+  height: 44px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 70%, #806000);
+  border-radius: 11px !important;
+  background: color-mix(in srgb, var(--pa-accent) 48%, var(--pa-bg));
+  color: var(--pa-ink);
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-composer .pa-send:not(:disabled):hover {
+  background: var(--pa-accent);
+  box-shadow: none;
+  transform: translateY(-1px);
+}
+
+#personal-ai-agent-panel .pa-composer .pa-send:disabled,
+#personal-ai-agent-panel .pa-suggest-card:disabled {
+  cursor: wait;
+  opacity: 0.52;
+}
+
+#personal-ai-agent-panel .pa-lock-screen {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-family: inherit;
+}
+
+#personal-ai-agent-panel .pa-lock-header {
+  flex: 0 0 auto;
+  min-height: 68px;
+  padding: 10px 62px 10px 14px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--pa-line);
+  background: var(--pa-bg);
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-lock-header-avatar {
+  width: 42px;
+  height: 42px;
+  border: 2px solid var(--pa-ink);
+  box-shadow: 0 8px 18px -13px color-mix(in srgb, var(--pa-accent) 85%, #111);
+}
+
+#personal-ai-agent-panel .pa-lock-identity {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-lock-identity strong {
+  color: var(--pa-ink);
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+#personal-ai-agent-panel .pa-lock-identity span {
+  overflow: hidden;
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-lock-header .pa-pro {
+  padding: 4px 8px;
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 62%, #8a6500);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pa-accent) 18%, var(--pa-bg));
+  color: var(--pa-ink);
+  font-size: 0.6rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+#personal-ai-agent-panel .pa-lock-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 28px 24px calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  text-align: center;
+}
+
+#personal-ai-agent-panel .pa-lock-portrait-wrap {
+  position: relative;
+  flex: 0 0 auto;
+  width: 142px;
+  height: 142px;
+}
+
+#personal-ai-agent-panel .pa-lock-portrait {
+  width: 100%;
+  height: 100%;
+  border: 3px solid var(--pa-ink);
+  box-shadow: 0 15px 32px -22px var(--pa-ink), 0 0 0 7px color-mix(in srgb, var(--pa-accent) 14%, transparent);
+}
+
+#personal-ai-agent-panel .pa-lock-badge {
+  position: absolute;
+  right: 2px;
+  bottom: 3px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 3px solid var(--pa-bg);
+  border-radius: 50%;
+  background: var(--pa-ink);
+  color: var(--pa-bg);
+  box-shadow: 0 5px 14px -8px var(--pa-ink);
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-lock-copy {
+  max-width: 340px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .pa-lock-copy > span {
+  color: color-mix(in srgb, var(--pa-accent) 68%, var(--pa-ink));
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+#personal-ai-agent-panel .pa-lock-copy h2 {
+  margin: 0;
+  color: var(--pa-ink);
+  font-size: clamp(1.65rem, 6vw, 2rem);
+  font-weight: 950;
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+
+#personal-ai-agent-panel .pa-lock-copy p {
+  margin: 2px 0 0;
+  color: var(--pa-muted);
+  font-size: 0.83rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+#personal-ai-agent-panel .pa-lock-features {
+  width: min(100%, 340px);
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 13px;
+  list-style: none;
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-lock-features li {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 11px;
+}
+
+#personal-ai-agent-panel .pa-lock-feature-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 50%, var(--pa-line));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--pa-accent) 11%, var(--pa-bg));
+  color: color-mix(in srgb, var(--pa-accent) 66%, var(--pa-ink));
+  font-size: 1.05rem;
+}
+
+#personal-ai-agent-panel .pa-lock-features li > span:last-child {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-lock-features strong,
+#personal-ai-agent-panel .pa-lock-features small {
+  display: block;
+}
+
+#personal-ai-agent-panel .pa-lock-features strong {
+  color: var(--pa-ink);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+#personal-ai-agent-panel .pa-lock-features small {
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+#personal-ai-agent-panel .pa-lock-plan {
+  width: min(100%, 340px);
+  padding: 11px 12px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 58%, var(--pa-line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pa-accent) 9%, var(--pa-bg));
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-lock-plan > i {
+  color: color-mix(in srgb, var(--pa-accent) 65%, var(--pa-ink));
+  font-size: 1.25rem;
+}
+
+#personal-ai-agent-panel .pa-lock-plan span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-lock-plan strong {
+  color: var(--pa-ink);
+  font-size: 0.74rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+#personal-ai-agent-panel .pa-lock-plan small {
+  color: var(--pa-muted);
+  font-size: 0.64rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+#personal-ai-agent-panel .pa-lock-primary {
+  width: min(100%, 340px);
+  min-height: 48px;
+  margin: 0;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 2px solid var(--pa-ink);
+  border-radius: 12px;
+  background: var(--pa-accent);
+  color: #111;
+  box-shadow: 4px 4px 0 var(--pa-ink);
+  font-size: 0.82rem;
+  font-weight: 950;
+  letter-spacing: 0.01em;
+  text-transform: none;
+}
+
+#personal-ai-agent-panel .pa-lock-primary:hover {
+  box-shadow: 2px 2px 0 var(--pa-ink);
+  transform: translate(2px, 2px);
+}
+
+#personal-ai-agent-panel .pa-lock-primary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--pa-accent) 70%, var(--pa-ink));
+  outline-offset: 3px;
+}
+
+#personal-ai-agent-panel .pa-lock-footnote {
+  max-width: 320px;
+  margin: -4px 0 0;
+  color: var(--pa-muted);
+  font-size: 0.61rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+@keyframes paWakeSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes paWakeProgress {
+  from { transform: translateX(-10%); }
+  to { transform: translateX(80%); }
+}
+
+@media (max-width: 430px) {
+  #personal-ai-agent-panel .pa-agent-header {
+    min-height: 64px;
+    padding: 9px 58px 9px 12px;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-header .pa-agent-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  #personal-ai-agent-panel .pa-lock-header {
+    min-height: 64px;
+    padding: 9px 58px 9px 12px;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  #personal-ai-agent-panel .pa-lock-header-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  #personal-ai-agent-panel .pa-lock-body {
+    padding: 22px 18px calc(22px + env(safe-area-inset-bottom, 0px));
+    gap: 16px;
+  }
+
+  #personal-ai-agent-panel .pa-lock-portrait-wrap {
+    width: 124px;
+    height: 124px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-actions {
+    gap: 4px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-actions .pa-icon-btn {
+    width: 36px !important;
+    min-width: 36px;
+    height: 36px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-overview,
+  #personal-ai-agent-panel .pa-agent-thread,
+  #personal-ai-agent-panel .pa-composer {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  #personal-ai-agent-panel .pa-lifecycle-main {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  #personal-ai-agent-panel .pa-lifecycle-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  #personal-ai-agent-panel .pa-lifecycle-action {
+    padding: 0 10px;
+    font-size: 0.68rem;
+  }
+
+  #personal-ai-agent-panel .pa-lifecycle-copy p {
+    font-size: 0.66rem;
+  }
+
+  #personal-ai-agent-panel .pa-lifecycle-steps small {
+    display: none;
+  }
+
+  #personal-ai-agent-panel .pa-context-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #personal-ai-agent-panel .pa-banana-summary {
+    margin-left: 15px;
+  }
+}
+
+@media (max-width: 360px) {
+  #personal-ai-agent-panel .pa-model-control {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #personal-ai-agent-panel .pa-model-control .ai-model-profile-picker {
+    width: 100%;
+    max-width: none;
+  }
+
+  #personal-ai-agent-panel .pa-model-control .ai-model-profile-picker > button {
+    min-height: 40px;
+  }
+}
+
+@media (max-height: 620px) {
+  #personal-ai-agent-panel .pa-lock-body {
+    padding-top: 16px;
+    gap: 12px;
+  }
+
+  #personal-ai-agent-panel .pa-lock-portrait-wrap {
+    width: 104px;
+    height: 104px;
+  }
+
+  #personal-ai-agent-panel .pa-lock-badge {
+    width: 34px;
+    height: 34px;
+    font-size: 0.86rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #personal-ai-agent-panel .pa-lifecycle-warming .pa-lifecycle-icon i,
+  #personal-ai-agent-panel .pa-lifecycle-steps > div:nth-child(2).is-current > i,
+  #personal-ai-agent-panel .pa-wake-progress > div i,
+  #personal-ai-agent-panel .pa-spin,
+  #personal-ai-agent-panel .pa-lock-primary {
+    animation: none !important;
+    transition: none !important;
+  }
+}

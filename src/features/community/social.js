@@ -12,6 +12,7 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import Leaderboard from './Leaderboard.jsx';
 import RecognitionPanel from './RecognitionPanel.jsx';
+import { createTimedSingleFlightCache } from './timedSingleFlightCache.js';
 
 // Earned-badge catalog (distinct from paid tier badges).
 const BADGES = {
@@ -30,6 +31,42 @@ const BADGES = {
 window.BADGE_DEFS = BADGES;
 let leaderboardRoot = null;
 let recognitionRoot = null;
+const COMMUNITY_PROFILE_CACHE_TTL = 2 * 60 * 1000;
+const FOLLOW_SOCIAL_CACHE_TTL = 30 * 1000;
+const followStatusCache = createTimedSingleFlightCache({
+    ttlMs: FOLLOW_SOCIAL_CACHE_TTL,
+    maxEntries: 96,
+});
+const followCountsCache = createTimedSingleFlightCache({
+    ttlMs: FOLLOW_SOCIAL_CACHE_TTL,
+    maxEntries: 64,
+});
+const leaderboardCache = new Map();
+const leaderboardLoads = new Map();
+let leaderboardRequestId = 0;
+let communityProfilesCache = null;
+let communityProfilesLoad = null;
+let recognitionCache = null;
+let recognitionLoad = null;
+let recognitionRequestId = 0;
+
+function currentCommunityCacheKey() {
+    return window.currentUser?.uid || 'signed-out';
+}
+
+function isFreshCommunityCache(entry, key = currentCommunityCacheKey()) {
+    return Boolean(entry && entry.key === key && Date.now() - entry.loadedAt < COMMUNITY_PROFILE_CACHE_TTL);
+}
+
+function followStatusCacheKey(viewerUid, targetUid) {
+    return `${viewerUid}:${targetUid}`;
+}
+
+function invalidateFollowSocialCache(viewerUid, targetUid) {
+    followStatusCache.invalidate(followStatusCacheKey(viewerUid, targetUid));
+    followCountsCache.invalidate(viewerUid);
+    followCountsCache.invalidate(targetUid);
+}
 
 // Award a badge (idempotent — only fires/notifies the first time).
 window.awardBadge = async function (uid, badgeId) {
@@ -56,8 +93,16 @@ window.giveKudos = async function (targetUid) {
     if (!window.currentUser || !targetUid || targetUid === window.currentUser.uid) return { ok: false, reason: 'self' };
     try {
         const fromRef = ref(db, `users/${targetUid}/kudosFrom/${window.currentUser.uid}`);
-        if ((await get(fromRef)).exists()) return { ok: false, reason: 'already' };
-        await set(fromRef, Date.now());
+        let shouldIncrement = false;
+        await runTransaction(fromRef, (current) => {
+            if (current) {
+                shouldIncrement = false;
+                return current;
+            }
+            shouldIncrement = true;
+            return Date.now();
+        });
+        if (!shouldIncrement) return { ok: false, reason: 'already' };
         let newCount = 0;
         await runTransaction(ref(db, `users/${targetUid}/kudos`), (c) => { newCount = (c || 0) + 1; return newCount; });
         if (window.createNotification) window.createNotification(targetUid, 'kudos', `👏 ${window.userProfileName || 'Someone'} gave you kudos!`, { groupId: window.currentUser.uid, from: window.userProfileName });
@@ -66,7 +111,7 @@ window.giveKudos = async function (targetUid) {
         window.awardXP?.(window.currentUser.uid, 'support', 5); // giver earns Support XP
         window.trackQuest?.('kudos');
         return { ok: true, count: newCount };
-    } catch (e) { return { ok: false, reason: e.message }; }
+    } catch (e) { return { ok: false, reason: e.message === 'already' ? 'already' : e.message }; }
 };
 
 function mentionHandle(value) {
@@ -111,6 +156,9 @@ window.notifyMentions = async function (text, roomId, context = {}) {
             const uid = byName[mentionHandle(match[2])];
             if (uid) targets.add(uid);
         }
+
+        const senderUid = context.fromUid || window.currentUser?.uid || '';
+        if (senderUid) targets.delete(senderUid);
 
         targets.forEach(uid => window.createNotification?.(uid, 'mention', `${window.userProfileName || 'Someone'} mentioned you.`, {
             groupId: context.groupId || roomId,
@@ -173,34 +221,52 @@ window.buildActivityFeed = function (user, limit = 6) {
 /* ---------- Follow system (async, one-directional — distinct from mutual friends) ---------- */
 window.toggleFollow = async function (targetUid) {
     if (!window.currentUser || !targetUid || targetUid === window.currentUser.uid) return null;
-    const meRef = ref(db, `following/${window.currentUser.uid}/${targetUid}`);
+    const viewerUid = window.currentUser.uid;
+    const meRef = ref(db, `following/${viewerUid}/${targetUid}`);
     const isFollowing = (await get(meRef)).exists();
-    if (isFollowing) {
-        await remove(meRef);
-        await remove(ref(db, `followers/${targetUid}/${window.currentUser.uid}`));
-        return false;
+    // Drop cached and in-flight reads before and after the mutation so an older
+    // request cannot restore stale relationship/count data while writes settle.
+    invalidateFollowSocialCache(viewerUid, targetUid);
+    try {
+        if (isFollowing) {
+            await remove(meRef);
+            await remove(ref(db, `followers/${targetUid}/${viewerUid}`));
+            return false;
+        }
+        await set(meRef, Date.now());
+        await set(ref(db, `followers/${targetUid}/${viewerUid}`), Date.now());
+        window.createNotification?.(targetUid, 'follow', `${window.userProfileName || 'Someone'} started following you.`, { groupId: viewerUid, from: window.userProfileName });
+        window.awardXP?.(targetUid, 'leadership', 5); // gaining a follower builds Leadership
+        return true;
+    } finally {
+        invalidateFollowSocialCache(viewerUid, targetUid);
     }
-    await set(meRef, Date.now());
-    await set(ref(db, `followers/${targetUid}/${window.currentUser.uid}`), Date.now());
-    window.createNotification?.(targetUid, 'follow', `${window.userProfileName || 'Someone'} started following you.`, { groupId: window.currentUser.uid, from: window.userProfileName });
-    window.awardXP?.(targetUid, 'leadership', 5); // gaining a follower builds Leadership
-    return true;
 };
 window.isFollowing = async function (targetUid) {
-    if (!window.currentUser || !targetUid) return false;
-    return (await get(ref(db, `following/${window.currentUser.uid}/${targetUid}`))).exists();
+    const viewerUid = window.currentUser?.uid;
+    if (!viewerUid || !targetUid) return false;
+    return followStatusCache.load(
+        followStatusCacheKey(viewerUid, targetUid),
+        async () => (await get(ref(db, `following/${viewerUid}/${targetUid}`))).exists(),
+    );
 };
 window.getFollowCounts = async function (uid) {
-    const [fr, fg] = await Promise.all([get(ref(db, `followers/${uid}`)), get(ref(db, `following/${uid}`))]);
-    return { followers: fr.exists() ? Object.keys(fr.val()).length : 0, following: fg.exists() ? Object.keys(fg.val()).length : 0 };
+    if (!uid) return { followers: 0, following: 0 };
+    return followCountsCache.load(uid, async () => {
+        const [fr, fg] = await Promise.all([get(ref(db, `followers/${uid}`)), get(ref(db, `following/${uid}`))]);
+        return { followers: fr.exists() ? Object.keys(fr.val()).length : 0, following: fg.exists() ? Object.keys(fg.val()).length : 0 };
+    });
 };
 
 /* ---------- Mutual rooms ---------- */
 window.getMutualRooms = async function (targetUid) {
     if (!window.currentUser || !targetUid || targetUid === window.currentUser.uid) return [];
-    const meta = (await get(ref(db, 'rooms_meta'))).val() || {};
+    const mine = (await get(ref(db, `user_rooms/${window.currentUser.uid}`))).val() || {};
     const mutual = [];
-    Object.values(meta).forEach(r => {
+    const roomIds = Object.keys(mine).filter((roomId) => roomId && roomId !== 'global').slice(0, 80);
+    const snapshots = await Promise.all(roomIds.map((roomId) => get(ref(db, `rooms_meta/${roomId}`)).catch(() => null)));
+    snapshots.forEach((snapshot) => {
+        const r = snapshot?.val?.() || {};
         const m = r.members || {};
         if (m[window.currentUser.uid] && m[targetUid]) mutual.push(r.name || 'Room');
     });
@@ -212,18 +278,43 @@ window.getMutualRooms = async function (targetUid) {
 window.openProfileByRef = async function (val) {
     if (!val || !window.viewUserProfile) return;
     val = String(val).replace(/^#/, '');
-    if ((await get(ref(db, `users/${val}`))).exists()) return window.viewUserProfile(val);
     const directory = (await get(ref(db, 'user_directory'))).val() || {};
+    if (directory[val]) return window.viewUserProfile(val);
     const hit = Object.entries(directory).find(([, u]) => (u.shortId || '').toUpperCase() === val.toUpperCase());
     if (hit) window.viewUserProfile(hit[0]);
 };
 window.profileShareLink = (uid) => `${location.origin}/chat?profile=${uid}`;
 
-/* ---------- AI member spotlight (local Ollama; graceful if unavailable) ---------- */
+/* ---------- AI member spotlight (protected gateway or loopback-only local Ollama) ---------- */
+window.cancelProfileSpotlightRequest = function cancelProfileSpotlightRequest() {
+    const spotlight = document.getElementById('up-spotlight');
+    spotlight?._aiSpotlightAbortController?.abort();
+    if (spotlight) {
+        spotlight._aiSpotlightAbortController = null;
+        delete spotlight.dataset.aiSpotlightRequest;
+    }
+};
+
 window.generateSpotlight = async function (uid, user) {
     const el = document.getElementById('up-spotlight');
     if (!el) return;
+    el._aiSpotlightAbortController?.abort();
+    const requestController = new AbortController();
+    el._aiSpotlightAbortController = requestController;
+    const requestToken = `${uid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    el.dataset.aiSpotlightRequest = requestToken;
+    const isCurrentRequest = () => {
+        const popup = document.getElementById('user-profile-popup');
+        return Boolean(
+            !requestController.signal.aborted
+            && document.getElementById('up-spotlight') === el
+            && el.dataset.aiSpotlightRequest === requestToken
+            && popup?.dataset.profileUid === uid
+            && !popup.classList.contains('hidden')
+        );
+    };
     const renderSpotlight = (payload) => {
+        if (!isCurrentRequest()) return;
         if (window.renderProfileSpotlight) {
             window.renderProfileSpotlight({ ...payload, onRetry: () => window.generateSpotlight(uid, user) });
         } else {
@@ -234,14 +325,38 @@ window.generateSpotlight = async function (uid, user) {
     try {
         const config = getLocalAiConfig();
         const status = await getLocalAiStatus(config);
+        if (!isCurrentRequest()) return;
         if (status.state !== 'ready') {
             renderSpotlight({ status: 'error', error: status.message || localAiStatusMessage(status) });
             return;
         }
-        const { reply } = await askProfileSpotlight({ user, reputation: window.computeRep(user), config });
-        renderSpotlight({ status: 'ready', text: reply });
+        const result = await askProfileSpotlight({
+            targetUid: uid,
+            user,
+            reputation: window.computeRep(user),
+            config,
+            signal: requestController.signal,
+            onQueueUpdate: (queue) => {
+                if (queue.status === 'queued') {
+                    renderSpotlight({ status: 'loading', text: `Queued safely · position ${Math.max(1, Number(queue.position) || 1)}` });
+                } else if (queue.status === 'running') {
+                    renderSpotlight({ status: 'loading', text: 'Writing spotlight now…' });
+                }
+            },
+        });
+        renderSpotlight({
+            status: 'ready',
+            text: result.reply,
+            provider: result.provider || '',
+            model: result.model || '',
+        });
     } catch (e) {
+        if (!isCurrentRequest()) return;
         renderSpotlight({ status: 'error', error: localAiStatusMessage(e) });
+    } finally {
+        if (el._aiSpotlightAbortController === requestController) {
+            el._aiSpotlightAbortController = null;
+        }
     }
 };
 
@@ -303,12 +418,17 @@ window.renderHeatmap = function (activityByDay) {
     return `<div class="hm-grid">${cols}</div>`;
 };
 
-// Global, cross-room leaderboard by reputation. Reads the user directory once.
+// Community leaderboard. Identity comes from the public directory; private
+// reputation data is read only for the signed-in member until a trusted public
+// aggregate is available.
 // metric: 'overall' (reputation) or a skill key (leadership/support/technical/creativity) → rank by that skill's XP.
 window.renderLeaderboard = async function (metric = 'overall') {
     const listEl = document.getElementById('leaderboard-list');
     if (!listEl) return;
     if (!leaderboardRoot) leaderboardRoot = createRoot(listEl);
+    const requestId = ++leaderboardRequestId;
+    const communityKey = currentCommunityCacheKey();
+    const cacheKey = `${communityKey}:${metric}`;
     const skills = window.SKILL_DEFS || {};
     const renderLeaderboardState = (payload) => leaderboardRoot.render(createElement(Leaderboard, {
         metric,
@@ -316,44 +436,48 @@ window.renderLeaderboard = async function (metric = 'overall') {
         skills,
         ...payload,
     }));
-    renderLeaderboardState({ status: 'loading' });
+
+    const cached = leaderboardCache.get(cacheKey);
+    if (cached) {
+        renderLeaderboardState(cached.payload);
+        if (Date.now() - cached.loadedAt < COMMUNITY_PROFILE_CACHE_TTL) return;
+    } else {
+        renderLeaderboardState({ status: 'loading' });
+    }
+
     try {
-        const directory = (await get(ref(db, 'user_directory'))).val() || {};
-        const isSkill = !!skills[metric];
-        const scoreOf = (u) => isSkill ? ((u.xp && u.xp[metric]) || 0) : window.computeRep(u);
-        const unit = isSkill ? `${skills[metric].label} XP` : 'pts';
-        const profileRows = await Promise.all(Object.entries(directory).map(async ([uid, publicProfile]) => {
-            const snap = await get(ref(db, `users/${uid}`)).catch(() => null);
-            const privateProfile = snap?.val() || {};
-            return {
-                uid,
-                publicProfile: publicProfile || {},
-                privateProfile,
-            };
-        }));
-        const ranked = profileRows
-            .map(({ uid, publicProfile, privateProfile }) => ({
-                uid,
-                name: publicProfile.displayName || privateProfile.displayName || 'Anonymous',
-                photo: publicProfile.photoUrl || privateProfile.photoUrl || '',
-                score: scoreOf(privateProfile),
-                lvl: window.totalLevel(privateProfile),
-            }))
-            .filter(u => u.score > 0)
-            .sort((a, b) => b.score - a.score)
-            .slice(0, 25);
-        renderLeaderboardState({ rows: ranked, status: 'ready', unit });
+        let load = leaderboardLoads.get(cacheKey);
+        if (!load) {
+            load = loadCommunityProfiles().then((profileRows) => {
+                const isSkill = !!skills[metric];
+                const scoreOf = (user) => isSkill ? ((user?.xp && user.xp[metric]) || 0) : window.computeRep(user);
+                const unit = isSkill ? `${skills[metric].label} XP` : 'pts';
+                const ranked = profileRows
+                    .map(({ uid, name, photo, privateProfile }) => ({
+                        uid,
+                        name,
+                        photo,
+                        score: scoreOf(privateProfile),
+                        lvl: window.totalLevel(privateProfile),
+                    }))
+                    .filter((user) => user.score > 0)
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 25);
+                return { rows: ranked, status: 'ready', unit };
+            }).finally(() => leaderboardLoads.delete(cacheKey));
+            leaderboardLoads.set(cacheKey, load);
+        }
+
+        const payload = await load;
+        leaderboardCache.set(cacheKey, { loadedAt: Date.now(), payload });
+        if (requestId === leaderboardRequestId && communityKey === currentCommunityCacheKey()) {
+            renderLeaderboardState(payload);
+        }
     } catch (e) {
         console.warn('Leaderboard unavailable; using local fallback.', e);
-        const fallbackScore = window.computeRep?.(window.currentUserProfile || {}) || 0;
-        const fallbackRows = window.currentUser ? [{
-            uid: window.currentUser.uid,
-            name: window.userProfileName || window.currentUser.displayName || 'You',
-            photo: window.userPhotoUrl || window.currentUser.photoURL || '',
-            score: fallbackScore,
-            lvl: window.totalLevel?.(window.currentUserProfile || {}) || 1,
-        }].filter((row) => row.score > 0) : [];
-        renderLeaderboardState({ rows: fallbackRows, status: 'ready', unit: 'pts' });
+        if (!cached && requestId === leaderboardRequestId) {
+            renderLeaderboardState({ error: e.message, status: 'error' });
+        }
     }
 };
 
@@ -417,41 +541,77 @@ function weeklyActivityScore(user) {
 }
 
 async function loadCommunityProfiles() {
-    const directory = (await get(ref(db, 'user_directory'))).val() || {};
-    const rows = await Promise.all(Object.entries(directory).map(async ([uid, publicProfile]) => {
-        const snap = await get(ref(db, `users/${uid}`)).catch(() => null);
-        const privateProfile = snap?.val() || {};
-        const joinedAt = parseLooseDate(
-            privateProfile.joinedAt
-            || privateProfile.createdAt
-            || privateProfile.created
-            || publicProfile?.joinedAt
-            || publicProfile?.createdAt
-            || publicProfile?.created
-        );
-        const birthday = parseLooseDate(privateProfile.birthday || privateProfile.birthdate || publicProfile?.birthday || publicProfile?.birthdate);
-        return {
-            uid,
-            name: publicProfile?.displayName || privateProfile.displayName || privateProfile.name || 'Anonymous',
-            handle: publicProfile?.username || privateProfile.username || publicProfile?.shortId || privateProfile.shortId || '',
-            photo: publicProfile?.photoUrl || privateProfile.photoUrl || '',
-            score: window.computeRep(privateProfile),
-            lvl: window.totalLevel(privateProfile),
-            weekScore: weeklyActivityScore(privateProfile),
-            joinedAt,
-            birthday,
-            privateProfile,
-            publicProfile: publicProfile || {},
-        };
-    }));
-    return rows;
+    const cacheKey = currentCommunityCacheKey();
+    if (isFreshCommunityCache(communityProfilesCache, cacheKey)) return communityProfilesCache.rows;
+    if (communityProfilesLoad?.key === cacheKey) return communityProfilesLoad.promise;
+
+    const promise = (async () => {
+        const currentUid = window.currentUser?.uid || '';
+        const [directorySnapshot, selfSnapshot] = await Promise.all([
+            get(ref(db, 'user_directory')).catch((error) => {
+                console.warn('Public community directory unavailable.', error);
+                return null;
+            }),
+            currentUid ? get(ref(db, `users/${currentUid}`)).catch((error) => {
+                console.warn('Current member profile unavailable.', error);
+                return null;
+            }) : Promise.resolve(null),
+        ]);
+        const directory = directorySnapshot?.val?.() || {};
+        const selfProfile = selfSnapshot?.val?.() || {};
+        const rowsByUid = { ...directory };
+        if (currentUid && !rowsByUid[currentUid]) {
+            rowsByUid[currentUid] = {
+                displayName: selfProfile.displayName || window.userProfileName || window.currentUser?.displayName || 'You',
+                photoUrl: selfProfile.photoUrl || window.userPhotoUrl || window.currentUser?.photoURL || '',
+                shortId: selfProfile.shortId || window.userShortId || '',
+            };
+        }
+
+        // `/users/$uid` is private. Community surfaces use the public directory for
+        // everyone else and enrich only the signed-in member with their own stats.
+        const rows = Object.entries(rowsByUid).map(([uid, publicProfile = {}]) => {
+            const privateProfile = uid === currentUid ? selfProfile : {};
+            const joinedAt = parseLooseDate(
+                privateProfile.joinedAt
+                || privateProfile.createdAt
+                || privateProfile.created
+                || publicProfile?.joinedAt
+                || publicProfile?.createdAt
+                || publicProfile?.created
+            );
+            const birthday = parseLooseDate(privateProfile.birthday || privateProfile.birthdate || publicProfile?.birthday || publicProfile?.birthdate);
+            return {
+                uid,
+                name: publicProfile?.displayName || privateProfile.displayName || privateProfile.name || 'Anonymous',
+                handle: publicProfile?.username || privateProfile.username || publicProfile?.shortId || privateProfile.shortId || '',
+                photo: publicProfile?.photoUrl || privateProfile.photoUrl || '',
+                score: window.computeRep(privateProfile),
+                lvl: window.totalLevel(privateProfile),
+                weekScore: weeklyActivityScore(privateProfile),
+                joinedAt,
+                birthday,
+                privateProfile,
+                publicProfile: publicProfile || {},
+            };
+        });
+        communityProfilesCache = { key: cacheKey, loadedAt: Date.now(), rows };
+        return rows;
+    })();
+
+    communityProfilesLoad = { key: cacheKey, promise };
+    try {
+        return await promise;
+    } finally {
+        if (communityProfilesLoad?.promise === promise) communityProfilesLoad = null;
+    }
 }
 
 window.resolveUserRef = async function resolveUserRef(value) {
     const needle = mentionHandle(String(value || '').trim());
     if (!needle) return null;
-    if ((await get(ref(db, `users/${needle}`))).exists()) return needle;
     const directory = (await get(ref(db, 'user_directory'))).val() || {};
+    if (directory[needle]) return needle;
     const hit = Object.entries(directory).find(([uid, user]) => {
         const candidates = [uid, user?.displayName, user?.name, user?.username, user?.shortId].map(mentionHandle);
         return candidates.includes(needle);
@@ -480,33 +640,59 @@ window.renderRecognition = async function renderRecognition() {
     const listEl = document.getElementById('recognition-list');
     if (!listEl) return;
     if (!recognitionRoot) recognitionRoot = createRoot(listEl);
+    const requestId = ++recognitionRequestId;
+    const communityKey = currentCommunityCacheKey();
     const renderRecognitionState = (payload) => recognitionRoot.render(createElement(RecognitionPanel, payload));
-    renderRecognitionState({ status: 'loading' });
-    try {
-        const profiles = await loadCommunityProfiles();
-        const ranked = profiles
-            .map((row) => ({ ...row, score: Number(row.score || 0), weekScore: Number(row.weekScore || 0) }))
-            .sort((a, b) => b.score - a.score);
-        const memberOfWeek = [...ranked]
-            .filter((row) => row.weekScore > 0 || row.score > 0)
-            .sort((a, b) => (b.weekScore - a.weekScore) || (b.score - a.score))[0] || null;
-        const anniversaries = ranked
-            .filter((row) => isWithinNextDays(row.joinedAt, 30))
-            .map((row) => ({ ...row, meta: upcomingMeta(row.joinedAt, 'Anniversary') }))
-            .sort((a, b) => dayKey(a.joinedAt).localeCompare(dayKey(b.joinedAt)));
-        const birthdays = ranked
-            .filter((row) => isWithinNextDays(row.birthday, 30))
-            .map((row) => ({ ...row, meta: upcomingMeta(row.birthday, 'Birthday') }))
-            .sort((a, b) => dayKey(a.birthday).localeCompare(dayKey(b.birthday)));
 
-        renderRecognitionState({
-            anniversaries,
-            birthdays,
-            memberOfWeek,
-            rows: ranked.filter((row) => row.score > 0),
-            status: 'ready',
-        });
+    const cached = recognitionCache?.key === communityKey ? recognitionCache : null;
+    if (cached) {
+        renderRecognitionState(cached.payload);
+        if (isFreshCommunityCache(cached, communityKey)) return;
+    } else {
+        renderRecognitionState({ status: 'loading' });
+    }
+
+    try {
+        let load = recognitionLoad?.key === communityKey ? recognitionLoad.promise : null;
+        if (!load) {
+            load = loadCommunityProfiles().then((profiles) => {
+                const ranked = profiles
+                    .map((row) => ({ ...row, score: Number(row.score || 0), weekScore: Number(row.weekScore || 0) }))
+                    .sort((a, b) => b.score - a.score);
+                const memberOfWeek = [...ranked]
+                    .filter((row) => row.weekScore > 0 || row.score > 0)
+                    .sort((a, b) => (b.weekScore - a.weekScore) || (b.score - a.score))[0] || null;
+                const anniversaries = ranked
+                    .filter((row) => isWithinNextDays(row.joinedAt, 30))
+                    .map((row) => ({ ...row, meta: upcomingMeta(row.joinedAt, 'Anniversary') }))
+                    .sort((a, b) => dayKey(a.joinedAt).localeCompare(dayKey(b.joinedAt)));
+                const birthdays = ranked
+                    .filter((row) => isWithinNextDays(row.birthday, 30))
+                    .map((row) => ({ ...row, meta: upcomingMeta(row.birthday, 'Birthday') }))
+                    .sort((a, b) => dayKey(a.birthday).localeCompare(dayKey(b.birthday)));
+                return {
+                    anniversaries,
+                    birthdays,
+                    memberOfWeek,
+                    rows: ranked.filter((row) => row.score > 0),
+                    status: 'ready',
+                };
+            });
+            recognitionLoad = { key: communityKey, promise: load };
+            const clearRecognitionLoad = () => {
+                if (recognitionLoad?.promise === load) recognitionLoad = null;
+            };
+            load.then(clearRecognitionLoad, clearRecognitionLoad);
+        }
+
+        const payload = await load;
+        recognitionCache = { key: communityKey, loadedAt: Date.now(), payload };
+        if (requestId === recognitionRequestId && communityKey === currentCommunityCacheKey()) {
+            renderRecognitionState(payload);
+        }
     } catch (e) {
-        renderRecognitionState({ error: e.message, status: 'error' });
+        if (!cached && requestId === recognitionRequestId) {
+            renderRecognitionState({ error: e.message, status: 'error' });
+        }
     }
 };

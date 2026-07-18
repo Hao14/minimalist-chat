@@ -1,0 +1,681 @@
+{
+  "communities": {
+    "0": [
+      "10_product_current_current_product_overview_calm_room_communication",
+      "10_product_current_current_product_overview_current_product_overview",
+      "40_operations_protected_ollama_public_gateway",
+      "40_operations_protected_ollama_public_gateway_approved_ai_model_profiles",
+      "40_operations_protected_ollama_public_gateway_authenticated_ai_gateway_path",
+      "40_operations_protected_ollama_public_gateway_desktop_control_app",
+      "40_operations_protected_ollama_public_gateway_desktop_only_ai_control",
+      "40_operations_protected_ollama_public_gateway_desktop_only_ai_control_analysis",
+      "40_operations_protected_ollama_public_gateway_enable_public_gateway_mode",
+      "40_operations_protected_ollama_public_gateway_firebase_functions_runtime_config",
+      "40_operations_protected_ollama_public_gateway_isolated_ollama_bridge",
+      "40_operations_protected_ollama_public_gateway_local_bridge",
+      "40_operations_protected_ollama_public_gateway_optional_10_40_40_text_ai_overflow_router",
+      "40_operations_protected_ollama_public_gateway_persistent_named_tunnel_recovery",
+      "40_operations_protected_ollama_public_gateway_protected_ollama_public_gateway",
+      "90_memory_project_memory",
+      "90_memory_project_memory_durable_decisions",
+      "90_memory_project_memory_operating_guardrails",
+      "90_memory_project_memory_ordered_10_40_40_ai_capacity",
+      "90_memory_project_memory_product",
+      "90_memory_project_memory_product_opportunities_recorded_in_research",
+      "90_memory_project_memory_project_memory",
+      "90_memory_project_memory_quality_baseline",
+      "90_memory_project_memory_room_centered_product",
+      "90_memory_project_memory_security_and_ai_invariants",
+      "90_memory_project_memory_technical_shape",
+      "graphify_out_memory_query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio_permissioned_remote_analysis_query",
+      "graphify_out_memory_query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi_windowless_analysis_process_query"
+    ],
+    "1": [
+      "11_product_legacy_legacy_features",
+      "11_product_legacy_legacy_features_appearance",
+      "11_product_legacy_legacy_features_bookmarks",
+      "11_product_legacy_legacy_features_calendar",
+      "11_product_legacy_legacy_features_custom_profiles",
+      "11_product_legacy_legacy_features_custom_status",
+      "11_product_legacy_legacy_features_emoji_picker",
+      "11_product_legacy_legacy_features_encrypted_private_messages",
+      "11_product_legacy_legacy_features_events",
+      "11_product_legacy_legacy_features_everything_you_need_one_place",
+      "11_product_legacy_legacy_features_file_sharing",
+      "11_product_legacy_legacy_features_gif_support",
+      "11_product_legacy_legacy_features_message_deletion",
+      "11_product_legacy_legacy_features_message_editing",
+      "11_product_legacy_legacy_features_messaging",
+      "11_product_legacy_legacy_features_notification_controls",
+      "11_product_legacy_legacy_features_personalization",
+      "11_product_legacy_legacy_features_pins",
+      "11_product_legacy_legacy_features_polls",
+      "11_product_legacy_legacy_features_productivity",
+      "11_product_legacy_legacy_features_reactions",
+      "11_product_legacy_legacy_features_ready_to_dive_in",
+      "11_product_legacy_legacy_features_real_time_chat",
+      "11_product_legacy_legacy_features_reminders",
+      "11_product_legacy_legacy_features_tasks",
+      "11_product_legacy_legacy_features_themes",
+      "11_product_legacy_legacy_features_threads"
+    ],
+    "2": [
+      "50_skills_prompt_library_performance_error_and_bug_audit",
+      "50_skills_prompt_library_performance_error_and_bug_audit_1_global_chat_permission_denied_when_sending",
+      "50_skills_prompt_library_performance_error_and_bug_audit_2_reaction_menu_and_message_action_rail_layout",
+      "50_skills_prompt_library_performance_error_and_bug_audit_3_quick_digest_room_catch_up_consumes_too_much_chat_space",
+      "50_skills_prompt_library_performance_error_and_bug_audit_4_chat_boot_loading_timing",
+      "50_skills_prompt_library_performance_error_and_bug_audit_5_mobile_marketing_and_touch_target_polish",
+      "50_skills_prompt_library_performance_error_and_bug_audit_6_bundle_and_runtime_performance",
+      "50_skills_prompt_library_performance_error_and_bug_audit_7_css_architecture_risk",
+      "50_skills_prompt_library_performance_error_and_bug_audit_context",
+      "50_skills_prompt_library_performance_error_and_bug_audit_deliverable",
+      "50_skills_prompt_library_performance_error_and_bug_audit_important_scan_results_already_collected",
+      "50_skills_prompt_library_performance_error_and_bug_audit_minimalist_chat_performance_error_and_bug_audit_execution_prompt",
+      "50_skills_prompt_library_performance_error_and_bug_audit_priority_bugs_and_risks_to_fix",
+      "50_skills_prompt_library_performance_error_and_bug_audit_required_test_plan"
+    ],
+    "3": [
+      "11_product_legacy_legacy_download",
+      "11_product_legacy_legacy_download_android",
+      "11_product_legacy_legacy_download_can_i_use_it_on_my_phone",
+      "11_product_legacy_legacy_download_download_faq",
+      "11_product_legacy_legacy_download_iphone_ipad",
+      "11_product_legacy_legacy_download_is_it_free",
+      "11_product_legacy_legacy_download_is_there_a_real_installer_yet",
+      "11_product_legacy_legacy_download_macos",
+      "11_product_legacy_legacy_download_use_it_like_an_app",
+      "11_product_legacy_legacy_download_use_minimalist_anywhere",
+      "11_product_legacy_legacy_download_web_app",
+      "11_product_legacy_legacy_download_will_native_apps_sync_with_the_web_app",
+      "11_product_legacy_legacy_download_windows"
+    ],
+    "4": [
+      "40_operations_remote_analysis_access",
+      "40_operations_remote_analysis_access_add_the_separate_tunnel_route",
+      "40_operations_remote_analysis_access_configure_the_desktop_agent",
+      "40_operations_remote_analysis_access_create_the_cloudflare_access_application_first",
+      "40_operations_remote_analysis_access_install_invisible_logon_startup",
+      "40_operations_remote_analysis_access_local_preparation",
+      "40_operations_remote_analysis_access_native_client_sign_in",
+      "40_operations_remote_analysis_access_remote_minimalist_analysis_agent",
+      "40_operations_remote_analysis_access_restart_and_sign_in_behavior",
+      "40_operations_remote_analysis_access_security_boundaries",
+      "40_operations_remote_analysis_access_updating_and_removing_the_agent",
+      "40_operations_remote_analysis_access_verify_the_local_task_and_public_boundary",
+      "40_operations_remote_analysis_access_what_phase_1_exposes"
+    ],
+    "5": [
+      "50_skills_prompt_library_competitor_research_and_feature_implementation",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_claude_desktop_task_competitor_research_feature_implementation",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_competitor_research_seeds",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_current_app_context",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_final_summary_format",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_goal",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_hard_constraints",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_implementation_rules",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_research_deliverable",
+      "50_skills_prompt_library_competitor_research_and_feature_implementation_verification"
+    ],
+    "6": [
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq_optional_3_3_4_text_ai_overflow_router",
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq_ten_request_capacity_boundary",
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need_cloudflare_groq_ollama_credentials",
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need_google_secret_manager_handling_policy",
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently_inactive_multi_provider_routing",
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently_live_legacy_protected_ollama_routing",
+      "graphify_out_memory_query_20260715_064533_audit_docs__env_examples__ui_copy__and_configurati_canonical_to_generated_vault_workflow",
+      "graphify_out_memory_query_20260715_064533_audit_docs__env_examples__ui_copy__and_configurati_router_audit_source_of_truth",
+      "graphify_out_memory_query_20260715_064827_ok_lets_pc_handle_1_10_and_cloudflare_11_50_and_51_optional_10_40_40_text_ai_overflow_router",
+      "graphify_out_memory_query_20260715_064827_ok_lets_pc_handle_1_10_and_cloudflare_11_50_and_51_request_91_http_429_without_fifo_queue"
+    ],
+    "7": [
+      "11_product_legacy_legacy_faq",
+      "11_product_legacy_legacy_faq_frequently_asked_questions",
+      "11_product_legacy_legacy_faq_how_do_i_add_friends_and_send_private_messages",
+      "11_product_legacy_legacy_faq_how_do_i_create_or_join_a_room",
+      "11_product_legacy_legacy_faq_is_my_data_private",
+      "11_product_legacy_legacy_faq_still_need_help",
+      "11_product_legacy_legacy_faq_what_are_docs_and_the_whiteboard",
+      "11_product_legacy_legacy_faq_what_do_the_advanced_and_pro_tiers_include",
+      "11_product_legacy_legacy_faq_what_is_minimalist_chat"
+    ],
+    "8": [
+      "90_memory_gbrain_setup",
+      "90_memory_gbrain_setup_active_free_configuration",
+      "90_memory_gbrain_setup_codex_connection",
+      "90_memory_gbrain_setup_gbrain_setup",
+      "90_memory_gbrain_setup_imported_vault",
+      "90_memory_gbrain_setup_installed",
+      "90_memory_gbrain_setup_optional_later_upgrade",
+      "90_memory_gbrain_setup_refresh_workflow",
+      "90_memory_gbrain_setup_verification"
+    ],
+    "9": [
+      "00_home_minimalist_chat_knowledge_hub",
+      "00_home_minimalist_chat_knowledge_hub_agent_tools",
+      "00_home_minimalist_chat_knowledge_hub_minimalist_chat_knowledge_hub",
+      "00_home_minimalist_chat_knowledge_hub_operations",
+      "00_home_minimalist_chat_knowledge_hub_product",
+      "00_home_minimalist_chat_knowledge_hub_research_and_audits",
+      "00_home_minimalist_chat_knowledge_hub_start_here",
+      "00_home_minimalist_chat_knowledge_hub_working_rule"
+    ],
+    "10": [
+      "11_product_legacy_legacy_features_ai",
+      "11_product_legacy_legacy_features_ai_assistant",
+      "11_product_legacy_legacy_features_ai_summaries",
+      "11_product_legacy_legacy_features_code_assistant",
+      "11_product_legacy_legacy_features_content_generation",
+      "11_product_legacy_legacy_features_personal_ai_agent",
+      "11_product_legacy_legacy_features_smart_replies",
+      "11_product_legacy_legacy_features_translation"
+    ],
+    "11": [
+      "11_product_legacy_legacy_features_announcements",
+      "11_product_legacy_legacy_features_channels",
+      "11_product_legacy_legacy_features_community",
+      "11_product_legacy_legacy_features_groups",
+      "11_product_legacy_legacy_features_permissions",
+      "11_product_legacy_legacy_features_private_rooms",
+      "11_product_legacy_legacy_features_public_rooms",
+      "11_product_legacy_legacy_features_roles"
+    ],
+    "12": [
+      "20_research_claude_feature_research_and_implementation_plan",
+      "20_research_claude_feature_research_and_implementation_plan_claude_research_result_minimalist_chat_feature_implementation_prompt",
+      "20_research_claude_feature_research_and_implementation_plan_competitive_findings",
+      "20_research_claude_feature_research_and_implementation_plan_defer",
+      "20_research_claude_feature_research_and_implementation_plan_gpt_codex_implementation_prompt",
+      "20_research_claude_feature_research_and_implementation_plan_highest_impact_feature_opportunities",
+      "20_research_claude_feature_research_and_implementation_plan_model_and_research_notes",
+      "20_research_claude_feature_research_and_implementation_plan_recommended_implementation_scope_for_first_pass"
+    ],
+    "13": [
+      "40_operations_protected_ollama_public_gateway_connector_token_rotation",
+      "40_operations_protected_ollama_public_gateway_one_time_named_tunnel_setup",
+      "40_operations_protected_ollama_public_gateway_persistent_on_off_and_automatic_recovery",
+      "40_operations_protected_ollama_public_gateway_public_https_tunnel",
+      "40_operations_protected_ollama_public_gateway_recovery",
+      "40_operations_protected_ollama_public_gateway_security_and_later_maintenance",
+      "40_operations_protected_ollama_public_gateway_uninstall",
+      "40_operations_protected_ollama_public_gateway_verification"
+    ],
+    "14": [
+      "50_skills_prompt_library_feature_research_to_implementation_prompt",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_claude_opus_4_6_max_effort_request_feature_research_to_gpt_implementation_prompt",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_competitor_research_targets",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_current_product_context",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_feature_bias",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_mission",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_output_requirements",
+      "50_skills_prompt_library_feature_research_to_implementation_prompt_verification_expectations_for_gpt_codex"
+    ],
+    "15": [
+      "11_product_legacy_legacy_features_collaboration",
+      "11_product_legacy_legacy_features_collaborative_notes",
+      "11_product_legacy_legacy_features_live_events",
+      "11_product_legacy_legacy_features_screen_sharing",
+      "11_product_legacy_legacy_features_video_calls",
+      "11_product_legacy_legacy_features_voice_calls",
+      "11_product_legacy_legacy_features_whiteboard"
+    ],
+    "16": [
+      "30_audits_full_stack_audit_follow_up",
+      "30_audits_full_stack_audit_follow_up_audit_context",
+      "30_audits_full_stack_audit_follow_up_fixed_locally_in_this_audit",
+      "30_audits_full_stack_audit_follow_up_full_stack_audit_follow_up_authenticated_live_qa_and_github_product_issue_workflow",
+      "30_audits_full_stack_audit_follow_up_remaining_gaps_blockers",
+      "30_audits_full_stack_audit_follow_up_suggested_next_step",
+      "30_audits_full_stack_audit_follow_up_verified_locally"
+    ],
+    "17": [
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13",
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_current_product_shape",
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_distribution",
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_minimalist_analysis_desktop_app_review_2026_07_13",
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_reliability_and_security_changes",
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_scope",
+      "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_verification"
+    ],
+    "18": [
+      "30_audits_site_wide_performance_optimization_2026_07_15_bounded_long_session_chat_state",
+      "30_audits_site_wide_performance_optimization_2026_07_15_client_image_preparation",
+      "30_audits_site_wide_performance_optimization_2026_07_15_enforceable_build_budgets",
+      "30_audits_site_wide_performance_optimization_2026_07_15_hidden_feature_lifecycle",
+      "30_audits_site_wide_performance_optimization_2026_07_15_performance_verification_snapshot",
+      "30_audits_site_wide_performance_optimization_2026_07_15_resilient_service_worker_caching",
+      "30_audits_site_wide_performance_optimization_2026_07_15_site_wide_performance_optimization"
+    ],
+    "19": [
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit",
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit_claude_opus_high_effort_mobile_first_ui_performance_audit_prompt",
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit_diagnosed_risks",
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit_executive_summary",
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit_mobile_first_optimization_plan",
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit_optional_feature_opportunities",
+      "50_skills_prompt_library_mobile_first_ui_and_performance_audit_prompt_for_codex"
+    ],
+    "20": [
+      "90_memory_memory_protocol",
+      "90_memory_memory_protocol_capture",
+      "90_memory_memory_protocol_memory_protocol",
+      "90_memory_memory_protocol_promote",
+      "90_memory_memory_protocol_three_memory_layers",
+      "90_memory_memory_protocol_verify"
+    ],
+    "21": [
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s_initialization_before_live_refresh",
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s_protected_startup_loading_gate",
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi_bounded_chat_boot_recovery",
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi_initial_exact_origin_rtdb_csp_diagnosis",
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us_rotating_rtdb_shard_transport",
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us_wildcard_path_scoped_rtdb_csp_policy"
+    ],
+    "22": [
+      "11_product_legacy_legacy_privacy_policy",
+      "11_product_legacy_legacy_privacy_policy_1_information_we_collect",
+      "11_product_legacy_legacy_privacy_policy_2_third_party_services",
+      "11_product_legacy_legacy_privacy_policy_3_your_right_to_deletion",
+      "11_product_legacy_legacy_privacy_policy_privacy_policy"
+    ],
+    "23": [
+      "11_product_legacy_legacy_terms_of_service",
+      "11_product_legacy_legacy_terms_of_service_1_acceptance_of_terms",
+      "11_product_legacy_legacy_terms_of_service_2_user_conduct_content",
+      "11_product_legacy_legacy_terms_of_service_3_subscriptions_refunds",
+      "11_product_legacy_legacy_terms_of_service_terms_of_service"
+    ],
+    "24": [
+      "30_audits_lighthouse_history",
+      "30_audits_lighthouse_history_all_runs",
+      "30_audits_lighthouse_history_excluded_generated_artifacts",
+      "30_audits_lighthouse_history_key_checkpoints",
+      "30_audits_lighthouse_history_lighthouse_history"
+    ],
+    "25": [
+      "graphify_out_memory_query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and",
+      "graphify_out_memory_query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and_answer",
+      "graphify_out_memory_query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and_outcome",
+      "graphify_out_memory_query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and_q_can_the_website_start_the_ai_bridge_on_demand_and_stop_it_after_two_idle_hours",
+      "graphify_out_memory_query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and_source_nodes"
+    ],
+    "26": [
+      "graphify_out_memory_query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in",
+      "graphify_out_memory_query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in_answer",
+      "graphify_out_memory_query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in_outcome",
+      "graphify_out_memory_query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in_q_photo_import_failed_because_qwen2_5vl_7b_is_not_installed",
+      "graphify_out_memory_query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in_source_nodes"
+    ],
+    "27": [
+      "graphify_out_memory_query_20260714_145807_remote_analysis_agent_path_sonnd_good_can_we_get_s",
+      "graphify_out_memory_query_20260714_145807_remote_analysis_agent_path_sonnd_good_can_we_get_s_answer",
+      "graphify_out_memory_query_20260714_145807_remote_analysis_agent_path_sonnd_good_can_we_get_s_outcome",
+      "graphify_out_memory_query_20260714_145807_remote_analysis_agent_path_sonnd_good_can_we_get_s_q_remote_analysis_agent_path_sonnd_good_can_we_get_started_on_that",
+      "graphify_out_memory_query_20260714_145807_remote_analysis_agent_path_sonnd_good_can_we_get_s_source_nodes"
+    ],
+    "28": [
+      "graphify_out_memory_query_20260714_155154_implement_the_windows_analysis_app_remote_mode_wit",
+      "graphify_out_memory_query_20260714_155154_implement_the_windows_analysis_app_remote_mode_wit_answer",
+      "graphify_out_memory_query_20260714_155154_implement_the_windows_analysis_app_remote_mode_wit_outcome",
+      "graphify_out_memory_query_20260714_155154_implement_the_windows_analysis_app_remote_mode_wit_q_implement_the_windows_analysis_app_remote_mode_with_cloudflare_access_while_preserving_local_only_administrator_controls",
+      "graphify_out_memory_query_20260714_155154_implement_the_windows_analysis_app_remote_mode_wit_source_nodes"
+    ],
+    "29": [
+      "graphify_out_memory_query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio",
+      "graphify_out_memory_query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio_answer",
+      "graphify_out_memory_query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio_outcome",
+      "graphify_out_memory_query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio_q_can_you_get_all_that_done_for_me_i_grant_permissions",
+      "graphify_out_memory_query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio_source_nodes"
+    ],
+    "30": [
+      "graphify_out_memory_query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi",
+      "graphify_out_memory_query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi_answer",
+      "graphify_out_memory_query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi_outcome",
+      "graphify_out_memory_query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi_q_keep_getting_commands_and_powershell_prompt_flashing_on_my_screen_and_disappearing",
+      "graphify_out_memory_query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi_source_nodes"
+    ],
+    "31": [
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s",
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s_answer",
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s_outcome",
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s_q_can_you_add_a_loading_screen_when_the_app_laucnh_so_everything_can_be_lo_loaded",
+      "graphify_out_memory_query_20260714_171332_can_you_add_a_loading_screen_when_the_app_laucnh_s_source_nodes"
+    ],
+    "32": [
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi",
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi_answer",
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi_outcome",
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi_q_diagnose_a_user_stuck_on_the_minimalist_chat_loading_screen_using_the_supplied_csp_console_screenshots_and_browser_log",
+      "graphify_out_memory_query_20260714_202314_diagnose_a_user_stuck_on_the_minimalist_chat_loadi_source_nodes"
+    ],
+    "33": [
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us",
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us_answer",
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us_outcome",
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us_q_there_are_more_different_console_errors_while_a_user_is_stuck_on_the_minimalist_chat_loading_screen",
+      "graphify_out_memory_query_20260714_205308_there_are_more_different_console_errors_while_a_us_source_nodes"
+    ],
+    "34": [
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot",
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot_answer",
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot_outcome",
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot_q_can_we_optimize_the_local_ai_agent_to_handle_alot_of_ai_request_with_the_current_pc_specs",
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot_source_nodes"
+    ],
+    "35": [
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing_als",
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing_als_answer",
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing_als_outcome",
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing_als_q_re_work_regular_subscription_page_and_billing_also_its_not_taking_me_to_checkout_page_there_just_an_error",
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing_als_source_nodes"
+    ],
+    "36": [
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in",
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_answer",
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_outcome",
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_q_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_queue_will_be_cloudflare_ai_and_6_10_will_be_groq",
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_source_nodes"
+    ],
+    "37": [
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq",
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq_answer",
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq_outcome",
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq_q_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq",
+      "graphify_out_memory_query_20260715_050646_can_we_do_1_3_pc_4_6_cloudflare_6_10_groq_source_nodes"
+    ],
+    "38": [
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need",
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need_answer",
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need_outcome",
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need_q_what_credentials_do_you_need",
+      "graphify_out_memory_query_20260715_053933_what_credentials_do_you_need_source_nodes"
+    ],
+    "39": [
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently",
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently_answer",
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently_outcome",
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently_q_so_what_is_our_limit_currently",
+      "graphify_out_memory_query_20260715_063329_so_what_is_our_limit_currently_source_nodes"
+    ],
+    "40": [
+      "graphify_out_memory_query_20260715_064533_audit_docs_env_examples_ui_copy_and_configurati",
+      "graphify_out_memory_query_20260715_064533_audit_docs_env_examples_ui_copy_and_configurati_answer",
+      "graphify_out_memory_query_20260715_064533_audit_docs_env_examples_ui_copy_and_configurati_outcome",
+      "graphify_out_memory_query_20260715_064533_audit_docs_env_examples_ui_copy_and_configurati_q_audit_docs_env_examples_ui_copy_and_configuration_for_references_to_the_existing_3_3_4_or_total_10_ai_provider_router_target_is_pc_ollama_1_10_cloudflare_11_50_groq_51_90_and_91_http_429",
+      "graphify_out_memory_query_20260715_064533_audit_docs_env_examples_ui_copy_and_configurati_source_nodes"
+    ],
+    "41": [
+      "90_memory_source_catalog",
+      "90_memory_source_catalog_additive_source_provenance_boundary",
+      "90_memory_source_catalog_import_boundary",
+      "90_memory_source_catalog_source_catalog"
+    ],
+    "42": [
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot_bounded_local_ai_concurrency_profile",
+      "graphify_out_memory_query_20260714_211710_can_we_optimize_the_local_ai_agent_to_handle_alot_close_ollama_lan_exposure_before_tuning",
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_three_two_five_text_ai_overflow_router",
+      "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_transactional_capacity_leases_and_retryable_admission_control"
+    ],
+    "43": [
+      "graphify_out_memory_query_20260715_050624_re_work_regular_subscription_page_and_billing_als",
+      "graphify_out_memory_query_20260715_050624_re_work_regular_subscription_page_and_billing_als_answer",
+      "graphify_out_memory_query_20260715_050624_re_work_regular_subscription_page_and_billing_als_outcome",
+      "graphify_out_memory_query_20260715_050624_re_work_regular_subscription_page_and_billing_als_q_re_work_regular_subscription_page_and_billing_also_its_not_taking_me_to_checkout_page_there_just_an_error"
+    ],
+    "44": [
+      "90_memory_inbox",
+      "90_memory_inbox_memory_inbox",
+      "90_memory_inbox_unprocessed"
+    ],
+    "45": [
+      "agents",
+      "agents_gbrain",
+      "agents_graphify"
+    ],
+    "46": [
+      "10_product_current_current_product_overview",
+      "10_product_current_current_product_overview_catch_up_in_minutes_stay_focused_for_hours"
+    ],
+    "47": [
+      "11_product_legacy_legacy_home",
+      "11_product_legacy_legacy_home_less_is_more"
+    ],
+    "48": [
+      "11_product_legacy_legacy_story",
+      "11_product_legacy_legacy_story_just_enough"
+    ],
+    "49": [
+      "50_skills_prompt_library_prompt_library",
+      "50_skills_prompt_library_prompt_library_prompt_library"
+    ],
+    "50": [
+      "create_a_link",
+      "welcome"
+    ],
+    "51": [
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing__als_embedded_checkout_preference",
+      "graphify_out_memory_query_20260715_043740_re_work_regular_subscription_page_and_billing__als_stripe_test_live_customer_mismatch"
+    ],
+    "52": [
+      "graphify_out_memory_query_20260715_050624_re_work_regular_subscription_page_and_billing__als_stripe_checkout_failure_incident",
+      "graphify_out_memory_query_20260715_050624_re_work_regular_subscription_page_and_billing__als_test_live_stripe_customer_mismatch"
+    ],
+    "53": [
+      "40_operations_remote_analysis_access_cloudflare_access_managed_oauth"
+    ],
+    "54": [
+      "40_operations_remote_analysis_access_protected_localappdata_task"
+    ],
+    "55": [
+      "40_operations_remote_analysis_access_read_only_agent"
+    ],
+    "56": [
+      "40_operations_remote_analysis_access_remote_windows_client"
+    ],
+    "57": [
+      "40_operations_remote_analysis_access_restart_sign_in_boundary"
+    ]
+  },
+  "cohesion": {
+    "0": 0.07936507936507936,
+    "1": 0.07692307692307693,
+    "2": 0.14285714285714285,
+    "3": 0.15384615384615385,
+    "4": 0.15384615384615385,
+    "5": 0.2,
+    "6": 0.24444444444444444,
+    "7": 0.2222222222222222,
+    "8": 0.2222222222222222,
+    "9": 0.25,
+    "10": 0.25,
+    "11": 0.25,
+    "12": 0.25,
+    "13": 0.25,
+    "14": 0.25,
+    "15": 0.2857142857142857,
+    "16": 0.2857142857142857,
+    "17": 0.2857142857142857,
+    "18": 0.2857142857142857,
+    "19": 0.2857142857142857,
+    "20": 0.3333333333333333,
+    "21": 0.3333333333333333,
+    "22": 0.4,
+    "23": 0.4,
+    "24": 0.4,
+    "25": 0.4,
+    "26": 0.4,
+    "27": 0.4,
+    "28": 0.4,
+    "29": 0.4,
+    "30": 0.4,
+    "31": 0.4,
+    "32": 0.4,
+    "33": 0.4,
+    "34": 0.4,
+    "35": 0.4,
+    "36": 0.4,
+    "37": 0.4,
+    "38": 0.4,
+    "39": 0.4,
+    "40": 0.4,
+    "41": 0.5,
+    "42": 0.5,
+    "43": 0.5,
+    "44": 0.6666666666666666,
+    "45": 0.6666666666666666,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0,
+    "49": 1.0,
+    "50": 1.0,
+    "51": 1.0,
+    "52": 1.0,
+    "53": 1.0,
+    "54": 1.0,
+    "55": 1.0,
+    "56": 1.0,
+    "57": 1.0
+  },
+  "gods": [
+    {
+      "id": "40_operations_protected_ollama_public_gateway_protected_ollama_public_gateway",
+      "label": "Protected Ollama Public Gateway",
+      "degree": 14
+    },
+    {
+      "id": "11_product_legacy_legacy_features_messaging",
+      "label": "Messaging",
+      "degree": 12
+    },
+    {
+      "id": "40_operations_remote_analysis_access_remote_minimalist_analysis_agent",
+      "label": "Remote Minimalist Analysis Agent",
+      "degree": 12
+    },
+    {
+      "id": "90_memory_project_memory_project_memory",
+      "label": "Project Memory",
+      "degree": 10
+    },
+    {
+      "id": "50_skills_prompt_library_competitor_research_and_feature_implementation_claude_desktop_task_competitor_research_feature_implementation",
+      "label": "Claude Desktop Task: Competitor Research + Feature Implementation",
+      "degree": 9
+    },
+    {
+      "id": "11_product_legacy_legacy_download_use_minimalist_anywhere",
+      "label": "Use Minimalist anywhere.",
+      "degree": 8
+    },
+    {
+      "id": "11_product_legacy_legacy_faq_frequently_asked_questions",
+      "label": "Frequently Asked Questions",
+      "degree": 8
+    },
+    {
+      "id": "11_product_legacy_legacy_features_everything_you_need_one_place",
+      "label": "Everything you need. One place.",
+      "degree": 8
+    },
+    {
+      "id": "11_product_legacy_legacy_features_community",
+      "label": "Community",
+      "degree": 8
+    },
+    {
+      "id": "11_product_legacy_legacy_features_ai",
+      "label": "AI",
+      "degree": 8
+    }
+  ],
+  "surprises": [
+    {
+      "source": "Ordered 10 / 40 / 40 AI Capacity",
+      "target": "Protected Ollama Public Gateway",
+      "source_files": [
+        "90 Memory/Project Memory.md",
+        "40 Operations/Protected Ollama Public Gateway.md"
+      ],
+      "confidence": "INFERRED",
+      "relation": "semantically_similar_to",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; semantically similar concepts with no structural link; peripheral node `Ordered 10 / 40 / 40 AI Capacity` unexpectedly reaches hub `Protected Ollama Public Gateway`"
+    },
+    {
+      "source": "Security and AI Invariants",
+      "target": "Protected Ollama Public Gateway",
+      "source_files": [
+        "90 Memory/Project Memory.md",
+        "40 Operations/Protected Ollama Public Gateway.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories; peripheral node `Security and AI Invariants` unexpectedly reaches hub `Protected Ollama Public Gateway`"
+    },
+    {
+      "source": "Room-centered Product",
+      "target": "Current Product Overview",
+      "source_files": [
+        "90 Memory/Project Memory.md",
+        "10 Product/Current/Current Product Overview.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "Permissioned Remote Analysis Implementation Query",
+      "target": "Persistent Named Tunnel Recovery",
+      "source_files": [
+        "graphify-out/memory/query_20260714_162625_can_you_get_all_that_done_for_me_i_grant_permissio.md",
+        "40 Operations/Protected Ollama Public Gateway.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "Windowless Analysis Process Query",
+      "target": "Persistent Named Tunnel Recovery",
+      "source_files": [
+        "graphify-out/memory/query_20260714_164421_keep_getting_commands_and_powershell_prompt_flashi.md",
+        "40 Operations/Protected Ollama Public Gateway.md"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `Everything you need. One place.` connect `Messaging` to `AI`, `Community`, `Collaboration`?",
+      "why": "High betweenness centrality (0.015) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `Protected Ollama Public Gateway` connect `Protected Ollama Public Gateway` to `Public HTTPS Tunnel`?",
+      "why": "High betweenness centrality (0.007) - this node is a cross-community bridge."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Start here`, `Product`, `Research and audits` to the rest of the system?",
+      "why": "247 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Protected Ollama Public Gateway` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07936507936507936 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Messaging` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.07692307692307693 - nodes in this community are weakly interconnected."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Priority Bugs And Risks To Fix` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected."
+    }
+  ]
+}

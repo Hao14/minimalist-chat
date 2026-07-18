@@ -4,17 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Minimalist | Download</title>
-    <meta name="description" content="Download Rooms for Windows, macOS, Android, and iOS. Stay connected across every device.">
+    <meta name="description" content="Use Minimalist in the browser today. Native desktop and mobile apps are planned.">
 <link id="dynamic-favicon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
-<link rel="stylesheet" href="base.css?v=split14">
-<link rel="stylesheet" href="desktop.css?v=split1">
-<link rel="stylesheet" href="mobile.css?v=split1">
+<link rel="stylesheet" href="/base.css?v=split24">
+<link rel="stylesheet" href="/desktop.css?v=split2">
+<link rel="stylesheet" href="/mobile.css?v=split9">
 </head>
 <body class="marketing">
     <div class="shape yellow-circle bottom-left"></div>
 
-    <nav>
+    <nav aria-label="Primary">
         <a href="/" id="nav-logo">
             <div class="mascot-blip">
                 <div class="blip-eye left"></div>
@@ -29,8 +29,8 @@
             <a href="/login" class="guest-only">Login</a>
         </div>
         <div id="nav-actions" class="desktop-nav"></div>
-        <button id="mobile-menu-btn" class="mobile-only nav-btn">MENU</button>
-        <div id="mobile-nav-links" class="mobile-only hidden">
+        <button id="mobile-menu-btn" class="mobile-only nav-btn" type="button" aria-expanded="false" aria-controls="marketing-mobile-nav-links">MENU</button>
+        <div id="marketing-mobile-nav-links" class="mobile-only hidden marketing-mobile-nav-links" aria-hidden="true">
             <a href="/" class="mobile-link">HOME</a>
             <a href="/story" class="mobile-link">STORY</a>
             <a href="/download" class="mobile-link" style="color: var(--accent-color); font-weight: 800;">DOWNLOAD</a>
@@ -41,69 +41,76 @@
 
     <div class="container fade-in-up dl-wrap">
         <div class="dl-hero">
-            <h1>Download Rooms <span>Everywhere.</span></h1>
-            <p>Stay connected across every device. One account, every platform.</p>
+            <h1>Use Minimalist <span>anywhere.</span></h1>
+            <p>The web app is ready today. Native desktop and mobile apps are planned, but your rooms already work across modern browsers.</p>
             <p class="dl-detected" id="dl-detected"></p>
         </div>
 
         <div class="dl-grid">
+            <div class="dl-card recommended" data-platform="web">
+                <div class="dl-badge">Recommended</div>
+                <div class="dl-card-icon"><i class="ph-bold ph-globe"></i></div>
+                <h2>Web App</h2>
+                <p class="dl-meta">Available now • no installer required</p>
+                <a class="dl-btn" href="/chat">Open Minimalist</a>
+                <ul class="dl-reqs">
+                    <li>Works on desktop and mobile browsers</li>
+                    <li>Best way to use Minimalist today</li>
+                </ul>
+            </div>
             <!-- Windows -->
             <div class="dl-card" data-platform="windows">
-                <div class="dl-badge">Recommended</div>
                 <div class="dl-card-icon"><i class="ph-bold ph-windows-logo"></i></div>
                 <h2>Windows</h2>
-                <p class="dl-meta">Version 1.0 • 64-bit</p>
-                <button class="dl-btn" data-dl="Windows">Download for Windows</button>
+                <p class="dl-meta">Windows 10+ • desktop app planned</p>
+                <button class="dl-btn dl-btn-ghost" data-dl="Windows">Notify me</button>
                 <ul class="dl-reqs">
-                    <li>Windows 10 or later</li>
-                    <li>4&nbsp;GB RAM • 200&nbsp;MB disk</li>
+                    <li>Native notifications planned</li>
+                    <li>Pinned desktop experience planned</li>
                 </ul>
             </div>
             <!-- macOS -->
             <div class="dl-card" data-platform="mac">
-                <div class="dl-badge">Recommended</div>
                 <div class="dl-card-icon"><i class="ph-bold ph-apple-logo"></i></div>
                 <h2>macOS</h2>
-                <p class="dl-meta">Version 1.0 • Universal</p>
-                <button class="dl-btn" data-dl="macOS (Apple Silicon)">Apple Silicon</button>
-                <button class="dl-btn dl-btn-ghost" data-dl="macOS (Intel)">Intel</button>
+                <p class="dl-meta">macOS 12+ • desktop app planned</p>
+                <button class="dl-btn dl-btn-ghost" data-dl="macOS">Notify me</button>
                 <ul class="dl-reqs">
-                    <li>macOS 12 Monterey or later</li>
-                    <li>Apple Silicon &amp; Intel supported</li>
+                    <li>Apple Silicon and Intel planned</li>
+                    <li>Menu bar integrations planned</li>
                 </ul>
             </div>
             <!-- Android -->
             <div class="dl-card" data-platform="android">
-                <div class="dl-badge">Recommended</div>
                 <div class="dl-card-icon"><i class="ph-bold ph-android-logo"></i></div>
                 <h2>Android</h2>
-                <p class="dl-meta">Version 1.0</p>
-                <button class="dl-btn" data-dl="Google Play"><i class="ph-bold ph-google-play-logo"></i> Google Play</button>
-                <button class="dl-btn dl-btn-ghost" data-dl="Android APK">Direct APK</button>
+                <p class="dl-meta">Android 8+ • mobile app planned</p>
+                <button class="dl-btn dl-btn-ghost" data-dl="Android">Notify me</button>
                 <ul class="dl-reqs">
-                    <li>Android 8.0 or later</li>
+                    <li>Push notifications planned</li>
+                    <li>Share sheet import planned</li>
                 </ul>
             </div>
             <!-- iOS -->
             <div class="dl-card" data-platform="ios">
-                <div class="dl-badge">Recommended</div>
                 <div class="dl-card-icon"><i class="ph-bold ph-app-store-logo"></i></div>
                 <h2>iPhone &amp; iPad</h2>
-                <p class="dl-meta">Version 1.0</p>
-                <button class="dl-btn" data-dl="App Store"><i class="ph-bold ph-app-store-logo"></i> App Store</button>
+                <p class="dl-meta">iOS/iPadOS 15+ • mobile app planned</p>
+                <button class="dl-btn dl-btn-ghost" data-dl="iPhone and iPad">Notify me</button>
                 <ul class="dl-reqs">
-                    <li>iOS / iPadOS 15 or later</li>
+                    <li>Home Screen support planned</li>
+                    <li>Native notification polish planned</li>
                 </ul>
             </div>
         </div>
 
         <!-- Install instructions -->
         <div class="dl-section">
-            <h2 class="dl-section-title">Installation</h2>
+            <h2 class="dl-section-title">Use it like an app</h2>
             <div class="dl-install">
-                <div class="dl-step"><span class="dl-step-n">1</span><div><strong>Download</strong><p>Pick your platform above — we highlight the one that matches your device.</p></div></div>
-                <div class="dl-step"><span class="dl-step-n">2</span><div><strong>Install</strong><p>Open the installer (or store page) and follow the prompts. Mobile installs from the store automatically.</p></div></div>
-                <div class="dl-step"><span class="dl-step-n">3</span><div><strong>Sign in</strong><p>Log in with your account and pick up exactly where you left off — rooms, messages, and all.</p></div></div>
+                <div class="dl-step"><span class="dl-step-n">1</span><div><strong>Open</strong><p>Use the web app today from any modern browser.</p></div></div>
+                <div class="dl-step"><span class="dl-step-n">2</span><div><strong>Pin</strong><p>Add it to your desktop, taskbar, dock, or phone Home Screen.</p></div></div>
+                <div class="dl-step"><span class="dl-step-n">3</span><div><strong>Sign in</strong><p>Pick up rooms, messages, files, and settings from one account.</p></div></div>
             </div>
         </div>
 
@@ -111,9 +118,10 @@
         <div class="dl-section">
             <h2 class="dl-section-title">Download FAQ</h2>
             <div class="dl-faq">
-                <div class="dl-faq-item"><h3>Is it free?</h3><p>Yes — the apps are free. Optional Advanced and Pro tiers raise upload limits, room creation caps, analytics, calls, and badges.</p></div>
-                <div class="dl-faq-item"><h3>Do I need separate accounts?</h3><p>No. One account works across web, desktop, and mobile — everything stays in sync.</p></div>
-                <div class="dl-faq-item"><h3>No app for my platform?</h3><p>You can always use Rooms right in your browser — <a href="/chat" style="color: var(--text-color); font-weight: 800;">open the web app</a>.</p></div>
+                <div class="dl-faq-item"><h3>Is there a real installer yet?</h3><p>Not yet. The web app is the production path right now, and native apps are planned.</p></div>
+                <div class="dl-faq-item"><h3>Can I use it on my phone?</h3><p>Yes. Open the web app on mobile, then add it to your Home Screen for an app-like flow.</p></div>
+                <div class="dl-faq-item"><h3>Is it free?</h3><p>Yes. Base is free; Advanced and Pro add higher limits, analytics, video, badges, and power features.</p></div>
+                <div class="dl-faq-item"><h3>Will native apps sync with the web app?</h3><p>Yes. The goal is one account and the same rooms across web, desktop, and mobile.</p></div>
             </div>
         </div>
     </div>
@@ -136,7 +144,7 @@
     </div>
 
     <script>
-        // Highlight the card matching the visitor's platform; hide other "Recommended" badges.
+        // Native apps are planned; keep the web app as the honest recommendation today.
         (function () {
             const ua = navigator.userAgent || '';
             let plat = '';
@@ -144,17 +152,14 @@
             else if (/iPhone|iPad|iPod/i.test(ua)) plat = 'ios';
             else if (/Macintosh|Mac OS X/i.test(ua)) plat = 'mac';
             else if (/Windows/i.test(ua)) plat = 'windows';
-            document.querySelectorAll('.dl-card').forEach(c => {
-                if (c.dataset.platform === plat) { c.classList.add('recommended'); }
-                else { c.querySelector('.dl-badge')?.remove(); }
-            });
-            const labels = { windows: 'Windows', mac: 'macOS', android: 'Android', ios: 'iOS' };
+            const labels = { windows: 'Windows', mac: 'macOS', android: 'Android', ios: 'iPhone and iPad' };
             const det = document.getElementById('dl-detected');
-            if (det && labels[plat]) det.textContent = `We detected ${labels[plat]} — your recommended download is highlighted below.`;
+            if (det && labels[plat]) det.textContent = `Detected: ${labels[plat]}. Use the web app today; the native ${labels[plat]} app is planned.`;
+            else if (det) det.textContent = 'Open the web app today, then pin it from your browser menu for an app-like flow.';
 
             // Apps aren't published yet — show a friendly notice instead of a dead link.
             const toast = (msg) => { const t = document.getElementById('brutalist-toast'), m = document.getElementById('toast-message'), ic = document.getElementById('toast-icon'); if (t && m) { if (ic) ic.textContent = '📦'; m.textContent = msg; t.classList.remove('toast-hidden'); setTimeout(() => t.classList.add('toast-hidden'), 3500); } };
-            document.querySelectorAll('.dl-btn').forEach(b => b.addEventListener('click', () => toast(`${b.dataset.dl} app is coming soon! Use the web app for now.`)));
+            document.querySelectorAll('button[data-dl]').forEach(b => b.addEventListener('click', () => toast(`${b.dataset.dl} app is coming soon. Use the web app for now.`)));
             document.getElementById('toast-close')?.addEventListener('click', () => document.getElementById('brutalist-toast')?.classList.add('toast-hidden'));
 
             // Live clock (matches the rest of the site footer)
@@ -162,6 +167,6 @@
             if (clock) { const tick = () => clock.textContent = 'SYSTEM TIME: ' + new Date().toLocaleTimeString('en-US', { hour12: true, timeZoneName: 'short' }); tick(); setInterval(tick, 1000); }
         })();
     </script>
-    <script type="module" src="js/app.js?v=30"></script>
+    <script defer src="/legacy/marketing-nav.js"></script>
 </body>
 </html>

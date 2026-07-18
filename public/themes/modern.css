@@ -1151,7 +1151,7 @@ body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card {
     color: #151827 !important;
 }
 
-body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-sidebar, .settings-content, .settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-summary-compact > div, .profile-edit-card) {
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-sidebar, .settings-content, .settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .settings-personal-ai-panel, .profile-summary-compact > div, .profile-edit-card) {
     background: rgba(255, 255, 255, 0.94) !important;
     color: #151827 !important;
     border-color: rgba(124, 58, 237, 0.12) !important;
@@ -1162,7 +1162,7 @@ body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card :is(h1, h
     color: #151827 !important;
 }
 
-body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-tab, .billing-plan-card li, .muted, .profile-completion-hint),
+body.modern-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-tab, .billing-plan-card li, .muted, .settings-personal-ai-note, .settings-personal-ai-status, .profile-completion-hint),
 body.modern-mode:not(.marketing):not(.auth-screen) #room-settings-card :is(.settings-tab, .muted) {
     color: #667085 !important;
 }
@@ -1318,7 +1318,7 @@ body.modern-mode:not(.marketing):not(.auth-screen) #search-modal #global-search-
 
 body.modern-mode:not(.marketing):not(.auth-screen) #search-modal .search-scope-row {
     margin-inline: 1rem !important;
-    border: 1px solid rgba(124, 58, 237, 0.16) !important;
+    border: 0 !important;
     border-radius: 18px !important;
     background: rgba(245, 243, 255, 0.86) !important;
 }
@@ -1700,7 +1700,7 @@ body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-card-m
     body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel :is(.update-tabs, .updates-tabs, .lb-filters) {
         margin: 0.85rem 1rem 0 !important;
         padding: 0.32rem !important;
-        border: 1px solid rgba(124, 58, 237, 0.14) !important;
+        border: 0 !important;
         border-radius: 18px !important;
         background: rgba(245, 243, 255, 0.82) !important;
     }

@@ -88,7 +88,18 @@ export function RoomPages({ adminUid, menuHost, roomId, userId }) {
   const enabledButtons = Object.entries(pageDefinitions)
     .filter(([key]) => pages[key])
     .map(([key, page]) => (
-      <button key={key} type="button" className="room-tab" data-target={key}>
+      <button
+        key={key}
+        id={`room-tab-${key}`}
+        type="button"
+        className="room-tab"
+        data-target={key}
+        role="tab"
+        aria-controls={`room-view-${key}`}
+        aria-selected="false"
+        aria-label={`${page.label} room tab`}
+        tabIndex={-1}
+      >
         <i className={`ph-bold ${page.icon}`} aria-hidden="true" /><span>{page.label}</span>
       </button>
     ));
@@ -96,12 +107,25 @@ export function RoomPages({ adminUid, menuHost, roomId, userId }) {
   const menu = menuHost ? createPortal((
     <>
       <div className="page-menu-title">Pages</div>
-      {Object.entries(pageDefinitions).map(([key, page]) => (
-        <button key={key} type="button" className="page-toggle" data-page={key} onClick={(event) => { event.stopPropagation(); togglePage(key); }}>
+      {Object.entries(pageDefinitions).map(([key, page]) => {
+        const enabled = Boolean(pages[key]);
+        const required = Boolean(corePages[key]);
+        return (
+        <button
+          key={key}
+          type="button"
+          className="page-toggle"
+          data-page={key}
+          aria-pressed={enabled}
+          aria-disabled={required || undefined}
+          aria-label={`${page.label} page ${enabled ? 'enabled' : 'disabled'}${required ? ', required' : ''}`}
+          onClick={(event) => { event.stopPropagation(); togglePage(key); }}
+        >
           <span><i className={`ph-bold ${page.icon}`} aria-hidden="true" />{page.label}</span>
-          <span className="page-toggle-state">{pages[key] ? '✓' : '+'}</span>
+          <span className="page-toggle-state" aria-hidden="true">{enabled ? '✓' : '+'}</span>
         </button>
-      ))}
+        );
+      })}
     </>
   ), menuHost) : null;
 

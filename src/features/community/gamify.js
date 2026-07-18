@@ -6,12 +6,18 @@
 import { db } from '../../lib/firebase.js';
 import { ref, get, set, runTransaction, onValue } from 'firebase/database';
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import QuestList from './QuestList.jsx';
 
 const XP_PER_LEVEL = 100;
-let questsRoot = null;
+const questsRoot = createHostAwareRoot();
 let questsLiveUnsubscribe = null;
+let questRenderGeneration = 0;
+let questLiveContextKey = '';
+let questLiveHost = null;
+let questLiveRender = null;
+let questBoundaryTimer = null;
+let questRestoreFocus = false;
 
 // The four skill trees.
 const SKILLS = {
@@ -42,7 +48,7 @@ window.renderSkillTree = function (user) {
     const xp = (user && user.xp) || {};
     return `<div class="skilltree">` + Object.entries(SKILLS).map(([k, m]) => {
         const x = xp[k] || 0, lv = levelOf(x), pct = x % XP_PER_LEVEL;
-        return `<div class="st-row">
+        return `<div class="st-row" style="--st-color:${m.color}">
             <span class="st-ico" style="color:${m.color}"><i class="ph-bold ${m.icon}"></i></span>
             <span class="st-name">${m.label}</span>
             <span class="st-lv">Lv ${lv}</span>
@@ -120,72 +126,166 @@ function computeLiveStreak(streak) {
     return (streak.lastDay === today || streak.lastDay === yesterday) ? (streak.count || 0) : 0;
 }
 
+function nextQuestBoundaryDelay() {
+    const now = new Date();
+    const nextUtcMidnight = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+    const nextLocalMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    return Math.max(1000, Math.min(nextUtcMidnight, nextLocalMidnight) - now.getTime() + 1000);
+}
+
+function scheduleQuestBoundaryRefresh(renderGeneration) {
+    if (questBoundaryTimer) clearTimeout(questBoundaryTimer);
+    questBoundaryTimer = window.setTimeout(() => {
+        questBoundaryTimer = null;
+        if (renderGeneration !== questRenderGeneration) return;
+
+        const panel = document.getElementById('updates-panel');
+        const questTab = document.getElementById('tab-quests');
+        const questList = document.getElementById('quests-list');
+        const questViewIsActive = panel?.classList.contains('open')
+            && questTab?.getAttribute('aria-selected') === 'true'
+            && questList?.getAttribute('aria-hidden') !== 'true';
+
+        if (questViewIsActive) window.renderQuests?.({ force: true });
+    }, nextQuestBoundaryDelay());
+}
+
 function stopQuestLiveSync() {
-    if (!questsLiveUnsubscribe) return;
-    questsLiveUnsubscribe();
+    questRenderGeneration += 1;
+    if (questBoundaryTimer) clearTimeout(questBoundaryTimer);
+    questBoundaryTimer = null;
+    questsLiveUnsubscribe?.();
     questsLiveUnsubscribe = null;
+    questLiveContextKey = '';
+    questLiveHost = null;
+    questLiveRender = null;
+    questRestoreFocus = false;
 }
 
 window.stopQuestLiveSync = stopQuestLiveSync;
 
-window.renderQuests = function () {
+window.renderQuests = function ({ force = false, restoreFocus = false } = {}) {
     const el = document.getElementById('quests-list');
-    if (!el) return;
-    if (!questsRoot) questsRoot = createRoot(el);
-    questsRoot.render(createElement(QuestList, { status: 'loading' }));
+    if (!el) return false;
+
+    const uid = window.currentUser?.uid;
+    const dailyKey = periodKey('daily');
+    const weeklyKey = periodKey('weekly');
+    const contextKey = uid ? `${uid}|${dailyKey}|${weeklyKey}` : '';
+
+    if (!force
+        && contextKey
+        && questLiveContextKey === contextKey
+        && questLiveHost === el
+        && questsLiveUnsubscribe
+        && questLiveRender) {
+        questRestoreFocus = questRestoreFocus || restoreFocus;
+        questLiveRender();
+        return true;
+    }
 
     stopQuestLiveSync();
+    const renderGeneration = questRenderGeneration;
+    const renderQuestNode = (node) => {
+        if (renderGeneration !== questRenderGeneration || !el.isConnected) return false;
+        return questsRoot.render(el, node);
+    };
+    questRestoreFocus = restoreFocus;
+    el.setAttribute('aria-busy', 'true');
+    renderQuestNode(createElement(QuestList, { status: 'loading' }));
 
     try {
-        const uid = window.currentUser?.uid;
         if (!uid) throw new Error('Sign in to view quests.');
 
         const state = {
-            daily: null,
-            weekly: null,
-            streak: null,
+            daily: { status: 'loading', value: null, error: null },
+            weekly: { status: 'loading', value: null, error: null },
+            streak: { status: 'loading', value: null, error: null },
         };
 
         const renderLiveState = () => {
-            if (!questsRoot) return;
-            if (state.daily === null || state.weekly === null || state.streak === null) {
-                questsRoot.render(createElement(QuestList, { status: 'loading' }));
+            const sources = Object.values(state);
+            const failedSource = sources.find((source) => source.status === 'error');
+            if (failedSource) {
+                el.setAttribute('aria-busy', 'false');
+                renderQuestNode(createElement(QuestList, {
+                    status: 'error',
+                    error: failedSource.error?.message || 'Quest progress is temporarily unavailable.',
+                    onRetry: () => window.renderQuests?.({ force: true, restoreFocus: true }),
+                }));
                 return;
             }
 
-            questsRoot.render(createElement(QuestList, {
-                liveStreak: computeLiveStreak(state.streak || {}),
+            if (sources.some((source) => source.status !== 'ready')) {
+                el.setAttribute('aria-busy', 'true');
+                renderQuestNode(createElement(QuestList, { status: 'loading' }));
+                return;
+            }
+
+            el.setAttribute('aria-busy', 'false');
+            renderQuestNode(createElement(QuestList, {
+                liveStreak: computeLiveStreak(state.streak.value || {}),
                 progress: {
-                    daily: state.daily || {},
-                    weekly: state.weekly || {},
+                    daily: state.daily.value || {},
+                    weekly: state.weekly.value || {},
                 },
                 quests: QUESTS,
+                restoreFocus: questRestoreFocus,
                 skills: SKILLS,
                 status: 'ready',
             }));
+
+            if (questRestoreFocus) {
+                questRestoreFocus = false;
+                window.requestAnimationFrame(() => {
+                    if (renderGeneration !== questRenderGeneration || !el.isConnected) return;
+                    el.querySelector('#quest-board-summary')?.focus({ preventScroll: true });
+                });
+            }
         };
 
-        const onSyncError = (error) => {
-            questsRoot.render(createElement(QuestList, { status: 'error', error: error.message }));
+        const bindQuestSource = (source, path) => onValue(ref(db, path), (snapshot) => {
+            state[source] = { status: 'ready', value: snapshot.val() || {}, error: null };
+            renderLiveState();
+        }, (error) => {
+            state[source] = { status: 'error', value: null, error };
+            renderLiveState();
+        });
+
+        questLiveContextKey = contextKey;
+        questLiveHost = el;
+        questLiveRender = renderLiveState;
+        const unsubs = [];
+        const unsubscribeSources = () => {
+            unsubs.forEach((unsubscribe) => {
+                try {
+                    unsubscribe();
+                } catch (error) {
+                    console.warn('Quest listener cleanup failed.', error);
+                }
+            });
         };
+        try {
+            unsubs.push(
+                bindQuestSource('daily', `users/${uid}/quests/${dailyKey}`),
+                bindQuestSource('weekly', `users/${uid}/quests/${weeklyKey}`),
+                bindQuestSource('streak', `users/${uid}/streak`),
+            );
+        } catch (error) {
+            unsubscribeSources();
+            throw error;
+        }
 
-        const unsubs = [
-            onValue(ref(db, `users/${uid}/quests/${periodKey('daily')}`), (snapshot) => {
-                state.daily = snapshot.val() || {};
-                renderLiveState();
-            }, onSyncError),
-            onValue(ref(db, `users/${uid}/quests/${periodKey('weekly')}`), (snapshot) => {
-                state.weekly = snapshot.val() || {};
-                renderLiveState();
-            }, onSyncError),
-            onValue(ref(db, `users/${uid}/streak`), (snapshot) => {
-                state.streak = snapshot.val() || {};
-                renderLiveState();
-            }, onSyncError),
-        ];
-
-        questsLiveUnsubscribe = () => unsubs.forEach((unsubscribe) => unsubscribe());
+        questsLiveUnsubscribe = unsubscribeSources;
+        scheduleQuestBoundaryRefresh(renderGeneration);
+        return true;
     } catch (error) {
-        questsRoot.render(createElement(QuestList, { status: 'error', error: error.message }));
+        el.setAttribute('aria-busy', 'false');
+        renderQuestNode(createElement(QuestList, {
+            status: 'error',
+            error: error.message,
+            onRetry: () => window.renderQuests?.({ force: true, restoreFocus: true }),
+        }));
+        return false;
     }
 };

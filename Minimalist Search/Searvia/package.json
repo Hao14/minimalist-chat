@@ -1,0 +1,41 @@
+{
+  "name": "searvia",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Searvia search visibility platform monorepo",
+  "license": "UNLICENSED",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11.4 <12"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "db:check": "pnpm --filter @searvia/database db:check",
+    "db:generate": "pnpm --filter @searvia/database db:generate",
+    "db:migrate": "pnpm --filter @searvia/database db:migrate",
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@searvia/web",
+    "dev:workers": "turbo run dev --filter=@searvia/crawler-worker --filter=@searvia/scheduler-worker --filter=@searvia/report-worker",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "infra:down": "docker compose down",
+    "infra:up": "docker compose up -d",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "@types/node": "24.13.3",
+    "eslint": "9.39.5",
+    "globals": "17.7.0",
+    "prettier": "3.9.5",
+    "tsx": "4.23.1",
+    "turbo": "2.10.5",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.64.0",
+    "vitest": "4.1.10"
+  }
+}
