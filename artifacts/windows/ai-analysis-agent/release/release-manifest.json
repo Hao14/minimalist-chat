@@ -1,0 +1,20 @@
+﻿{
+    "schemaVersion":  1,
+    "product":  "Minimalist Analysis Agent",
+    "company":  "Minimalist.chat",
+    "version":  "0.1.0",
+    "platform":  "windows",
+    "architecture":  "x64",
+    "runtimeIdentifier":  "win-x64",
+    "distribution":  "self-contained-single-file",
+    "executable":  "MinimalistAIAnalysisAgent.exe",
+    "executableBytes":  50268161,
+    "executableSha256":  "a996cef0ba8fe2abdb1389ee93aa7a39776494ac1ca111a561dcb78e31386e2d",
+    "checksum":  "MinimalistAIAnalysisAgent.exe.sha256",
+    "portablePackage":  "MinimalistAIAnalysisAgent-0.1.0-win-x64.zip",
+    "listenAddress":  "127.0.0.1",
+    "listenPort":  8791,
+    "scheduledTaskName":  "Minimalist Chat Remote Analysis Agent",
+    "signed":  false,
+    "builtAtUtc":  "2026-07-14T16:01:45.0800462Z"
+}

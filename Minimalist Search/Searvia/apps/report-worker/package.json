@@ -1,0 +1,26 @@
+{
+  "name": "@searvia/report-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/index.ts",
+    "lint": "eslint src test --max-warnings=0",
+    "start": "node --env-file-if-exists=../../.env --enable-source-maps dist/index.js",
+    "test": "vitest run --config ../../vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@searvia/config": "workspace:*",
+    "@searvia/logging": "workspace:*",
+    "ioredis": "5.11.1"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

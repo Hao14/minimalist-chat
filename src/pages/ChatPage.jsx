@@ -1,7 +1,33 @@
-import { Fragment, createElement, useEffect } from 'react';
+import { Fragment, createElement, useEffect, useState } from 'react';
 import { initModernThemeMotion } from '../features/shell/modernThemeMotion.js';
+import { writeAuthPresenceHint } from '../lib/authPresenceHint.js';
+import { waitForInitialAuthState } from '../lib/authStateReady.js';
+import { RoomAppsPanel } from '../features/rooms/RoomAppsPanel.jsx';
+import { RoomPermissionsPanel } from '../features/rooms/RoomPermissionsPanel.jsx';
+import { RoomSubscriptionPanel } from '../features/billing/RoomSubscriptionPanel.jsx';
+import { AccountBillingPanel } from '../features/billing/AccountBillingPanel.jsx';
+import { loadPersonalAgentPreferences } from '../features/ai/personalAgentPreference.js';
+import { UpdatesCenterShell } from '../features/updates/UpdatesCenterShell.jsx';
+import '../features/rooms/roomSettings.css';
+import '../features/rooms/roomCreate.css';
 
 const h = createElement;
+
+function closeUserProfileDialog() {
+  if (typeof window.closeUserProfilePopup === 'function') {
+    window.closeUserProfilePopup();
+    return;
+  }
+  const popup = document.getElementById('user-profile-popup');
+  popup?.classList.add('hidden');
+  popup?.setAttribute('aria-hidden', 'true');
+  document.getElementById('profile-more-dropdown')?.classList.add('hidden');
+
+  const settings = document.getElementById('settings-modal');
+  if (!settings || settings.classList.contains('hidden')) {
+    document.getElementById('modal-overlay')?.classList.add('hidden');
+  }
+}
 
 function renderLazyRoomView(view, extraClassName = 'hidden') {
   return h(
@@ -10,6 +36,9 @@ function renderLazyRoomView(view, extraClassName = 'hidden') {
       id: `room-view-${view}`,
       className: `room-view ${extraClassName}`.trim(),
       "data-deferred-room-view": view,
+      role: "tabpanel",
+      "aria-labelledby": `room-tab-${view}`,
+      "aria-hidden": extraClassName.includes('hidden') ? "true" : "false",
     },
     h(
       "div",
@@ -112,28 +141,214 @@ function renderFeatureModePanel() {
   );
 }
 
+function renderPersonalAiPreferencePanel() {
+  return h(
+    "section",
+    {
+      className: "settings-personal-ai-panel",
+      "aria-labelledby": "personal-ai-preference-title",
+    },
+    h(
+      "div",
+      { className: "settings-personal-ai-copy" },
+      h("span", { className: "settings-personal-ai-title", id: "personal-ai-preference-title" }, "Winston navigation"),
+      h(
+        "span",
+        { className: "settings-personal-ai-note", id: "personal-ai-preference-note" },
+        "Choose where Winston appears on this device. Room AI stays available separately."
+      )
+    ),
+    h(
+      "div",
+      {
+        className: "settings-personal-ai-options",
+        role: "group",
+        "aria-labelledby": "personal-ai-preference-title",
+      },
+      h(
+        "label",
+        { className: "settings-personal-ai-switch" },
+        h("input", {
+          type: "checkbox",
+          id: "personal-ai-desktop-enabled-toggle",
+          role: "switch",
+          defaultChecked: true,
+          "aria-label": "Show Winston on desktop",
+          "aria-describedby": "personal-ai-preference-note personal-ai-preference-status",
+        }),
+        h("span", { className: "settings-personal-ai-switch-label" }, "Desktop"),
+        h("span", { className: "settings-personal-ai-track", "aria-hidden": "true" })
+      ),
+      h(
+        "label",
+        { className: "settings-personal-ai-switch" },
+        h("input", {
+          type: "checkbox",
+          id: "personal-ai-mobile-enabled-toggle",
+          role: "switch",
+          defaultChecked: true,
+          "aria-label": "Show Winston on mobile",
+          "aria-describedby": "personal-ai-preference-note personal-ai-preference-status",
+        }),
+        h("span", { className: "settings-personal-ai-switch-label" }, "Mobile"),
+        h("span", { className: "settings-personal-ai-track", "aria-hidden": "true" })
+      )
+    ),
+    h(
+      "span",
+      {
+        className: "settings-personal-ai-status",
+        id: "personal-ai-preference-status",
+        role: "status",
+        "aria-live": "polite",
+      },
+      "Shown in desktop and mobile navigation"
+    )
+  );
+}
+
+const CONFIG_SCRIPT_SRC = '/config.js?v=localai7';
+const REQUIRED_CONFIG_GLOBALS = ['GCAL_CLIENT_ID', 'STRIPE_CHECKOUT_ENDPOINT'];
+
+function rememberPendingChatNotificationUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (window.location.pathname === '/chat' && params.has('notification')) {
+      sessionStorage.setItem('pendingChatUrl', `${window.location.pathname}${window.location.search}${window.location.hash}`);
+    }
+  } catch {
+    // Session storage can be blocked in some mobile auth flows.
+  }
+}
+
+function requiresVerifiedPasswordUser(user) {
+  if (!user?.email) return false;
+  if (user.emailVerified !== false) return false;
+  return user.providerData?.some((provider) => provider?.providerId === 'password') === true;
+}
+
+function describeChatBootFailure(error) {
+  const code = String(error?.code || 'boot/unknown');
+  if (code === 'auth/timeout' || code === 'auth/network-request-failed') {
+    return {
+      code,
+      title: 'We could not confirm your session',
+      message: 'Check your connection, then retry. If this keeps happening, return to sign in.',
+    };
+  }
+
+  if (code === 'auth/web-storage-unsupported') {
+    return {
+      code,
+      title: 'Session storage is unavailable',
+      message: 'Allow site storage for Minimalist, then retry or return to sign in.',
+    };
+  }
+
+  return {
+    code,
+    title: 'Minimalist could not finish starting',
+    message: 'Retry the app. If it still fails, return to sign in and start a fresh session.',
+  };
+}
+
+function retryChatBoot() {
+  window.location.reload();
+}
+
+function returnToSignInFromBoot() {
+  writeAuthPresenceHint(false);
+  window.location.replace('/login');
+}
+
+function renderChatBootStatus(bootFailure) {
+  return h(
+    Fragment,
+    null,
+    h(
+      'div',
+      {
+        className: `boot-line ${bootFailure ? 'is-error' : 'is-complete'} boot-line-static`,
+      },
+      h('span', { className: 'boot-line-no' }, '00'),
+      h('span', { className: 'boot-status' }, bootFailure ? 'err' : 'run'),
+      h(
+        'span',
+        { className: 'boot-code' },
+        h('span', { className: 'boot-key' }, 'session'),
+        h('span', { className: 'boot-punc' }, '.'),
+        h('span', { className: 'boot-fn' }, 'prepare'),
+        h('span', { className: 'boot-punc' }, '('),
+        h('span', { className: 'boot-string' }, '"identity"'),
+        h('span', { className: 'boot-punc' }, ')'),
+        h(
+          'span',
+          { className: 'boot-muted' },
+          bootFailure ? ' // session unavailable' : ' // waiting for auth',
+        ),
+      ),
+      bootFailure ? null : h('span', { className: 'boot-cursor' }),
+    ),
+    bootFailure
+      ? h(
+        'div',
+        { className: 'boot-recovery' },
+        h('strong', { className: 'boot-recovery-title' }, bootFailure.title),
+        h('p', { className: 'boot-recovery-message' }, bootFailure.message),
+        h(
+          'div',
+          { className: 'boot-recovery-actions' },
+          h('button', { type: 'button', onClick: retryChatBoot }, 'Retry'),
+          h(
+            'button',
+            { type: 'button', className: 'boot-recovery-secondary', onClick: returnToSignInFromBoot },
+            'Return to sign in',
+          ),
+        ),
+      )
+      : null,
+  );
+}
+
+function hasRuntimeConfig() {
+  return REQUIRED_CONFIG_GLOBALS.every((key) => Boolean(window[key]));
+}
+
 function loadConfigScript() {
-  return new Promise((resolve) => {
-    document.querySelector('script[data-minimalist-config]')?.remove();
-    const script = document.createElement('script');
+  if (hasRuntimeConfig()) return Promise.resolve();
+  if (window.__minimalistConfigPromise) return window.__minimalistConfigPromise;
+
+  window.__minimalistConfigPromise = new Promise((resolve) => {
     let settled = false;
     const finish = () => {
       if (settled) return;
       settled = true;
       resolve();
     };
+    const existingScript = document.querySelector('script[data-minimalist-config], script[src*="/config.js"]');
+    const script = existingScript || document.createElement('script');
 
     script.dataset.minimalistConfig = 'true';
-    script.async = false;
-    script.onload = finish;
-    script.onerror = finish;
-    script.src = '/config.js?v=6';
-    document.body.appendChild(script);
+    script.addEventListener('load', finish, { once: true });
+    script.addEventListener('error', finish, { once: true });
+
+    if (!existingScript) {
+      script.async = false;
+      script.src = CONFIG_SCRIPT_SRC;
+      (document.head || document.body || document.documentElement).appendChild(script);
+    }
+
     window.setTimeout(finish, 1500);
+  }).finally(() => {
+    window.__minimalistConfigPromise = null;
   });
+
+  return window.__minimalistConfigPromise;
 }
 
 function useChatBoot() {
+  const [bootFailure, setBootFailure] = useState(null);
+
   useEffect(() => {
     const oldTitle = document.title;
     const oldClass = document.body.className;
@@ -149,16 +364,13 @@ function useChatBoot() {
         import('firebase/auth'),
         import('../lib/firebase.js'),
       ]);
-      const user = auth.currentUser || await new Promise((resolve) => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          unsubscribe();
-          resolve(currentUser);
-        });
-      });
+      const user = auth.currentUser || await waitForInitialAuthState(auth, onAuthStateChanged);
 
       if (cancelled) return;
 
       if (!user) {
+        writeAuthPresenceHint(false);
+        rememberPendingChatNotificationUrl();
         if (window.location.pathname.startsWith('/join/')) {
           sessionStorage.setItem('pendingJoinUrl', `${window.location.pathname}${window.location.search}${window.location.hash}`);
         }
@@ -166,7 +378,19 @@ function useChatBoot() {
         return;
       }
 
-      if (!window.GCAL_CLIENT_ID || !window.STRIPE_CHECKOUT_ENDPOINT) await loadConfigScript();
+      if (requiresVerifiedPasswordUser(user)) {
+        writeAuthPresenceHint(false);
+        rememberPendingChatNotificationUrl();
+        if (window.location.pathname.startsWith('/join/')) {
+          sessionStorage.setItem('pendingJoinUrl', `${window.location.pathname}${window.location.search}${window.location.hash}`);
+        }
+        window.location.replace('/login');
+        return;
+      }
+
+      window.currentUser = user;
+      writeAuthPresenceHint(true);
+      if (!window.GCAL_CLIENT_ID || !window.STRIPE_CHECKOUT_ENDPOINT) void loadConfigScript();
       if (!cancelled) {
         await import('../features/shell/chatApp.js');
         window.requestAnimationFrame(() => window.hydrateRoomCollapsePreference?.());
@@ -175,17 +399,21 @@ function useChatBoot() {
 
     boot().catch((error) => {
       console.error('Minimalist failed to start:', error);
-      window.showToast?.(`Minimalist failed to start: ${error.message || error}`);
+      if (!cancelled) setBootFailure(describeChatBootFailure(error));
     });
 
     return () => {
       cancelled = true;
+      const disposeContactsPanel = window.disposeContactsPanel;
+      if (typeof disposeContactsPanel === 'function') queueMicrotask(disposeContactsPanel);
       document.title = oldTitle;
       document.body.className = oldClass;
       if (oldStyle === null) document.body.removeAttribute('style');
       else document.body.setAttribute('style', oldStyle);
     };
   }, []);
+
+  return bootFailure;
 }
 
 function useRoomNavMotion() {
@@ -241,7 +469,12 @@ function useRoomNavMotion() {
   }, []);
 }
 
-function renderChatShell() {
+function renderChatShell(
+  bootFailure = null,
+  personalAgentPreferences = { desktop: true, mobile: true },
+) {
+  const desktopPersonalAgentEnabled = personalAgentPreferences.desktop !== false;
+  const mobilePersonalAgentEnabled = personalAgentPreferences.mobile !== false;
   return h(
     Fragment,
     null,
@@ -252,13 +485,14 @@ function renderChatShell() {
     "\n\n    ",
     h(
       "nav",
-      null,
+      { className: "app-shell-nav" },
       "\n        ",
       h(
         "a",
         {
           href: "/",
           id: "nav-logo",
+          "aria-label": "Minimalist home",
         },
         "\n            ",
         h(
@@ -295,68 +529,84 @@ function renderChatShell() {
         },
         "\n            ",
         h(
-          "a",
-          {
-            href: "/",
-            className: "rail-icon guest-only",
-            title: "Home",
-          },
+        "a",
+        {
+          href: "/",
+          className: "rail-icon guest-only",
+          title: "Home",
+          "aria-label": "Home",
+        },
           h("i", {
               className: "ph-bold ph-house",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "a",
-          {
-            href: "/story",
-            className: "rail-icon guest-only",
-            title: "Story",
-          },
+        {
+          href: "/story",
+          className: "rail-icon guest-only",
+          title: "Story",
+          "aria-label": "Story",
+        },
           h("i", {
               className: "ph-bold ph-book-open",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "a",
-          {
-            href: "/chat",
-            className: "rail-icon auth-only hidden",
-            title: "Chat",
-          },
+        {
+          href: "/chat",
+          className: "rail-icon auth-only hidden",
+          title: "Chat",
+          "aria-label": "Open chat",
+        },
           h("i", {
               className: "ph-bold ph-chats",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "button",
-          {
+        {
+            type: "button",
             className: "rail-icon auth-only hidden",
             id: "open-contacts-btn",
             title: "Contacts",
+            "aria-label": "Open contacts",
           },
           h("i", {
               className: "ph-bold ph-users",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "button",
-          {
-            className: "rail-icon auth-only hidden",
+        {
+            type: "button",
+            className: `rail-icon auth-only hidden${desktopPersonalAgentEnabled ? '' : ' personal-ai-nav-hidden'}`,
             id: "open-personal-agent-btn",
-            title: "Personal AI Agent",
+            title: "Winston",
+            "aria-label": "Open Winston",
+            "aria-controls": "personal-ai-agent-panel",
+            "aria-expanded": "false",
+            hidden: !desktopPersonalAgentEnabled,
           },
           h("i", {
               className: "ph-bold ph-sparkle",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "button",
-          {
+        {
+            type: "button",
             className: "rail-icon auth-only hidden",
             id: "open-vault-btn",
             title: "Vault",
@@ -367,57 +617,68 @@ function renderChatShell() {
               "aria-hidden": "true",
             })
         ),
-        "\n\n            ",
         h("div", {
             style: { flexGrow: "1", width: "100%", minHeight: "20px" },
           }),
         "\n\n            ",
         h(
-          "a",
+          "button",
           {
-            href: "#",
+            type: "button",
             id: "open-updates-btn-desktop",
-            className: "rail-icon auth-only hidden",
+            className: "rail-icon updates-entry auth-only hidden",
             title: "Updates",
+            "aria-label": "Open updates",
+            "aria-controls": "updates-panel",
+            "aria-expanded": "false",
           },
           h("i", {
               className: "ph-bold ph-bell",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "button",
-          {
+        {
+            type: "button",
             className: "rail-icon auth-only hidden",
             id: "open-search-btn",
             title: "Search",
+            "aria-label": "Open search",
           },
           h("i", {
               className: "ph-bold ph-magnifying-glass",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "button",
-          {
+        {
+            type: "button",
             className: "rail-icon auth-only hidden",
             id: "open-settings-btn",
             title: "Settings",
+            "aria-label": "Open settings",
           },
           h("i", {
               className: "ph-bold ph-gear",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
         h(
           "a",
-          {
-            href: "/login",
-            className: "rail-icon guest-only",
-            title: "Login",
-          },
+        {
+          href: "/login",
+          className: "rail-icon guest-only",
+          title: "Login",
+          "aria-label": "Log in",
+        },
           h("i", {
               className: "ph-bold ph-sign-in",
+              "aria-hidden": "true",
             })
         ),
         "\n        "
@@ -434,12 +695,15 @@ function renderChatShell() {
         h(
           "button",
           {
+            type: "button",
             className: "action-btn mobile-link-btn auth-only",
             id: "open-rooms-btn-mobile",
+            "aria-label": "Open rooms",
           },
           "\n                ",
           h("i", {
               className: "ph-bold ph-chats",
+              "aria-hidden": "true",
             }),
           h(
             "span",
@@ -452,12 +716,34 @@ function renderChatShell() {
         h(
           "button",
           {
+            type: "button",
+            className: `action-btn mobile-link-btn auth-only${mobilePersonalAgentEnabled ? '' : ' personal-ai-nav-hidden'}`,
+            id: "open-personal-agent-btn-mobile",
+            title: "Winston",
+            "aria-label": "Open Winston",
+            "aria-controls": "personal-ai-agent-panel",
+            "aria-expanded": "false",
+            hidden: !mobilePersonalAgentEnabled,
+          },
+          h("i", {
+              className: "ph-bold ph-sparkle",
+              "aria-hidden": "true",
+            }),
+          h("span", null, "WINSTON")
+        ),
+        "\n            ",
+        h(
+          "button",
+          {
+            type: "button",
             className: "action-btn mobile-link-btn auth-only",
             id: "open-contacts-btn-mobile",
+            "aria-label": "Open contacts",
           },
           "\n                ",
           h("i", {
               className: "ph-bold ph-users",
+              "aria-hidden": "true",
             }),
           h(
             "span",
@@ -470,8 +756,10 @@ function renderChatShell() {
         h(
           "button",
           {
+            type: "button",
             className: "action-btn mobile-link-btn auth-only",
             id: "open-vault-btn-mobile",
+            "aria-label": "Open vault",
           },
           "\n                ",
           h("span", {
@@ -489,12 +777,17 @@ function renderChatShell() {
         h(
           "button",
           {
+            type: "button",
             className: "action-btn mobile-link-btn auth-only",
             id: "open-updates-btn-mobile",
+            "aria-label": "Open updates",
+            "aria-controls": "updates-panel",
+            "aria-expanded": "false",
           },
           "\n                ",
           h("i", {
               className: "ph-bold ph-bell",
+              "aria-hidden": "true",
             }),
           h(
             "span",
@@ -507,12 +800,15 @@ function renderChatShell() {
         h(
           "button",
           {
+            type: "button",
             className: "action-btn mobile-link-btn auth-only",
             id: "open-settings-btn-mobile",
+            "aria-label": "Open settings",
           },
           "\n                ",
           h("i", {
               className: "ph-bold ph-gear",
+              "aria-hidden": "true",
             }),
           h(
             "span",
@@ -531,6 +827,9 @@ function renderChatShell() {
       {
         className: "app-screen boot-loader-screen",
         id: "loading-screen",
+        role: bootFailure ? "alert" : "status",
+        "aria-live": bootFailure ? "assertive" : "polite",
+        "aria-busy": bootFailure ? "false" : "true",
         style: { display: "flex", flexDirection: "column", justifyContent: "space-between", alignItems: "flex-start", flex: "1", height: "100vh", padding: "3rem", position: "fixed", top: "0", left: "0", width: "100vw", zIndex: "9999", background: "var(--bg-color)", transition: "opacity 0.5s ease", boxSizing: "border-box" },
       },
       "\n        \n        ",
@@ -579,28 +878,7 @@ function renderChatShell() {
           style: { display: "flex", flexDirection: "column", gap: "10px", fontFamily: "monospace", fontSize: "1rem", fontWeight: "700", color: "var(--text-color)", textTransform: "uppercase" },
         },
         "\n            ",
-        h(
-          "div",
-          {
-            className: "boot-line is-complete boot-line-static",
-          },
-          h("span", { className: "boot-line-no" }, "00"),
-          h("span", { className: "boot-status" }, "run"),
-          h(
-            "span",
-            {
-              className: "boot-code",
-            },
-            h("span", { className: "boot-key" }, "session"),
-            h("span", { className: "boot-punc" }, "."),
-            h("span", { className: "boot-fn" }, "prepare"),
-            h("span", { className: "boot-punc" }, "("),
-            h("span", { className: "boot-string" }, "\"identity\""),
-            h("span", { className: "boot-punc" }, ")"),
-            h("span", { className: "boot-muted" }, " // waiting for auth")
-          ),
-          h("span", { className: "boot-cursor" })
-        ),
+        renderChatBootStatus(bootFailure),
         "\n            "
       ),
       "\n\n    "
@@ -651,11 +929,13 @@ function renderChatShell() {
                 {
                   className: "room-collapse-btn",
                   id: "toggle-rooms-collapse-btn",
+                  type: "button",
                   title: "Collapse rooms",
                   "aria-label": "Collapse rooms",
                 },
                 h("i", {
                     className: "ph-bold ph-sidebar",
+                    "aria-hidden": "true",
                   })
               ),
               "\n                        ",
@@ -664,6 +944,8 @@ function renderChatShell() {
                 {
                   className: "close-panel mobile-only",
                   id: "close-mobile-rooms-btn",
+                  type: "button",
+                  "aria-label": "Close rooms panel",
                   style: { background: "none", border: "none", fontSize: "1.5rem", margin: "0", padding: "0", boxShadow: "none" },
                 },
                 "✖"
@@ -688,6 +970,7 @@ function renderChatShell() {
               {
                 id: "create-room-btn",
                 className: "room-action-btn btn-dark",
+                type: "button",
               },
               "+ New room"
             ),
@@ -697,6 +980,7 @@ function renderChatShell() {
               {
                 id: "join-room-btn",
                 className: "room-action-btn btn-light",
+                type: "button",
               },
               "Join"
             ),
@@ -723,10 +1007,13 @@ function renderChatShell() {
               {
                 id: "mobile-back-to-rooms",
                 className: "mobile-only action-btn",
+                type: "button",
+                "aria-label": "Back to rooms",
                 style: { border: "none", boxShadow: "none", padding: "0", margin: "0", marginRight: "15px", fontSize: "1.5rem", background: "transparent", cursor: "pointer" },
               },
               h("i", {
                   className: "ph-bold ph-arrow-left",
+                  "aria-hidden": "true",
                 })
             ),
             "\n                    \n                    ",
@@ -734,6 +1021,11 @@ function renderChatShell() {
               "div",
               {
                 id: "room-name-wrapper",
+                role: "button",
+                tabIndex: 0,
+                "aria-haspopup": "menu",
+                "aria-expanded": "false",
+                "aria-controls": "room-settings-dropdown",
                 style: { display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", padding: "4px", borderRadius: "4px", transition: "background 0.2s" },
               },
               "\n                        ",
@@ -765,6 +1057,7 @@ function renderChatShell() {
             h(
               "div",
               {
+                className: "room-header-actions",
                 style: { marginLeft: "auto", display: "flex", alignItems: "center", position: "relative" },
               },
               "\n                        ",
@@ -774,18 +1067,25 @@ function renderChatShell() {
                   className: "header-search-input",
                   placeholder: "Search...",
                   autoComplete: "off",
+                  "aria-hidden": "true",
+                  tabIndex: -1,
                 }),
               "\n                        ",
               h(
-                "div",
+                "button",
                 {
                   id: "toggle-room-search-btn",
+                  type: "button",
+                  "aria-label": "Search messages",
+                  "aria-controls": "room-search-input",
+                  "aria-expanded": "false",
                   title: "Search Messages",
                   style: { background: "transparent", border: "none", boxShadow: "none", fontSize: "1.5rem", cursor: "pointer", color: "var(--text-color)", padding: "0", margin: "0", display: "flex", alignItems: "center", justifyContent: "center", width: "35px", height: "35px", lineHeight: "1", outline: "none" },
                 },
                 "\n                            ",
                 h("i", {
                     className: "ph-bold ph-magnifying-glass",
+                    "aria-hidden": "true",
                   }),
                 "\n                        "
               ),
@@ -856,26 +1156,40 @@ function renderChatShell() {
             {
               id: "room-sub-nav",
               className: "room-nav-rail",
+              role: "tablist",
+              "aria-label": "Room views",
               style: { display: "flex", gap: "2rem", padding: "0 1.5rem", background: "var(--bg-color)", alignItems: "center" },
             },
             "\n                    ",
             h(
               "button",
               {
+                id: "room-tab-home",
                 className: "room-tab",
                 "data-target": "home",
+                type: "button",
+                role: "tab",
+                "aria-selected": "false",
+                "aria-controls": "room-view-home",
+                tabIndex: -1,
               },
-              h("i", { className: "ph-bold ph-house" }),
+              h("i", { className: "ph-bold ph-house", "aria-hidden": "true" }),
               h("span", null, "Home")
             ),
             "\n                    ",
             h(
               "button",
               {
+                id: "room-tab-chat",
                 className: "room-tab active",
                 "data-target": "chat",
+                type: "button",
+                role: "tab",
+                "aria-selected": "true",
+                "aria-controls": "room-view-chat",
+                tabIndex: 0,
               },
-              h("i", { className: "ph-bold ph-chat-circle-text" }),
+              h("i", { className: "ph-bold ph-chat-circle-text", "aria-hidden": "true" }),
               h("span", null, "Chat")
             ),
             "\n                    ",
@@ -891,6 +1205,8 @@ function renderChatShell() {
                 id: "room-add-page-btn",
                 className: "hidden",
                 title: "Add a page",
+                type: "button",
+                "aria-label": "Add a room page",
               },
               "+"
             ),
@@ -923,6 +1239,9 @@ function renderChatShell() {
             {
               id: "room-view-chat",
               className: "room-view active",
+              role: "tabpanel",
+              "aria-labelledby": "room-tab-chat",
+              "aria-hidden": "false",
               style: { flex: "1", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" },
             },
             "\n                    ",
@@ -1046,7 +1365,8 @@ function renderChatShell() {
                   },
                   "\n                                ",
                   h("i", {
-                      className: "ph-bold ph-arrow-right",
+                      className: "ph-bold ph-paper-plane-tilt",
+                      "aria-hidden": "true",
                     }),
                   "\n                            "
                 ),
@@ -1125,150 +1445,16 @@ function renderChatShell() {
       "\n    "
     ),
     "\n\n    ",
-    h(
-      "div",
-      {
-        id: "updates-panel",
-      },
-      "\n        ",
-      h(
-        "div",
-        {
-          className: "contacts-header",
-          style: { flexDirection: "column", alignItems: "flex-start", gap: "10px", paddingBottom: "0" },
-        },
-        "\n            ",
-        h(
-          "div",
-          {
-            style: { display: "flex", justifyContent: "space-between", width: "100%", alignItems: "center" },
-          },
-          "\n                ",
-          h(
-            "span",
-            {
-              style: { fontSize: "1.2rem", fontWeight: "800" },
-            },
-            "Updates"
-          ),
-          "\n                ",
-          h(
-            "span",
-            {
-              className: "close-panel",
-              id: "close-updates-btn",
-            },
-            "✖"
-          ),
-          "\n            "
-        ),
-        "\n            \n            ",
-        h(
-          "div",
-          {
-            className: "update-tabs",
-          },
-          "\n                ",
-          h(
-            "button",
-            {
-              className: "update-tab active",
-              id: "tab-notifications",
-            },
-            "Activity"
-          ),
-          "\n                ",
-          h(
-            "button",
-            {
-              className: "update-tab",
-              id: "tab-quests",
-            },
-            "Quests"
-          ),
-          "\n                ",
-          h(
-            "button",
-            {
-              className: "update-tab",
-              id: "tab-leaderboard",
-            },
-            "Leaderboard"
-          ),
-          "\n                ",
-          h(
-            "button",
-            {
-              className: "update-tab",
-              id: "tab-recognition",
-            },
-            "Recognition"
-          ),
-          "\n                ",
-          h(
-            "button",
-            {
-              className: "update-tab",
-              id: "tab-changelog",
-            },
-            "Changelog"
-          ),
-          "\n            "
-        ),
-        "\n        "
-      ),
-      "\n        \n        ",
-      h(
-        "ul",
-        {
-          id: "notifications-list",
-          style: { listStyle: "none", overflowY: "auto", flex: "1", padding: "1.5rem", margin: "0", display: "flex", flexDirection: "column", gap: "0.8rem" },
-        },
-        "\n            ",
-        h(
-          "div",
-          {
-            style: { textAlign: "center", color: "#888", marginTop: "2rem", fontWeight: "bold" },
-          },
-          "\n                ",
-          h("i", {
-              className: "ph-bold ph-bell-slash",
-              style: { fontSize: "3rem", marginBottom: "1rem", display: "block", color: "var(--text-color)" },
-            }),
-          "\n                You're all caught up!\n            "
-        ),
-        "\n        "
-      ),
-      "\n\n        ",
-      h("ul", {
-          id: "updates-list",
-          className: "hidden",
-        }),
-      "\n        ",
-      h("ul", {
-          id: "leaderboard-list",
-          className: "hidden",
-          style: { listStyle: "none", overflowY: "auto", flex: "1", padding: "1rem", margin: "0", display: "flex", flexDirection: "column", gap: "0.5rem" },
-        }),
-      "\n        ",
-      h("ul", {
-          id: "recognition-list",
-          className: "hidden",
-          style: { listStyle: "none", overflowY: "auto", flex: "1", padding: "1rem", margin: "0", display: "flex", flexDirection: "column", gap: "0.6rem" },
-        }),
-      "\n        ",
-      h("ul", {
-          id: "quests-list",
-          className: "hidden",
-          style: { listStyle: "none", overflowY: "auto", flex: "1", padding: "1rem", margin: "0", display: "flex", flexDirection: "column", gap: "0.6rem" },
-        }),
-      "\n    "
-    ),
+    h(UpdatesCenterShell),
     "\n\n    ",
     h(
       "div",
       {
         id: "contacts-panel",
+        className: "contacts-panel-v2",
+        role: "complementary",
+        "aria-labelledby": "contacts-panel-heading",
+        "aria-hidden": "true",
       },
       "\n        ",
       h(
@@ -1278,31 +1464,20 @@ function renderChatShell() {
         },
         "\n            ",
         h(
-          "div",
+          "h2",
           {
             className: "contacts-panel-title",
+            id: "contacts-panel-heading",
           },
-          "\n                ",
-          h("i", {
-              className: "ph-bold ph-users",
-            }),
-          "\n                ",
-          h(
-            "div",
-            null,
-            "\n                    ",
-            h("span", null, "People"),
-            "\n                    ",
-            h("strong", null, "Contacts"),
-            "\n                "
-          ),
-          "\n            "
+          "Contacts"
         ),
         h(
-          "span",
+          "button",
           {
             className: "close-panel",
             id: "close-contacts-btn",
+            type: "button",
+            "aria-label": "Close contacts panel",
           },
           "✖"
         ),
@@ -1316,27 +1491,57 @@ function renderChatShell() {
         },
         "\n            ",
         h(
-          "p",
+          "div",
           {
-            className: "contacts-panel-subtitle",
+            className: "contacts-search-field",
           },
-          "Find friends, requests, and people from shared rooms."
+          h("i", {
+              className: "ph-bold ph-magnifying-glass contacts-search-icon",
+              "aria-hidden": "true",
+            }),
+          h("input", {
+              type: "search",
+              id: "contact-search-input",
+              autoComplete: "off",
+              placeholder: "Search contacts...",
+              "aria-label": "Search contacts",
+              "aria-describedby": "contacts-search-help contacts-search-status",
+            }),
+          h(
+            "button",
+            {
+              className: "contacts-search-clear",
+              id: "clear-contact-search-btn",
+              type: "button",
+              hidden: true,
+              "aria-label": "Clear contact search",
+            },
+            h("i", {
+              className: "ph-bold ph-x",
+              "aria-hidden": "true",
+            })
+          )
         ),
-        "\n            ",
-        h("i", {
-            className: "ph-bold ph-magnifying-glass contacts-search-icon",
-          }),
-        h("input", {
-            type: "text",
-            id: "contact-search-input",
-            autoComplete: "off",
-            placeholder: "Search people...",
-          }),
+        h(
+          "div",
+          {
+            className: "contacts-search-context",
+          },
+          h("span", { id: "contacts-search-help" }, "Type 2+ letters to search all people."),
+          h("span", {
+            id: "contacts-search-status",
+            role: "status",
+            "aria-live": "polite",
+            "aria-atomic": "true",
+          })
+        ),
         "\n        "
       ),
       "\n        \n        ",
       h("ul", {
           id: "contacts-list",
+          "aria-label": "Contacts",
+          "aria-busy": "false",
         }),
       "\n    "
     ),
@@ -1345,6 +1550,10 @@ function renderChatShell() {
       "div",
       {
         id: "personal-ai-agent-panel",
+        role: "dialog",
+        "aria-modal": "false",
+        "aria-labelledby": "personal-ai-agent-title",
+        "aria-hidden": "true",
       },
       "\n        ",
       h(
@@ -1355,16 +1564,18 @@ function renderChatShell() {
         "\n            ",
         h(
           "span",
-          null,
-          "Personal AI"
+          { id: "personal-ai-agent-title" },
+          "Winston"
         ),
         h(
-          "span",
+          "button",
           {
             className: "close-panel",
             id: "close-personal-agent-btn",
+            type: "button",
+            "aria-label": "Close Winston",
           },
-          "✖"
+          h("i", { className: "ph-bold ph-x", "aria-hidden": "true" })
         ),
         "\n        "
       ),
@@ -1379,6 +1590,9 @@ function renderChatShell() {
       "div",
       {
         id: "vault-panel",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-labelledby": "vault-panel-title",
       },
       "\n        ",
       h(
@@ -1389,16 +1603,29 @@ function renderChatShell() {
         "\n            ",
         h(
           "span",
-          null,
-          "Vault"
+          {
+            className: "vault-panel-title",
+            id: "vault-panel-title",
+          },
+          h("i", {
+              className: "ph-bold ph-fingerprint",
+              "aria-hidden": "true",
+            }),
+          h("span", null, "Vault"),
+          h("small", null, "Private on this device")
         ),
         h(
-          "span",
+          "button",
           {
-            className: "close-panel",
+            className: "close-panel close-panel-btn",
             id: "close-vault-btn",
+            type: "button",
+            "aria-label": "Close vault panel",
           },
-          "✖"
+          h("i", {
+              className: "ph-bold ph-x",
+              "aria-hidden": "true",
+            })
         ),
         "\n        "
       ),
@@ -1408,12 +1635,15 @@ function renderChatShell() {
         }),
       "\n    "
     ),
-    "\n\n    ",
     h(
       "div",
       {
         id: "pm-popup",
         className: "hidden",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-hidden": "true",
+        "aria-labelledby": "pm-target-name",
       },
       h("div", {
           id: "pm-dock-root",
@@ -1429,7 +1659,7 @@ function renderChatShell() {
       "div",
       {
         id: "settings-modal",
-        className: "hidden brutalist-settings",
+        className: "hidden brutalist-settings settings-shell-v3",
       },
       "\n        ",
       h(
@@ -1438,8 +1668,13 @@ function renderChatShell() {
           id: "close-settings-btn",
           className: "brutalist-close",
           title: "Close",
+          "aria-label": "Close settings",
+          type: "button",
         },
-        "✖"
+        h("i", {
+          className: "ph-bold ph-x",
+          "aria-hidden": "true",
+        })
       ),
       "\n        ",
       h(
@@ -1449,56 +1684,69 @@ function renderChatShell() {
         },
         "\n            ",
         h(
-          "h3",
-          {
-            className: "sidebar-header",
-          },
-          "USER SETTINGS"
+          "div",
+          { className: "settings-sidebar-head" },
+          h("span", { className: "settings-sidebar-kicker" }, "Minimalist"),
+          h("strong", null, "Settings")
         ),
         "\n            ",
         h(
           "div",
           {
-            className: "settings-tab active",
-            id: "tab-btn-profile",
+            className: "settings-tablist",
+            role: "tablist",
+            "aria-label": "Settings sections",
           },
-          "My Account"
-        ),
-        "\n            ",
-        h(
-          "div",
-          {
-            className: "settings-tab",
-            id: "tab-btn-billing",
-          },
-          "Billing"
-        ),
-        "\n            ",
-        h(
-          "div",
-          {
-            className: "settings-tab",
-            id: "tab-btn-app",
-          },
-          "Appearance"
-        ),
-        "\n            ",
-        h(
-          "div",
-          {
-            className: "settings-tab",
-            id: "tab-btn-performance",
-          },
-          "Performance"
-        ),
-        "\n            ",
-        h(
-          "div",
-          {
-            className: "settings-tab",
-            id: "tab-btn-notifications",
-          },
-          "Notifications"
+          h(
+            "button",
+            {
+              className: "settings-tab active",
+              id: "tab-btn-profile",
+              type: "button",
+            },
+            h("i", { className: "ph-bold ph-user-circle", "aria-hidden": "true" }),
+            h("span", null, "My Account")
+          ),
+          h(
+            "button",
+            {
+              className: "settings-tab",
+              id: "tab-btn-billing",
+              type: "button",
+            },
+            h("i", { className: "ph-bold ph-currency-circle-dollar", "aria-hidden": "true" }),
+            h("span", null, "Billing")
+          ),
+          h(
+            "button",
+            {
+              className: "settings-tab",
+              id: "tab-btn-app",
+              type: "button",
+            },
+            h("i", { className: "ph-bold ph-palette", "aria-hidden": "true" }),
+            h("span", null, "Appearance")
+          ),
+          h(
+            "button",
+            {
+              className: "settings-tab",
+              id: "tab-btn-performance",
+              type: "button",
+            },
+            h("i", { className: "ph-bold ph-gauge", "aria-hidden": "true" }),
+            h("span", null, "Performance")
+          ),
+          h(
+            "button",
+            {
+              className: "settings-tab",
+              id: "tab-btn-notifications",
+              type: "button",
+            },
+            h("i", { className: "ph-bold ph-bell", "aria-hidden": "true" }),
+            h("span", null, "Notifications")
+          )
         ),
         "\n            ",
         h("div", {
@@ -1513,6 +1761,18 @@ function renderChatShell() {
           h(
             "button",
             {
+              className: "settings-session-btn settings-session-switch",
+              id: "switch-user-btn",
+              type: "button",
+            },
+            h("i", {
+              className: "ph-bold ph-users-three",
+            }),
+            "Accounts"
+          ),
+          h(
+            "button",
+            {
               className: "settings-session-btn settings-session-logout",
               id: "logout-btn",
               type: "button",
@@ -1521,18 +1781,6 @@ function renderChatShell() {
               className: "ph-bold ph-sign-out",
             }),
             "Log Out"
-          ),
-          h(
-            "button",
-            {
-              className: "settings-session-btn settings-session-switch",
-              id: "switch-user-btn",
-              type: "button",
-            },
-            h("i", {
-              className: "ph-bold ph-users-three",
-            }),
-            "Add User"
           )
         ),
         "\n        "
@@ -1552,17 +1800,27 @@ function renderChatShell() {
           },
           "\n                ",
           h(
-            "h2",
-            {
-              id: "profile-pane-title",
-            },
-            "My Account"
+            "header",
+            { className: "settings-pane-header" },
+            h("span", { className: "settings-pane-kicker" }, "Account"),
+            h(
+              "h2",
+              {
+                id: "profile-pane-title",
+              },
+              "My Account"
+            ),
+            h(
+              "p",
+              { id: "profile-pane-description" },
+              "Manage your identity, sign-in details, and public profile."
+            )
           ),
           "\n                ",
           h(
             "div",
             {
-              className: "settings-card profile-view-section",
+              className: "settings-card settings-account-identity profile-view-section",
             },
             "\n                    ",
             h(
@@ -1577,9 +1835,9 @@ function renderChatShell() {
                 }),
               "\n                        ",
               h(
-                "div",
-                {
-                  className: "settings-card-title",
+                  "div",
+                  {
+                    className: "settings-card-title",
                 },
                 "\n                            ",
                 h(
@@ -1590,6 +1848,7 @@ function renderChatShell() {
                   },
                   "User"
                 ),
+                h("span", { className: "settings-card-subtitle" }, "Your public identity"),
                 "\n                        "
               ),
               "\n                        ",
@@ -1597,18 +1856,16 @@ function renderChatShell() {
                 "button",
                 {
                   id: "preview-profile-btn",
-                  className: "action-btn",
-                  style: { width: "auto", margin: "0" },
+                  className: "action-btn settings-preview-trigger",
+                  type: "button",
+                  "aria-expanded": "false",
+                  "aria-controls": "settings-profile-preview",
                 },
-                "Preview Card"
+                h("i", { className: "ph-bold ph-eye", "aria-hidden": "true" }),
+                h("span", null, "Preview card")
               ),
               "\n                    "
             ),
-            "\n                    ",
-            h("div", {
-                id: "settings-card-inline-preview",
-                className: "hidden",
-              }),
             "\n                "
           ),
           "\n\n                ",
@@ -1630,7 +1887,7 @@ function renderChatShell() {
                 h("i", {
                   className: "ph-bold ph-users-three",
                 }),
-                "Add User"
+                "Accounts"
               ),
               h("i", {
                 className: "ph-bold ph-arrow-right",
@@ -1660,7 +1917,7 @@ function renderChatShell() {
           h(
             "div",
             {
-              className: "settings-card profile-view-section",
+              className: "settings-card settings-account-details profile-view-section",
             },
             "\n                    ",
             h(
@@ -1670,39 +1927,37 @@ function renderChatShell() {
               },
               "\n                        ",
               h(
-                "h3",
-                {
-                  className: "sidebar-header",
-                  style: { border: "none", marginBottom: "0.5rem", padding: "0" },
-                },
-                "Account Safety"
+                "div",
+                { className: "settings-section-heading" },
+                h("div", null,
+                  h("h3", null, "Account details"),
+                  h("p", null, "Private details used to secure your account.")
+                )
               ),
-              "\n                        ",
               h(
-                "p",
-                {
-                  id: "settings-joined-date",
-                  style: { fontWeight: "600", color: "#666", fontSize: "0.9rem", marginBottom: "0.2rem" },
-                },
-                "Joined: Loading..."
-              ),
-              "\n                        ",
-              h(
-                "p",
-                {
-                  id: "settings-user-email",
-                  style: { fontWeight: "600", color: "#666", fontSize: "0.9rem", marginBottom: "0.2rem" },
-                },
-                "Email: Loading..."
-              ),
-              "\n                        ",
-              h(
-                "p",
-                {
-                  id: "settings-user-phone",
-                  style: { fontWeight: "600", color: "#666", fontSize: "0.9rem" },
-                },
-                "Phone: Loading..."
+                "div",
+                { className: "settings-detail-list" },
+                h(
+                  "div",
+                  { className: "settings-detail-row" },
+                  h("i", { className: "ph-bold ph-calendar-blank", "aria-hidden": "true" }),
+                  h("span", null, "Joined"),
+                  h("strong", { id: "settings-joined-date" }, "Loading…")
+                ),
+                h(
+                  "div",
+                  { className: "settings-detail-row" },
+                  h("i", { className: "ph-bold ph-envelope-simple", "aria-hidden": "true" }),
+                  h("span", null, "Email"),
+                  h("strong", { id: "settings-user-email" }, "Loading…")
+                ),
+                h(
+                  "div",
+                  { className: "settings-detail-row" },
+                  h("i", { className: "ph-bold ph-phone", "aria-hidden": "true" }),
+                  h("span", null, "Phone"),
+                  h("strong", { id: "settings-user-phone" }, "Loading…")
+                )
               ),
               "\n                    "
             ),
@@ -1724,26 +1979,24 @@ function renderChatShell() {
               "\n                        ",
               h(
                 "div",
-                {
-                  style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" },
-                },
+                { className: "settings-section-heading settings-public-profile-head" },
                 "\n                            ",
                 h(
-                  "h3",
-                  {
-                    className: "sidebar-header",
-                    style: { border: "none", margin: "0", padding: "0" },
-                  },
-                  "Public Profile"
+                  "div",
+                  null,
+                  h("h3", null, "Public profile"),
+                  h("p", null, "Control what people see when they open your card.")
                 ),
                 "\n                            ",
                 h(
                   "button",
                   {
                     id: "toggle-edit-btn",
-                    style: { width: "auto", margin: "0", padding: "0.4rem 1rem" },
+                    type: "button",
+                    className: "settings-edit-profile-btn",
                   },
-                  "Edit Profile"
+                  h("i", { className: "ph-bold ph-pencil-simple", "aria-hidden": "true" }),
+                  "Edit profile"
                 ),
                 "\n                        "
               ),
@@ -2149,7 +2402,7 @@ function renderChatShell() {
           h(
             "div",
             {
-              className: "settings-card profile-view-section",
+              className: "settings-card settings-danger-card profile-view-section",
             },
             "\n                    ",
             h(
@@ -2159,29 +2412,25 @@ function renderChatShell() {
               },
               "\n                        ",
               h(
-                "h3",
-                {
-                  className: "sidebar-header",
-                  style: { border: "none", marginBottom: "0.5rem", padding: "0", color: "red" },
-                },
-                "Account Management"
-              ),
-              "\n                        ",
-              h(
-                "p",
-                {
-                  style: { fontWeight: "600", color: "#666", fontSize: "0.9rem" },
-                },
-                "Account deletion is permanent. Once you delete your account, there is no going back."
+                "div",
+                { className: "settings-danger-copy" },
+                h("i", { className: "ph-bold ph-shield-warning", "aria-hidden": "true" }),
+                h(
+                  "div",
+                  null,
+                  h("h3", null, "Danger zone"),
+                  h("p", null, "Account deletion is permanent and cannot be undone.")
+                )
               ),
               "\n                        ",
               h(
                 "button",
                 {
                   id: "delete-account-btn",
-                  style: { background: "transparent", color: "red", borderColor: "red", width: "auto", padding: "0.8rem 1.5rem", marginTop: "1rem", boxShadow: "4px 4px 0px red" },
+                  type: "button",
+                  className: "settings-delete-account-btn",
                 },
-                "Delete Account"
+                "Delete account"
               ),
               "\n                    "
             ),
@@ -2196,353 +2445,7 @@ function renderChatShell() {
             className: "settings-pane hidden",
             id: "pane-billing",
           },
-          "\n                ",
-          h(
-            "h2",
-            null,
-            "Billing"
-          ),
-          "\n                ",
-          h(
-            "div",
-            {
-              className: "settings-card billing-current-card",
-              style: { border: "4px solid var(--text-color)", boxShadow: "6px 6px 0px var(--accent-color)" },
-            },
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "billing-current-body",
-                style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "1.5rem 2rem", background: "var(--accent-color)", color: "var(--text-color)" },
-              },
-              "\n                        ",
-              h(
-                "div",
-                {
-                  className: "billing-current-info",
-                  style: { display: "flex", flexDirection: "column", gap: "0.3rem" },
-                },
-                "\n                            ",
-                h(
-                  "span",
-                  {
-                    style: { fontSize: "0.85rem", fontWeight: "800", textTransform: "uppercase", letterSpacing: "1px" },
-                  },
-                  "Current Plan"
-                ),
-                "\n                            ",
-                h(
-                  "span",
-                  {
-                    id: "billing-plan-name",
-                    style: { fontSize: "1.8rem", fontWeight: "800", lineHeight: "1" },
-                  },
-                  "Minimalist Base"
-                ),
-                "\n                            ",
-                h(
-                  "span",
-                  {
-                    id: "billing-tier-badge",
-                    className: "tier-badge base",
-                    style: { width: "fit-content" },
-                  },
-                  "BASE"
-                ),
-                "\n                            ",
-                h(
-                  "span",
-                  {
-                    id: "billing-plan-limits",
-                    style: { fontSize: "0.85rem", fontWeight: "800" },
-                  },
-                  "10MB per file · 500MB/day · Screen share 720p/30"
-                ),
-                "\n                        "
-              ),
-              "\n                        ",
-              h(
-                "button",
-                {
-                  id: "manage-billing-btn",
-                  style: { width: "auto", margin: "0", padding: "0.6rem 1.5rem", background: "var(--bg-color)", color: "var(--text-color)", boxShadow: "4px 4px 0px var(--text-color)", fontSize: "1rem" },
-                },
-                "Manage"
-              ),
-              "            \n                    "
-            ),
-            "\n                "
-          ),
-          "\n\n                ",
-          h(
-            "div",
-            {
-              className: "settings-card hidden stripe-embedded-card",
-              id: "stripe-embedded-checkout-card",
-            },
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "stripe-embedded-header",
-              },
-              "\n                        ",
-              h(
-                "div",
-                null,
-                "\n                            ",
-                h(
-                  "span",
-                  {
-                    className: "stripe-embedded-kicker",
-                  },
-                  "Secure Stripe Checkout"
-                ),
-                "\n                            ",
-                h(
-                  "h3",
-                  {
-                    id: "stripe-embedded-title",
-                  },
-                  "Upgrade"
-                ),
-                "\n                        "
-              ),
-              "\n                        ",
-              h(
-                "button",
-                {
-                  id: "stripe-embedded-close",
-                  className: "mini-btn",
-                  type: "button",
-                },
-                "Close"
-              ),
-              "\n                    "
-            ),
-            "\n                    ",
-            h(
-              "p",
-              {
-                id: "stripe-embedded-status",
-                className: "stripe-embedded-status",
-              },
-              "Stripe is loading securely inside this page…"
-            ),
-            "\n                    ",
-            h("div", {
-                id: "stripe-embedded-checkout",
-                className: "stripe-embedded-checkout",
-              }),
-            "\n                "
-          ),
-          "\n\n                ",
-          h(
-            "div",
-            {
-              className: "billing-plan-grid",
-              style: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginTop: "1rem" },
-            },
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "settings-card billing-plan-card",
-              },
-              "\n                        ",
-              h(
-                "div",
-                {
-                  className: "settings-card-body billing-plan-body",
-                },
-                "\n                            ",
-                h(
-                  "h3",
-                  null,
-                  "Advanced"
-                ),
-                "\n                            ",
-                h(
-                  "h2",
-                  {
-                    style: { border: "none", margin: "0" },
-                  },
-                  "$1.99",
-                  h(
-                    "span",
-                    null,
-                    "/mo"
-                  )
-                ),
-                "\n                            ",
-                h(
-                  "ul",
-                  {
-                    style: { listStyle: "none", margin: "1rem 0", fontWeight: "600", fontSize: "0.9rem" },
-                  },
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ 700MB per file"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ 1.5GB daily upload cap"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Create up to 5 rooms"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Screen share 1080p/60"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Advanced tier badge"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Everything in Base"
-                  ),
-                  "\n                            "
-                ),
-                "\n                            ",
-                h(
-                  "button",
-                  {
-                    id: "upgrade-advanced-btn",
-                    className: "action-btn",
-                    style: { width: "100%" },
-                  },
-                  "Upgrade"
-                ),
-                "\n                        "
-              ),
-              "\n                    "
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "settings-card billing-plan-card",
-              },
-              "\n                        ",
-              h(
-                "div",
-                {
-                  className: "settings-card-body billing-plan-body",
-                },
-                "\n                            ",
-                h(
-                  "h3",
-                  null,
-                  "Pro"
-                ),
-                "\n                            ",
-                h(
-                  "h2",
-                  {
-                    style: { border: "none", margin: "0" },
-                  },
-                  "$3.99",
-                  h(
-                    "span",
-                    null,
-                    "/mo"
-                  )
-                ),
-                "\n                            ",
-                h(
-                  "ul",
-                  {
-                    style: { listStyle: "none", margin: "1rem 0", fontWeight: "600", fontSize: "0.9rem" },
-                  },
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ 3GB per file"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ 9GB daily upload cap"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Unlimited room creation"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Room analytics"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Video calls"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Screen share at system limit"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Pro tier badge"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Personal AI Agent"
-                  ),
-                  "\n                                ",
-                  h(
-                    "li",
-                    null,
-                    "✓ Offline Viewing"
-                  ),
-                  "\n                            "
-                ),
-                "\n                            ",
-                h(
-                  "button",
-                  {
-                    id: "upgrade-pro-btn",
-                    className: "action-btn",
-                    style: { width: "100%" },
-                  },
-                  "Upgrade"
-                ),
-                "\n                        "
-              ),
-              "\n                    "
-            ),
-            "\n                "
-          ),
-          "\n            "
+          h(AccountBillingPanel)
         ),
         "\n            \n            ",
         h(
@@ -2552,7 +2455,13 @@ function renderChatShell() {
             id: "pane-performance",
           },
           "\n                ",
-          h("h2", null, "Performance"),
+          h(
+            "header",
+            { className: "settings-pane-header" },
+            h("span", { className: "settings-pane-kicker" }, "Device"),
+            h("h2", null, "Performance"),
+            h("p", null, "Tune motion, rendering, and data use for this device.")
+          ),
           "\n                ",
           h("div", {
             className: "performance-settings-root",
@@ -2569,9 +2478,11 @@ function renderChatShell() {
           },
           "\n                ",
           h(
-            "h2",
-            null,
-            "Appearance"
+            "header",
+            { className: "settings-pane-header" },
+            h("span", { className: "settings-pane-kicker" }, "Personalization"),
+            h("h2", null, "Appearance"),
+            h("p", null, "Choose how Minimalist looks and how much of the workspace is visible.")
           ),
           "\n                ",
           h(
@@ -2723,6 +2634,8 @@ function renderChatShell() {
             ),
             "\n                    ",
             renderFeatureModePanel(),
+            "\n                    ",
+            renderPersonalAiPreferencePanel(),
             "\n                "
           ),
           "\n            "
@@ -2735,7 +2648,13 @@ function renderChatShell() {
             id: "pane-notifications",
           },
           "\n                ",
-          h("h2", null, "Notifications"),
+          h(
+            "header",
+            { className: "settings-pane-header" },
+            h("span", { className: "settings-pane-kicker" }, "Attention"),
+            h("h2", null, "Notifications"),
+            h("p", null, "Decide what can interrupt you and when.")
+          ),
           "\n                ",
           h(
             "div",
@@ -2756,7 +2675,7 @@ function renderChatShell() {
               h(
                 "p",
                 null,
-                "Control room alerts, mentions, keyword alerts, digests, Do Not Disturb, schedules, and phone notifications from one place."
+                "Control room alerts, mentions, keyword alerts, digests, Do Not Disturb, schedules, and private-message push settings from one place."
               ),
               "\n                    "
             ),
@@ -2781,7 +2700,7 @@ function renderChatShell() {
                   className: "notification-phone-head",
                 },
                 "\n                            ",
-                h("span", null, h("i", { className: "ph-bold ph-device-mobile" }), " Phone alerts"),
+                h("span", null, h("i", { className: "ph-bold ph-device-mobile" }), " PM alerts"),
                 "\n                            ",
                 h("div", {
                     id: "notification-phone-alerts-slot",
@@ -2807,6 +2726,55 @@ function renderChatShell() {
         ),
         "\n        "
       ),
+      "\n        ",
+      h(
+        "aside",
+        {
+          id: "settings-profile-preview",
+          className: "settings-preview-rail hidden",
+          role: "region",
+          "aria-labelledby": "settings-preview-title",
+          "aria-hidden": "true",
+        },
+        h(
+          "header",
+          { className: "settings-preview-header" },
+          h(
+            "div",
+            null,
+            h("span", { className: "settings-preview-kicker" }, "Live card"),
+            h("h2", { id: "settings-preview-title" }, "Profile preview"),
+            h("p", null, "This is how your profile appears to other people.")
+          ),
+          h(
+            "button",
+            {
+              id: "close-settings-preview-btn",
+              className: "settings-preview-close",
+              type: "button",
+              "aria-label": "Back to My Account",
+            },
+            h("i", { className: "ph-bold ph-arrow-left settings-preview-back-icon", "aria-hidden": "true" }),
+            h("i", { className: "ph-bold ph-x settings-preview-x-icon", "aria-hidden": "true" }),
+            h("span", null, "Back to account")
+          )
+        ),
+        h(
+          "div",
+          { className: "settings-preview-body" },
+          h("div", {
+            id: "settings-card-inline-preview",
+            className: "settings-preview-card-host",
+            "aria-live": "polite",
+          }),
+          h(
+            "p",
+            { className: "settings-preview-note" },
+            h("i", { className: "ph-bold ph-eye", "aria-hidden": "true" }),
+            " Changes to your public profile will appear here."
+          )
+        )
+      ),
       " \n    "
     ),
     " \n\n    ",
@@ -2815,7 +2783,36 @@ function renderChatShell() {
       {
         id: "user-profile-popup",
         className: "hidden",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-labelledby": "up-name",
+        "aria-hidden": "true",
+        "aria-busy": "false",
+        tabIndex: -1,
+        onKeyDown: (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            closeUserProfileDialog();
+          }
+        },
       },
+      "\n        ",
+      h(
+        "button",
+        {
+          className: "profile-popup-close",
+          id: "close-user-profile-btn",
+          type: "button",
+          "aria-label": "Close profile",
+          title: "Close profile",
+          onClick: closeUserProfileDialog,
+        },
+        h("i", {
+          className: "ph-bold ph-x",
+          "aria-hidden": "true",
+        })
+      ),
       "\n        ",
       h(
         "div",
@@ -2825,13 +2822,16 @@ function renderChatShell() {
         },
         "\n            ",
         h(
-          "div",
+          "button",
           {
             className: "profile-popup-more",
             id: "more-profile-btn",
+            type: "button",
+            "aria-label": "Open profile actions",
           },
           h("i", {
               className: "ph-bold ph-dots-three",
+              "aria-hidden": "true",
             })
         ),
         "\n            ",
@@ -2901,8 +2901,7 @@ function renderChatShell() {
             {
               className: "profile-display-name",
               id: "up-name",
-            },
-            "Name"
+            }
           ),
           "\n                ",
           h(
@@ -2995,26 +2994,10 @@ function renderChatShell() {
             id: "up-mutual",
           }),
         "\n            ",
-        h(
-          "div",
-          {
+        h("div", {
             className: "profile-spotlight",
             id: "up-spotlight",
-          },
-          "\n                ",
-          h(
-            "button",
-            {
-              id: "up-spotlight-btn",
-              className: "ai-btn ai-btn-ghost",
-            },
-            h("i", {
-                className: "ph-bold ph-sparkle",
-              }),
-            " AI Spotlight"
-          ),
-          "\n            "
-        ),
+          }),
         "\n            ",
         h(
           "div",
@@ -3210,6 +3193,8 @@ function renderChatShell() {
         id: "room-action-modal",
         className: "hidden modal-overlay",
         style: { zIndex: "6000", display: "flex", justifyContent: "center", alignItems: "center" },
+        role: "presentation",
+        "aria-hidden": "true",
       },
       "\n        ",
       h(
@@ -3218,6 +3203,10 @@ function renderChatShell() {
           className: "brutalist-auth-card room-action-card",
           id: "room-action-card",
           style: { width: "90%", maxWidth: "520px", padding: "2rem", textAlign: "left" },
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": "room-action-title",
+          "aria-describedby": "room-action-subtitle",
         },
         "\n            ",
         h(
@@ -3236,6 +3225,16 @@ function renderChatShell() {
             className: "room-action-subtitle",
           },
           "Paste a room link or invite code."
+        ),
+        h(
+          "button",
+          {
+            id: "close-room-action-btn",
+            className: "room-action-close",
+            type: "button",
+            "aria-label": "Close room dialog",
+          },
+          h("i", { className: "ph-bold ph-x", "aria-hidden": "true" })
         ),
         "\n            ",
         h(
@@ -3288,12 +3287,13 @@ function renderChatShell() {
               className: "room-create-step",
             },
             "\n                    ",
-            h(
-              "button",
-              {
-                type: "button",
-                className: "room-type-option",
-                "data-room-type": "friends",
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    className: "room-type-option",
+                    "data-room-type": "friends",
+                    "aria-pressed": "false",
               },
               "\n                        ",
               h("i", { className: "ph-bold ph-users-three" }),
@@ -3312,12 +3312,13 @@ function renderChatShell() {
               "\n                    "
             ),
             "\n                    ",
-            h(
-              "button",
-              {
-                type: "button",
-                className: "room-type-option",
-                "data-room-type": "community",
+                h(
+                  "button",
+                  {
+                    type: "button",
+                    className: "room-type-option",
+                    "data-room-type": "community",
+                    "aria-pressed": "false",
               },
               "\n                        ",
               h("i", { className: "ph-bold ph-planet" }),
@@ -3325,13 +3326,13 @@ function renderChatShell() {
               h(
                 "span",
                 null,
-                "Club or community"
+                "Community"
               ),
               "\n                        ",
               h(
                 "small",
                 null,
-                "A more organized room for clubs, creators, teams, or public groups."
+                "A discoverable room for clubs, creators, teams, and shared interests."
               ),
               "\n                    "
             ),
@@ -3365,6 +3366,12 @@ function renderChatShell() {
                   maxLength: "42",
                   placeholder: "Morning Rituals, Study Room, Project Team...",
                 }),
+              h(
+                "div",
+                { className: "room-name-meta" },
+                h("span", null, "Keep it clear and recognizable."),
+                h("span", { id: "create-room-name-count" }, "0 / 42")
+              ),
               "\n                    "
             ),
             "\n                    ",
@@ -3418,37 +3425,70 @@ function renderChatShell() {
                 }),
               "\n                    "
             ),
+            h(
+              "section",
+              { className: "room-create-privacy", "aria-label": "Room privacy" },
+              h("i", { id: "room-create-privacy-icon", className: "ph-bold ph-lock-key" }),
+              h(
+                "div",
+                null,
+                h("strong", null, "Privacy"),
+                h("span", { id: "room-create-privacy-copy" }, "Private · invited people only")
+              )
+            ),
+            h(
+              "section",
+              { className: "room-create-review", "aria-label": "Room preview" },
+              h(
+                "div",
+                { className: "room-create-review-heading" },
+                h("span", null, "Preview"),
+                h("small", null, "Ready to create")
+              ),
+              h(
+                "div",
+                { className: "room-create-review-card" },
+                h(
+                  "span",
+                  { id: "room-create-review-avatar", className: "room-create-review-avatar" },
+                  h("i", { className: "ph-bold ph-chats" })
+                ),
+                h(
+                  "div",
+                  null,
+                  h("strong", { id: "room-create-preview-name" }, "Your room name"),
+                  h("span", { id: "room-create-preview-type" }, "Choose a room type")
+                )
+              )
+            ),
             "\n                "
           ),
           "\n            "
         ),
         "\n            ",
         h(
-          "button",
-          {
-            id: "room-create-back-btn",
-            className: "hidden",
-            style: { background: "transparent", color: "var(--text-color)", marginTop: "1rem", border: "2px solid var(--text-color)", boxShadow: "none" },
-          },
-          "Back"
-        ),
-        "\n            ",
-        h(
-          "button",
-          {
-            id: "room-action-submit",
-            style: { background: "var(--text-color)", color: "var(--bg-color)", marginTop: "1rem" },
-          },
-          "Join"
-        ),
-        "\n            ",
-        h(
-          "button",
-          {
-            id: "close-room-action-btn",
-            style: { background: "transparent", color: "var(--text-color)", marginTop: "0.5rem", border: "2px solid var(--text-color)", boxShadow: "none" },
-          },
-          "Cancel"
+          "footer",
+          { className: "room-action-footer" },
+          h(
+            "button",
+            { id: "room-action-cancel-btn", className: "room-action-secondary", type: "button" },
+            "Cancel"
+          ),
+          h(
+            "div",
+            { className: "room-action-footer-end" },
+            h(
+              "button",
+              { id: "room-create-back-btn", className: "hidden room-action-secondary", type: "button" },
+              h("i", { className: "ph-bold ph-arrow-left" }),
+              "Back"
+            ),
+            h(
+              "button",
+              { id: "room-action-submit", className: "room-action-primary", type: "button" },
+              "Join"
+            )
+          )
         ),
         "\n        "
       ),
@@ -3459,17 +3499,56 @@ function renderChatShell() {
       "div",
       {
         id: "room-settings-modal",
-        className: "hidden modal-overlay room-settings-overlay",
+        className: "hidden modal-overlay room-settings-overlay room-settings-overlay-v2",
         style: { zIndex: "6000", display: "flex", justifyContent: "center", alignItems: "center" },
+        role: "presentation",
+        "aria-hidden": "true",
       },
       "\n        ",
       h(
         "div",
         {
-          className: "brutalist-auth-card room-settings-card room-settings-modern",
+          className: "brutalist-auth-card room-settings-card room-settings-modern room-settings-v2",
           id: "room-settings-card",
           style: { width: "90%", maxWidth: "700px", height: "70vh", padding: "0", textAlign: "left", display: "flex", flexDirection: "row", overflow: "hidden", background: "var(--bg-color)" },
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": "room-settings-title",
+          "aria-describedby": "room-settings-room-meta",
         },
+        "\n            ",
+        h(
+          "header",
+          { className: "room-settings-header" },
+          h("div", {
+            id: "rs-room-settings-picture",
+            className: "room-settings-header-picture",
+            "aria-hidden": "true",
+          }, h("i", { className: "ph-bold ph-chats" })),
+          h(
+            "div",
+            { className: "room-settings-heading" },
+            h("p", { className: "room-settings-eyebrow" }, "Room settings"),
+            h("h1", { id: "room-settings-title" }, "Room settings"),
+            h(
+              "p",
+              { id: "room-settings-room-meta", className: "room-settings-room-meta" },
+              h("span", { id: "rs-room-settings-name" }, "Room"),
+              h("span", { "aria-hidden": "true" }, "·"),
+              h("span", { id: "rs-room-settings-privacy" }, "Private room")
+            )
+          ),
+          h(
+            "span",
+            {
+              id: "rs-room-settings-status",
+              className: "room-settings-status",
+              role: "status",
+              "aria-live": "polite",
+            },
+            "Ready"
+          )
+        ),
         "\n            ",
         h(
           "button",
@@ -3485,14 +3564,15 @@ function renderChatShell() {
         ),
         "\n            \n            ",
         h(
-          "div",
+          "nav",
           {
             className: "settings-sidebar",
             style: { width: "30%", minWidth: "180px", padding: "1.5rem", borderRight: "4px solid var(--text-color)" },
+            "aria-label": "Room settings sections",
           },
           "\n                \n                ",
           h(
-            "h3",
+            "p",
             {
               className: "sidebar-header",
               style: { fontSize: "0.9rem" },
@@ -3503,79 +3583,122 @@ function renderChatShell() {
           h(
             "div",
             {
+              className: "settings-tablist",
+              role: "tablist",
+              "aria-orientation": "vertical",
+            },
+          h(
+            "button",
+            {
               className: "settings-tab active",
               id: "rs-tab-overview",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "true",
+              "aria-controls": "rs-pane-overview",
+              tabIndex: 0,
             },
             h("i", { className: "ph-bold ph-squares-four" }),
             h("span", null, "Overview")
           ),
           "\n                ",
           h(
-            "div",
+            "button",
             {
               className: "settings-tab",
               id: "rs-tab-members",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "false",
+              "aria-controls": "rs-pane-members",
+              tabIndex: -1,
             },
             h("i", { className: "ph-bold ph-users-three" }),
             h("span", null, "Members")
           ),
           "\n                ",
           h(
-            "div",
+            "button",
             {
               className: "settings-tab",
               id: "rs-tab-channels",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "false",
+              "aria-controls": "rs-pane-channels",
+              tabIndex: -1,
             },
             h("i", { className: "ph-bold ph-hash" }),
             h("span", null, "Channels")
           ),
           "\n                ",
           h(
-            "div",
+            "button",
             {
               className: "settings-tab",
               id: "rs-tab-permissions",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "false",
+              "aria-controls": "rs-pane-permissions",
+              tabIndex: -1,
             },
             h("i", { className: "ph-bold ph-shield-check" }),
             h("span", null, "Permissions")
           ),
           "\n                ",
           h(
-            "div",
+            "button",
             {
               className: "settings-tab",
               id: "rs-tab-webhooks",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "false",
+              "aria-controls": "rs-pane-webhooks",
+              "aria-label": "Apps and integrations",
+              tabIndex: -1,
             },
             h("i", { className: "ph-bold ph-plugs-connected" }),
-            h("span", null, "Platform")
+            h("span", null, "Apps")
           ),
           "\n                ",
           h(
-            "div",
+            "button",
             {
               className: "settings-tab",
               id: "rs-tab-subscription",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "false",
+              "aria-controls": "rs-pane-subscription",
+              tabIndex: -1,
             },
             h("i", { className: "ph-bold ph-currency-circle-dollar" }),
             h("span", null, "Subscription")
           ),
           "\n                ",
           h(
-            "div",
+            "button",
             {
               className: "settings-tab",
               id: "rs-tab-logs",
               style: { padding: "0.6rem", fontSize: "0.9rem" },
+              type: "button",
+              role: "tab",
+              "aria-selected": "false",
+              "aria-controls": "rs-pane-logs",
+              tabIndex: -1,
             },
             h("i", { className: "ph-bold ph-clock-counter-clockwise" }),
             h("span", null, "Audit Logs")
-          ),
+          )),
           "\n                \n                ",
           h("div", {
               style: { flexGrow: "1" },
@@ -3591,6 +3714,7 @@ function renderChatShell() {
               id: "rs-delete-room-btn",
               className: "mini-btn danger hidden",
               style: { width: "100%", padding: "0.8rem", marginBottom: "0.5rem", border: "2px solid red" },
+              type: "button",
             },
             "Delete Room"
           ),
@@ -3601,6 +3725,7 @@ function renderChatShell() {
               id: "rs-leave-room-btn",
               className: "mini-btn danger hidden",
               style: { width: "100%", padding: "0.8rem", marginBottom: "0.5rem", border: "2px solid red" },
+              type: "button",
             },
             "Leave Room"
           ),
@@ -3611,6 +3736,7 @@ function renderChatShell() {
               id: "close-room-settings-btn",
               className: "mini-btn",
               style: { width: "100%", padding: "0.8rem", background: "transparent", color: "var(--text-color)", border: "2px solid var(--text-color)" },
+              type: "button",
             },
             "Close Menu"
           ),
@@ -3629,6 +3755,10 @@ function renderChatShell() {
             {
               id: "rs-pane-overview",
               className: "rs-pane",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-overview",
+              "aria-hidden": "false",
+              tabIndex: 0,
             },
             "\n                    ",
             h(
@@ -3673,6 +3803,7 @@ function renderChatShell() {
                     type: "file",
                     id: "rs-room-picture-input",
                     accept: "image/*",
+                    "aria-label": "Choose a room picture",
                   }),
                 "\n                            ",
                 h(
@@ -3738,6 +3869,7 @@ function renderChatShell() {
                   type: "file",
                   id: "rs-room-banner-input",
                   accept: "image/*",
+                  "aria-label": "Choose a room banner",
                 }),
               "\n                        ",
               h(
@@ -3865,6 +3997,10 @@ function renderChatShell() {
             {
               id: "rs-pane-members",
               className: "rs-pane hidden",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-members",
+              "aria-hidden": "true",
+              tabIndex: 0,
             },
             "\n                    ",
             h(
@@ -3879,41 +4015,6 @@ function renderChatShell() {
                 id: "rs-members-list",
                 style: { listStyle: "none", padding: "0", display: "flex", flexDirection: "column", gap: "0.5rem" },
               }),
-            "\n                    ",
-            h(
-              "section",
-              {
-                className: "member-permissions-card",
-              },
-              "\n                        ",
-              h(
-                "div",
-                {
-                  className: "member-permissions-head",
-                },
-                h(
-                  "div",
-                  null,
-                  h("p", { className: "rs-mini-kicker" }, "User overrides"),
-                  h("h3", null, "Individual user permissions")
-                ),
-                h("span", null, "Inherit, allow, or deny per member")
-              ),
-              "\n                        ",
-              h(
-                "p",
-                {
-                  className: "member-permissions-copy",
-                },
-                "Room permissions set the default. User overrides let you make exceptions for specific members without changing the whole room."
-              ),
-              "\n                        ",
-              h("div", {
-                id: "rs-member-permissions-list",
-                className: "member-permissions-list",
-              }),
-              "\n                    "
-            ),
             "\n                "
           ),
           "\n\n                ",
@@ -3922,6 +4023,10 @@ function renderChatShell() {
             {
               id: "rs-pane-channels",
               className: "rs-pane hidden",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-channels",
+              "aria-hidden": "true",
+              tabIndex: 0,
             },
             "\n                    ",
             h(
@@ -3954,7 +4059,7 @@ function renderChatShell() {
               "\n                        ",
               h(
                 "label",
-                null,
+                { htmlFor: "rs-channel-input" },
                 "NEW CHANNEL NAME"
               ),
               "\n                        ",
@@ -3972,6 +4077,7 @@ function renderChatShell() {
                 id: "rs-add-channel-btn",
                 className: "action-btn",
                 style: { width: "100%" },
+                type: "button",
               },
               "Add Channel"
             ),
@@ -3983,185 +4089,12 @@ function renderChatShell() {
             {
               id: "rs-pane-permissions",
               className: "rs-pane hidden",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-permissions",
+              "aria-hidden": "true",
+              tabIndex: 0,
             },
-            "\n                    ",
-            h(
-              "h2",
-              {
-                style: { borderBottom: "3px solid var(--text-color)", paddingBottom: "0.5rem", marginBottom: "1rem" },
-              },
-              "Permissions"
-            ),
-            "\n                    ",
-            h(
-              "p",
-              {
-                style: { fontSize: "0.9rem", fontWeight: "600", color: "#666", marginBottom: "1rem" },
-              },
-              "Fine-grained controls for what members can do in this room."
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "permission-grid",
-              },
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-chat",
-                    defaultChecked: true,
-                  }),
-                " Members can send chat messages"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-files",
-                    defaultChecked: true,
-                  }),
-                " Members can upload files"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-polls",
-                    defaultChecked: true,
-                  }),
-                " Members can create polls"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-reminders",
-                    defaultChecked: true,
-                  }),
-                " Members can create reminders"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-docs",
-                    defaultChecked: true,
-                  }),
-                " Members can edit docs"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-whiteboard",
-                    defaultChecked: true,
-                  }),
-                " Members can use whiteboard"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-calls",
-                    defaultChecked: true,
-                  }),
-                " Members can join voice calls"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-video",
-                    defaultChecked: true,
-                  }),
-                " Pro members can join video calls"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-screen-share",
-                    defaultChecked: true,
-                  }),
-                " Members can share screen"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-invites",
-                    defaultChecked: true,
-                  }),
-                " Members can invite people"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-create-channels",
-                    defaultChecked: true,
-                  }),
-                " Members can create channels"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-manage-channels",
-                    defaultChecked: false,
-                  }),
-                " Members can manage channels"
-              ),
-              "\n                        ",
-              h(
-                "label",
-                null,
-                h("input", {
-                    type: "checkbox",
-                    id: "perm-webhooks",
-                    defaultChecked: false,
-                  }),
-                " Members can manage webhooks"
-              ),
-              "\n                    "
-            ),
-            "\n                    ",
-            h(
-              "button",
-              {
-                id: "rs-save-permissions-btn",
-                className: "action-btn",
-                style: { width: "100%", marginTop: "1rem" },
-              },
-              "Save Permissions"
-            ),
-            "\n                "
+            h(RoomPermissionsPanel, null)
           ),
           "\n                \n                ",
           h(
@@ -4169,199 +4102,12 @@ function renderChatShell() {
             {
               id: "rs-pane-webhooks",
               className: "rs-pane hidden",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-webhooks",
+              "aria-hidden": "true",
+              tabIndex: 0,
             },
-            "\n                    ",
-            h(
-              "h2",
-              {
-                style: { borderBottom: "3px solid var(--text-color)", paddingBottom: "0.5rem", marginBottom: "1rem" },
-              },
-              "Platform & Ecosystem"
-            ),
-            "\n                    ",
-            h(
-              "p",
-              {
-                style: { fontSize: "0.9rem", fontWeight: "600", color: "#666", marginBottom: "1rem" },
-              },
-              "Extend the platform with integrations, developer tools, and room bots."
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "platform-section-grid",
-              },
-              h(
-                "section",
-                {
-                  className: "platform-card",
-                },
-                h("p", { className: "platform-kicker" }, "Integrations"),
-                h("h3", null, "Connect your workflow"),
-                h(
-                  "div",
-                  {
-                    className: "platform-chip-row",
-                  },
-                  ["GitHub", "Notion", "Jira", "Trello", "Google Calendar", "Google Drive"].map((label) => h("span", { key: label }, label))
-                )
-              ),
-              h(
-                "section",
-                {
-                  className: "platform-card",
-                },
-                h("p", { className: "platform-kicker" }, "Developer Platform"),
-                h("h3", null, "Build on Minimalist"),
-                h(
-                  "div",
-                  {
-                    className: "platform-chip-row",
-                  },
-                  ["Public API", "Webhooks", "OAuth Apps", "Custom Bots", "Bot Marketplace", "Automation Builder"].map((label) => h("span", { key: label }, label))
-                )
-              )
-            ),
-            "\n                    ",
-            h(
-              "h3",
-              {
-                className: "platform-subhead",
-              },
-              "Webhooks"
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "input-group",
-              },
-              "\n                        ",
-              h(
-                "label",
-                null,
-                "WEBHOOK URL"
-              ),
-              "\n                        ",
-                h("input", {
-                  type: "text",
-                  id: "rs-webhook-input",
-                  placeholder: "https://...",
-                }),
-              "\n                    "
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "input-group",
-                style: { marginTop: "0.85rem" },
-              },
-              "\n                        ",
-              h(
-                "label",
-                null,
-                "POST FROM CHANNEL"
-              ),
-              "\n                        ",
-              h("select", {
-                  id: "rs-webhook-channel",
-                }),
-              "\n                    "
-            ),
-            "\n                    ",
-            h(
-              "button",
-              {
-                id: "rs-save-webhook",
-                className: "action-btn",
-                style: { width: "100%" },
-              },
-              "Save Integration"
-            ),
-            "\n                    ",
-            h(
-              "h3",
-              {
-                className: "platform-subhead",
-              },
-              "Bot Marketplace"
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "bot-marketplace-grid",
-              },
-              h(
-                "section",
-                {
-                  className: "bot-marketplace-card",
-                },
-                h(
-                  "div",
-                  {
-                    className: "bot-card-head",
-                  },
-                  h("span", { className: "bot-card-icon" }, h("i", { className: "ph-bold ph-trend-up" })),
-                  h("div", null, h("h4", null, "Stock Price Tracker"), h("p", null, "Replies to /stock AAPL and watched $TICKER mentions."))
-                ),
-                h(
-                  "label",
-                  {
-                    className: "bot-toggle-row",
-                  },
-                  h("input", { type: "checkbox", id: "rs-stock-bot-enabled" }),
-                  h("span", null, "Install stock tracker")
-                ),
-                h("label", { className: "bot-field-label", htmlFor: "rs-stock-symbols" }, "Watch symbols"),
-                h("input", { type: "text", id: "rs-stock-symbols", placeholder: "AAPL, TSLA, MSFT" })
-              ),
-              h(
-                "section",
-                {
-                  className: "bot-marketplace-card",
-                },
-                h(
-                  "div",
-                  {
-                    className: "bot-card-head",
-                  },
-                  h("span", { className: "bot-card-icon" }, h("i", { className: "ph-bold ph-shield-check" })),
-                  h("div", null, h("h4", null, "Auto Moderation"), h("p", null, "Blocks configured keywords, link spam, flood text, and excessive caps."))
-                ),
-                h(
-                  "label",
-                  {
-                    className: "bot-toggle-row",
-                  },
-                  h("input", { type: "checkbox", id: "rs-automod-bot-enabled" }),
-                  h("span", null, "Install auto moderation")
-                ),
-                h("label", { className: "bot-field-label", htmlFor: "rs-automod-words" }, "Blocked words"),
-                h("textarea", { id: "rs-automod-words", rows: 3, placeholder: "spam, scam, raid..." }),
-                h(
-                  "label",
-                  {
-                    className: "bot-toggle-row",
-                  },
-                  h("input", { type: "checkbox", id: "rs-automod-links" }),
-                  h("span", null, "Block links")
-                )
-              )
-            ),
-            "\n                    ",
-            h(
-              "button",
-              {
-                id: "rs-save-bots",
-                className: "action-btn",
-                style: { width: "100%" },
-              },
-              "Save Bot Marketplace"
-            ),
-            "\n                "
+            h(RoomAppsPanel, null)
           ),
           "\n                \n                ",
           h(
@@ -4369,75 +4115,12 @@ function renderChatShell() {
             {
               id: "rs-pane-subscription",
               className: "rs-pane hidden",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-subscription",
+              "aria-hidden": "true",
+              tabIndex: 0,
             },
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "room-subscription-hero",
-              },
-              h("p", { className: "platform-kicker" }, "Room subscription"),
-              h("h2", null, "Boost this room"),
-              h("p", null, "Give selected members bigger uploads, better calls, room analytics, and screen-share quality inside this room.")
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "room-subscription-grid",
-                id: "rs-room-subscription-plans",
-              },
-              h(
-                "label",
-                { className: "room-subscription-card" },
-                h("input", { type: "radio", name: "rs-room-subscription-plan", value: "base", id: "rs-room-plan-base", defaultChecked: true }),
-                h("span", { className: "room-subscription-price" }, "Base room"),
-                h("strong", null, "$0"),
-                h("small", null, "Current room limits")
-              ),
-              h(
-                "label",
-                { className: "room-subscription-card featured" },
-                h("input", { type: "radio", name: "rs-room-subscription-plan", value: "advanced", id: "rs-room-plan-advanced" }),
-                h("span", { className: "room-subscription-price" }, "Advanced Room"),
-                h("strong", null, "$9.99/mo"),
-                h("small", null, "2GB/file · 4GB/day · Video calls · 1080p/60 screen share · Analytics · 20 selected users")
-              ),
-              h(
-                "label",
-                { className: "room-subscription-card" },
-                h("input", { type: "radio", name: "rs-room-subscription-plan", value: "pro", id: "rs-room-plan-pro" }),
-                h("span", { className: "room-subscription-price" }, "Pro Room"),
-                h("strong", null, "$14.99/mo"),
-                h("small", null, "3GB/file · 9GB/day · System-limit screen share · Advanced included · 50 selected users")
-              )
-            ),
-            "\n                    ",
-            h(
-              "div",
-              {
-                className: "room-subscription-members",
-              },
-              h(
-                "div",
-                { className: "room-subscription-members-head" },
-                h("div", null, h("h3", null, "Selected boosted users"), h("p", { id: "rs-room-subscription-limit" }, "Choose a paid plan to select users.")),
-                h("span", { id: "rs-room-subscription-count" }, "0/0")
-              ),
-              h("div", { id: "rs-room-subscription-user-list", className: "room-subscription-user-list" })
-            ),
-            "\n                    ",
-            h(
-              "button",
-              {
-                id: "rs-save-room-subscription-btn",
-                className: "action-btn",
-                style: { width: "100%", marginTop: "1rem" },
-                type: "button",
-              },
-              "Save Room Subscription"
-            ),
-            "\n                "
+            h(RoomSubscriptionPanel, null)
           ),
           "\n                \n                ",
           h(
@@ -4445,6 +4128,10 @@ function renderChatShell() {
             {
               id: "rs-pane-logs",
               className: "rs-pane hidden",
+              role: "tabpanel",
+              "aria-labelledby": "rs-tab-logs",
+              "aria-hidden": "true",
+              tabIndex: 0,
             },
             "\n                    ",
             h(
@@ -4821,6 +4508,8 @@ function renderChatShell() {
             "button",
             {
               id: "close-search-btn",
+              type: "button",
+              "aria-label": "Close search",
             },
             "✖"
           ),
@@ -5010,6 +4699,10 @@ function renderChatShell() {
       {
         id: "brutalist-toast",
         className: "toast-hidden",
+        role: "status",
+        "aria-live": "polite",
+        "aria-hidden": "true",
+        hidden: true,
       },
       "\n        ",
       h(
@@ -5032,6 +4725,9 @@ function renderChatShell() {
         "button",
         {
           id: "toast-close",
+          type: "button",
+          "aria-label": "Close notification",
+          tabIndex: -1,
         },
         "✖"
       ),
@@ -5042,8 +4738,8 @@ function renderChatShell() {
 }
 
 export default function ChatPage() {
-  useChatBoot();
+  const bootFailure = useChatBoot();
   useRoomNavMotion();
   useEffect(() => initModernThemeMotion(), []);
-  return h('div', { className: 'react-page chat-react-page' }, renderChatShell());
+  return h('div', { className: 'react-page chat-react-page' }, renderChatShell(bootFailure, loadPersonalAgentPreferences()));
 }

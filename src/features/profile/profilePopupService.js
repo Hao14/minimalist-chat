@@ -2,7 +2,6 @@ import { get, ref, remove } from 'firebase/database';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from '../../lib/firebase.js';
-import { ProfileCardPreview } from '../settings/SettingsWidgets.jsx';
 import {
   ActivityFeed,
   ActivityHeatmap,
@@ -17,14 +16,62 @@ import {
 } from './ProfilePopupSections.jsx';
 
 const contextMenu = document.getElementById('custom-context-menu');
-let settingsCardPreviewRoot = null;
 const profileSectionRoots = new Map();
+const publicProfileCache = new Map();
+const publicProfileLoads = new Map();
+const mutualRoomsCache = new Map();
+const mutualRoomsLoads = new Map();
+const PUBLIC_PROFILE_CACHE_TTL = 2 * 60 * 1000;
+const MUTUAL_ROOMS_CACHE_TTL = 5 * 60 * 1000;
+const MAX_PUBLIC_PROFILE_CACHE_ENTRIES = 48;
+const MAX_MUTUAL_ROOMS_CACHE_ENTRIES = 64;
+const MAX_PROFILE_LOADS_IN_FLIGHT = 24;
+let profileRequestVersion = 0;
+let profileLastFocus = null;
+
+function pruneTimedCache(cache, ttl, now = Date.now()) {
+  cache.forEach((entry, key) => {
+    if (!entry || now - Number(entry.loadedAt || 0) >= ttl) cache.delete(key);
+  });
+}
+
+function setBoundedTimedCache(cache, key, entry, ttl, maxEntries) {
+  pruneTimedCache(cache, ttl, entry.loadedAt);
+  cache.delete(key);
+  cache.set(key, entry);
+  while (cache.size > maxEntries) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+function setBoundedInFlightLoad(cache, key, load) {
+  cache.set(key, load);
+  while (cache.size > MAX_PROFILE_LOADS_IN_FLIGHT) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+function formatFollowStats(counts = {}) {
+  const followers = Number(counts.followers || 0);
+  const following = Number(counts.following || 0);
+  return `${followers} follower${followers === 1 ? '' : 's'} · ${following} following`;
+}
+
+function setFollowStats(counts) {
+  const target = document.getElementById('up-follow-stats');
+  if (target) target.textContent = counts ? formatFollowStats(counts) : '';
+}
 
 function renderProfileSection(id, element) {
   const target = document.getElementById(id);
   if (!target) return;
   let root = profileSectionRoots.get(id);
   if (!root) {
+    target.replaceChildren();
     root = createRoot(target);
     profileSectionRoots.set(id, root);
   }
@@ -35,204 +82,373 @@ window.renderProfileSpotlight = function renderProfileSpotlight(payload = {}) {
   renderProfileSection('up-spotlight', createElement(ProfileSpotlight, payload));
 };
 
-window.renderSettingsCardPreview = async function renderSettingsCardPreview() {
-  const el = document.getElementById('settings-card-inline-preview');
-  if (!el || !window.currentUser?.uid) return;
+function getFreshPublicProfile(targetUid) {
+  pruneTimedCache(publicProfileCache, PUBLIC_PROFILE_CACHE_TTL);
+  const entry = publicProfileCache.get(targetUid);
+  if (!entry) return null;
+  publicProfileCache.delete(targetUid);
+  publicProfileCache.set(targetUid, entry);
+  return entry.user;
+}
 
-  const uid = window.currentUser.uid;
-  let user = {};
-  try {
-    user = (await get(ref(db, `users/${uid}`))).val() || {};
-  } catch {
-    // Keep the settings panel usable if the preview fetch fails.
+function loadPublicProfile(targetUid) {
+  const cached = getFreshPublicProfile(targetUid);
+  if (cached) return Promise.resolve(cached);
+  if (publicProfileLoads.has(targetUid)) return publicProfileLoads.get(targetUid);
+
+  const load = get(ref(db, `user_directory/${targetUid}`))
+    .then((snapshot) => {
+      const user = snapshot.exists() ? snapshot.val() : null;
+      if (user) {
+        const loadedAt = Date.now();
+        setBoundedTimedCache(
+          publicProfileCache,
+          targetUid,
+          { user, loadedAt },
+          PUBLIC_PROFILE_CACHE_TTL,
+          MAX_PUBLIC_PROFILE_CACHE_ENTRIES,
+        );
+      }
+      return user;
+    })
+    .catch(() => null)
+    .finally(() => {
+      if (publicProfileLoads.get(targetUid) === load) publicProfileLoads.delete(targetUid);
+    });
+  setBoundedInFlightLoad(publicProfileLoads, targetUid, load);
+  return load;
+}
+
+function loadMutualRooms(targetUid, currentUid) {
+  const key = `${currentUid || 'guest'}:${targetUid}`;
+  pruneTimedCache(mutualRoomsCache, MUTUAL_ROOMS_CACHE_TTL);
+  const cached = mutualRoomsCache.get(key);
+  if (cached) {
+    mutualRoomsCache.delete(key);
+    mutualRoomsCache.set(key, cached);
+    return Promise.resolve(cached.rooms);
+  }
+  if (mutualRoomsLoads.has(key)) return mutualRoomsLoads.get(key);
+
+  const load = Promise.resolve(window.getMutualRooms?.(targetUid) || [])
+    .then((rooms) => {
+      const safeRooms = Array.isArray(rooms) ? rooms : [];
+      const loadedAt = Date.now();
+      setBoundedTimedCache(
+        mutualRoomsCache,
+        key,
+        { rooms: safeRooms, loadedAt },
+        MUTUAL_ROOMS_CACHE_TTL,
+        MAX_MUTUAL_ROOMS_CACHE_ENTRIES,
+      );
+      return safeRooms;
+    })
+    .finally(() => {
+      if (mutualRoomsLoads.get(key) === load) mutualRoomsLoads.delete(key);
+    });
+  setBoundedInFlightLoad(mutualRoomsLoads, key, load);
+  return load;
+}
+
+function isCurrentProfileRequest(requestId, targetUid) {
+  const popup = document.getElementById('user-profile-popup');
+  return Boolean(
+    popup
+    && requestId === profileRequestVersion
+    && popup.dataset.profileUid === targetUid
+    && !popup.classList.contains('hidden')
+  );
+}
+
+function setProfilePresence(presence) {
+  const dot = document.getElementById('up-presence');
+  if (!dot) return;
+  const online = presence?.state === 'online';
+  dot.className = `up-presence status-dot ${online ? 'online' : 'offline'}`;
+  dot.title = online ? 'Online' : 'Offline';
+}
+
+function renderProfileBase(targetUid, user, { isMe = false, loading = false } = {}) {
+  const safeUser = user || {};
+  const displayName = safeUser.displayName || safeUser.username || (loading ? 'Loading profile…' : 'User');
+  const avatar = safeUser.photoUrl || safeUser.photoURL || window.getAvatarUrl?.(displayName, '') || '';
+  const avatarEl = document.getElementById('up-avatar');
+  if (avatarEl) {
+    avatarEl.src = avatar;
+    avatarEl.alt = `${displayName} avatar`;
+    avatarEl.onerror = () => {
+      avatarEl.src = window.getAvatarUrl?.(displayName, '') || '';
+    };
   }
 
-  const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, '');
-  const bannerStyle = user.bannerUrl
-    ? { backgroundImage: `url("${encodeURI(user.bannerUrl)}")`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : { background: user.themeColor || 'var(--accent-color)' };
-
-  if (!settingsCardPreviewRoot) settingsCardPreviewRoot = createRoot(el);
-  settingsCardPreviewRoot.render(createElement(ProfileCardPreview, {
-    user: { uid, ...user },
-    avatar,
-    bannerStyle,
-    reputation: window.computeRep ? window.computeRep(user) : 0,
+  renderProfileSection('up-name', createElement(ProfileNameLine, {
+    name: displayName,
+    tier: (safeUser.tier || '').toLowerCase(),
   }));
+
+  const pronouns = document.getElementById('up-pronouns');
+  if (pronouns) {
+    pronouns.textContent = safeUser.pronouns || '';
+    pronouns.style.display = safeUser.pronouns ? '' : 'none';
+  }
+  const shortId = document.getElementById('up-shortid');
+  if (shortId) {
+    shortId.textContent = safeUser.shortId ? `#${safeUser.shortId}` : '';
+    shortId.style.display = safeUser.shortId ? '' : 'none';
+  }
+  const status = document.getElementById('up-status');
+  if (status) {
+    status.textContent = safeUser.status || '';
+    status.style.display = safeUser.status ? '' : 'none';
+  }
+  const bio = document.getElementById('up-bio');
+  if (bio) bio.textContent = safeUser.bio || (loading ? 'Loading public profile…' : 'No bio yet.');
+  const flair = document.getElementById('up-flair');
+  if (flair) {
+    flair.textContent = safeUser.flair || '';
+    flair.style.display = safeUser.flair ? '' : 'none';
+  }
+
+  renderProfileSection('up-links', createElement(ProfileLinks, { links: safeUser.links }));
+  renderProfileSection('up-skills', createElement(ProfileSkills, {
+    key: targetUid,
+    skills: safeUser.skills,
+    targetUid,
+    isSelf: isMe,
+    onEndorse: async (uid, skillKey) => {
+      const result = await window.endorseSkill?.(uid, skillKey);
+      if (result?.reason === 'already') window.showToast?.('Already endorsed.');
+      return result;
+    },
+  }));
+  renderProfileSection('up-skilltree', createElement(ProfileSkillTree, { user: safeUser }));
+  renderProfileSection('up-badges', createElement(EarnedBadges, { badges: safeUser.badges }));
+  renderProfileSection('up-rep', createElement(Reputation, { value: window.computeRep ? window.computeRep(safeUser) : 0 }));
+  renderProfileSection('up-heatmap', createElement(ActivityHeatmap, { activityByDay: safeUser.activityByDay }));
+  renderProfileSection('up-activity', createElement(ActivityFeed, { user: safeUser }));
+
+  const joined = document.getElementById('up-joined');
+  if (joined) {
+    joined.textContent = loading
+      ? 'Joined: Loading…'
+      : `Joined: ${safeUser.createdAt
+        ? new Date(safeUser.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : 'Not shared'}`;
+  }
+
+  const banner = document.getElementById('up-banner');
+  if (banner) {
+    banner.style.backgroundColor = safeUser.themeColor || 'var(--accent-color)';
+    banner.style.backgroundImage = safeUser.bannerUrl ? `url("${encodeURI(safeUser.bannerUrl)}")` : 'none';
+    banner.style.backgroundSize = safeUser.bannerUrl ? 'cover' : '';
+    banner.style.backgroundPosition = safeUser.bannerUrl ? 'center' : '';
+  }
+
+  const kudosCount = document.getElementById('up-kudos-count');
+  if (kudosCount) kudosCount.textContent = safeUser.kudos || 0;
+  window.renderProfileSpotlight?.({
+    status: 'idle',
+    onRetry: () => window.generateSpotlight?.(targetUid, safeUser),
+  });
+}
+
+function configureProfileActions(targetUid, user, { currentUid, isMe, returnToContacts }) {
+  const safeUser = user || {};
+  const followBtn = document.getElementById('up-follow-btn');
+  if (followBtn) {
+    followBtn.style.display = isMe ? 'none' : '';
+    followBtn.disabled = false;
+    followBtn.onclick = async () => {
+      followBtn.disabled = true;
+      try {
+        const now = await window.toggleFollow?.(targetUid);
+        followBtn.textContent = now ? 'Following' : 'Follow';
+        followBtn.classList.toggle('is-following', !!now);
+        if (window.getFollowCounts) setFollowStats(await window.getFollowCounts(targetUid));
+      } finally {
+        followBtn.disabled = false;
+      }
+    };
+  }
+
+  const shareBtn = document.getElementById('up-share-btn');
+  if (shareBtn) {
+    shareBtn.onclick = async () => {
+      const link = window.profileShareLink(targetUid);
+      try {
+        await navigator.clipboard.writeText(link);
+        window.showToast?.('Profile link copied!', false);
+      } catch {
+        window.showToast?.(`Link: ${link}`);
+      }
+    };
+  }
+
+  const kudosBtn = document.getElementById('up-kudos-btn');
+  if (kudosBtn) {
+    kudosBtn.style.display = isMe ? 'none' : '';
+    kudosBtn.disabled = Boolean(!isMe && currentUid && safeUser.kudosFrom?.[currentUid]);
+    kudosBtn.onclick = async () => {
+      kudosBtn.disabled = true;
+      const result = await window.giveKudos?.(targetUid);
+      if (result?.ok) {
+        const count = document.getElementById('up-kudos-count');
+        if (count) count.textContent = result.count;
+        window.showToast?.('Kudos sent! 👏', false);
+      } else {
+        kudosBtn.disabled = result?.reason === 'already';
+        if (result?.reason === 'already') window.showToast?.('You already gave kudos.');
+      }
+    };
+  }
+
+  const messageBtn = document.getElementById('up-message-btn');
+  if (messageBtn) {
+    messageBtn.onclick = () => {
+      const contactsPanel = document.getElementById('contacts-panel');
+      const shouldReturnToContacts = returnToContacts || contactsPanel?.classList.contains('open');
+      window.closeUserProfilePopup?.({ restoreFocus: false });
+      if (contactsPanel?.classList.contains('open')) {
+        if (typeof window.closeContactsPanel === 'function') window.closeContactsPanel();
+        else contactsPanel.classList.remove('open');
+      }
+      window.openPrivateChat?.(targetUid, safeUser.displayName || safeUser.username || 'User', {
+        photoUrl: safeUser.photoUrl || safeUser.photoURL || '',
+        returnTo: shouldReturnToContacts ? 'contacts' : undefined,
+      });
+    };
+  }
+}
+
+window.closeUserProfilePopup = function closeUserProfilePopup(options = {}) {
+  profileRequestVersion += 1;
+  window.cancelProfileSpotlightRequest?.();
+  const popup = document.getElementById('user-profile-popup');
+  popup?.classList.add('hidden');
+  popup?.setAttribute('aria-hidden', 'true');
+  popup?.setAttribute('aria-busy', 'false');
+  document.getElementById('profile-more-dropdown')?.classList.add('hidden');
+
+  const settings = document.getElementById('settings-modal');
+  if (!settings || settings.classList.contains('hidden')) {
+    document.getElementById('modal-overlay')?.classList.add('hidden');
+  }
+
+  const restoreTarget = profileLastFocus;
+  profileLastFocus = null;
+  if (options.restoreFocus !== false && restoreTarget?.isConnected) {
+    window.requestAnimationFrame(() => restoreTarget.focus({ preventScroll: true }));
+  }
 };
 
 window.viewUserProfile = async function viewUserProfile(targetUid) {
-  try {
-    const snapshot = await get(ref(db, `users/${targetUid}`));
-    if (!snapshot.exists()) return;
+  if (!targetUid) return;
 
-    const user = snapshot.val();
-    const avatar = user.photoUrl || window.getAvatarUrl(user.displayName, '');
-    const tier = (user.tier || '').toLowerCase();
-    const currentUid = window.currentUser?.uid;
-    const popup = document.getElementById('user-profile-popup');
-    if (popup) popup.dataset.profileUid = targetUid;
+  window.cancelProfileSpotlightRequest?.();
+  const requestId = ++profileRequestVersion;
+  const currentUid = window.currentUser?.uid;
+  const isMe = targetUid === currentUid;
+  const canReadPrivate = isMe || currentUid === window.MY_ADMIN_UID;
+  const popup = document.getElementById('user-profile-popup');
+  if (!popup) return;
 
-    const avatarEl = document.getElementById('up-avatar');
-    if (avatarEl) {
-      avatarEl.src = avatar;
-      avatarEl.onerror = () => {
-        avatarEl.src = window.getAvatarUrl(user.displayName || user.email || 'User', '');
-      };
-    }
-    renderProfileSection('up-name', createElement(ProfileNameLine, { name: user.displayName, tier }));
+  profileLastFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const returnToContacts = Boolean(document.getElementById('contacts-panel')?.classList.contains('open'));
+  popup.dataset.profileUid = targetUid;
+  popup.classList.remove('hidden');
+  popup.setAttribute('aria-hidden', 'false');
+  popup.setAttribute('aria-busy', 'true');
+  document.getElementById('modal-overlay')?.classList.remove('hidden');
+  document.getElementById('profile-more-dropdown')?.classList.add('hidden');
 
-    const displayId = user.shortId || window.generateShortId();
-    document.getElementById('up-pronouns').textContent = user.pronouns || '';
-    document.getElementById('up-shortid').textContent = `#${displayId}`;
-    const upStatus = document.getElementById('up-status');
-    if (upStatus) {
-      upStatus.textContent = user.status || '';
-      upStatus.style.display = user.status ? '' : 'none';
-    }
-    document.getElementById('up-bio').textContent = user.bio || 'No bio yet.';
-    renderProfileSection('up-links', createElement(ProfileLinks, { links: user.links }));
-    const upFlair = document.getElementById('up-flair');
-    if (upFlair) {
-      upFlair.textContent = user.flair || '';
-      upFlair.style.display = user.flair ? '' : 'none';
-    }
+  const contactCached = window.getCachedContactPublicProfile?.(targetUid) || null;
+  const serviceCached = getFreshPublicProfile(targetUid);
+  const contactCacheIsNewer = Number(contactCached?.updatedAt || 0) >= Number(serviceCached?.updatedAt || 0);
+  const cachedUser = contactCached || serviceCached
+    ? contactCacheIsNewer
+      ? { ...(serviceCached || {}), ...(contactCached || {}) }
+      : { ...(contactCached || {}), ...(serviceCached || {}) }
+    : null;
+  renderProfileBase(targetUid, cachedUser || {}, { isMe, loading: !cachedUser });
+  const initialFollowBtn = document.getElementById('up-follow-btn');
+  if (initialFollowBtn && !isMe) {
+    initialFollowBtn.textContent = 'Follow';
+    initialFollowBtn.classList.remove('is-following');
+  }
+  configureProfileActions(targetUid, cachedUser || {}, {
+    currentUid,
+    isMe,
+    returnToContacts,
+  });
+  setFollowStats(null);
+  const mutualTarget = document.getElementById('up-mutual');
+  if (mutualTarget) mutualTarget.style.display = 'none';
 
-    const isMe = targetUid === currentUid;
-    renderProfileSection('up-skills', createElement(ProfileSkills, {
-      skills: user.skills,
-      targetUid,
-      isSelf: isMe,
-      onEndorse: async (uid, skillKey) => {
-        const result = await window.endorseSkill?.(uid, skillKey);
-        if (result?.reason === 'already') window.showToast('Already endorsed.');
-        return result;
-      },
+  const cachedPresence = window.getCachedContactPresence?.(targetUid) || null;
+  if (cachedPresence) setProfilePresence(cachedPresence);
+  else setProfilePresence(null);
+
+  window.requestAnimationFrame(() => {
+    if (!isCurrentProfileRequest(requestId, targetUid)) return;
+    document.getElementById('close-user-profile-btn')?.focus({ preventScroll: true });
+  });
+
+  const publicProfilePromise = loadPublicProfile(targetUid);
+  const privateProfilePromise = canReadPrivate
+    ? get(ref(db, `users/${targetUid}`)).then((snapshot) => (snapshot.exists() ? snapshot.val() : null)).catch(() => null)
+    : Promise.resolve(null);
+
+  const enhancements = [];
+  if (!isMe && window.isFollowing) {
+    enhancements.push(Promise.resolve(window.isFollowing(targetUid)).then((following) => {
+      if (!isCurrentProfileRequest(requestId, targetUid)) return;
+      const followBtn = document.getElementById('up-follow-btn');
+      if (!followBtn) return;
+      followBtn.textContent = following ? 'Following' : 'Follow';
+      followBtn.classList.toggle('is-following', !!following);
     }));
-    renderProfileSection('up-skilltree', createElement(ProfileSkillTree, { user }));
-    renderProfileSection('up-badges', createElement(EarnedBadges, { badges: user.badges }));
-    const upJoined = document.getElementById('up-joined');
-    if (upJoined) {
-      upJoined.textContent = `Joined: ${
-        user.createdAt
-          ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-          : 'Unknown'
-      }`;
-    }
-    renderProfileSection('up-rep', createElement(Reputation, { value: window.computeRep ? window.computeRep(user) : 0 }));
-    renderProfileSection('up-heatmap', createElement(ActivityHeatmap, { activityByDay: user.activityByDay }));
-    renderProfileSection('up-activity', createElement(ActivityFeed, { user }));
+  }
+  if (window.getFollowCounts) {
+    enhancements.push(Promise.resolve(window.getFollowCounts(targetUid)).then((counts) => {
+      if (isCurrentProfileRequest(requestId, targetUid)) setFollowStats(counts);
+    }));
+  }
+  if (!isMe && window.getMutualRooms) {
+    enhancements.push(loadMutualRooms(targetUid, currentUid).then((rooms) => {
+      if (!isCurrentProfileRequest(requestId, targetUid)) return;
+      const target = document.getElementById('up-mutual');
+      if (target) target.style.display = rooms.length ? '' : 'none';
+      renderProfileSection('up-mutual', createElement(MutualRooms, { rooms }));
+    }));
+  }
+  if (!cachedPresence) {
+    enhancements.push(get(ref(db, `presence/${targetUid}`)).then((snapshot) => {
+      if (isCurrentProfileRequest(requestId, targetUid)) setProfilePresence(snapshot.val());
+    }));
+  }
+  void Promise.allSettled(enhancements);
 
-    const followBtn = document.getElementById('up-follow-btn');
-    if (followBtn) {
-      followBtn.style.display = isMe ? 'none' : '';
-      if (!isMe && window.isFollowing) {
-        const following = await window.isFollowing(targetUid);
-        followBtn.textContent = following ? 'Following' : 'Follow';
-        followBtn.classList.toggle('is-following', following);
-        followBtn.onclick = async () => {
-          followBtn.disabled = true;
-          const now = await window.toggleFollow(targetUid);
-          followBtn.textContent = now ? 'Following' : 'Follow';
-          followBtn.classList.toggle('is-following', !!now);
-          followBtn.disabled = false;
-          if (window.getFollowCounts) {
-            const c = await window.getFollowCounts(targetUid);
-            document.getElementById('up-follow-stats').textContent = `${c.followers} followers · ${c.following} following`;
-          }
-        };
-      }
+  try {
+    const [publicProfile, privateProfile] = await Promise.all([publicProfilePromise, privateProfilePromise]);
+    if (!isCurrentProfileRequest(requestId, targetUid)) return;
+    if (!publicProfile && !privateProfile && !cachedUser) {
+      window.showToast?.('This person has not published a public profile yet.');
+      window.closeUserProfilePopup();
+      return;
     }
 
-    if (window.getFollowCounts) {
-      const c = await window.getFollowCounts(targetUid);
-      document.getElementById('up-follow-stats').textContent = `${c.followers} followers · ${c.following} following`;
-    }
-
-    const upMutual = document.getElementById('up-mutual');
-    if (upMutual) {
-      if (isMe) {
-        upMutual.style.display = 'none';
-      } else if (window.getMutualRooms) {
-        const rooms = await window.getMutualRooms(targetUid);
-        upMutual.style.display = rooms.length ? '' : 'none';
-        renderProfileSection('up-mutual', createElement(MutualRooms, { rooms }));
-      }
-    }
-
-    window.renderProfileSpotlight({
-      status: 'idle',
-      onRetry: () => window.generateSpotlight(targetUid, user),
-    });
-
-    const shareBtn = document.getElementById('up-share-btn');
-    if (shareBtn) {
-      shareBtn.onclick = async () => {
-        try {
-          await navigator.clipboard.writeText(window.profileShareLink(targetUid));
-          window.showToast('Profile link copied!', false);
-        } catch {
-          window.showToast(`Link: ${window.profileShareLink(targetUid)}`);
-        }
-      };
-    }
-
-    const upBanner = document.getElementById('up-banner');
-    upBanner.style.backgroundColor = user.themeColor || 'var(--accent-color)';
-    if (user.bannerUrl) {
-      upBanner.style.backgroundImage = `url("${encodeURI(user.bannerUrl)}")`;
-      upBanner.style.backgroundSize = 'cover';
-      upBanner.style.backgroundPosition = 'center';
-    } else {
-      upBanner.style.backgroundImage = 'none';
-    }
-
-    document.getElementById('up-kudos-count').textContent = user.kudos || 0;
-    const kudosBtn = document.getElementById('up-kudos-btn');
-    if (kudosBtn) {
-      kudosBtn.style.display = isMe ? 'none' : '';
-      const alreadyGave = !isMe && currentUid && user.kudosFrom && user.kudosFrom[currentUid];
-      kudosBtn.disabled = !!alreadyGave;
-      kudosBtn.onclick = async () => {
-        kudosBtn.disabled = true;
-        const res = await window.giveKudos(targetUid);
-        if (res.ok) {
-          document.getElementById('up-kudos-count').textContent = res.count;
-          window.showToast('Kudos sent! 👏', false);
-        } else {
-          kudosBtn.disabled = res.reason === 'already';
-          if (res.reason === 'already') window.showToast('You already gave kudos.');
-        }
-      };
-    }
-
-    try {
-      const pSnap = await get(ref(db, `presence/${targetUid}`));
-      const online = pSnap.exists() && pSnap.val().state === 'online';
-      const dot = document.getElementById('up-presence');
-      if (dot) {
-        dot.className = `up-presence status-dot ${online ? 'online' : 'offline'}`;
-        dot.title = online ? 'Online' : 'Offline';
-      }
-    } catch {
-      // Presence is optional.
-    }
-
-    const msgBtn = document.getElementById('up-message-btn');
-    if (msgBtn) {
-      msgBtn.onclick = () => {
-        document.getElementById('user-profile-popup').classList.add('hidden');
-        document.getElementById('modal-overlay').classList.add('hidden');
-        document.getElementById('contacts-panel').classList.remove('open');
-        window.openPrivateChat(targetUid, user.displayName);
-      };
-    }
-
-    popup?.classList.remove('hidden');
-    document.getElementById('modal-overlay').classList.remove('hidden');
-    document.getElementById('profile-more-dropdown')?.classList.add('hidden');
+    const user = {
+      ...(cachedUser || {}),
+      ...(publicProfile || {}),
+      ...(privateProfile || {}),
+    };
+    renderProfileBase(targetUid, user, { isMe });
+    configureProfileActions(targetUid, user, { currentUid, isMe, returnToContacts });
+    popup.setAttribute('aria-busy', 'false');
   } catch (error) {
-    window.showToast(`Failed to load user profile: ${error.message}`);
+    if (!isCurrentProfileRequest(requestId, targetUid)) return;
+    popup.setAttribute('aria-busy', 'false');
+    window.showToast?.(`Failed to load user profile: ${error.message}`);
   }
 };
 

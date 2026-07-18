@@ -1,0 +1,50 @@
+{
+  "name": "@searvia/database",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./runtime": {
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js"
+    },
+    "./workers": {
+      "types": "./dist/worker-runtime.d.ts",
+      "import": "./dist/worker-runtime.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.js"
+    }
+  },
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "db:check": "node --env-file-if-exists=../../.env --import tsx src/check-cli.ts",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "node --env-file-if-exists=../../.env --import tsx src/migrate-cli.ts",
+    "lint": "eslint src drizzle.config.ts --max-warnings=0",
+    "test": "vitest run --config ../../vitest.config.ts --maxWorkers=1",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@searvia/shared-types": "workspace:*",
+    "drizzle-orm": "0.45.2",
+    "pg": "8.22.0",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "@types/pg": "8.20.0",
+    "drizzle-kit": "0.31.10"
+  }
+}

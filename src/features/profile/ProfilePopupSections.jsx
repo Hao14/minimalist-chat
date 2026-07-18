@@ -1,5 +1,16 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { safeUrl } from '../../lib/text.js';
+
+const XP_PER_LEVEL = 100;
+
+function toSkillEntries(skills, currentUid) {
+  return Object.entries(skills || {}).map(([key, skill]) => ({
+    key,
+    name: skill?.name || key,
+    count: Number(skill?.count || 0),
+    endorsed: Boolean(currentUid && skill?.by?.[currentUid]),
+  }));
+}
 
 export function ProfileNameLine({ name, tier }) {
   const normalized = String(tier || '').toLowerCase();
@@ -10,9 +21,10 @@ export function ProfileNameLine({ name, tier }) {
       : null;
 
   return (
-    <>
-      {name || 'Anonymous'} {badge ? <span className={`tier-badge ${badge.className}`}>{badge.label}</span> : null}
-    </>
+    <span className="profile-name-line">
+      <span className="profile-name-text">{name || 'Anonymous'}</span>
+      {badge ? <span className={`tier-badge ${badge.className}`}>{badge.label}</span> : null}
+    </span>
   );
 }
 
@@ -36,12 +48,15 @@ export function ProfileLinks({ links }) {
 }
 
 export function ProfileSkills({ skills, targetUid, isSelf, onEndorse }) {
-  const [entries, setEntries] = useState(() => Object.entries(skills || {}).map(([key, skill]) => ({
-    key,
-    name: skill?.name || key,
-    count: skill?.count || 0,
-    endorsed: false,
-  })));
+  const currentUid = window.currentUser?.uid || '';
+  const baseEntries = useMemo(() => toSkillEntries(skills, currentUid), [skills, currentUid]);
+  const [overrides, setOverrides] = useState({});
+  const entries = baseEntries.map((entry) => ({
+    ...entry,
+    ...overrides[entry.key],
+    count: overrides[entry.key]?.count ?? entry.count,
+    endorsed: overrides[entry.key]?.endorsed ?? entry.endorsed,
+  }));
 
   if (!entries.length) return null;
 
@@ -52,21 +67,24 @@ export function ProfileSkills({ skills, targetUid, isSelf, onEndorse }) {
         className="skill-endorse"
         type="button"
         data-skill={skill.key}
-        title={isSelf ? 'You cannot endorse yourself' : 'Endorse'}
+        title={isSelf ? 'Your skill' : (skill.endorsed ? 'Endorsed' : `Endorse ${skill.name}`)}
+        aria-label={isSelf ? `${skill.name}: ${skill.count} endorsements` : `Endorse ${skill.name}`}
         disabled={isSelf || skill.endorsed}
         onClick={async () => {
           if (isSelf || skill.endorsed) return;
           const result = await onEndorse(targetUid, skill.key);
           if (result?.ok) {
-            setEntries((current) => current.map((entry) => (
-              entry.key === skill.key ? { ...entry, count: result.count, endorsed: true } : entry
-            )));
+            setOverrides((current) => ({
+              ...current,
+              [skill.key]: { count: result.count, endorsed: true },
+            }));
             return;
           }
           if (result?.reason === 'already') {
-            setEntries((current) => current.map((entry) => (
-              entry.key === skill.key ? { ...entry, endorsed: true } : entry
-            )));
+            setOverrides((current) => ({
+              ...current,
+              [skill.key]: { ...(current[skill.key] || {}), endorsed: true },
+            }));
           }
         }}
       >
@@ -78,20 +96,35 @@ export function ProfileSkills({ skills, targetUid, isSelf, onEndorse }) {
 
 export function ProfileSkillTree({ user }) {
   const xp = user?.xp || {};
+  const skillDefs = Object.entries(window.SKILL_DEFS || {});
+  if (!skillDefs.length) return null;
+
   return (
-    <div className="skilltree">
-      {Object.entries(window.SKILL_DEFS || {}).map(([key, meta]) => {
-        const amount = xp[key] || 0;
-        const level = Math.floor(amount / 100);
-        const progress = amount % 100;
+    <div className="profile-skilltree">
+      {skillDefs.map(([key, meta]) => {
+        const amount = Math.max(0, Number(xp[key] || 0));
+        const level = Math.floor(amount / XP_PER_LEVEL);
+        const progress = amount % XP_PER_LEVEL;
         return (
-          <div className="st-row" key={key}>
+          <div
+            className="st-row"
+            style={{ '--st-color': meta.color }}
+            aria-label={`${meta.label} level ${level}, ${progress}% progress`}
+            key={key}
+          >
             <span className="st-ico" style={{ color: meta.color }}>
               <i className={`ph-bold ${meta.icon}`} />
             </span>
             <span className="st-name">{meta.label}</span>
             <span className="st-lv">Lv {level}</span>
-            <div className="st-bar">
+            <span className="st-xp">{progress}/{XP_PER_LEVEL} XP</span>
+            <div
+              className="st-bar"
+              role="progressbar"
+              aria-valuemin="0"
+              aria-valuemax={XP_PER_LEVEL}
+              aria-valuenow={progress}
+            >
               <div className="st-fill" style={{ width: `${progress}%`, background: meta.color }} />
             </div>
           </div>
@@ -208,28 +241,60 @@ export function SpotlightButton({ onClick, regenerate = false }) {
   );
 }
 
-export function ProfileSpotlight({ status = 'idle', text, error, onRetry }) {
+function spotlightProviderDisclosure(provider, model) {
+  const label = {
+    'ollama-bridge': 'PC · Ollama',
+    'cloudflare-workers-ai': 'Cloudflare Workers AI',
+    groq: 'Groq',
+    'groq-fallback': 'Groq fallback',
+  }[provider] || '';
+  if (!label) return '';
+  return model ? `${label} · ${model}` : label;
+}
+
+function SpotlightRoutingDisclosure() {
+  return <small className="profile-spotlight-routing-disclosure">If cloud overflow is enabled, this profile summary may be processed by Cloudflare or Groq.</small>;
+}
+
+export function ProfileSpotlight({ status = 'idle', text, error, provider, model, onRetry }) {
   if (status === 'loading') {
     return (
-      <div className="ai-progress">
-        <div className="ai-spinner" />
-        <span>Writing spotlight…</span>
-      </div>
-    );
-  }
-
-  if (status === 'error') {
-    return <div className="ai-empty">{error || 'Spotlight unavailable.'}</div>;
-  }
-
-  if (status === 'ready') {
-    return (
       <>
-        <div className="profile-spotlight-text">✨ {text}</div>
-        <SpotlightButton regenerate onClick={onRetry} />
+        <div className="ai-progress">
+          <div className="ai-spinner" />
+          <span>{text || 'Writing spotlight…'}</span>
+        </div>
+        <SpotlightRoutingDisclosure />
       </>
     );
   }
 
-  return <SpotlightButton onClick={onRetry} />;
+  if (status === 'error') {
+    return (
+      <>
+        <div className="ai-empty">{error || 'Spotlight unavailable.'}</div>
+        <SpotlightButton regenerate onClick={onRetry} />
+        <SpotlightRoutingDisclosure />
+      </>
+    );
+  }
+
+  if (status === 'ready') {
+    const providerLabel = spotlightProviderDisclosure(provider, model);
+    return (
+      <>
+        <div className="profile-spotlight-text">✨ {text}</div>
+        {providerLabel ? <small className="profile-spotlight-provider-disclosure">Processed by {providerLabel}</small> : null}
+        <SpotlightButton regenerate onClick={onRetry} />
+        <SpotlightRoutingDisclosure />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SpotlightButton onClick={onRetry} />
+      <SpotlightRoutingDisclosure />
+    </>
+  );
 }

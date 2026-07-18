@@ -7,72 +7,119 @@ function shortSha(commitObj) {
   return commitObj.sha ? commitObj.sha.slice(0, 7) : 'local';
 }
 
-export default function UpdatesList({ commits = [], error = '', status = 'idle' }) {
+function UpdateOverview({ cached = false, commits = [], onRetry, status = 'ready' }) {
+  const latestDate = commits[0]?.commit?.author?.date;
+  const statusCopy = status === 'loading'
+    ? 'Checking for recent changes…'
+    : cached
+      ? 'Showing saved changes while the connection recovers.'
+      : latestDate
+        ? `Latest synced ${formatCommitDate(latestDate)}`
+        : 'Release notes and product changes.';
+
+  return (
+    <li className="updates-overview">
+      <div className="updates-overview-copy">
+        <span className="updates-kicker">
+          <i className="ph-bold ph-sparkle" aria-hidden="true" />
+          What&apos;s new
+          {commits.length ? <em>{cached ? 'Saved' : 'Latest'}</em> : null}
+        </span>
+        <strong>{commits.length ? `${commits.length} recent changes` : 'Product updates'}</strong>
+        <p>{statusCopy}</p>
+      </div>
+      <button type="button" onClick={onRetry} aria-label="Refresh product updates">
+        <i className={`ph-bold ${status === 'loading' ? 'ph-circle-notch' : 'ph-arrows-clockwise'}`} aria-hidden="true" />
+        <span>Refresh</span>
+      </button>
+    </li>
+  );
+}
+
+function UpdatesState({ children, icon, onRetry, title, type = 'empty' }) {
+  return (
+    <li className={`updates-state updates-state-${type}`} role={type === 'error' ? 'alert' : 'status'}>
+      <i className={`ph-bold ${icon}`} aria-hidden="true" />
+      <strong>{title}</strong>
+      <p>{children}</p>
+      {onRetry ? (
+        <div className="updates-state-actions">
+          <button type="button" onClick={onRetry}>Try again</button>
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
+export default function UpdatesList({ cached = false, commits = [], error = '', onRetry, status = 'idle' }) {
   if (status === 'loading') {
     return (
-      <li className="updates-state updates-state-loading">
-        <span className="updates-loader" />
-        <strong>Pulling updates</strong>
-        <p>Checking the latest app changes…</p>
-      </li>
+      <>
+        <UpdateOverview commits={commits} onRetry={onRetry} status="loading" />
+        {!commits.length ? (
+          <UpdatesState icon="ph-circle-notch" title="Checking for updates" type="loading">
+            Pulling the latest product changes…
+          </UpdatesState>
+        ) : null}
+      </>
     );
   }
 
-  if (status === 'error') {
+  if (status === 'error' && !commits.length) {
     return (
-      <li className="updates-state updates-state-error">
-        <i className="ph-bold ph-warning-circle" aria-hidden="true" />
-        <strong>Couldn&apos;t load changelog</strong>
-        <p>{error || 'Connection failed.'}</p>
-      </li>
+      <>
+        <UpdateOverview onRetry={onRetry} status="error" />
+        <UpdatesState icon="ph-cloud-slash" onRetry={onRetry} title="Couldn&apos;t refresh updates" type="error">
+          {error || 'Check your connection and try again.'}
+        </UpdatesState>
+      </>
     );
   }
 
   if (!commits.length) {
     return (
-      <li className="updates-state updates-state-empty">
-        <i className="ph-bold ph-rocket-launch" aria-hidden="true" />
-        <strong>No updates yet</strong>
-        <p>New changes will land here when the changelog syncs.</p>
-      </li>
+      <>
+        <UpdateOverview onRetry={onRetry} />
+        <UpdatesState icon="ph-sparkle" title="No updates yet">
+          New product changes will appear here after the next sync.
+        </UpdatesState>
+      </>
     );
   }
 
-  const latestDate = formatCommitDate(commits[0]?.commit?.author?.date);
-
   return (
     <>
-      <li className="updates-overview">
-        <div>
-          <span className="updates-kicker">Changelog</span>
-          <strong>{commits.length} recent updates</strong>
-          <p>Latest synced {latestDate}</p>
-        </div>
-        <i className="ph-bold ph-git-commit" aria-hidden="true" />
-      </li>
+      <UpdateOverview cached={cached} commits={commits} onRetry={onRetry} />
+      {cached && error ? (
+        <li className="activity-connection-note" role="status">
+          <i className="ph-bold ph-cloud-slash" aria-hidden="true" />
+          You&apos;re offline. Showing saved product updates.
+        </li>
+      ) : null}
       {commits.map((commitObj, index) => {
-    const message = commitObj.commit?.message || 'Update';
-    const msgLines = message.split('\n');
-    const description = msgLines.slice(1).join('\n').trim();
-    const authorName = commitObj.commit?.author?.name || 'Dev';
-    const avatar = commitObj.author?.avatar_url || 'https://ui-avatars.com/api/?name=Dev&background=000&color=FFD700';
-    const date = commitObj.commit?.author?.date;
+        const message = commitObj.commit?.message || 'Product update';
+        const messageLines = message.split('\n').map((line) => line.trim()).filter(Boolean);
+        const description = messageLines.slice(1).join(' ');
+        const authorName = commitObj.commit?.author?.name || 'Minimalist team';
+        const avatar = commitObj.author?.avatar_url || 'https://ui-avatars.com/api/?name=Minimalist&background=111&color=FFD400';
+        const date = commitObj.commit?.author?.date;
 
-    return (
-      <li className="update-card update-card-modern fade-in-up" key={commitObj.sha || message} style={{ '--update-delay': `${Math.min(index, 8) * 34}ms` }}>
-        <div className="update-card-top">
-          <span className="update-date">{formatCommitDate(date)}</span>
-          <span className="update-sha">{shortSha(commitObj)}</span>
-        </div>
-        <div className="update-title">{msgLines[0]}</div>
-        {description ? <div className="update-desc">{description}</div> : null}
-        <div className="update-author">
-          <img src={avatar} alt="" />
-          <span>{authorName}</span>
-          <i className="ph-bold ph-arrow-up-right" aria-hidden="true" />
-        </div>
-      </li>
-    );
+        return (
+          <li className={`update-timeline-item${index === 0 ? ' is-latest' : ''}`} key={commitObj.sha || message}>
+            <div className="update-timeline-top">
+              <span className="update-timeline-label">{index === 0 ? 'Latest change' : 'Product change'}</span>
+              <time className="update-date" dateTime={date || undefined}>{formatCommitDate(date)}</time>
+            </div>
+            <h3 className="update-timeline-title">{messageLines[0] || 'Product update'}</h3>
+            {description ? <p className="update-timeline-description">{description}</p> : null}
+            <div className="update-timeline-meta">
+              <img src={avatar} alt="" loading="lazy" decoding="async" />
+              <span>{authorName}</span>
+              <span aria-hidden="true">·</span>
+              <code className="update-sha">{shortSha(commitObj)}</code>
+            </div>
+          </li>
+        );
       })}
     </>
   );

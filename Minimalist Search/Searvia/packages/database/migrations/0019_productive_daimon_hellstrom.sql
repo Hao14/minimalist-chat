@@ -1,0 +1,2 @@
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "visible_text_complete" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD CONSTRAINT "page_extract_visible_text_provenance_check" CHECK (not "crawl_page_extractions"."visible_text_complete" or ("crawl_page_extractions"."status" = 'succeeded' and "crawl_page_extractions"."visible_text" is not null));

@@ -1,0 +1,17 @@
+ALTER TABLE "crawl_page_extractions" DROP CONSTRAINT "page_extract_counts_check";--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "document_metadata_complete" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "title_tag_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "meta_description_tag_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "headings_complete" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "character_encoding_declared" text;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "character_encoding_source" text;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "character_encoding_declaration_offset" integer;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "viewport_declarations" text[] DEFAULT array[]::text[] NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "html_doctype_present" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "icon_declaration_count" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD CONSTRAINT "page_extract_document_provenance_check" CHECK (not "crawl_page_extractions"."document_metadata_complete" or "crawl_page_extractions"."status" = 'succeeded');--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD CONSTRAINT "page_extract_heading_provenance_check" CHECK (not "crawl_page_extractions"."headings_complete" or "crawl_page_extractions"."status" = 'succeeded');--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD CONSTRAINT "page_extract_encoding_provenance_check" CHECK (("crawl_page_extractions"."character_encoding_source" is null and "crawl_page_extractions"."character_encoding_declared" is null and "crawl_page_extractions"."character_encoding_declaration_offset" is null) or ("crawl_page_extractions"."character_encoding_source" in ('bom', 'http_header', 'meta', 'default') and "crawl_page_extractions"."character_encoding" is not null and (("crawl_page_extractions"."character_encoding_source" = 'meta' and "crawl_page_extractions"."character_encoding_declaration_offset" between 0 and 2047) or ("crawl_page_extractions"."character_encoding_source" <> 'meta' and "crawl_page_extractions"."character_encoding_declaration_offset" is null))));--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD CONSTRAINT "page_extract_viewport_size_check" CHECK (octet_length(array_to_string("crawl_page_extractions"."viewport_declarations", E'
+')) <= 131072);--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD CONSTRAINT "page_extract_counts_check" CHECK ("crawl_page_extractions"."word_count" between 0 and 1000000 and "crawl_page_extractions"."canonical_tag_count" between 0 and 100 and "crawl_page_extractions"."title_tag_count" between 0 and 10000 and "crawl_page_extractions"."meta_description_tag_count" between 0 and 10000 and "crawl_page_extractions"."icon_declaration_count" between 0 and 10000 and cardinality("crawl_page_extractions"."viewport_declarations") <= 10000);

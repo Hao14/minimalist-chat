@@ -1,0 +1,1 @@
+ALTER TABLE "crawls" ADD CONSTRAINT "crawls_queue_job_id_deterministic_check" CHECK ("crawls"."queue_job_id" is null or "crawls"."queue_job_id" = "crawls"."id"::text);

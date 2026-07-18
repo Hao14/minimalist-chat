@@ -24,6 +24,7 @@ const LOW_FPS_THRESHOLD = 45;
 const HIGH_FPS_THRESHOLD = 55;
 const LOW_FPS_SUSTAINED_SAMPLES = 3;
 const HIGH_FPS_SUSTAINED_SAMPLES = 5;
+const FPS_SAMPLE_WINDOW = 5;
 const EFFECT_PIXEL_SOFT_CAP = 3_000_000;
 const EFFECT_PIXEL_HARD_CAP = 5_000_000;
 const RUNTIME_STYLE_ID = 'minimalist-performance-runtime-styles';
@@ -37,10 +38,20 @@ let fpsLast = 0;
 let fpsValue = 0;
 let lowFpsSamples = 0;
 let highFpsSamples = 0;
+let fpsWindowSamples = 0;
 let longTaskObserver = null;
+
+function eventTargetElement(event) {
+  const target = event.target;
+  if (target instanceof Element) return target;
+  return target?.parentElement || null;
+}
 let latestLongTask = 0;
 let lastRenderedEffectiveMode = '';
 let autoRuntimeMode = '';
+let lastAnnouncedRuntimeSignature = '';
+let resizeFrame = 0;
+const runtimeAttributeSignatures = new WeakMap();
 
 function ensureRuntimePerformanceStyles() {
   if (document.getElementById(RUNTIME_STYLE_ID)) return;
@@ -244,23 +255,36 @@ function setElementRuntimeAttributes(element, computed) {
 
   const effectiveLow = computed.effectiveLowPerformanceMode;
   const effectiveHardware = computed.effectiveMode === MODES.HARDWARE && !effectiveLow;
+  const effectiveMode = effectiveLow ? MODES.LOW : computed.effectiveMode;
+  const runtimeSignature = [
+    computed.mode,
+    effectiveMode,
+    computed.effectsLiteMode ? 'lite' : 'full',
+    computed.capability.tier,
+    computed.capability.devicePixelCount,
+    computed.reducedMotion ? 'reduced' : 'motion',
+  ].join(':');
 
   ensureRuntimePerformanceStyles();
+  if (runtimeAttributeSignatures.get(element) !== runtimeSignature) {
+    element.classList.toggle('performance-auto', computed.mode === MODES.AUTO);
+    element.classList.toggle('performance-manual', computed.mode !== MODES.AUTO);
+    element.classList.toggle('performance-low', effectiveLow);
+    element.classList.toggle('performance-hardware', effectiveHardware);
+    element.classList.toggle('performance-gpu', effectiveHardware);
+    element.classList.toggle('performance-effects-lite', computed.effectsLiteMode);
+    element.classList.toggle('prefers-reduced-motion', computed.reducedMotion);
 
-  element.classList.toggle('performance-auto', computed.mode === MODES.AUTO);
-  element.classList.toggle('performance-manual', computed.mode !== MODES.AUTO);
-  element.classList.toggle('performance-low', effectiveLow);
-  element.classList.toggle('performance-hardware', effectiveHardware);
-  element.classList.toggle('performance-gpu', effectiveHardware);
-  element.classList.toggle('performance-effects-lite', computed.effectsLiteMode);
-  element.classList.toggle('prefers-reduced-motion', computed.reducedMotion);
+    element.dataset.performanceMode = computed.mode;
+    element.dataset.performanceEffectiveMode = effectiveMode;
+    element.dataset.performanceEffects = computed.effectsLiteMode ? 'lite' : 'full';
+    element.dataset.deviceTier = computed.capability.tier;
+    element.dataset.devicePixelCount = String(computed.capability.devicePixelCount);
+    runtimeAttributeSignatures.set(element, runtimeSignature);
+  }
 
-  element.dataset.performanceMode = computed.mode;
-  element.dataset.performanceEffectiveMode = effectiveLow ? MODES.LOW : computed.effectiveMode;
-  element.dataset.performanceEffects = computed.effectsLiteMode ? 'lite' : 'full';
-  element.dataset.deviceTier = computed.capability.tier;
-  element.dataset.devicePixelCount = String(computed.capability.devicePixelCount);
-  element.dataset.performanceFps = computed.fps ? String(computed.fps) : 'sampling';
+  const fpsLabel = computed.fps ? String(computed.fps) : 'sampling';
+  if (element.dataset.performanceFps !== fpsLabel) element.dataset.performanceFps = fpsLabel;
 }
 
 function updateRuntimeReadouts(computed = latestComputed) {
@@ -289,8 +313,17 @@ function applyRootClasses(settings = currentSettings, { announce = true } = {}) 
   const modeChanged = nextEffective !== lastRenderedEffectiveMode;
   lastRenderedEffectiveMode = nextEffective;
 
+  const runtimeSignature = [
+    computed.mode,
+    nextEffective,
+    computed.effectsLiteMode ? 'lite' : 'full',
+    computed.capability.tier,
+    computed.reducedMotion ? 'reduced' : 'motion',
+  ].join(':');
+
   window.performanceModeState = computed;
-  if (announce) {
+  if (announce && runtimeSignature !== lastAnnouncedRuntimeSignature) {
+    lastAnnouncedRuntimeSignature = runtimeSignature;
     window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: computed }));
   }
 
@@ -477,13 +510,16 @@ function renderPerformanceSettings() {
 }
 
 function handlePerformanceClick(event) {
-  const modeButton = event.target.closest('[data-performance-mode]');
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  const modeButton = target.closest('[data-performance-mode]');
   if (modeButton) {
     setPerformanceMode(modeButton.getAttribute('data-performance-mode'));
     return;
   }
 
-  const action = event.target.closest('[data-performance-action]')?.getAttribute('data-performance-action');
+  const action = target.closest('[data-performance-action]')?.getAttribute('data-performance-action');
   if (action === 'refresh-diagnostics') {
     latestCapability = detectDeviceCapability();
     applyRootClasses(currentSettings);
@@ -510,12 +546,11 @@ function updateFpsStability(fps) {
 
 function startFpsMonitor() {
   if (fpsRaf) return;
+  fpsWindowSamples = 0;
 
   const tick = (now) => {
     if (document.visibilityState === 'hidden') {
-      fpsLast = now;
-      fpsFrames = 0;
-      fpsRaf = window.requestAnimationFrame(tick);
+      stopFpsMonitor();
       return;
     }
 
@@ -529,6 +564,11 @@ function startFpsMonitor() {
       updateFpsStability(fpsValue);
 
       applyRootClasses(currentSettings);
+      fpsWindowSamples += 1;
+      if (fpsWindowSamples >= FPS_SAMPLE_WINDOW) {
+        stopFpsMonitor();
+        return;
+      }
     }
 
     fpsRaf = window.requestAnimationFrame(tick);
@@ -558,6 +598,7 @@ function startLongTaskObserver() {
       if (currentSettings.mode === MODES.AUTO && latestLongTask >= 120) {
         lowFpsSamples += 1;
         applyRootClasses(currentSettings);
+        if (document.visibilityState === 'visible') startFpsMonitor();
       }
     });
     longTaskObserver.observe({ entryTypes: ['longtask'] });
@@ -582,9 +623,20 @@ function initPerformanceSettings() {
   startLongTaskObserver();
 
   document.addEventListener('click', handlePerformanceClick);
-  window.addEventListener('resize', () => applyRootClasses(currentSettings), { passive: true });
-  window.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') applyRootClasses(currentSettings);
+  window.addEventListener('resize', () => {
+    if (resizeFrame) return;
+    resizeFrame = window.requestAnimationFrame(() => {
+      resizeFrame = 0;
+      applyRootClasses(currentSettings);
+    });
+  }, { passive: true });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      applyRootClasses(currentSettings);
+      startFpsMonitor();
+    } else {
+      stopFpsMonitor();
+    }
   });
   window.matchMedia?.('(prefers-reduced-motion: reduce)')?.addEventListener?.('change', () => {
     applyRootClasses(currentSettings);
@@ -592,6 +644,7 @@ function initPerformanceSettings() {
   });
 
   window.addEventListener('beforeunload', () => {
+    if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
     stopFpsMonitor();
     stopLongTaskObserver();
   });

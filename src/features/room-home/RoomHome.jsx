@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { limitToLast, onValue, push, query, ref, remove, set, update } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { GoogleCalendarLink } from '../calendar/GoogleCalendarLink.jsx';
+import { hasRoomAnalytics, useRoomEntitlement } from '../billing/roomEntitlements.js';
+import { useRoomTabDataActivity } from '../shell/roomTabActivity.js';
+import './roomHome.css';
 
 const defaultDescription = 'A dedicated space for communication, sharing resources, and connecting with the group. Everyone is welcome.';
 const ROOM_TEMPLATE_LABELS = {
@@ -19,9 +23,9 @@ function safeUrl(url) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
-function Section({ action, children, icon, title }) {
+function Section({ action, children, icon, sectionId, title }) {
   return (
-    <section className="rh-section">
+    <section className="rh-section" id={sectionId}>
       <div className="rh-head"><h3><i className={`ph-bold ${icon}`} /> {title}</h3>{action ? <span>{action}</span> : null}</div>
       {children}
     </section>
@@ -36,6 +40,43 @@ function numericCount(value) {
   if (typeof value === 'number') return value;
   const parsed = parseInt(String(value || '').replace(/\D+/g, ''), 10);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getUpcomingEvents(events) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Object.entries(events || {})
+    .filter(([, event]) => {
+      if (!event?.date) return true;
+      const eventDate = new Date(`${event.date}T00:00:00`);
+      return !Number.isNaN(eventDate.getTime()) && eventDate.getTime() >= today.getTime();
+    })
+    .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
+}
+
+function formatPulseTime(timestamp) {
+  const date = new Date(Number(timestamp || 0));
+  if (Number.isNaN(date.getTime())) return '';
+
+  const elapsed = Date.now() - date.getTime();
+  if (elapsed >= 0 && elapsed < 60000) return 'Just now';
+  if (elapsed >= 0 && elapsed < 3600000) return `${Math.max(1, Math.floor(elapsed / 60000))}m ago`;
+  if (elapsed >= 0 && elapsed < 86400000) return `${Math.max(1, Math.floor(elapsed / 3600000))}h ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function openRoomView(target) {
+  const tab = document.querySelector(`.room-tab[data-target="${target}"]`);
+  if (tab && !tab.classList.contains('hidden') && tab.getAttribute('aria-disabled') !== 'true') {
+    tab.click();
+    return true;
+  }
+  return false;
+}
+
+function scrollToRoomHomeSection(sectionId) {
+  document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }) {
@@ -109,7 +150,7 @@ function computeRoomInsights({ contributors, data, isGlobal, memberCount, messag
 
 function RoomIdentityHero({ data, insights, isGlobal }) {
   const bannerStyle = data.bannerUrl
-    ? { backgroundImage: `linear-gradient(90deg, rgba(0,0,0,0.58), rgba(0,0,0,0.08)), url("${data.bannerUrl}")` }
+    ? { '--rh-banner-image': `url(${JSON.stringify(data.bannerUrl)})` }
     : undefined;
   return (
     <section className={`rh-identity ${data.bannerUrl ? 'has-banner' : ''}`} style={bannerStyle}>
@@ -122,7 +163,116 @@ function RoomIdentityHero({ data, insights, isGlobal }) {
         <span><i className="ph-bold ph-shapes" /> {insights.category}</span>
         <span><i className="ph-bold ph-stack" /> {insights.templateLabel}</span>
         <span><i className="ph-bold ph-sparkle" /> Prestige {insights.prestigeLevel}</span>
-        <span><i className="ph-bold ph-heart" /> Favorite from room list</span>
+      </div>
+    </section>
+  );
+}
+
+function RoomPulse({ canEdit, data, isGlobal, messageCount, messagesStatus, memberCount, metaStatus, onPatch }) {
+  const [editingTopic, setEditingTopic] = useState(false);
+  const [topicDraft, setTopicDraft] = useState(data.topic || '');
+  const [topicError, setTopicError] = useState('');
+  const [savingTopic, setSavingTopic] = useState(false);
+  const latestLog = useMemo(() => Object.values(data.logs || {})
+    .filter((log) => Number(log?.timestamp || 0) > 0)
+    .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))[0] || null, [data.logs]);
+  const nextEvent = useMemo(() => getUpcomingEvents(data.events)[0]?.[1] || null, [data.events]);
+  const focus = useMemo(() => {
+    if (metaStatus === 'loading') return { text: 'Loading room setup…' };
+    if (metaStatus === 'error') return { text: 'Room setup details are unavailable right now.' };
+    if (!data.topic) return { action: 'Add topic', icon: 'ph-pencil-simple', text: 'Add a topic so everyone knows what this room is for.', type: 'topic' };
+    if (!countObject(data.resources)) return { action: 'Pin resource', icon: 'ph-push-pin', text: 'Pin a useful link so members can find the essentials faster.', target: 'room-home-resources' };
+    if (!getUpcomingEvents(data.events).length) return { action: 'Plan event', icon: 'ph-calendar-plus', text: 'Schedule the next room moment so everyone knows what is ahead.', target: 'room-home-events' };
+    if (!countObject(data.rules)) return { action: 'Add rule', icon: 'ph-list-checks', text: 'Add one clear room rule to set expectations for everyone.', target: 'room-home-rules' };
+    return { action: 'Open chat', icon: 'ph-chat-circle-dots', text: 'The room is set up. Keep the conversation moving.', type: 'chat' };
+  }, [data.events, data.resources, data.rules, data.topic, metaStatus]);
+
+  const saveTopic = async (event) => {
+    event.preventDefault();
+    if (!topicDraft.trim() || savingTopic) return;
+    setSavingTopic(true);
+    setTopicError('');
+    try {
+      await onPatch({ topic: topicDraft.trim().slice(0, 120) });
+      setEditingTopic(false);
+    } catch {
+      setTopicError('Could not save the topic. Try again.');
+    } finally {
+      setSavingTopic(false);
+    }
+  };
+
+  const runFocusAction = () => {
+    if (focus.type === 'topic') {
+      setTopicDraft(data.topic || '');
+      setTopicError('');
+      setEditingTopic(true);
+      return;
+    }
+    if (focus.type === 'chat') {
+      openRoomView('chat');
+      return;
+    }
+    if (focus.target) scrollToRoomHomeSection(focus.target);
+  };
+
+  const latestText = messagesStatus === 'loading'
+    ? 'Loading recent room activity…'
+    : messagesStatus === 'error'
+      ? 'Recent room activity is unavailable right now.'
+      : isGlobal
+        ? `${messageCount} messages are available in Global Chat.`
+        : (latestLog?.text || (messageCount === '0' ? 'This room is ready for its first message.' : `${messageCount} messages in this room.`));
+  const latestTime = messagesStatus === 'ready' && !isGlobal && latestLog ? formatPulseTime(latestLog.timestamp) : '';
+  const nextEventTitle = metaStatus === 'loading' ? 'Loading upcoming events…' : metaStatus === 'error' ? 'Upcoming events are unavailable' : (nextEvent?.title || 'No upcoming events');
+  const nextEventDetail = metaStatus === 'loading'
+    ? 'Checking this room'
+    : metaStatus === 'error'
+      ? 'Try again from the notice above'
+      : nextEvent?.date
+        ? new Date(`${nextEvent.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : 'Nothing scheduled yet';
+
+  return (
+    <section className="rh-pulse" aria-labelledby="room-pulse-title">
+      <div className="rh-pulse-intro">
+        <span className="rh-pulse-label"><i className="ph-bold ph-pulse" /> Room pulse</span>
+        <h3 id="room-pulse-title">Pick up where the room left off.</h3>
+        <div className="rh-pulse-actions">
+          <button type="button" className="rh-pulse-primary" onClick={() => openRoomView('chat')}><i className="ph-bold ph-chats" /> Open chat</button>
+          <button type="button" className="rh-pulse-secondary" onClick={() => scrollToRoomHomeSection('room-home-activity')}>Recent activity <i className="ph-bold ph-arrow-right" /></button>
+        </div>
+      </div>
+      <div className="rh-pulse-item">
+        <span className="rh-pulse-item-label"><i className="ph-bold ph-clock-counter-clockwise" /> Latest update</span>
+        <strong>{latestText}</strong>
+        {latestTime ? <small>{latestTime}</small> : <small>{memberCount} {memberCount === '1' ? 'member' : 'members'}</small>}
+        <button type="button" className="rh-text-action" onClick={() => scrollToRoomHomeSection('room-home-activity')}>View recent activity <i className="ph-bold ph-arrow-right" /></button>
+      </div>
+      <div className="rh-pulse-item">
+        <span className="rh-pulse-item-label"><i className="ph-bold ph-calendar-blank" /> Next event</span>
+        <strong>{nextEventTitle}</strong>
+        <small>{nextEventDetail}</small>
+        <button type="button" className="rh-text-action" onClick={() => (openRoomView('events') || scrollToRoomHomeSection('room-home-events'))}>See all events <i className="ph-bold ph-arrow-right" /></button>
+      </div>
+      <div className="rh-pulse-item rh-pulse-focus">
+        <span className="rh-pulse-item-label"><i className="ph-bold ph-target" /> Room focus</span>
+        {editingTopic ? (
+          <form className="rh-topic-form" onSubmit={saveTopic}>
+            <label htmlFor="room-home-topic">Room topic</label>
+            <input id="room-home-topic" value={topicDraft} onChange={(event) => setTopicDraft(event.target.value)} maxLength={120} placeholder="What is this room focused on?" autoFocus />
+            {topicError ? <span className="rh-topic-error" role="alert">{topicError}</span> : null}
+            <div>
+              <button type="submit" className="rh-topic-save" disabled={!topicDraft.trim() || savingTopic}>{savingTopic ? 'Saving…' : 'Save topic'}</button>
+              <button type="button" className="rh-topic-cancel" onClick={() => setEditingTopic(false)} disabled={savingTopic}>Cancel</button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <strong>{focus.text}</strong>
+            {focus.action && (canEdit || focus.type !== 'topic') ? <button type="button" className="rh-focus-action" onClick={runFocusAction}><i className={`ph-bold ${focus.icon}`} /> {focus.action}</button> : null}
+          </>
+        )}
       </div>
     </section>
   );
@@ -242,7 +392,7 @@ function Rules({ canEdit, data, roomId, setData }) {
     setData((current) => { const rules = { ...(current.rules || {}) }; delete rules[key]; return { ...current, rules }; });
   };
   return (
-    <Section icon="ph-list-checks" title="Room Rules">
+    <Section icon="ph-list-checks" sectionId="room-home-rules" title="Room Rules">
       {rules.length ? rules.map(([key, text], index) => <div key={key} className="rh-rule"><span className="rh-num">{String(index + 1).padStart(2, '0')}</span><span className="rh-rule-text">{text}</span>{canEdit ? <button type="button" className="rh-del" title="Delete" onClick={() => deleteRule(key)}>&times;</button> : null}</div>) : <div className="rh-muted">No rules set yet.</div>}
       {canEdit ? <form className="rh-add-form" onSubmit={addRule}><div className="rh-form-row"><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add a rule..." /><button type="submit" className="rh-save-btn">Add</button></div></form> : null}
     </Section>
@@ -266,7 +416,7 @@ function Resources({ canEdit, data, roomId, setData }) {
     setData((current) => { const resources = { ...(current.resources || {}) }; delete resources[key]; return { ...current, resources }; });
   };
   return (
-    <Section icon="ph-push-pin" title="Resources">
+    <Section icon="ph-push-pin" sectionId="room-home-resources" title="Resources">
       {resources.length ? resources.map(([key, resource]) => <div key={key} className="rh-resource-row"><a className="rh-resource" href={safeUrl(resource.url)} target="_blank" rel="noopener noreferrer"><div className="rh-res-body"><div className="rh-res-title"><i className="ph-bold ph-link" /> {resource.title}</div><div className="rh-res-url">{resource.url}</div></div></a>{canEdit ? <button type="button" className="rh-del rh-resource-del" title="Delete" onClick={() => deleteResource(key)}>&times;</button> : null}</div>) : <div className="rh-muted">No resources pinned yet.</div>}
       {canEdit ? <form className="rh-add-form" onSubmit={addResource}><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Resource title..." /><div className="rh-form-row"><input value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} placeholder="https://..." /><button type="submit" className="rh-save-btn">Add</button></div></form> : null}
     </Section>
@@ -275,17 +425,7 @@ function Resources({ canEdit, data, roomId, setData }) {
 
 function EventsPreview({ canEdit, data, roomId, setData }) {
   const [draft, setDraft] = useState({ title: '', date: '', desc: '' });
-  const events = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return Object.entries(data.events || {})
-      .filter(([, event]) => {
-        if (!event?.date) return true;
-        const eventDate = new Date(`${event.date}T00:00:00`);
-        return !Number.isNaN(eventDate.getTime()) && eventDate.getTime() >= today.getTime();
-      })
-      .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
-  }, [data.events]);
+  const events = useMemo(() => getUpcomingEvents(data.events), [data.events]);
   const addEvent = async (event) => {
     event.preventDefault();
     const next = { title: draft.title.trim(), date: draft.date, desc: draft.desc.trim() };
@@ -300,10 +440,10 @@ function EventsPreview({ canEdit, data, roomId, setData }) {
     setData((current) => { const events = { ...(current.events || {}) }; delete events[key]; return { ...current, events }; });
   };
   return (
-    <Section icon="ph-calendar-dots" title="Upcoming Events">
+    <Section icon="ph-calendar-dots" sectionId="room-home-events" title="Upcoming Events">
       {events.length ? events.map(([key, event]) => {
         const date = event.date ? new Date(`${event.date}T00:00:00`) : null;
-        return <div key={key} className="rh-event"><div className="rh-event-date"><span className="rh-d">{date ? date.getDate() : '?'}</span><span className="rh-m">{date ? date.toLocaleDateString('en-US', { month: 'short' }) : ''}</span></div><div className="rh-event-body"><div className="rh-event-title">{event.title}</div>{event.desc ? <div className="rh-event-desc">{event.desc}</div> : null}</div>{canEdit ? <button type="button" className="rh-del" title="Delete" onClick={() => deleteEvent(key)}>&times;</button> : null}</div>;
+        return <div key={key} className="rh-event"><div className="rh-event-date"><span className="rh-d">{date ? date.getDate() : '?'}</span><span className="rh-m">{date ? date.toLocaleDateString('en-US', { month: 'short' }) : ''}</span></div><div className="rh-event-body"><div className="rh-event-title">{event.title}</div>{event.desc ? <div className="rh-event-desc">{event.desc}</div> : null}</div><div className="rh-event-actions"><GoogleCalendarLink event={event} />{canEdit ? <button type="button" className="rh-del" title="Delete" onClick={() => deleteEvent(key)}>&times;</button> : null}</div></div>;
       }) : <div className="rh-muted">No upcoming events.</div>}
       {canEdit ? <form className="rh-add-form" onSubmit={addEvent}><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Event title..." /><div className="rh-form-row"><input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} /><input value={draft.desc} onChange={(event) => setDraft((current) => ({ ...current, desc: event.target.value }))} placeholder="Details (optional)" /></div><button type="submit" className="rh-save-btn">Add Event</button></form> : null}
     </Section>
@@ -313,7 +453,7 @@ function EventsPreview({ canEdit, data, roomId, setData }) {
 function Activity({ data, isGlobal }) {
   const logs = Object.values(data.logs || {}).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 6);
   return (
-    <Section icon="ph-activity" title="Recent Activity">
+    <Section icon="ph-activity" sectionId="room-home-activity" title="Recent Activity">
       <ul className="rh-activity">
         {isGlobal ? <li className="rh-muted">Global activity log is hidden.</li> : null}
         {!isGlobal && !logs.length ? <li className="rh-muted">No recent activity.</li> : null}
@@ -337,8 +477,8 @@ function Members({ data, isGlobal }) {
   return <Section icon="ph-users-three" title="Members"><div className="rh-members">{members.length ? members.map((member) => <span key={member}>{member}</span>) : <span>No members yet</span>}</div></Section>;
 }
 
-function Analytics({ data, isGlobal, memberCount, messageCount }) {
-  const hasPro = window.userTier === 'pro' || window.currentUser?.uid === window.MY_ADMIN_UID;
+function Analytics({ data, hasAnalytics, isGlobal, memberCount, messageCount }) {
+  const hasPro = hasAnalytics || window.currentUser?.uid === window.MY_ADMIN_UID;
   const channelCount = isGlobal ? 1 : Object.keys(data.channels || {}).length + 1;
   const eventCount = Object.keys(data.events || {}).length;
   const resourceCount = Object.keys(data.resources || {}).length;
@@ -352,27 +492,40 @@ function Analytics({ data, isGlobal, memberCount, messageCount }) {
         <div><strong>{eventCount}</strong><span>Events</span></div>
         <div><strong>{resourceCount}</strong><span>Resources</span></div>
       </div>
-      {!hasPro ? <div className="rh-muted">Advanced snapshot shown. Upgrade to Pro for analytics in billing.</div> : null}
+      {!hasPro ? <div className="rh-muted">Analytics unlock with Pro or an assigned paid Room subscription.</div> : null}
     </Section>
   );
 }
 
 export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
+  const isRoomTabActive = useRoomTabDataActivity('home');
   const isGlobal = roomId === 'global';
+  const roomEntitlement = useRoomEntitlement(roomId, isRoomTabActive);
   const [roomData, setRoomData] = useState({});
   const [globalData, setGlobalData] = useState({});
   const [roomCanEdit, setRoomCanEdit] = useState(false);
   const [contributors, setContributors] = useState([]);
-  const [messageCount, setMessageCount] = useState('~');
+  const [messageCount, setMessageCount] = useState('—');
+  const [metaStatus, setMetaStatus] = useState('loading');
+  const [messagesStatus, setMessagesStatus] = useState('loading');
+  const [retryVersion, setRetryVersion] = useState(0);
   const data = isGlobal ? globalData : roomData;
   const setDisplayData = isGlobal ? setGlobalData : setRoomData;
   const canEdit = isGlobal ? Boolean(user.uid === adminUid) : roomCanEdit;
-  const memberCount = isGlobal ? '∞' : (Object.keys(data.members || {}).length || 1);
+  const memberCount = metaStatus === 'loading' ? '—' : (isGlobal ? '∞' : (Object.keys(data.members || {}).length || 1));
   const createdDate = isGlobal ? 'Day 1' : (data.createdAt ? new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
   const insights = useMemo(() => computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }), [contributors, data, isGlobal, memberCount, messageCount]);
+  const roomHasAnalytics = hasRoomAnalytics(window.userTier || 'free', roomEntitlement, user.uid);
+  const hasLoadError = metaStatus === 'error' || messagesStatus === 'error';
+  const retryRoomData = () => {
+    setMetaStatus('loading');
+    setMessagesStatus('loading');
+    setMessageCount('—');
+    setRetryVersion((current) => current + 1);
+  };
 
   useEffect(() => {
-    if (isGlobal) {
+    if (!isRoomTabActive || isGlobal) {
       return undefined;
     }
 
@@ -380,15 +533,32 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
       const roomData = snapshot.val() || {};
       setRoomData(roomData);
       setRoomCanEdit(Boolean(user.uid === adminUid || roomData.creatorId === user.uid));
+      setMetaStatus('ready');
     }, () => {
       setRoomData({});
       setRoomCanEdit(Boolean(user.uid === adminUid));
+      setMetaStatus('error');
     });
 
     return unsubscribe;
-  }, [adminUid, isGlobal, roomId, user.uid]);
+  }, [adminUid, isGlobal, isRoomTabActive, retryVersion, roomId, user.uid]);
 
   useEffect(() => {
+    if (!isRoomTabActive || !isGlobal) return undefined;
+
+    const unsubscribe = onValue(ref(db, 'rooms_meta/global'), (snapshot) => {
+      setGlobalData(snapshot.val() || {});
+      setMetaStatus('ready');
+    }, () => {
+      setGlobalData({});
+      setMetaStatus('error');
+    });
+
+    return unsubscribe;
+  }, [isGlobal, isRoomTabActive, retryVersion]);
+
+  useEffect(() => {
+    if (!isRoomTabActive) return undefined;
     const messagesRef = isGlobal ? ref(db, 'messages') : ref(db, `rooms_data/${roomId}/messages`);
     const unsubscribe = onValue(query(messagesRef, limitToLast(300)), (snapshot) => {
       const tally = {};
@@ -402,13 +572,15 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
       });
       setMessageCount(total >= 300 ? '300+' : String(total));
       setContributors(Object.values(tally).sort((a, b) => b.count - a.count).slice(0, 5).map((item) => ({ ...item, avatar: getAvatarUrl?.(item.name, item.photo) || '' })));
+      setMessagesStatus('ready');
     }, () => {
-      setMessageCount('0');
+      setMessageCount('—');
       setContributors([]);
+      setMessagesStatus('error');
     });
 
     return unsubscribe;
-  }, [getAvatarUrl, isGlobal, roomId]);
+  }, [getAvatarUrl, isGlobal, isRoomTabActive, retryVersion, roomId]);
 
   const patchRoom = async (patch) => {
     if (!canEdit) return;
@@ -417,11 +589,13 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   };
 
   return (
-    <div className="rh-scroll">
+    <div className="rh-scroll room-home-v2" aria-busy={metaStatus === 'loading' || messagesStatus === 'loading'}>
       <RoomIdentityHero data={data} insights={insights} isGlobal={isGlobal} />
       <div className="rh-stats"><div className="rh-stat"><i className="ph-bold ph-chats" /> <span>{messageCount}</span> Messages</div><div className="rh-stat"><i className="ph-bold ph-users" /> <span>{memberCount}</span> Members</div><div className="rh-spacer" /><div className="rh-created">Created <span>{createdDate}</span></div></div>
+      {hasLoadError ? <div className="rh-load-notice" role="status"><div><i className="ph-bold ph-warning-circle" /><span><strong>Some room details are unavailable.</strong> The page is showing what it could load.</span></div><button type="button" onClick={retryRoomData}>Retry</button></div> : null}
+      <RoomPulse canEdit={canEdit} data={data} isGlobal={isGlobal} messageCount={messageCount} messagesStatus={messagesStatus} memberCount={memberCount} metaStatus={metaStatus} onPatch={patchRoom} />
       <div className="rh-grid">
-        <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><RoomScores insights={insights} /><Milestones insights={insights} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><Analytics data={data} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>
+        <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><RoomScores insights={insights} /><Milestones insights={insights} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><Analytics data={data} hasAnalytics={roomHasAnalytics} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>
         <div className="rh-col"><Discovery insights={insights} /><Snapshots insights={insights} /><Timeline insights={insights} /><Resources canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><EventsPreview canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><Contributors contributors={contributors} /><Members data={data} isGlobal={isGlobal} /></div>
       </div>
     </div>

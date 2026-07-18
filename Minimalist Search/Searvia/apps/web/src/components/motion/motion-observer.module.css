@@ -1,0 +1,193 @@
+.progressRail {
+  --page-scroll-offset: 0px;
+  --page-scroll-progress: 0;
+
+  position: fixed;
+  z-index: 70;
+  top: 94px;
+  right: 13px;
+  bottom: 24px;
+  width: 12px;
+  contain: layout paint;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-moderate) var(--ease-standard);
+}
+
+.progressRail[data-active="true"] {
+  opacity: 0.72;
+}
+
+.progressRail::before {
+  position: absolute;
+  inset: 0 auto 0 5px;
+  width: 1px;
+  background: #cfd5df;
+  content: "";
+}
+
+.progressFill {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  width: 3px;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--blue), var(--teal));
+  transform: scaleY(var(--page-scroll-progress));
+  transform-origin: top;
+  transition: transform 90ms linear;
+  will-change: transform;
+}
+
+.progressNode {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border: 3px solid var(--blue);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 0 rgb(10 111 219 / 0.28);
+  transform: translate3d(0, var(--page-scroll-offset), 0);
+  transition: transform 90ms linear;
+  will-change: transform;
+}
+
+.motionDock {
+  position: fixed;
+  z-index: 98;
+  right: 30px;
+  bottom: 18px;
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 11px;
+  border: 1px solid rgb(194 201 209 / 0.86);
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.94);
+  box-shadow:
+    0 12px 38px rgb(16 22 27 / 0.13),
+    inset 0 1px 0 #fff;
+  color: var(--text-primary);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  contain: layout paint;
+}
+
+.motionStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 680;
+  white-space: nowrap;
+}
+
+.signalDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 0 3px rgb(10 111 219 / 0.12);
+}
+
+.effectiveMode {
+  color: var(--text-tertiary);
+  font-family: var(--font-family-mono);
+  font-size: 0.625rem;
+  font-weight: 560;
+  text-transform: uppercase;
+}
+
+.motionOptions {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border-hairline);
+  border-radius: 999px;
+  background: var(--surface-sunken);
+}
+
+.motionOption {
+  min-height: 27px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font-size: 0.625rem;
+  font-weight: 640;
+  transition:
+    color var(--dur-fast) var(--ease-standard),
+    background var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+
+.motionOption:hover {
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.motionOption[data-active="true"] {
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(16 22 27 / 0.12);
+  color: var(--blue);
+}
+
+/* Calm product and pricing surfaces opt out of fixed overlays so motion never
+   sits above their controls, tables, or plan content. */
+:global(html:has([data-motion-overlays="off"])) .progressRail,
+:global(html:has([data-motion-overlays="off"])) .motionDock {
+  display: none;
+}
+
+:global(html[data-motion-mode="reduced"]) .progressRail {
+  opacity: 0.48;
+}
+
+:global(html[data-motion-mode="reduced"]) .progressFill,
+:global(html[data-motion-mode="reduced"]) .progressNode {
+  transition: none;
+}
+
+@media (max-width: 720px) {
+  .progressRail {
+    top: 78px;
+    right: 5px;
+    bottom: 68px;
+  }
+
+  .motionDock {
+    right: 12px;
+    bottom: 10px;
+    left: 12px;
+    width: max-content;
+    max-width: calc(100vw - 24px);
+    margin-inline: auto;
+  }
+}
+
+@media (max-width: 460px) {
+  .motionDock {
+    gap: 6px;
+    padding-left: 8px;
+  }
+
+  .effectiveMode {
+    display: none;
+  }
+
+  .motionOption {
+    padding-inline: 7px;
+  }
+}
+
+@media print {
+  .motionDock,
+  .progressRail {
+    display: none;
+  }
+}

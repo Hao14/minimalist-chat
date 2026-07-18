@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // PGlite and Drizzle publish declarations for browser runtimes and optional database peers.
+    // This skips only dependency declaration rechecking; crawler-worker source and tests remain strict.
+    "skipLibCheck": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

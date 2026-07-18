@@ -1,0 +1,5 @@
+/* Variable-height history rows must be measured before scroll-anchor restoration. */
+#room-view-chat #messages > li.chat-message {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}

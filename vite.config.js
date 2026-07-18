@@ -21,6 +21,13 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: true,
+    watch: {
+      // Generated .NET app hosts can be locked by Windows and crash Vite's watcher.
+      ignored: [
+        '**/tools/ai-analysis-app/bin/**',
+        '**/tools/ai-analysis-app/obj/**',
+      ],
+    },
   },
   preview: {
     host: true,

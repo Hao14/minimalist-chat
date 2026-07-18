@@ -1,12 +1,12 @@
 /* Generated from @phosphor-icons/web bold 2.1.2 for icons found in src/ and public/. */
-/* Rebuild when adding new ph-* icon classes. Supported icons: 181. */
-/* Not present in @phosphor-icons/web/bold and intentionally left unmapped: ph-timeline. */
+/* Rebuild with: node tools/generate-phosphor-subset.mjs. Supported icons: 209. */
+/* Not present in @phosphor-icons/web/bold and intentionally left unmapped: ph-text-align, ph-timeline. */
 @font-face {
   font-family: "Phosphor-Bold-Subset";
-  src: url("/phosphor-bold-subset.woff2?v=1") format("woff2");
+  src: url("/phosphor-bold-subset.woff?v=2") format("woff");
   font-weight: normal;
   font-style: normal;
-  font-display: block;
+  font-display: swap;
 }
 
 .ph-bold {
@@ -35,13 +35,16 @@
 .ph-bold.ph-apple-logo:before { content: "\e516"; }
 .ph-bold.ph-archive-box:before { content: "\e00e"; }
 .ph-bold.ph-arrow-bend-up-left:before { content: "\e024"; }
+.ph-bold.ph-arrow-clockwise:before { content: "\e036"; }
 .ph-bold.ph-arrow-counter-clockwise:before { content: "\e038"; }
+.ph-bold.ph-arrow-elbow-down-left:before { content: "\e044"; }
 .ph-bold.ph-arrow-left:before { content: "\e058"; }
 .ph-bold.ph-arrow-right:before { content: "\e06c"; }
 .ph-bold.ph-arrow-square-out:before { content: "\e5de"; }
 .ph-bold.ph-arrow-up:before { content: "\e08e"; }
 .ph-bold.ph-arrow-up-right:before { content: "\e092"; }
 .ph-bold.ph-arrows-clockwise:before { content: "\e094"; }
+.ph-bold.ph-arrows-vertical:before { content: "\eb04"; }
 .ph-bold.ph-at:before { content: "\e0ac"; }
 .ph-bold.ph-backspace:before { content: "\e0ae"; }
 .ph-bold.ph-bell:before { content: "\e0ce"; }
@@ -54,10 +57,10 @@
 .ph-bold.ph-brackets-curly:before { content: "\e860"; }
 .ph-bold.ph-brain:before { content: "\e74e"; }
 .ph-bold.ph-broadcast:before { content: "\e0f2"; }
+.ph-bold.ph-browser:before { content: "\e0f4"; }
 .ph-bold.ph-cake:before { content: "\e780"; }
 .ph-bold.ph-calendar:before { content: "\e108"; }
 .ph-bold.ph-calendar-blank:before { content: "\e10a"; }
-.ph-bold.ph-calendar-check:before { content: "\e712"; }
 .ph-bold.ph-calendar-dots:before { content: "\e7b4"; }
 .ph-bold.ph-calendar-plus:before { content: "\e714"; }
 .ph-bold.ph-camera:before { content: "\e10e"; }
@@ -69,42 +72,49 @@
 .ph-bold.ph-chart-bar:before { content: "\e150"; }
 .ph-bold.ph-chart-line-up:before { content: "\e156"; }
 .ph-bold.ph-chat-circle:before { content: "\e168"; }
+.ph-bold.ph-chat-circle-dots:before { content: "\e16c"; }
 .ph-bold.ph-chat-circle-text:before { content: "\e16e"; }
 .ph-bold.ph-chat-text:before { content: "\e17a"; }
 .ph-bold.ph-chats:before { content: "\e17c"; }
 .ph-bold.ph-check:before { content: "\e182"; }
 .ph-bold.ph-check-circle:before { content: "\e184"; }
 .ph-bold.ph-check-square:before { content: "\e186"; }
-.ph-bold.ph-checks:before { content: "\e53a"; }
+.ph-bold.ph-check-square-offset:before { content: "\e188"; }
 .ph-bold.ph-circle:before { content: "\e18a"; }
 .ph-bold.ph-circle-notch:before { content: "\eb44"; }
 .ph-bold.ph-clock:before { content: "\e19a"; }
 .ph-bold.ph-clock-countdown:before { content: "\ed2c"; }
 .ph-bold.ph-clock-counter-clockwise:before { content: "\e1a0"; }
+.ph-bold.ph-cloud:before { content: "\e1aa"; }
 .ph-bold.ph-cloud-arrow-down:before { content: "\e1ac"; }
 .ph-bold.ph-cloud-check:before { content: "\e1b0"; }
+.ph-bold.ph-cloud-slash:before { content: "\e1b6"; }
+.ph-bold.ph-cloud-warning:before { content: "\ea98"; }
 .ph-bold.ph-code:before { content: "\e1bc"; }
+.ph-bold.ph-columns:before { content: "\e546"; }
 .ph-bold.ph-command:before { content: "\e1c4"; }
 .ph-bold.ph-compass:before { content: "\e1c8"; }
 .ph-bold.ph-confetti:before { content: "\e81a"; }
+.ph-bold.ph-copy:before { content: "\e1ca"; }
+.ph-bold.ph-corners-out:before { content: "\e1d0"; }
 .ph-bold.ph-cpu:before { content: "\e610"; }
+.ph-bold.ph-crosshair:before { content: "\e1d6"; }
 .ph-bold.ph-crown:before { content: "\e614"; }
 .ph-bold.ph-currency-circle-dollar:before { content: "\e54c"; }
 .ph-bold.ph-cursor:before { content: "\e1dc"; }
-.ph-bold.ph-cursor-click:before { content: "\e7c8"; }
 .ph-bold.ph-device-mobile:before { content: "\e1e0"; }
 .ph-bold.ph-device-mobile-camera:before { content: "\e1e2"; }
-.ph-bold.ph-devices:before { content: "\eba4"; }
 .ph-bold.ph-door-open:before { content: "\e7e6"; }
 .ph-bold.ph-dots-three:before { content: "\e1fe"; }
-.ph-bold.ph-dots-three-vertical:before { content: "\e208"; }
 .ph-bold.ph-download-simple:before { content: "\e20c"; }
 .ph-bold.ph-envelope-open:before { content: "\e216"; }
+.ph-bold.ph-envelope-simple:before { content: "\e218"; }
+.ph-bold.ph-eraser:before { content: "\e21e"; }
 .ph-bold.ph-eye:before { content: "\e220"; }
 .ph-bold.ph-eye-slash:before { content: "\e224"; }
 .ph-bold.ph-faders:before { content: "\e228"; }
-.ph-bold.ph-file:before { content: "\e230"; }
 .ph-bold.ph-file-arrow-down:before { content: "\e232"; }
+.ph-bold.ph-file-arrow-up:before { content: "\e61e"; }
 .ph-bold.ph-file-lock:before { content: "\e95c"; }
 .ph-bold.ph-file-text:before { content: "\e23a"; }
 .ph-bold.ph-files:before { content: "\e710"; }
@@ -113,46 +123,46 @@
 .ph-bold.ph-flag:before { content: "\e244"; }
 .ph-bold.ph-flag-checkered:before { content: "\ea38"; }
 .ph-bold.ph-folder-simple:before { content: "\e25a"; }
-.ph-bold.ph-game-controller:before { content: "\e26e"; }
 .ph-bold.ph-gauge:before { content: "\e628"; }
 .ph-bold.ph-gear:before { content: "\e270"; }
 .ph-bold.ph-git-commit:before { content: "\e27a"; }
 .ph-bold.ph-globe:before { content: "\e288"; }
 .ph-bold.ph-globe-hemisphere-west:before { content: "\e28c"; }
 .ph-bold.ph-google-logo:before { content: "\e292"; }
-.ph-bold.ph-graduation-cap:before { content: "\e62c"; }
 .ph-bold.ph-graphics-card:before { content: "\e612"; }
+.ph-bold.ph-hand:before { content: "\e298"; }
 .ph-bold.ph-hand-heart:before { content: "\e810"; }
 .ph-bold.ph-hand-waving:before { content: "\e580"; }
 .ph-bold.ph-hands-clapping:before { content: "\e6a0"; }
 .ph-bold.ph-hard-drives:before { content: "\e2a0"; }
 .ph-bold.ph-hash:before { content: "\e2a2"; }
 .ph-bold.ph-heart:before { content: "\e2a8"; }
+.ph-bold.ph-highlighter-circle:before { content: "\e632"; }
 .ph-bold.ph-house:before { content: "\e2c2"; }
 .ph-bold.ph-identification-card:before { content: "\e2c8"; }
 .ph-bold.ph-image:before { content: "\e2ca"; }
 .ph-bold.ph-image-square:before { content: "\e2cc"; }
 .ph-bold.ph-info:before { content: "\e2ce"; }
-.ph-bold.ph-kanban:before { content: "\eb54"; }
 .ph-bold.ph-keyboard:before { content: "\e2d8"; }
 .ph-bold.ph-layout:before { content: "\e6d6"; }
 .ph-bold.ph-leaf:before { content: "\e2da"; }
 .ph-bold.ph-lightning:before { content: "\e2de"; }
 .ph-bold.ph-link:before { content: "\e2e2"; }
 .ph-bold.ph-link-simple:before { content: "\e2e6"; }
+.ph-bold.ph-list-bullets:before { content: "\e2f2"; }
 .ph-bold.ph-list-checks:before { content: "\eadc"; }
+.ph-bold.ph-list-numbers:before { content: "\e2f6"; }
 .ph-bold.ph-lock-key:before { content: "\e2fe"; }
 .ph-bold.ph-lock-key-open:before { content: "\e300"; }
 .ph-bold.ph-lock-simple:before { content: "\e308"; }
 .ph-bold.ph-magic-wand:before { content: "\e6b6"; }
 .ph-bold.ph-magnifying-glass:before { content: "\e30c"; }
-.ph-bold.ph-magnifying-glass-minus:before { content: "\e30e"; }
-.ph-bold.ph-magnifying-glass-plus:before { content: "\e310"; }
 .ph-bold.ph-map-pin:before { content: "\e316"; }
 .ph-bold.ph-medal:before { content: "\e320"; }
 .ph-bold.ph-megaphone:before { content: "\e324"; }
 .ph-bold.ph-microphone:before { content: "\e326"; }
 .ph-bold.ph-microphone-slash:before { content: "\e328"; }
+.ph-bold.ph-minus:before { content: "\e32a"; }
 .ph-bold.ph-monitor-arrow-up:before { content: "\e58a"; }
 .ph-bold.ph-monitor-play:before { content: "\e58c"; }
 .ph-bold.ph-moon:before { content: "\e330"; }
@@ -160,12 +170,15 @@
 .ph-bold.ph-newspaper:before { content: "\e344"; }
 .ph-bold.ph-newspaper-clipping:before { content: "\e346"; }
 .ph-bold.ph-note:before { content: "\e348"; }
+.ph-bold.ph-note-blank:before { content: "\e34a"; }
 .ph-bold.ph-note-pencil:before { content: "\e34c"; }
 .ph-bold.ph-palette:before { content: "\e6c8"; }
 .ph-bold.ph-paper-plane-tilt:before { content: "\e398"; }
 .ph-bold.ph-paperclip:before { content: "\e39a"; }
+.ph-bold.ph-path:before { content: "\e39c"; }
 .ph-bold.ph-pencil-simple:before { content: "\e3b4"; }
 .ph-bold.ph-pencil-simple-line:before { content: "\ebc6"; }
+.ph-bold.ph-phone:before { content: "\e3b8"; }
 .ph-bold.ph-phone-call:before { content: "\e3ba"; }
 .ph-bold.ph-phone-disconnect:before { content: "\e3bc"; }
 .ph-bold.ph-phone-incoming:before { content: "\e3be"; }
@@ -173,8 +186,11 @@
 .ph-bold.ph-planet:before { content: "\e652"; }
 .ph-bold.ph-plugs-connected:before { content: "\eb5a"; }
 .ph-bold.ph-plus:before { content: "\e3d4"; }
+.ph-bold.ph-printer:before { content: "\e3dc"; }
 .ph-bold.ph-pulse:before { content: "\e000"; }
 .ph-bold.ph-push-pin:before { content: "\e3e2"; }
+.ph-bold.ph-puzzle-piece:before { content: "\e596"; }
+.ph-bold.ph-robot:before { content: "\e762"; }
 .ph-bold.ph-rocket-launch:before { content: "\e3fe"; }
 .ph-bold.ph-seal-check:before { content: "\e606"; }
 .ph-bold.ph-shapes:before { content: "\ec5e"; }
@@ -193,7 +209,16 @@
 .ph-bold.ph-stack:before { content: "\e466"; }
 .ph-bold.ph-star:before { content: "\e46a"; }
 .ph-bold.ph-stop-circle:before { content: "\e46e"; }
+.ph-bold.ph-target:before { content: "\e47c"; }
+.ph-bold.ph-text-aa:before { content: "\e6ee"; }
+.ph-bold.ph-text-align-center:before { content: "\e480"; }
+.ph-bold.ph-text-align-justify:before { content: "\e482"; }
+.ph-bold.ph-text-align-left:before { content: "\e484"; }
+.ph-bold.ph-text-align-right:before { content: "\e486"; }
+.ph-bold.ph-text-indent:before { content: "\ea1e"; }
+.ph-bold.ph-text-outdent:before { content: "\ea1c"; }
 .ph-bold.ph-text-t:before { content: "\e48a"; }
+.ph-bold.ph-timer:before { content: "\e492"; }
 .ph-bold.ph-trash:before { content: "\e4a6"; }
 .ph-bold.ph-trend-up:before { content: "\e4ae"; }
 .ph-bold.ph-trophy:before { content: "\e67e"; }
@@ -201,12 +226,15 @@
 .ph-bold.ph-user:before { content: "\e4c2"; }
 .ph-bold.ph-user-circle:before { content: "\e4c4"; }
 .ph-bold.ph-user-focus:before { content: "\e6fc"; }
+.ph-bold.ph-user-list:before { content: "\e73c"; }
 .ph-bold.ph-user-plus:before { content: "\e4d0"; }
 .ph-bold.ph-users:before { content: "\e4d6"; }
 .ph-bold.ph-users-three:before { content: "\e68e"; }
 .ph-bold.ph-video-camera:before { content: "\e4da"; }
 .ph-bold.ph-video-camera-slash:before { content: "\e4dc"; }
 .ph-bold.ph-warning-circle:before { content: "\e4e2"; }
+.ph-bold.ph-waveform:before { content: "\e802"; }
+.ph-bold.ph-webhooks-logo:before { content: "\ecae"; }
 .ph-bold.ph-windows-logo:before { content: "\e692"; }
 .ph-bold.ph-x:before { content: "\e4f6"; }
 .ph-bold.ph-x-circle:before { content: "\e4f8"; }

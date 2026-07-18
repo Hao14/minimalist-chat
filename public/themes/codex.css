@@ -248,7 +248,7 @@ body.codex-mode:not(.marketing):not(.auth-screen) [aria-disabled="true"] {
     transform: none !important;
 }
 
-body.codex-mode:not(.marketing):not(.auth-screen) :is(.room-item, .rh-panel, .rh-stat, .doc-card, .task-column, .event-card, .cal-connect-banner, .settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-edit-card, .profile-summary-compact > div, .ai-card, .pa-shell, .vault-hero, .vault-library, .vault-item, .vault-note-card, .vault-drop-card, .vault-stat-card, .vault-empty, .vault-share-panel, .call-lobby-panel, .search-pro-shell, .search-box, .search-result-item, .app-dialog-card, .composer-dialog, .room-invite-card, .pm-session, .update-card, .recognition-card, .q-card, .lb-row, .modern-notif) {
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.room-item, .rh-panel, .rh-stat, .doc-card, .task-column, .event-card, .cal-connect-banner, .settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .settings-personal-ai-panel, .profile-edit-card, .profile-summary-compact > div, .ai-card, .pa-shell, .vault-hero, .vault-library, .vault-item, .vault-note-card, .vault-drop-card, .vault-stat-card, .vault-empty, .vault-share-panel, .call-lobby-panel, .search-pro-shell, .search-box, .search-result-item, .app-dialog-card, .composer-dialog, .room-invite-card, .pm-session, .update-card, .recognition-card, .q-card, .lb-row, .modern-notif) {
     border-color: var(--codex-border) !important;
     background: color-mix(in srgb, var(--codex-panel) 92%, transparent) !important;
     color: var(--codex-text) !important;
@@ -305,17 +305,22 @@ body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-sett
     color: var(--codex-text) !important;
 }
 
-body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(p, label, small, li, .custom-theme-note, .settings-feature-mode-note, .profile-completion-hint, .settings-card-body span, .profile-field-label) {
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(p, label, small, li, .custom-theme-note, .settings-feature-mode-note, .settings-personal-ai-note, .settings-personal-ai-status, .profile-completion-hint, .settings-card-body span, .profile-field-label) {
     color: var(--codex-muted) !important;
 }
 
-body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .profile-summary-compact > div, .profile-edit-card) {
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings :is(.settings-card, .billing-plan-card, .stripe-embedded-card, .custom-theme-panel, .settings-feature-mode-panel, .settings-personal-ai-panel, .profile-summary-compact > div, .profile-edit-card) {
     border-color: var(--codex-border) !important;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 32%),
         var(--codex-panel-2) !important;
     color: var(--codex-text) !important;
     box-shadow: var(--codex-shadow-soft) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings section.settings-personal-ai-panel {
+    border-radius: 14px !important;
+    box-shadow: none !important;
 }
 
 body.codex-mode:not(.marketing):not(.auth-screen) #settings-modal.brutalist-settings .settings-card-header {
@@ -660,6 +665,7 @@ body.codex-mode:not(.marketing):not(.auth-screen) .call-dock-btn.danger {
 }
 
 body.codex-mode:not(.marketing):not(.auth-screen) #loading-screen,
+body.codex-mode:not(.marketing):not(.auth-screen) .feature-panel-loading,
 body.codex-mode:not(.marketing):not(.auth-screen) .room-view-loading,
 body.codex-mode:not(.marketing):not(.auth-screen) .route-loading,
 body.codex-mode:not(.marketing):not(.auth-screen) .updates-state-loading,
@@ -668,11 +674,19 @@ body.codex-mode:not(.marketing):not(.auth-screen) .stripe-embedded-loading {
     color: var(--codex-muted) !important;
 }
 
-body.codex-mode:not(.marketing):not(.auth-screen) :is(.loading-pulse-text, .room-view-loading span) {
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.loading-pulse-text, .feature-panel-loading span, .room-view-loading span) {
     color: var(--codex-muted) !important;
 }
 
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.feature-panel-error, .room-view-error, .pa-save-error) {
+    color: var(--codex-danger) !important;
+}
+
 @media (max-width: 768px) {
+    body.codex-mode:not(.marketing):not(.auth-screen) {
+        --mobile-nav-clearance: calc(74px + env(safe-area-inset-bottom, 0px));
+    }
+
     body.codex-mode:not(.marketing):not(.auth-screen) div#mobile-nav-links.mobile-only {
         left: 8px !important;
         right: 8px !important;
@@ -774,4 +788,121 @@ html.prefers-reduced-motion body.codex-mode:not(.marketing):not(.auth-screen) :i
     body.codex-mode:not(.marketing):not(.auth-screen) .react-page.chat-react-page {
         background: var(--codex-bg) !important;
     }
+}
+
+/* Codex treatment for compact badges and icon buttons ------------------ */
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.tier-badge, .ui-badge) {
+    border-color: #050505 !important;
+    box-shadow: 2px 2px 0 #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.tier-badge, .ui-badge).base {
+    background: #f8fafc !important;
+    color: #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.tier-badge, .ui-badge).advanced,
+body.codex-mode:not(.marketing):not(.auth-screen) #active-room-tag.tier-badge {
+    background: #ff9500 !important;
+    color: #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.tier-badge, .ui-badge).pro,
+body.codex-mode:not(.marketing):not(.auth-screen) .pa-pro,
+body.codex-mode:not(.marketing):not(.auth-screen) .ai-tag-pro {
+    background: #a42ac3 !important;
+    color: #ffffff !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.tier-badge, .ui-badge).ai {
+    background: #111827 !important;
+    color: #ffd400 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.contact-status-pill.online, .call-status-pill.active, .ui-badge.online) {
+    border-color: #050505 !important;
+    background: #16884f !important;
+    color: #ffffff !important;
+    box-shadow: 2px 2px 0 #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #contacts-list .contact-status-pill {
+    border-width: 1px !important;
+    box-shadow: none !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #contacts-list .contact-status-pill.online {
+    border-color: rgba(34, 197, 94, 0.36) !important;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(20, 184, 166, 0.10)) !important;
+    color: #0b7a45 !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.74),
+        0 10px 24px -18px rgba(34, 197, 94, 0.78) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #contacts-list .contact-status-pill.online::before {
+    content: "" !important;
+    width: 0.45rem;
+    height: 0.45rem;
+    flex: 0 0 0.45rem;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow:
+        0 0 0 3px rgba(34, 197, 94, 0.16),
+        0 0 12px rgba(34, 197, 94, 0.48);
+}
+
+body.codex-mode.dark-mode:not(.marketing):not(.auth-screen) #contacts-list .contact-status-pill.online {
+    border-color: rgba(74, 222, 128, 0.34) !important;
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.20), rgba(20, 184, 166, 0.12)) !important;
+    color: #bbf7d0 !important;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.10),
+        0 10px 24px -18px rgba(34, 197, 94, 0.88) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.status-dot, .ui-status-dot, .call-dot) {
+    border-color: #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #contacts-list .status-dot {
+    border-color: var(--bg-color) !important;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #contacts-list .status-dot.online {
+    background: #22c55e !important;
+    box-shadow:
+        0 0 0 1px rgba(34, 197, 94, 0.28),
+        0 0 12px rgba(34, 197, 94, 0.48) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.composer-send-btn, .ui-icon-btn-primary) {
+    border: 2px solid #050505 !important;
+    border-radius: 8px !important;
+    background: var(--accent-color) !important;
+    color: #050505 !important;
+    box-shadow: 2px 2px 0 #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.room-action-icon, .contact-icon-btn, #toggle-room-search-btn, .ui-icon-btn),
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat .msg-actions .action-icon {
+    border: 2px solid #050505 !important;
+    border-radius: 8px !important;
+    background: #20242c !important;
+    color: var(--codex-text) !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #toggle-room-search-btn,
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat .msg-actions .msg-menu-icon {
+    background: #f8fafc !important;
+    color: #050505 !important;
+}
+
+body.codex-mode:not(.marketing):not(.auth-screen) #room-view-chat .msg-actions {
+    border-color: #050505 !important;
+    background: color-mix(in srgb, var(--codex-panel) 94%, transparent) !important;
+    box-shadow: 2px 2px 0 #050505 !important;
 }

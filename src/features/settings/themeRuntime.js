@@ -9,6 +9,7 @@ export const THEME_REGISTRY = {
 };
 
 export const THEME_CLASSES = Object.values(THEME_REGISTRY).map((theme) => theme.bodyClass).filter(Boolean);
+const themeStylesheetPromises = new Map();
 
 function storageGet(key) {
   try {
@@ -32,6 +33,35 @@ export function readCustomAccent() {
 
 export function normalizeThemeName(themeName = 'light') {
   return THEME_REGISTRY[themeName] ? themeName : 'light';
+}
+
+export function ensureThemeStylesheet(themeName = 'light') {
+  const normalized = normalizeThemeName(themeName);
+  const path = `/themes/${normalized}.css`;
+  const loaded = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+    .find((link) => new URL(link.href, window.location.origin).pathname === path);
+  if (loaded) return Promise.resolve();
+  if (themeStylesheetPromises.has(normalized)) return themeStylesheetPromises.get(normalized);
+
+  const placeholder = Array.from(document.querySelectorAll('link[data-css-lazy="theme"]'))
+    .find((link) => String(link.getAttribute('data-href') || '').startsWith(path));
+  const stylesheet = document.createElement('link');
+  stylesheet.rel = 'stylesheet';
+  stylesheet.href = placeholder?.getAttribute('data-href') || path;
+
+  const ready = new Promise((resolve, reject) => {
+    stylesheet.addEventListener('load', resolve, { once: true });
+    stylesheet.addEventListener('error', () => {
+      stylesheet.remove();
+      reject(new Error(`Could not load the ${normalized} theme.`));
+    }, { once: true });
+  }).finally(() => themeStylesheetPromises.delete(normalized));
+
+  placeholder?.parentNode?.insertBefore(stylesheet, placeholder.nextSibling);
+  placeholder?.remove();
+  if (!stylesheet.isConnected) document.head.appendChild(stylesheet);
+  themeStylesheetPromises.set(normalized, ready);
+  return ready;
 }
 
 export function readStoredTheme() {

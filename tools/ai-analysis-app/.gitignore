@@ -1,0 +1,9 @@
+/bin/
+/obj/
+/graphify-out/
+/TestResults/
+/test-results/
+/playwright-report/
+*.trx
+*.coverage
+*.coveragexml

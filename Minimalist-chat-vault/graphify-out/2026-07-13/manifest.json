@@ -1,0 +1,147 @@
+{
+  "00 Home/Minimalist Chat Knowledge Hub.md": {
+    "mtime": 1783729612.2029402,
+    "ast_hash": "b5a0950c30c097ec1e00aebd0c6ed39d",
+    "semantic_hash": ""
+  },
+  "10 Product/Current/Current Product Overview.md": {
+    "mtime": 1783928218.1048472,
+    "ast_hash": "97b7166153ceae499316a884cff7c321",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Download.md": {
+    "mtime": 1783928218.112448,
+    "ast_hash": "5e510532e93ca106de4d22ae32826007",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - FAQ.md": {
+    "mtime": 1783928218.116478,
+    "ast_hash": "5a927a499b82ca233480a5cebdb60e8e",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Features.md": {
+    "mtime": 1783928218.1245942,
+    "ast_hash": "7582d601b58cd21f87f26471a749b809",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Home.md": {
+    "mtime": 1783928218.1306841,
+    "ast_hash": "a7bd5edc8a21f043d9a46f9106a0adee",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Privacy Policy.md": {
+    "mtime": 1783928218.1306841,
+    "ast_hash": "8effd9d3a4bb0ade2697ef80198ea5d0",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Story.md": {
+    "mtime": 1783928218.136778,
+    "ast_hash": "2dbb19cc6c3ee48bd216f4424238f550",
+    "semantic_hash": ""
+  },
+  "11 Product/Legacy/Legacy - Terms of Service.md": {
+    "mtime": 1783928218.136778,
+    "ast_hash": "666d5dff706bdc1a4c9939b001c5ef93",
+    "semantic_hash": ""
+  },
+  "20 Research/Claude Feature Research and Implementation Plan.md": {
+    "mtime": 1783928218.0825555,
+    "ast_hash": "61755b152b18c276c6391e434cbdeed4",
+    "semantic_hash": ""
+  },
+  "30 Audits/Full Stack Audit Follow-up.md": {
+    "mtime": 1783928218.0825555,
+    "ast_hash": "25d6631994d0ab8ffe95549f9ec90d8f",
+    "semantic_hash": ""
+  },
+  "30 Audits/Lighthouse History.md": {
+    "mtime": 1783928218.3231559,
+    "ast_hash": "08b5b9d06f64634dcc6e83b9d33ad0ad",
+    "semantic_hash": ""
+  },
+  "40 Operations/Protected Ollama Public Gateway.md": {
+    "mtime": 1783982358.0934465,
+    "ast_hash": "65670072806b1ce44d1fd2754d02d246",
+    "semantic_hash": ""
+  },
+  "50 Skills/Prompt Library/Competitor Research and Feature Implementation.md": {
+    "mtime": 1783928218.0825555,
+    "ast_hash": "f2798a37a722c3431e88e4eafed1671e",
+    "semantic_hash": ""
+  },
+  "50 Skills/Prompt Library/Feature Research to Implementation Prompt.md": {
+    "mtime": 1783928218.0825555,
+    "ast_hash": "e9f0a8330f69685455cb55c7d831a1bf",
+    "semantic_hash": ""
+  },
+  "50 Skills/Prompt Library/Mobile-first UI and Performance Audit.md": {
+    "mtime": 1783928218.0825555,
+    "ast_hash": "5803275db5d1b79f508e03a5e0a8e87f",
+    "semantic_hash": ""
+  },
+  "50 Skills/Prompt Library/Performance Error and Bug Audit.md": {
+    "mtime": 1783928218.0864415,
+    "ast_hash": "ebc3dcc563e4f1ba0ccd055e58a3d123",
+    "semantic_hash": ""
+  },
+  "50 Skills/Prompt Library/Prompt Library.md": {
+    "mtime": 1783724755.041905,
+    "ast_hash": "18341e3c949f35bba8fec699c5ce1416",
+    "semantic_hash": ""
+  },
+  "90 Memory/GBrain Setup.md": {
+    "mtime": 1783729612.2017663,
+    "ast_hash": "49954c3836fa49496d7687ed9f05edc8",
+    "semantic_hash": ""
+  },
+  "90 Memory/Inbox.md": {
+    "mtime": 1783724755.0406547,
+    "ast_hash": "e92e391834d2576a898fe962c27a02ff",
+    "semantic_hash": ""
+  },
+  "90 Memory/Memory Protocol.md": {
+    "mtime": 1783724755.0406547,
+    "ast_hash": "eea9ac17c3a19ee58ac5fd9e7dfae1b9",
+    "semantic_hash": ""
+  },
+  "90 Memory/Project Memory.md": {
+    "mtime": 1783982621.695923,
+    "ast_hash": "0589914a623f9c92dada89e4531d1208",
+    "semantic_hash": ""
+  },
+  "90 Memory/Source Catalog.md": {
+    "mtime": 1783928218.324829,
+    "ast_hash": "5d0fcaae720df35a4fa14f0965441d4b",
+    "semantic_hash": ""
+  },
+  "AGENTS.md": {
+    "mtime": 1783729495.42112,
+    "ast_hash": "af88b81e1a6490ae493b7e1669dca537",
+    "semantic_hash": ""
+  },
+  "Welcome.md": {
+    "mtime": 1783723689.9833057,
+    "ast_hash": "5dce4937496ad2d20178a7578f1a1368",
+    "semantic_hash": ""
+  },
+  "create a link.md": {
+    "mtime": 1783724016.283294,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260713_034329_can_the_website_start_the_ai_bridge_on_demand_and.md": {
+    "mtime": 1783914209.579244,
+    "ast_hash": "b4e32a4a41271d34e4ed66081fb6d8bd",
+    "semantic_hash": ""
+  },
+  "graphify-out/memory/query_20260713_050159_photo_import_failed_because_qwen2_5vl_7b_is_not_in.md": {
+    "mtime": 1783918919.4704244,
+    "ast_hash": "dbdc5a50ecd7a24932942e2e4bc1994b",
+    "semantic_hash": ""
+  },
+  "30 Audits/Minimalist Analysis Desktop App Review 2026-07-13.md": {
+    "mtime": 1783982608.0133364,
+    "ast_hash": "bc227e1ecd1d8d21a2621001ff87675e",
+    "semantic_hash": ""
+  }
+}

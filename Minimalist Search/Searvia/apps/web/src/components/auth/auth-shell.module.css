@@ -1,0 +1,640 @@
+.shell {
+  font-family: var(--font-manrope, var(--font-geist-sans), Arial, sans-serif);
+}
+
+.visual {
+  position: relative;
+  contain: paint;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(17, 19, 24, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 19, 24, 0.028) 1px, transparent 1px), #f8f9fb;
+  background-size: 48px 48px;
+}
+
+.visual::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(circle at 72% 38%, rgba(31, 89, 255, 0.1), transparent 32%);
+  content: "";
+}
+
+.visual::after {
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: -18%;
+  width: 28%;
+  background: linear-gradient(90deg, transparent, rgb(31 89 255 / 0.055), transparent);
+  content: "";
+  opacity: 0;
+  transform: skewX(-12deg);
+}
+
+.visibilityWord {
+  position: absolute;
+  right: -0.08em;
+  bottom: -0.13em;
+  z-index: 0;
+  color: #e7eaf0;
+  font-size: clamp(7.5rem, 13vw, 13rem);
+  font-weight: 700;
+  letter-spacing: -0.075em;
+  line-height: 1;
+  user-select: none;
+}
+
+.path {
+  stroke-dasharray: 20 12;
+  stroke-dashoffset: 880;
+}
+
+.beacon {
+  transform-origin: center;
+}
+
+.proofPoint {
+  position: relative;
+  overflow: hidden;
+  width: min(100%, 540px);
+  min-height: 52px;
+  padding: 12px 36px 12px 14px;
+  border: 1px solid #d8deea;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.74);
+  box-shadow: 0 5px 18px rgb(31 46 78 / 0.04);
+  transition:
+    border-color var(--dur-base) var(--ease-standard),
+    background-color var(--dur-base) var(--ease-standard),
+    box-shadow var(--dur-base) var(--ease-standard),
+    transform var(--dur-base) var(--ease-standard);
+}
+
+.proofPoint::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -46%;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgb(31 89 255 / 0.11), transparent);
+  content: "";
+  opacity: 0;
+  transform: skewX(-14deg);
+}
+
+.proofPoint:hover {
+  border-color: #9fb7ff;
+  background: #fff;
+  box-shadow: 0 14px 30px rgb(31 89 255 / 0.11);
+  transform: translate3d(9px, -2px, 0);
+}
+
+.authRouteCanvas {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.authRouteBase,
+.authRouteBaseSecondary {
+  stroke: #aec2ff;
+  stroke-width: 1.4;
+}
+
+.authRouteBaseSecondary {
+  stroke: #8bd3cc;
+}
+
+.authRoutePulse,
+.authRoutePulseSecondary {
+  fill: none;
+  stroke: #1f59ff;
+  stroke-dasharray: 12 620;
+  stroke-linecap: round;
+  stroke-width: 4;
+}
+
+.authRoutePulseSecondary {
+  stroke: #0aa99e;
+  stroke-dasharray: 10 340;
+}
+
+.authRouteNode,
+.authRouteNodeSecondary {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.formSide {
+  position: relative;
+  contain: paint;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.formSide::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background:
+    linear-gradient(rgb(31 89 255 / 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(31 89 255 / 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  content: "";
+  mask-image: linear-gradient(to bottom, transparent, #000 20%, #000 80%, transparent);
+}
+
+.formHeader,
+.formStage {
+  position: relative;
+  z-index: 2;
+}
+
+.formSignalRail {
+  position: absolute;
+  z-index: 1;
+  top: 14%;
+  right: 22px;
+  bottom: 14%;
+  width: 1px;
+  background: #cad3e4;
+  pointer-events: none;
+}
+
+.formSignalRail span {
+  position: absolute;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #aeb8c9;
+  box-shadow: 0 0 0 1px #cad3e4;
+  transform: translate(-50%, -50%);
+}
+
+.formSignalRail span:nth-child(1) {
+  top: 14%;
+  background: #1f59ff;
+  box-shadow: 0 0 0 5px rgb(31 89 255 / 0.11);
+}
+
+.formSignalRail span:nth-child(2) {
+  top: 49%;
+}
+
+.formSignalRail span:nth-child(3) {
+  top: 84%;
+}
+
+.formContainer {
+  position: relative;
+}
+
+.formContainer::before {
+  position: absolute;
+  top: 42%;
+  left: -74px;
+  width: 58px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #1f59ff);
+  content: "";
+  transform-origin: right;
+}
+
+.authForm {
+  position: relative;
+}
+
+.authHeading h1 {
+  position: relative;
+  width: fit-content;
+}
+
+.authHeading h1::after {
+  position: absolute;
+  right: -16px;
+  bottom: 7px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #0aa99e;
+  box-shadow: 0 0 0 0 rgb(10 169 158 / 0.24);
+  content: "";
+}
+
+.integrationControl {
+  position: relative;
+  overflow: hidden;
+}
+
+.integrationNote {
+  width: fit-content;
+  margin-inline: auto;
+  padding: 2px 7px;
+  border: 1px solid #dce1e9;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.authDivider {
+  position: relative;
+}
+
+.authDivider::after {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 42px;
+  height: 2px;
+  background: #1f59ff;
+  content: "";
+  transform: translateY(-50%) scaleX(0);
+  transform-origin: left;
+}
+
+.authFields > * {
+  transform-origin: center top;
+}
+
+.field {
+  position: relative;
+}
+
+.field::after {
+  position: absolute;
+  right: 8px;
+  bottom: -5px;
+  left: 8px;
+  height: 2px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #1f59ff, #0aa99e);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.15);
+  transition:
+    opacity 180ms ease,
+    transform 420ms var(--ease-out);
+}
+
+.field:focus-within::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.inputControl {
+  box-shadow: 0 0 0 0 rgb(31 89 255 / 0);
+  transition:
+    border-color 180ms ease,
+    box-shadow 260ms ease,
+    transform 180ms ease;
+}
+
+.inputControl:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.inputControl:focus {
+  box-shadow:
+    0 0 0 4px rgb(31 89 255 / 0.09),
+    0 12px 28px rgb(31 89 255 / 0.09);
+  transform: translateY(-2px);
+}
+
+.revealButton svg {
+  transition: transform 260ms var(--ease-standard);
+}
+
+.revealButton:hover svg {
+  transform: scale(1.16) rotate(-5deg);
+}
+
+.submitButton {
+  position: relative;
+  overflow: hidden;
+}
+
+.submitButton::after {
+  position: absolute;
+  top: -50%;
+  bottom: -50%;
+  left: -30%;
+  width: 22%;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.48), transparent);
+  content: "";
+  opacity: 0;
+  transform: rotate(12deg);
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .visual::after {
+  animation: authScan 6.2s var(--ease-inout) 300ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .visibilityWord {
+  animation: authWordFloat 5.2s var(--ease-inout) 180ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .path {
+  animation:
+    reveal-path 1.3s var(--ease-emphasized) 80ms forwards,
+    authPathFlow 5.4s linear 1.45s infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .beacon,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authRouteNode,
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authRouteNodeSecondary {
+  animation: beacon 2.05s var(--ease-standard) 220ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authRoutePulse {
+  animation: authRoutePacket 4.2s linear infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authRoutePulseSecondary {
+  animation: authRoutePacket 3.1s linear 900ms infinite reverse;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .proofPoint::after {
+  animation: proofScan 5.6s var(--ease-inout) infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .proofPoint:nth-child(2)::after {
+  animation-delay: 780ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .proofPoint:nth-child(3)::after {
+  animation-delay: 1.56s;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .formSignalRail::after {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 32px;
+  border-radius: 99px;
+  background: linear-gradient(transparent, #1f59ff, transparent);
+  content: "";
+  transform: translateX(-50%);
+  animation: formRailTravel 3.8s linear infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .formContainer::before {
+  animation: formConnector 2.4s var(--ease-inout) infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authHeading h1::after {
+  animation: authHeadingNode 2.6s var(--ease-standard) 520ms infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authDivider::after {
+  animation: dividerSignal 4.6s var(--ease-inout) 1.1s infinite;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authFields > * {
+  animation: authFieldArrive 620ms var(--ease-out) both;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authFields > :nth-child(2) {
+  animation-delay: 80ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authFields > :nth-child(3) {
+  animation-delay: 160ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authFields > :nth-child(4) {
+  animation-delay: 240ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .authFields > :nth-child(n + 5) {
+  animation-delay: 320ms;
+}
+
+:global(html[data-motion-mode="full"][data-motion-ready="true"]) .submitButton::after {
+  animation: submitScan 3.6s var(--ease-inout) 1.4s infinite;
+}
+
+@keyframes reveal-path {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes authPathFlow {
+  to {
+    stroke-dashoffset: -224;
+  }
+}
+
+@keyframes beacon {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.68;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes authScan {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translateX(0) skewX(-12deg);
+  }
+
+  38%,
+  66% {
+    opacity: 1;
+  }
+
+  84%,
+  100% {
+    opacity: 0;
+    transform: translateX(520%) skewX(-12deg);
+  }
+}
+
+@keyframes authWordFloat {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate3d(-8px, -6px, 0);
+  }
+}
+
+@keyframes authRoutePacket {
+  to {
+    stroke-dashoffset: -900;
+  }
+}
+
+@keyframes proofScan {
+  0%,
+  58% {
+    opacity: 0;
+    transform: translateX(0) skewX(-14deg);
+  }
+
+  68%,
+  82% {
+    opacity: 1;
+  }
+
+  94%,
+  100% {
+    opacity: 0;
+    transform: translateX(430%) skewX(-14deg);
+  }
+}
+
+@keyframes formRailTravel {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, -10%, 0);
+  }
+
+  12%,
+  88% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate3d(-50%, calc(100svh - 210px), 0);
+  }
+}
+
+@keyframes formConnector {
+  0%,
+  100% {
+    opacity: 0.38;
+    transform: scaleX(0.38);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes authHeadingNode {
+  0%,
+  58%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(10 169 158 / 0.22);
+    transform: scale(1);
+  }
+
+  76% {
+    box-shadow: 0 0 0 11px rgb(10 169 158 / 0);
+    transform: scale(1.16);
+  }
+}
+
+@keyframes dividerSignal {
+  0%,
+  100% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.08);
+  }
+
+  34%,
+  68% {
+    opacity: 1;
+    transform: translateY(-50%) translateX(430px) scaleX(1);
+  }
+}
+
+@keyframes authFieldArrive {
+  from {
+    opacity: 0;
+    transform: translate3d(34px, 0, 0) scale(0.985);
+  }
+
+  74% {
+    opacity: 1;
+    transform: translate3d(-3px, 0, 0) scale(1.002);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes submitScan {
+  0%,
+  56% {
+    opacity: 0;
+    transform: translateX(0) rotate(12deg);
+  }
+
+  66%,
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(620%) rotate(12deg);
+  }
+}
+
+:global(html[data-motion-budget="low"]) .visual::after,
+:global(html[data-motion-budget="low"]) .visibilityWord,
+:global(html[data-motion-budget="low"]) .beacon,
+:global(html[data-motion-budget="low"]) .authRouteNode,
+:global(html[data-motion-budget="low"]) .authRouteNodeSecondary,
+:global(html[data-motion-budget="low"]) .authRoutePulse,
+:global(html[data-motion-budget="low"]) .authRoutePulseSecondary,
+:global(html[data-motion-budget="low"]) .proofPoint::after,
+:global(html[data-motion-budget="low"]) .formContainer::before,
+:global(html[data-motion-budget="low"]) .authHeading h1::after,
+:global(html[data-motion-budget="low"]) .authDivider::after,
+:global(html[data-motion-budget="low"]) .submitButton::after {
+  animation: none !important;
+}
+
+:global(html[data-motion-budget="low"]) .path {
+  animation: reveal-path 620ms var(--ease-emphasized) forwards;
+}
+
+:global(html[data-motion-mode="reduced"]) .path {
+  stroke-dashoffset: 0;
+}
+
+:global(html[data-motion-mode="reduced"]) .authRoutePulse,
+:global(html[data-motion-mode="reduced"]) .authRoutePulseSecondary {
+  display: none;
+}
+
+:global(html[data-motion-mode="reduced"]) .proofPoint:hover,
+:global(html[data-motion-mode="reduced"]) .inputControl:hover,
+:global(html[data-motion-mode="reduced"]) .inputControl:focus,
+:global(html[data-motion-mode="reduced"]) .revealButton:hover svg {
+  transform: none;
+}
+
+:global(html[data-motion-mode="reduced"]) .proofPoint::after,
+:global(html[data-motion-mode="reduced"]) .formContainer::before,
+:global(html[data-motion-mode="reduced"]) .formSignalRail::after,
+:global(html[data-motion-mode="reduced"]) .authDivider::after,
+:global(html[data-motion-mode="reduced"]) .submitButton::after,
+:global(html[data-motion-mode="reduced"]) .visual::after {
+  display: none;
+}

@@ -1,15 +1,11 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { Calendar } from './Calendar.jsx';
 
-let calendarRoot = null;
+const calendarRoot = createHostAwareRoot();
 
 export function mountCalendar(props) {
   const host = document.getElementById('room-view-calendar');
   if (!host) return;
-  if (!calendarRoot) {
-    host.replaceChildren();
-    calendarRoot = createRoot(host);
-  }
-  calendarRoot.render(createElement(Calendar, { ...props, key: props.roomId }));
+  calendarRoot.render(host, createElement(Calendar, { ...props, key: props.roomId }));
 }

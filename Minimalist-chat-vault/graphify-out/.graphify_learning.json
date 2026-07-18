@@ -1,0 +1,668 @@
+{
+  "generated_at": "2026-07-16T23:16:04.330201+00:00",
+  "nodes": {
+    "11_product_legacy_legacy_features_ai_assistant": {
+      "code_fingerprint": "9680c72a9e289009bf52446045d626e7c8a20df775f1f89e9ec1c928e6e4fb56",
+      "label": "AI Assistant",
+      "last": "2026-07-16T17:24:58.640682+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T17:24:58.640682+00:00",
+          "outcome": "useful",
+          "q": "Rework the Minimalist Chat personal AI identity and Pro lock/unlock screen around Winston, an original gorilla companion."
+        }
+      ],
+      "score": 0.994382495,
+      "source_file": "11 Product/Legacy/Legacy - Features.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "11_product_legacy_legacy_features_appearance": {
+      "code_fingerprint": "9680c72a9e289009bf52446045d626e7c8a20df775f1f89e9ec1c928e6e4fb56",
+      "label": "Appearance",
+      "last": "2026-07-16T20:48:30.751271+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T20:48:30.751271+00:00",
+          "outcome": "useful",
+          "q": "Mobile ui is broken"
+        },
+        {
+          "date": "2026-07-16T17:24:58.640682+00:00",
+          "outcome": "useful",
+          "q": "Rework the Minimalist Chat personal AI identity and Pro lock/unlock screen around Winston, an original gorilla companion."
+        },
+        {
+          "date": "2026-07-16T17:00:33.934684+00:00",
+          "outcome": "useful",
+          "q": "can you make the section for both devices more modern less bulky"
+        },
+        {
+          "date": "2026-07-16T16:40:13.663505+00:00",
+          "outcome": "useful",
+          "q": "Can Personal AI visibility also be an independent option on desktop?"
+        }
+      ],
+      "score": 3.979679547,
+      "source_file": "11 Product/Legacy/Legacy - Features.md",
+      "status": "preferred",
+      "uses": 4
+    },
+    "11_product_legacy_legacy_features_personal_ai_agent": {
+      "code_fingerprint": "9680c72a9e289009bf52446045d626e7c8a20df775f1f89e9ec1c928e6e4fb56",
+      "label": "Personal AI Agent",
+      "last": "2026-07-16T20:48:30.751271+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T20:48:30.751271+00:00",
+          "outcome": "useful",
+          "q": "Mobile ui is broken"
+        },
+        {
+          "date": "2026-07-16T17:24:58.640682+00:00",
+          "outcome": "useful",
+          "q": "Rework the Minimalist Chat personal AI identity and Pro lock/unlock screen around Winston, an original gorilla companion."
+        },
+        {
+          "date": "2026-07-16T17:00:33.934684+00:00",
+          "outcome": "useful",
+          "q": "can you make the section for both devices more modern less bulky"
+        },
+        {
+          "date": "2026-07-16T16:40:13.663505+00:00",
+          "outcome": "useful",
+          "q": "Can Personal AI visibility also be an independent option on desktop?"
+        },
+        {
+          "date": "2026-07-16T07:25:31.356370+00:00",
+          "outcome": "useful",
+          "q": "Review the personal AI panel for more reply-reading space and neutral request-volume wording instead of PC, Groq, or Cloudflare labels."
+        }
+      ],
+      "score": 4.964543627,
+      "source_file": "11 Product/Legacy/Legacy - Features.md",
+      "status": "preferred",
+      "uses": 5
+    },
+    "11_product_legacy_legacy_features_personalization": {
+      "code_fingerprint": "9680c72a9e289009bf52446045d626e7c8a20df775f1f89e9ec1c928e6e4fb56",
+      "label": "Personalization",
+      "last": "2026-07-16T17:24:58.640682+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T17:24:58.640682+00:00",
+          "outcome": "useful",
+          "q": "Rework the Minimalist Chat personal AI identity and Pro lock/unlock screen around Winston, an original gorilla companion."
+        }
+      ],
+      "score": 0.994382495,
+      "source_file": "11 Product/Legacy/Legacy - Features.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_current_product_shape": {
+      "code_fingerprint": "1a13c1849ebd58ade56a85049e71d61cdfca611a4df3657f21c5c28397cf3b0a",
+      "label": "Current product shape",
+      "last": "2026-07-14T17:13:32.082235+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T17:13:32.082235+00:00",
+          "outcome": "useful",
+          "q": "can you add a loading screen when the app laucnh so everything can be lo loaded"
+        }
+      ],
+      "score": 0.94930347,
+      "source_file": "30 Audits/Minimalist Analysis Desktop App Review 2026-07-13.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_minimalist_analysis_desktop_app_review_2026_07_13": {
+      "code_fingerprint": "1a13c1849ebd58ade56a85049e71d61cdfca611a4df3657f21c5c28397cf3b0a",
+      "label": "Minimalist Analysis Desktop App Review — 2026-07-13",
+      "last": "2026-07-14T17:13:32.082235+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T17:13:32.082235+00:00",
+          "outcome": "useful",
+          "q": "can you add a loading screen when the app laucnh so everything can be lo loaded"
+        },
+        {
+          "date": "2026-07-14T16:44:21.475848+00:00",
+          "outcome": "useful",
+          "q": "keep getting commands and powershell prompt flashing on my screen and disappearing"
+        }
+      ],
+      "score": 1.898162635,
+      "source_file": "30 Audits/Minimalist Analysis Desktop App Review 2026-07-13.md",
+      "status": "preferred",
+      "uses": 2
+    },
+    "30_audits_minimalist_analysis_desktop_app_review_2026_07_13_reliability_and_security_changes": {
+      "code_fingerprint": "1a13c1849ebd58ade56a85049e71d61cdfca611a4df3657f21c5c28397cf3b0a",
+      "label": "Reliability and security changes",
+      "last": "2026-07-14T17:13:32.082235+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T17:13:32.082235+00:00",
+          "outcome": "useful",
+          "q": "can you add a loading screen when the app laucnh so everything can be lo loaded"
+        }
+      ],
+      "score": 0.94930347,
+      "source_file": "30 Audits/Minimalist Analysis Desktop App Review 2026-07-13.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "30_audits_site_wide_performance_optimization_2026_07_15_client_image_preparation": {
+      "code_fingerprint": "55f08defedbc793682dc3855eeb892890b0e7ef7b77c495bd405464dd3067f89",
+      "label": "Client Image Preparation",
+      "last": "2026-07-16T17:24:58.640682+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T17:24:58.640682+00:00",
+          "outcome": "useful",
+          "q": "Rework the Minimalist Chat personal AI identity and Pro lock/unlock screen around Winston, an original gorilla companion."
+        }
+      ],
+      "score": 0.994382495,
+      "source_file": "30 Audits/Site-wide Performance Optimization 2026-07-15.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "30_audits_site_wide_performance_optimization_2026_07_15_resilient_service_worker_caching": {
+      "code_fingerprint": "55f08defedbc793682dc3855eeb892890b0e7ef7b77c495bd405464dd3067f89",
+      "label": "Resilient Service Worker Caching",
+      "last": "2026-07-16T20:48:30.751271+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T20:48:30.751271+00:00",
+          "outcome": "useful",
+          "q": "Mobile ui is broken"
+        }
+      ],
+      "score": 0.997635195,
+      "source_file": "30 Audits/Site-wide Performance Optimization 2026-07-15.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "40_operations_protected_ollama_public_gateway_approved_ai_model_profiles": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Approved AI Model Profiles",
+      "last": "2026-07-14T21:17:10.679600+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T21:17:10.679600+00:00",
+          "outcome": "useful",
+          "q": "Can we optimize the local ai agent to handle alot of ai request with the current pc specs"
+        }
+      ],
+      "score": 0.953021822,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "40_operations_protected_ollama_public_gateway_authenticated_ai_gateway_path": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Authenticated AI Gateway Path",
+      "last": "2026-07-15T22:25:24.074308+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T22:25:24.074308+00:00",
+          "outcome": "useful",
+          "q": "Can the PC, Cloudflare, and Groq router handle genuine staged loads of 100, 200, 400, and 1000 requests while retaining overflow until completion?"
+        }
+      ],
+      "score": 0.976365842,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "40_operations_protected_ollama_public_gateway_desktop_control_app": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Desktop Control App",
+      "last": "2026-07-14T16:26:25.233596+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:26:25.233596+00:00",
+          "outcome": "useful",
+          "q": "Can you get all that done for me I grant permissions"
+        },
+        {
+          "date": "2026-07-14T14:58:07.327008+00:00",
+          "outcome": "useful",
+          "q": "remote analysis agent path sonnd good can we get started on that"
+        }
+      ],
+      "score": 1.895829269,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "preferred",
+      "uses": 2
+    },
+    "40_operations_protected_ollama_public_gateway_desktop_only_ai_control_analysis": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Desktop-only AI Control & Analysis",
+      "last": "2026-07-14T16:26:25.233596+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:26:25.233596+00:00",
+          "outcome": "useful",
+          "q": "Can you get all that done for me I grant permissions"
+        },
+        {
+          "date": "2026-07-14T15:51:54.588604+00:00",
+          "outcome": "useful",
+          "q": "Implement the Windows Analysis app remote mode with Cloudflare Access while preserving local-only administrator controls."
+        },
+        {
+          "date": "2026-07-14T14:58:07.327008+00:00",
+          "outcome": "useful",
+          "q": "remote analysis agent path sonnd good can we get started on that"
+        }
+      ],
+      "score": 2.843890272,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "preferred",
+      "uses": 3
+    },
+    "40_operations_protected_ollama_public_gateway_firebase_functions_runtime_config": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Firebase Functions Runtime Config",
+      "last": "2026-07-15T08:25:51.081140+00:00",
+      "neg": 1,
+      "provenance": [
+        {
+          "date": "2026-07-15T08:25:51.081140+00:00",
+          "outcome": "useful",
+          "q": "Audit Firebase rules and trigger patterns for a durable per-user AI queue with ownership, cancellation, TTL, FIFO, idempotence, and no context or secret exposure"
+        },
+        {
+          "date": "2026-07-15T06:48:27.287159+00:00",
+          "outcome": "useful",
+          "q": "ok lets pc handle 1-10 and cloudflare 11-50 and 51-90 Groq"
+        },
+        {
+          "date": "2026-07-15T06:45:33.450935+00:00",
+          "outcome": "useful",
+          "q": "Audit docs, env examples, UI copy, and configuration for references to the existing 3/3/4 or total-10 AI provider router; target is PC/Ollama 1-10, Cloudflare 11-50, Groq 51-90, and 91+ HTTP 429."
+        },
+        {
+          "date": "2026-07-15T06:33:29.465892+00:00",
+          "outcome": "useful",
+          "q": "so what is our limit currently"
+        },
+        {
+          "date": "2026-07-15T05:39:33.262441+00:00",
+          "outcome": "useful",
+          "q": "what credentials do you need?"
+        }
+      ],
+      "score": 6.722561147,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "contested",
+      "uses": 8,
+      "verdict": "useful"
+    },
+    "40_operations_protected_ollama_public_gateway_local_bridge": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Local Bridge",
+      "last": "2026-07-15T06:48:27.287159+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T06:48:27.287159+00:00",
+          "outcome": "useful",
+          "q": "ok lets pc handle 1-10 and cloudflare 11-50 and 51-90 Groq"
+        },
+        {
+          "date": "2026-07-15T05:06:46.635924+00:00",
+          "outcome": "useful",
+          "q": "can we do 1-3 Pc 4-6 cloudflare 6-10 groq"
+        },
+        {
+          "date": "2026-07-15T04:47:47.840489+00:00",
+          "outcome": "useful",
+          "q": "ok can we have pc handle 3 request and the 4-5 in queue will be cloudflare ai and 6-10 will be Groq"
+        },
+        {
+          "date": "2026-07-14T21:17:10.679600+00:00",
+          "outcome": "useful",
+          "q": "Can we optimize the local ai agent to handle alot of ai request with the current pc specs"
+        },
+        {
+          "date": "2026-07-14T16:26:25.233596+00:00",
+          "outcome": "useful",
+          "q": "Can you get all that done for me I grant permissions"
+        }
+      ],
+      "score": 7.563255504,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "preferred",
+      "uses": 8
+    },
+    "40_operations_protected_ollama_public_gateway_optional_10_40_40_text_ai_overflow_router": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Optional 10 / 40 / 40 text-AI overflow router",
+      "last": "2026-07-15T06:48:27.287159+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T06:48:27.287159+00:00",
+          "outcome": "useful",
+          "q": "ok lets pc handle 1-10 and cloudflare 11-50 and 51-90 Groq"
+        }
+      ],
+      "score": 0.961797548,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "40_operations_protected_ollama_public_gateway_persistent_on_off_and_automatic_recovery": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Persistent on/off and automatic recovery",
+      "last": "2026-07-14T16:26:25.233596+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:26:25.233596+00:00",
+          "outcome": "useful",
+          "q": "Can you get all that done for me I grant permissions"
+        }
+      ],
+      "score": 0.948586116,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "40_operations_protected_ollama_public_gateway_protected_ollama_public_gateway": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Protected Ollama Public Gateway",
+      "last": "2026-07-15T22:25:24.074308+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T22:25:24.074308+00:00",
+          "outcome": "useful",
+          "q": "Can the PC, Cloudflare, and Groq router handle genuine staged loads of 100, 200, 400, and 1000 requests while retaining overflow until completion?"
+        },
+        {
+          "date": "2026-07-15T08:25:51.081140+00:00",
+          "outcome": "useful",
+          "q": "Audit Firebase rules and trigger patterns for a durable per-user AI queue with ownership, cancellation, TTL, FIFO, idempotence, and no context or secret exposure"
+        },
+        {
+          "date": "2026-07-15T08:23:37.559099+00:00",
+          "outcome": "useful",
+          "q": "Audit the current Minimalist Chat backend AI gateway for a durable FIFO queue when all 90 provider slots are occupied."
+        },
+        {
+          "date": "2026-07-15T08:20:36.022952+00:00",
+          "outcome": "useful",
+          "q": "Audit frontend AI request handling to support durable queued AI responses with queued, processing, completed, failed, retry, cancel, and timeout states while preserving provider labels and Bananas."
+        },
+        {
+          "date": "2026-07-15T08:06:24.142033+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        }
+      ],
+      "score": 17.173386778,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "preferred",
+      "uses": 18
+    },
+    "40_operations_protected_ollama_public_gateway_public_https_tunnel": {
+      "code_fingerprint": "a451bc47c2ccbf5cecb1e72ffd5500a09e1edcbfc7cfc02444f7a397c89b9552",
+      "label": "Public HTTPS Tunnel",
+      "last": "2026-07-14T16:26:25.233596+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:26:25.233596+00:00",
+          "outcome": "useful",
+          "q": "Can you get all that done for me I grant permissions"
+        },
+        {
+          "date": "2026-07-14T15:51:54.588604+00:00",
+          "outcome": "useful",
+          "q": "Implement the Windows Analysis app remote mode with Cloudflare Access while preserving local-only administrator controls."
+        },
+        {
+          "date": "2026-07-14T14:58:07.327008+00:00",
+          "outcome": "useful",
+          "q": "remote analysis agent path sonnd good can we get started on that"
+        }
+      ],
+      "score": 2.843890272,
+      "source_file": "40 Operations/Protected Ollama Public Gateway.md",
+      "status": "preferred",
+      "uses": 3
+    },
+    "40_operations_remote_analysis_access_remote_windows_client": {
+      "code_fingerprint": "ea98872153605d742b8f9b0ab13851e70cc3861874082966af4377afd26ff8f7",
+      "label": "Remote Windows Analysis Client",
+      "last": "2026-07-14T16:44:21.475848+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-14T16:44:21.475848+00:00",
+          "outcome": "useful",
+          "q": "keep getting commands and powershell prompt flashing on my screen and disappearing"
+        }
+      ],
+      "score": 0.948859164,
+      "source_file": "40 Operations/Remote Analysis Access.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "50_skills_prompt_library_mobile_first_ui_and_performance_audit_mobile_first_optimization_plan": {
+      "code_fingerprint": "bf135e0acf8113033b3cbc714ee49d182456a17337791ebd9cb9a220457016af",
+      "label": "Mobile-First Optimization Plan",
+      "last": "2026-07-16T20:48:30.751271+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T20:48:30.751271+00:00",
+          "outcome": "useful",
+          "q": "Mobile ui is broken"
+        }
+      ],
+      "score": 0.997635195,
+      "source_file": "50 Skills/Prompt Library/Mobile-first UI and Performance Audit.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "50_skills_prompt_library_performance_error_and_bug_audit_4_chat_boot_loading_timing": {
+      "code_fingerprint": "595de550d5360382e4f3267f4181672525b216cd8ac830f26f8ca9c460826189",
+      "label": "4. Chat boot/loading timing",
+      "last": "2026-07-14T20:53:08.902323+00:00",
+      "neg": 1,
+      "provenance": [
+        {
+          "date": "2026-07-14T20:53:08.902323+00:00",
+          "outcome": "corrected",
+          "q": "There are more different console errors while a user is stuck on the Minimalist Chat loading screen"
+        },
+        {
+          "date": "2026-07-14T20:23:14.729046+00:00",
+          "outcome": "useful",
+          "q": "Diagnose a user stuck on the Minimalist Chat loading screen using the supplied CSP console screenshots and browser log."
+        }
+      ],
+      "score": -0.000456968,
+      "source_file": "50 Skills/Prompt Library/Performance Error and Bug Audit.md",
+      "status": "contested",
+      "uses": 1,
+      "verdict": "dead end"
+    },
+    "50_skills_prompt_library_performance_error_and_bug_audit_7_css_architecture_risk": {
+      "code_fingerprint": "595de550d5360382e4f3267f4181672525b216cd8ac830f26f8ca9c460826189",
+      "label": "7. CSS architecture risk",
+      "last": "2026-07-16T20:48:30.751271+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T20:48:30.751271+00:00",
+          "outcome": "useful",
+          "q": "Mobile ui is broken"
+        }
+      ],
+      "score": 0.997635195,
+      "source_file": "50 Skills/Prompt Library/Performance Error and Bug Audit.md",
+      "status": "tentative",
+      "uses": 1
+    },
+    "90_memory_project_memory_ordered_10_40_40_ai_capacity": {
+      "code_fingerprint": "e18e41a7bd0c9dc3394c1de655f83ccef308f49d1fc92f535530438f388a739a",
+      "label": "Ordered 10 / 40 / 40 AI Capacity",
+      "last": "2026-07-16T07:25:31.356370+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T07:25:31.356370+00:00",
+          "outcome": "useful",
+          "q": "Review the personal AI panel for more reply-reading space and neutral request-volume wording instead of PC, Groq, or Cloudflare labels."
+        },
+        {
+          "date": "2026-07-15T22:25:24.074308+00:00",
+          "outcome": "useful",
+          "q": "Can the PC, Cloudflare, and Groq router handle genuine staged loads of 100, 200, 400, and 1000 requests while retaining overflow until completion?"
+        },
+        {
+          "date": "2026-07-15T08:23:37.559099+00:00",
+          "outcome": "useful",
+          "q": "Audit the current Minimalist Chat backend AI gateway for a durable FIFO queue when all 90 provider slots are occupied."
+        },
+        {
+          "date": "2026-07-15T08:20:36.022952+00:00",
+          "outcome": "useful",
+          "q": "Audit frontend AI request handling to support durable queued AI responses with queued, processing, completed, failed, retry, cancel, and timeout states while preserving provider labels and Bananas."
+        },
+        {
+          "date": "2026-07-15T08:08:38.337091+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        }
+      ],
+      "score": 4.85075364,
+      "source_file": "90 Memory/Project Memory.md",
+      "status": "preferred",
+      "uses": 5
+    },
+    "90_memory_project_memory_project_memory": {
+      "code_fingerprint": "e18e41a7bd0c9dc3394c1de655f83ccef308f49d1fc92f535530438f388a739a",
+      "label": "Project Memory",
+      "last": "2026-07-16T17:00:33.934684+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-16T17:00:33.934684+00:00",
+          "outcome": "useful",
+          "q": "can you make the section for both devices more modern less bulky"
+        },
+        {
+          "date": "2026-07-16T16:40:13.663505+00:00",
+          "outcome": "useful",
+          "q": "Can Personal AI visibility also be an independent option on desktop?"
+        },
+        {
+          "date": "2026-07-16T07:25:31.356370+00:00",
+          "outcome": "useful",
+          "q": "Review the personal AI panel for more reply-reading space and neutral request-volume wording instead of PC, Groq, or Cloudflare labels."
+        }
+      ],
+      "score": 2.972525937,
+      "source_file": "90 Memory/Project Memory.md",
+      "status": "preferred",
+      "uses": 3
+    },
+    "graphify_out_memory_query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in_transactional_capacity_leases_and_retryable_admission_control": {
+      "code_fingerprint": "0ef988038e238022b8543f9294d29c6bda5b8ff780fa657c2d86eedd5a84f34e",
+      "label": "Transactional Capacity Leases and Retryable Admission Control",
+      "last": "2026-07-15T08:25:51.081140+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T08:25:51.081140+00:00",
+          "outcome": "useful",
+          "q": "Audit Firebase rules and trigger patterns for a durable per-user AI queue with ownership, cancellation, TTL, FIFO, idempotence, and no context or secret exposure"
+        },
+        {
+          "date": "2026-07-15T08:23:37.559099+00:00",
+          "outcome": "useful",
+          "q": "Audit the current Minimalist Chat backend AI gateway for a durable FIFO queue when all 90 provider slots are occupied."
+        },
+        {
+          "date": "2026-07-15T08:20:36.022952+00:00",
+          "outcome": "useful",
+          "q": "Audit frontend AI request handling to support durable queued AI responses with queued, processing, completed, failed, retry, cancel, and timeout states while preserving provider labels and Bananas."
+        },
+        {
+          "date": "2026-07-15T08:08:38.337091+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        },
+        {
+          "date": "2026-07-15T08:06:24.142033+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        }
+      ],
+      "score": 4.815826672,
+      "source_file": "graphify-out/memory/query_20260715_044747_ok_can_we_have_pc_handle_3_request_and_the_4_5_in.md",
+      "status": "preferred",
+      "uses": 5
+    },
+    "graphify_out_memory_query_20260715_064827_ok_lets_pc_handle_1_10_and_cloudflare_11_50_and_51_optional_10_40_40_text_ai_overflow_router": {
+      "code_fingerprint": "4364b1788291889eace86758ba301b1e251e264a4b7ef785e176349c893b949c",
+      "label": "Optional 10 / 40 / 40 Text-AI Overflow Router",
+      "last": "2026-07-15T08:25:51.081140+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T08:25:51.081140+00:00",
+          "outcome": "useful",
+          "q": "Audit Firebase rules and trigger patterns for a durable per-user AI queue with ownership, cancellation, TTL, FIFO, idempotence, and no context or secret exposure"
+        },
+        {
+          "date": "2026-07-15T08:08:38.337091+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        },
+        {
+          "date": "2026-07-15T08:06:24.142033+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        }
+      ],
+      "score": 2.889338709,
+      "source_file": "graphify-out/memory/query_20260715_064827_ok_lets_pc_handle_1_10_and_cloudflare_11_50_and_51.md",
+      "status": "preferred",
+      "uses": 3
+    },
+    "graphify_out_memory_query_20260715_064827_ok_lets_pc_handle_1_10_and_cloudflare_11_50_and_51_request_91_http_429_without_fifo_queue": {
+      "code_fingerprint": "4364b1788291889eace86758ba301b1e251e264a4b7ef785e176349c893b949c",
+      "label": "Request 91 Gets HTTP 429 Without a FIFO Queue",
+      "last": "2026-07-15T08:25:51.081140+00:00",
+      "provenance": [
+        {
+          "date": "2026-07-15T08:25:51.081140+00:00",
+          "outcome": "useful",
+          "q": "Audit Firebase rules and trigger patterns for a durable per-user AI queue with ownership, cancellation, TTL, FIFO, idempotence, and no context or secret exposure"
+        },
+        {
+          "date": "2026-07-15T08:23:37.559099+00:00",
+          "outcome": "useful",
+          "q": "Audit the current Minimalist Chat backend AI gateway for a durable FIFO queue when all 90 provider slots are occupied."
+        },
+        {
+          "date": "2026-07-15T08:20:36.022952+00:00",
+          "outcome": "useful",
+          "q": "Audit frontend AI request handling to support durable queued AI responses with queued, processing, completed, failed, retry, cancel, and timeout states while preserving provider labels and Bananas."
+        },
+        {
+          "date": "2026-07-15T08:08:38.337091+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        },
+        {
+          "date": "2026-07-15T08:06:24.142033+00:00",
+          "outcome": "useful",
+          "q": "do a 500 queue rerqeust as astress test"
+        }
+      ],
+      "score": 4.815826672,
+      "source_file": "graphify-out/memory/query_20260715_064827_ok_lets_pc_handle_1_10_and_cloudflare_11_50_and_51.md",
+      "status": "preferred",
+      "uses": 5
+    }
+  },
+  "version": 1
+}

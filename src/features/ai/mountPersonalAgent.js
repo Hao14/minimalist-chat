@@ -1,18 +1,18 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { PersonalAIAgentLauncher } from './AI.jsx';
 
-let personalAgentRoot = null;
+const personalAgentRoot = createHostAwareRoot();
 
 export function mountPersonalAgent(props) {
   const host = document.getElementById('personal-ai-agent-root');
   if (!host) return;
-  if (!personalAgentRoot) {
-    host.replaceChildren();
-    personalAgentRoot = createRoot(host);
-  }
-  personalAgentRoot.render(createElement(PersonalAIAgentLauncher, {
+  personalAgentRoot.render(host, createElement(PersonalAIAgentLauncher, {
     ...props,
     key: `${props.roomId || 'global'}:${props.channelId || 'general'}`,
   }));
+}
+
+export function unmountPersonalAgent() {
+  personalAgentRoot.unmount();
 }

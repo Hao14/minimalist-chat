@@ -1,0 +1,576 @@
+#updates-panel.updates-center #quests-list {
+  --quest-line: color-mix(in srgb, var(--updates-ink) 13%, transparent);
+  --quest-muted: color-mix(in srgb, var(--updates-ink) 58%, transparent);
+  --quest-summary-bg: color-mix(in srgb, var(--updates-accent) 13%, var(--updates-bg));
+  padding-top: 14px !important;
+  background: var(--updates-bg) !important;
+}
+
+#updates-panel.updates-center #quests-list > li,
+#updates-panel.updates-center #quests-list ul,
+#updates-panel.updates-center #quests-list dl,
+#updates-panel.updates-center #quests-list h3,
+#updates-panel.updates-center #quests-list h4,
+#updates-panel.updates-center #quests-list p,
+#updates-panel.updates-center #quests-list dt,
+#updates-panel.updates-center #quests-list dd {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+#updates-panel.updates-center #quests-list ul {
+  list-style: none;
+}
+
+#updates-panel.updates-center .quest-summary {
+  min-width: 0;
+  min-height: 106px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  color: var(--updates-ink);
+  background: var(--quest-summary-bg);
+  border: 1px solid var(--quest-line);
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+#updates-panel.updates-center .quest-summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--updates-accent) 78%, #111);
+  outline-offset: 2px;
+}
+
+#updates-panel.updates-center .quest-summary-icon,
+#updates-panel.updates-center .quest-item-icon,
+#updates-panel.updates-center .quest-state-icon {
+  display: grid;
+  place-items: center;
+  color: var(--updates-ink);
+  background: var(--updates-bg);
+  border: 1px solid var(--quest-line);
+  box-shadow: none;
+}
+
+#updates-panel.updates-center .quest-summary-icon {
+  width: 58px;
+  height: 58px;
+  color: color-mix(in srgb, var(--updates-accent) 55%, var(--updates-ink));
+  background: color-mix(in srgb, var(--updates-accent) 23%, var(--updates-bg));
+  border-color: color-mix(in srgb, var(--updates-accent) 48%, var(--quest-line));
+  border-radius: 50%;
+  font-size: 1.62rem;
+}
+
+#updates-panel.updates-center .quest-summary-copy {
+  min-width: 0;
+}
+
+#updates-panel.updates-center .quest-summary-copy h3 {
+  color: var(--updates-ink);
+  font-size: 1.18rem;
+  font-weight: 900;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+}
+
+#updates-panel.updates-center .quest-summary-copy p {
+  margin-top: 7px;
+  overflow: hidden;
+  color: var(--quest-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .quest-overall-progress {
+  min-width: 58px;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+#updates-panel.updates-center .quest-overall-progress strong {
+  color: color-mix(in srgb, var(--updates-accent) 54%, var(--updates-ink));
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#updates-panel.updates-center .quest-overall-progress span {
+  color: var(--quest-muted);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+#updates-panel.updates-center .quest-metrics-row {
+  margin-top: 12px !important;
+}
+
+#updates-panel.updates-center .quest-metrics {
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  color: var(--updates-ink);
+  background: var(--updates-bg);
+  border: 1px solid var(--quest-line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+#updates-panel.updates-center .quest-metric {
+  --quest-metric-color: var(--updates-accent);
+  min-width: 0;
+  padding: 10px 8px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  background: color-mix(in srgb, var(--quest-metric-color) 7%, var(--updates-bg));
+  box-shadow: inset 0 3px 0 color-mix(in srgb, var(--quest-metric-color) 72%, transparent);
+}
+
+#updates-panel.updates-center .quest-metric:nth-child(1) {
+  --quest-metric-color: #f97316;
+}
+
+#updates-panel.updates-center .quest-metric:nth-child(2) {
+  --quest-metric-color: #8b5cf6;
+}
+
+#updates-panel.updates-center .quest-metric:nth-child(3) {
+  --quest-metric-color: #0ea5e9;
+}
+
+#updates-panel.updates-center .quest-metric:nth-child(4) {
+  --quest-metric-color: #22c55e;
+}
+
+#updates-panel.updates-center .quest-metric + .quest-metric {
+  border-left: 1px solid var(--quest-line);
+}
+
+#updates-panel.updates-center .quest-metric > i {
+  color: color-mix(in srgb, var(--quest-metric-color) 68%, var(--updates-ink));
+  font-size: 1.1rem;
+}
+
+#updates-panel.updates-center .quest-metric-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#updates-panel.updates-center .quest-metric-copy dt {
+  order: 2;
+  color: var(--quest-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+#updates-panel.updates-center .quest-metric-copy dd {
+  order: 1;
+  color: var(--updates-ink);
+  font-size: 0.75rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+#updates-panel.updates-center .quest-section-group {
+  margin-top: 16px !important;
+}
+
+#updates-panel.updates-center .quest-section-header {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--quest-line);
+}
+
+#updates-panel.updates-center .quest-section-header h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--updates-ink);
+  font-size: 0.98rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+}
+
+#updates-panel.updates-center .quest-section-header h3::before {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  content: '';
+  background: var(--quest-section-color);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--quest-section-color) 13%, transparent);
+}
+
+#updates-panel.updates-center .quest-item {
+  min-width: 0;
+  min-height: 110px;
+  border-bottom: 1px solid var(--quest-line);
+  content-visibility: auto;
+  contain-intrinsic-size: 110px;
+  animation: questItemIn 220ms ease both;
+  animation-delay: var(--quest-delay, 0ms);
+}
+
+#updates-panel.updates-center .quest-item-layout {
+  min-width: 0;
+  min-height: 110px;
+  padding: 12px 4px;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 14px;
+}
+
+#updates-panel.updates-center .quest-item-icon {
+  width: 58px;
+  height: 58px;
+  color: color-mix(in srgb, var(--quest-color) 68%, var(--updates-ink));
+  background: color-mix(in srgb, var(--quest-color) 13%, var(--updates-bg));
+  border-color: color-mix(in srgb, var(--quest-color) 32%, var(--quest-line));
+  border-radius: 12px;
+  font-size: 1.42rem;
+}
+
+#updates-panel.updates-center .quest-item-main {
+  min-width: 0;
+}
+
+#updates-panel.updates-center .quest-item-heading h4 {
+  overflow: hidden;
+  color: var(--updates-ink);
+  font-size: 0.86rem;
+  font-weight: 850;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .quest-item-heading p {
+  margin-top: 4px;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--quest-color) 42%, var(--updates-ink));
+  font-size: 0.7rem;
+  font-weight: 680;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .quest-progress {
+  width: 100%;
+  height: 6px;
+  margin: 11px 0 0;
+  display: block;
+  appearance: none;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--updates-ink) 11%, transparent);
+  border: 0;
+  border-radius: 999px;
+}
+
+#updates-panel.updates-center .quest-progress::-webkit-progress-bar {
+  background: color-mix(in srgb, var(--updates-ink) 11%, transparent);
+  border-radius: 999px;
+}
+
+#updates-panel.updates-center .quest-progress::-webkit-progress-value {
+  background: var(--quest-color);
+  border-radius: 999px;
+}
+
+#updates-panel.updates-center .quest-progress::-moz-progress-bar {
+  background: var(--quest-color);
+  border-radius: 999px;
+}
+
+#updates-panel.updates-center .quest-progress-value {
+  margin-top: 6px;
+  display: block;
+  color: color-mix(in srgb, var(--quest-color) 44%, var(--updates-ink));
+  font-size: 0.66rem;
+  font-weight: 760;
+  line-height: 1;
+}
+
+#updates-panel.updates-center .quest-status-marker {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  color: #111;
+  background: var(--updates-bg);
+  border: 2px solid color-mix(in srgb, var(--quest-color) 46%, var(--updates-ink));
+  border-radius: 50%;
+  font-size: 0.9rem;
+}
+
+#updates-panel.updates-center .quest-item.is-complete .quest-status-marker {
+  color: var(--updates-bg);
+  background: color-mix(in srgb, var(--quest-color) 78%, var(--updates-ink));
+  border-color: var(--quest-color);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #updates-panel.updates-center .quest-item-layout:hover {
+    background: color-mix(in srgb, var(--quest-color) 5%, transparent);
+  }
+}
+
+#updates-panel.updates-center .quest-item.is-complete .quest-item-heading h4 {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--quest-muted);
+}
+
+#updates-panel.updates-center .quest-screen-reader-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#updates-panel.updates-center .quest-state {
+  min-height: 260px;
+  margin-top: 14px !important;
+  padding: 32px 22px !important;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  color: var(--updates-ink);
+  background: var(--updates-bg);
+  border: 1px solid var(--quest-line);
+  border-radius: 14px;
+  text-align: center;
+}
+
+#updates-panel.updates-center .quest-state-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  color: var(--updates-ink);
+  font-size: 1.35rem;
+}
+
+#updates-panel.updates-center .quest-state-loading .quest-state-icon i {
+  animation: questSpin 700ms linear infinite;
+}
+
+#updates-panel.updates-center .quest-state-copy strong {
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+#updates-panel.updates-center .quest-state-copy p {
+  max-width: 290px;
+  margin-top: 5px;
+  color: var(--quest-muted);
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+#updates-panel.updates-center .quest-retry {
+  min-width: 112px;
+  min-height: 44px;
+  margin-top: 6px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #111;
+  background: var(--updates-accent);
+  border: 1px solid color-mix(in srgb, var(--updates-accent) 72%, #111);
+  border-radius: 9px;
+  box-shadow: none;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-transform: none;
+}
+
+#updates-panel.updates-center .quest-retry:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--updates-accent) 74%, #111);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  #updates-panel.updates-center #quests-list {
+    padding-top: 12px !important;
+  }
+
+  #updates-panel.updates-center #quests-list > li {
+    width: 100%;
+    max-width: 640px;
+    align-self: center;
+  }
+
+  #updates-panel.updates-center .quest-summary {
+    min-height: 98px;
+    padding: 13px;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    gap: 12px;
+  }
+
+  #updates-panel.updates-center .quest-summary-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 1.45rem;
+  }
+
+  #updates-panel.updates-center .quest-summary-copy h3 {
+    font-size: 1.03rem;
+  }
+
+  #updates-panel.updates-center .quest-summary-copy p {
+    margin-top: 5px;
+    font-size: 0.73rem;
+  }
+
+  #updates-panel.updates-center .quest-metrics {
+    min-height: 64px;
+  }
+
+  #updates-panel.updates-center .quest-metric {
+    padding: 8px 6px;
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 5px;
+  }
+
+  #updates-panel.updates-center .quest-metric > i {
+    font-size: 1rem;
+  }
+
+  #updates-panel.updates-center .quest-section-group {
+    margin-top: 12px !important;
+  }
+
+  #updates-panel.updates-center .quest-item,
+  #updates-panel.updates-center .quest-item-layout {
+    min-height: 104px;
+  }
+
+  #updates-panel.updates-center .quest-item {
+    contain-intrinsic-size: 104px;
+  }
+
+  #updates-panel.updates-center .quest-item-layout {
+    padding: 10px 2px;
+    grid-template-columns: 52px minmax(0, 1fr) 34px;
+    gap: 11px;
+  }
+
+  #updates-panel.updates-center .quest-item-icon {
+    width: 52px;
+    height: 52px;
+    font-size: 1.28rem;
+  }
+}
+
+@media (max-width: 360px) {
+  #updates-panel.updates-center .quest-summary {
+    min-height: 92px;
+    padding: 11px;
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    gap: 9px;
+  }
+
+  #updates-panel.updates-center .quest-summary-icon {
+    width: 46px;
+    height: 46px;
+    font-size: 1.28rem;
+  }
+
+  #updates-panel.updates-center .quest-summary-copy h3 {
+    font-size: 0.94rem;
+  }
+
+  #updates-panel.updates-center .quest-summary-copy p {
+    font-size: 0.67rem;
+  }
+
+  #updates-panel.updates-center .quest-overall-progress {
+    min-width: 45px;
+  }
+
+  #updates-panel.updates-center .quest-overall-progress strong {
+    font-size: 1rem;
+  }
+
+  #updates-panel.updates-center .quest-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #updates-panel.updates-center .quest-metric {
+    min-height: 50px;
+    padding: 7px 10px;
+  }
+
+  #updates-panel.updates-center .quest-metric:nth-child(3) {
+    border-left: 0;
+  }
+
+  #updates-panel.updates-center .quest-metric:nth-child(n + 3) {
+    border-top: 1px solid var(--quest-line);
+  }
+
+  #updates-panel.updates-center .quest-item,
+  #updates-panel.updates-center .quest-item-layout {
+    min-height: 98px;
+  }
+
+  #updates-panel.updates-center .quest-item {
+    contain-intrinsic-size: 98px;
+  }
+
+  #updates-panel.updates-center .quest-item-layout {
+    grid-template-columns: 46px minmax(0, 1fr) 30px;
+    gap: 9px;
+  }
+
+  #updates-panel.updates-center .quest-item-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    font-size: 1.15rem;
+  }
+
+  #updates-panel.updates-center .quest-status-marker {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #updates-panel.updates-center .quest-item,
+  #updates-panel.updates-center .quest-state-loading .quest-state-icon i {
+    animation: none;
+  }
+}
+
+@keyframes questItemIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes questSpin {
+  to { transform: rotate(360deg); }
+}

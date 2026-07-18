@@ -1,0 +1,35 @@
+{
+  "name": "@searvia/crawler-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "node --env-file-if-exists=../../.env --import tsx --watch src/main.ts",
+    "lint": "eslint src test --max-warnings=0",
+    "start": "node --env-file-if-exists=../../.env --enable-source-maps dist/main.js",
+    "test": "vitest run --config ../../vitest.config.ts",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@searvia/audit-engine": "workspace:*",
+    "@searvia/config": "workspace:*",
+    "@searvia/crawler-core": "workspace:*",
+    "@searvia/database": "workspace:*",
+    "@searvia/job-queue": "workspace:*",
+    "@searvia/logging": "workspace:*",
+    "@searvia/shared-types": "workspace:*",
+    "playwright-core": "1.61.1"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.4",
+    "drizzle-orm": "0.45.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

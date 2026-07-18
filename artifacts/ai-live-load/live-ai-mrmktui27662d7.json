@@ -1,0 +1,121 @@
+{
+  "runId": "live-ai-mrmktui27662d7",
+  "mode": "local-emulators-direct-gateway-real-ai-providers",
+  "productionDataTouched": false,
+  "startedAt": "2026-07-15T21:12:53.958Z",
+  "requestedStages": [
+    1
+  ],
+  "totalRequested": 1,
+  "userCount": 1,
+  "expectedBananaCost": 9,
+  "submitConcurrency": 1,
+  "exactProviderTokenUsageAvailable": false,
+  "stages": [
+    {
+      "size": 1,
+      "startedAt": "2026-07-15T21:12:54.598Z",
+      "finishedAt": "2026-07-15T21:12:55.369Z",
+      "durationMs": 771,
+      "throughputPerSecond": 1,
+      "accepted": 1,
+      "completed": 1,
+      "failed": 0,
+      "unresolved": 0,
+      "successRate": 1,
+      "markerMatches": 1,
+      "markerMatchRate": 1,
+      "approximateOutputTokens": 5,
+      "providers": {
+        "ollama-bridge": 1
+      },
+      "models": {
+        "qwen3:4b-instruct": 1
+      },
+      "errors": {},
+      "httpStatuses": {
+        "200": 1
+      },
+      "admissions": {
+        "direct": 1
+      },
+      "submissionLatency": {
+        "count": 1,
+        "p50Ms": 768,
+        "p95Ms": 768,
+        "p99Ms": 768,
+        "maxMs": 768
+      },
+      "endToEndLatency": {
+        "count": 1,
+        "p50Ms": 768,
+        "p95Ms": 768,
+        "p99Ms": 768,
+        "maxMs": 768
+      },
+      "queueWaitLatency": {
+        "count": 0,
+        "p50Ms": null,
+        "p95Ms": null,
+        "p99Ms": null,
+        "maxMs": null
+      },
+      "highWater": {
+        "maxOutstandingReservations": 0,
+        "maxQueueDepth": 0,
+        "maxTotalProviderLeases": 0,
+        "maxProviderLeases": {
+          "ollama-bridge": 0,
+          "cloudflare-workers-ai": 0,
+          "groq": 0
+        }
+      },
+      "finalState": {
+        "activeReservations": 0,
+        "pendingJobs": 0,
+        "providerLeases": 0,
+        "wakeSlots": 0
+      },
+      "waitOutcome": {
+        "timedOut": false,
+        "noProgress": false,
+        "remainingCount": 0
+      },
+      "gatePassed": true,
+      "gateReasons": [],
+      "records": [
+        {
+          "stage": 1,
+          "sequence": 1,
+          "ownerIndex": 0,
+          "requestId": "stress_mrmktui27662d7_s1_1",
+          "jobId": "3e9099aa0d2a7e6f6a95235c514b1de1d522315dbaf86b34dbf39529e7791f74",
+          "httpStatus": 200,
+          "admission": "direct",
+          "status": "completed",
+          "provider": "ollama-bridge",
+          "model": "qwen3:4b-instruct",
+          "attempts": 1,
+          "submittedAt": 1784149974598,
+          "responseAt": 1784149975366,
+          "finishedAt": 1784149975366,
+          "submissionLatencyMs": 768,
+          "endToEndMs": 768,
+          "queueWaitMs": null,
+          "replyLength": 20,
+          "replyHash": "83490c15afa64852045cf33cb7d2229c233de966458a16d99ce134d8665fa47a",
+          "markerMatched": true,
+          "approximateOutputTokens": 5,
+          "errorCode": null,
+          "errorMessage": null
+        }
+      ]
+    }
+  ],
+  "finishedAt": "2026-07-15T21:13:00.383Z",
+  "completedStages": [
+    1
+  ],
+  "totalCompleted": 1,
+  "gatePassed": true
+}

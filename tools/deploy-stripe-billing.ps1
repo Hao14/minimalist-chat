@@ -9,6 +9,7 @@ $firebase = Join-Path $PSScriptRoot 'firebase-node22.ps1'
 $webhookUrl = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeWebhook'
 $stripeEvents = @(
   'checkout.session.completed',
+  'checkout.session.async_payment_succeeded',
   'customer.subscription.created',
   'customer.subscription.updated',
   'customer.subscription.deleted'

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { onValue, push, ref, remove, serverTimestamp, update } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { useRoomTabActivity, useRoomTabDataActivity } from '../shell/roomTabActivity.js';
+import './tasks.css';
 
 const COLUMNS = [
   { id: 'backlog', name: 'Backlog', dot: '#9ca3af' },
@@ -55,6 +57,13 @@ function formatDate(timestamp) {
   return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+function isDueSoon(value) {
+  if (!value) return false;
+  const due = new Date(`${value}T23:59:59`).getTime();
+  const now = Date.now();
+  return Number.isFinite(due) && due >= now && due - now <= 3 * 24 * 60 * 60 * 1000;
+}
+
 function TaskCard({ task, onOpen }) {
   const categories = categoriesOf(task);
   const priority = task.priority || 'medium';
@@ -67,7 +76,13 @@ function TaskCard({ task, onOpen }) {
       role="button"
       tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(event) => { if (event.key === 'Enter') onOpen(); }}
+      aria-label={`Open task: ${task.text || 'Untitled task'}`}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen();
+        }
+      }}
       onDragStart={(event) => { event.dataTransfer.setData('text/taskId', task.id); event.dataTransfer.effectAllowed = 'move'; }}
     >
       <div className="kb-card-title">{task.text}</div>
@@ -88,30 +103,103 @@ function TaskCard({ task, onOpen }) {
   );
 }
 
-function TaskDetail({ task, memberNames, onClose, onPatch, onDelete, onAddCategory, onRemoveCategory }) {
-  const [catDraft, setCatDraft] = useState('');
+function TaskListRow({ task, onOpen }) {
+  const priority = task.priority || 'medium';
+  const due = formatDue(task.dueDate);
+  const assignee = task.assigneeName;
   const categories = categoriesOf(task);
   return (
+    <button type="button" className="kb-list-row" onClick={onOpen}>
+      <span className={`kb-list-check ${statusOf(task) === 'done' ? 'is-done' : ''}`} aria-hidden="true">
+        {statusOf(task) === 'done' ? <i className="ph-bold ph-check" /> : null}
+      </span>
+      <span className="kb-list-copy">
+        <strong>{task.text || 'Untitled task'}</strong>
+        <span>
+          <i className={`kb-priority-dot kb-priority-${priority}`} aria-hidden="true" />
+          {PRIORITY_LABEL[priority]}
+          {categories[0] ? <> · {categories[0]}</> : null}
+        </span>
+      </span>
+      {due ? <span className="kb-list-due"><i className="ph-bold ph-calendar-blank" /> {due}</span> : null}
+      {assignee ? <span className="kb-ava" style={{ background: avatarColor(assignee) }} title={assignee}>{initials(assignee)}</span> : null}
+      <i className="ph-bold ph-caret-right kb-list-open" aria-hidden="true" />
+    </button>
+  );
+}
+
+function TaskQuickAdd({ inputRef, onCancel, onChange, onSave, value }) {
+  return (
+    <div className="kb-add-card kb-quick-add">
+      <input
+        ref={inputRef}
+        id="task-input"
+        className="kb-add-input"
+        value={value}
+        placeholder="What needs to get done?"
+        aria-label="Task title"
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') { event.preventDefault(); onSave(); }
+          if (event.key === 'Escape') onCancel();
+        }}
+      />
+      <div className="kb-add-actions">
+        <button type="button" className="kb-add-cancel" onClick={onCancel}>Cancel</button>
+        <button type="button" className="kb-add-save" onClick={onSave} disabled={!value.trim()}>Add task</button>
+      </div>
+    </div>
+  );
+}
+
+function TaskDetail({ active, task, memberNames, onClose, onPatch, onDelete, onAddCategory, onRemoveCategory }) {
+  const [catDraft, setCatDraft] = useState('');
+  const [titleDraft, setTitleDraft] = useState(task.text || '');
+  const [descriptionDraft, setDescriptionDraft] = useState(task.description || '');
+  const categories = categoriesOf(task);
+  const closeButtonRef = useRef(null);
+  const saveTextDrafts = () => {
+    const patch = {};
+    if (titleDraft !== (task.text || '')) patch.text = titleDraft;
+    if (descriptionDraft !== (task.description || '')) patch.description = descriptionDraft;
+    if (Object.keys(patch).length) onPatch(patch);
+  };
+  const closeWithSave = () => { saveTextDrafts(); onClose(); };
+  const closeOnEscape = useEffectEvent(() => { saveTextDrafts(); onClose(); });
+  useEffect(() => {
+    if (!active) return undefined;
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') closeOnEscape();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [active]);
+  return (
     <>
-      <div className="kb-detail-backdrop" onClick={onClose} />
-      <aside className="kb-detail" role="dialog" aria-label="Task detail">
+      <div className="kb-detail-backdrop" onClick={closeWithSave} />
+      <aside className="kb-detail" role="dialog" aria-modal="true" aria-labelledby="kb-detail-title">
         <header className="kb-detail-head">
-          <span>Task detail</span>
-          <button type="button" className="kb-detail-close" onClick={onClose} aria-label="Close"><i className="ph-bold ph-x" /></button>
+          <span id="kb-detail-title">Task detail</span>
+          <button ref={closeButtonRef} type="button" className="kb-detail-close" onClick={closeWithSave} aria-label="Close task detail"><i className="ph-bold ph-x" /></button>
         </header>
         <div className="kb-detail-body">
           <textarea
             className="kb-detail-title"
             rows={2}
-            value={task.text || ''}
+            value={titleDraft}
             placeholder="Task title"
             aria-label="Task title"
-            onChange={(event) => onPatch({ text: event.target.value })}
+            onChange={(event) => setTitleDraft(event.target.value)}
+            onBlur={() => { if (titleDraft !== (task.text || '')) onPatch({ text: titleDraft }); }}
           />
 
           <label className="kb-field">
             <span>Status</span>
-            <select value={statusOf(task)} onChange={(event) => onPatch({ status: event.target.value, done: event.target.value === 'done' })}>
+            <select value={statusOf(task)} onChange={(event) => {
+              const status = event.target.value;
+              onPatch({ status, done: status === 'done', completedAt: status === 'done' ? (task.completedAt || timestampNow()) : null });
+            }}>
               {COLUMNS.map((column) => <option key={column.id} value={column.id}>{column.name}</option>)}
             </select>
           </label>
@@ -161,10 +249,11 @@ function TaskDetail({ task, memberNames, onClose, onPatch, onDelete, onAddCatego
             <textarea
               className="kb-detail-desc"
               rows={4}
-              value={task.description || ''}
+              value={descriptionDraft}
               placeholder="Add a description…"
               aria-label="Description"
-              onChange={(event) => onPatch({ description: event.target.value })}
+              onChange={(event) => setDescriptionDraft(event.target.value)}
+              onBlur={() => { if (descriptionDraft !== (task.description || '')) onPatch({ description: descriptionDraft }); }}
             />
           </div>
         </div>
@@ -177,7 +266,9 @@ function TaskDetail({ task, memberNames, onClose, onPatch, onDelete, onAddCatego
   );
 }
 
-export function Tasks({ roomId, user }) {
+function TasksRoom({ roomId, user }) {
+  const isRoomTabActive = useRoomTabActivity('tasks');
+  const isRoomTabDataActive = useRoomTabDataActivity('tasks');
   const [tasks, setTasks] = useState([]);
   const [archivedTasks, setArchivedTasks] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
@@ -187,8 +278,14 @@ export function Tasks({ roomId, user }) {
   const [archiveFilter, setArchiveFilter] = useState('days');
   const [addingColumn, setAddingColumn] = useState(null);
   const [addDraft, setAddDraft] = useState('');
+  const [viewMode, setViewMode] = useState(() => window.matchMedia?.('(max-width: 720px)').matches ? 'list' : 'board');
+  const [listStatus, setListStatus] = useState('todo');
+  const [tasksStatus, setTasksStatus] = useState({ roomId: null, loading: true, error: '' });
   const addInputRef = useRef(null);
   const allTasksRef = useRef([]);
+  const taskReturnFocusRef = useRef(null);
+  const loadingTasks = tasksStatus.roomId !== roomId || tasksStatus.loading;
+  const tasksError = tasksStatus.roomId === roomId ? tasksStatus.error : '';
 
   const archiveDoneTasks = useCallback((taskList = allTasksRef.current) => {
     const cutoff = startOfToday();
@@ -206,26 +303,39 @@ export function Tasks({ roomId, user }) {
           archivedReason: 'End-of-day Done sweep',
           status: 'archived',
         }).catch(() => {});
-        if (selectedId === task.id) setSelectedId(null);
+        setSelectedId((current) => current === task.id ? null : current);
       }
     });
-  }, [roomId, selectedId]);
-
-  useEffect(() => onValue(ref(db, `room_tasks/${roomId}`), (snapshot) => {
-    const value = snapshot.val() || {};
-    const nextTasks = Object.entries(value).map(([id, task]) => ({ id, ...task }));
-    allTasksRef.current = nextTasks;
-    setTasks(nextTasks.filter((task) => !isArchivedTask(task)));
-    setArchivedTasks(nextTasks.filter(isArchivedTask));
-    archiveDoneTasks(nextTasks);
-  }), [archiveDoneTasks, roomId]);
+  }, [roomId]);
 
   useEffect(() => {
+    if (!isRoomTabDataActive) return undefined;
+    allTasksRef.current = [];
+    return onValue(ref(db, `room_tasks/${roomId}`), (snapshot) => {
+      const value = snapshot.val() || {};
+      const nextTasks = Object.entries(value).map(([id, task]) => ({ id, ...task }));
+      allTasksRef.current = nextTasks;
+      setTasks(nextTasks.filter((task) => !isArchivedTask(task)));
+      setArchivedTasks(nextTasks.filter(isArchivedTask));
+      setTasksStatus({ roomId, loading: false, error: '' });
+      archiveDoneTasks(nextTasks);
+    }, (error) => {
+      allTasksRef.current = [];
+      setTasks([]);
+      setArchivedTasks([]);
+      setTasksStatus({ roomId, loading: false, error: error.message || 'Could not load tasks.' });
+    });
+  }, [archiveDoneTasks, isRoomTabDataActive, roomId]);
+
+  useEffect(() => {
+    if (!isRoomTabDataActive) return undefined;
     const interval = window.setInterval(() => archiveDoneTasks(), 60 * 1000);
     return () => window.clearInterval(interval);
-  }, [archiveDoneTasks]);
+  }, [archiveDoneTasks, isRoomTabDataActive]);
 
-  useEffect(() => { if (addingColumn && addInputRef.current) addInputRef.current.focus(); }, [addingColumn]);
+  useEffect(() => {
+    if (isRoomTabActive && addingColumn && addInputRef.current) addInputRef.current.focus();
+  }, [addingColumn, isRoomTabActive]);
 
   const memberNames = useMemo(() => {
     const names = new Set();
@@ -245,6 +355,16 @@ export function Tasks({ roomId, user }) {
   }, [tasks, filterMember, filterPriority]);
 
   const selected = tasks.find((task) => task.id === selectedId) || null;
+  const openTaskDetail = useCallback((id) => {
+    taskReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setSelectedId(id);
+  }, []);
+  const closeTaskDetail = useCallback(() => {
+    setSelectedId(null);
+    window.requestAnimationFrame(() => taskReturnFocusRef.current?.focus?.());
+  }, []);
+  const visibleTaskCount = useMemo(() => STATUS_IDS.reduce((sum, status) => sum + byColumn[status].length, 0), [byColumn]);
+  const dueSoonCount = useMemo(() => tasks.filter((task) => statusOf(task) !== 'done' && isDueSoon(task.dueDate)).length, [tasks]);
   const visibleArchivedTasks = useMemo(() => {
     const now = timestampNow();
     const windows = {
@@ -291,7 +411,12 @@ export function Tasks({ roomId, user }) {
     if (status === 'done' && task.by === user.uid) window.awardXP?.(user.uid, 'technical', 3);
   };
 
-  const deleteTask = (id) => { remove(ref(db, `room_tasks/${roomId}/${id}`)); if (selectedId === id) setSelectedId(null); };
+  const deleteTask = (id) => {
+    const task = tasks.find((item) => item.id === id);
+    if (!window.confirm(`Delete “${task?.text || 'this task'}”?`)) return;
+    remove(ref(db, `room_tasks/${roomId}/${id}`));
+    if (selectedId === id) closeTaskDetail();
+  };
   const restoreTask = (id) => patchTask(id, {
     archived: false,
     archivedAt: null,
@@ -309,6 +434,20 @@ export function Tasks({ roomId, user }) {
 
   return (
     <div className="kb-root">
+      <header className="kb-workspace-head">
+        <div className="kb-workspace-title">
+          <span className="kb-eyebrow"><i className="ph-bold ph-check-square-offset" /> Room workflow</span>
+          <div>
+            <h2>Tasks</h2>
+            <span>{tasks.length} active · {dueSoonCount} due soon</span>
+          </div>
+          <p>Move work from idea to done without leaving the room.</p>
+        </div>
+        <button type="button" className="kb-new-task" onClick={() => { setAddingColumn(viewMode === 'list' ? listStatus : 'todo'); setAddDraft(''); }}>
+          <i className="ph-bold ph-plus" /> <span>New task</span>
+        </button>
+      </header>
+
       <div className="kb-topbar">
         <div className="kb-filters">
           <select className="kb-filter" value={filterMember} aria-label="Filter by member" onChange={(event) => setFilterMember(event.target.value)}>
@@ -320,14 +459,20 @@ export function Tasks({ roomId, user }) {
             {PRIORITIES.map((priority) => <option key={priority} value={priority}>{PRIORITY_LABEL[priority]}</option>)}
           </select>
         </div>
-        <button type="button" className={`kb-archive-toggle ${archiveOpen ? 'active' : ''}`} onClick={() => setArchiveOpen((value) => !value)}>
-          <i className="ph-bold ph-archive-box" /> Archive
-          {archivedTasks.length ? <span>{archivedTasks.length}</span> : null}
-        </button>
+        <div className="kb-toolbar-actions">
+          <div className="kb-view-switch" role="group" aria-label="Task layout">
+            <button type="button" className={viewMode === 'board' ? 'active' : ''} aria-pressed={viewMode === 'board'} onClick={() => setViewMode('board')}><i className="ph-bold ph-columns" /><span>Board</span></button>
+            <button type="button" className={viewMode === 'list' ? 'active' : ''} aria-pressed={viewMode === 'list'} onClick={() => setViewMode('list')}><i className="ph-bold ph-list-bullets" /><span>List</span></button>
+          </div>
+          <button type="button" className={`kb-archive-toggle ${archiveOpen ? 'active' : ''}`} aria-expanded={archiveOpen} aria-controls="kb-archive-panel" onClick={() => setArchiveOpen((value) => !value)}>
+            <i className="ph-bold ph-archive-box" /> <span>Archive</span>
+            {archivedTasks.length ? <strong>{archivedTasks.length}</strong> : null}
+          </button>
+        </div>
       </div>
 
       {archiveOpen ? (
-        <section className="kb-archive-panel" aria-label="Completed task archive">
+        <section className="kb-archive-panel" id="kb-archive-panel" aria-label="Completed task archive">
           <header>
             <div>
               <span className="kb-archive-kicker">Completed archive</span>
@@ -339,7 +484,7 @@ export function Tasks({ roomId, user }) {
                 ['days', 'Days'],
                 ['weeks', 'Weeks'],
               ].map(([id, label]) => (
-                <button key={id} type="button" className={archiveFilter === id ? 'active' : ''} onClick={() => setArchiveFilter(id)}>
+                <button key={id} type="button" role="tab" aria-selected={archiveFilter === id} className={archiveFilter === id ? 'active' : ''} onClick={() => setArchiveFilter(id)}>
                   {label}
                 </button>
               ))}
@@ -363,11 +508,39 @@ export function Tasks({ roomId, user }) {
         </section>
       ) : null}
 
-      <div className="kb-board">
+      {loadingTasks || tasksError || (!tasks.length && !addingColumn) || (tasks.length > 0 && !visibleTaskCount) ? (
+        <div className={`kb-state ${tasksError ? 'error' : ''}`} role={loadingTasks ? 'status' : tasksError ? 'alert' : 'note'}>
+          {loadingTasks ? 'Loading tasks...' : tasksError || (!tasks.length ? 'No tasks yet. Add one from any column when this room has work to track.' : 'No tasks match the current filters.')}
+        </div>
+      ) : null}
+
+      {viewMode === 'list' ? (
+        <div className="kb-list-view">
+          <div className="kb-status-tabs" role="tablist" aria-label="Task status">
+            {COLUMNS.map((column) => (
+              <button key={column.id} type="button" role="tab" aria-selected={listStatus === column.id} className={listStatus === column.id ? 'active' : ''} onClick={() => setListStatus(column.id)}>
+                <span>{column.name}</span><strong>{byColumn[column.id].length}</strong>
+              </button>
+            ))}
+          </div>
+          <section className="kb-list-panel" aria-label={`${COLUMNS.find((column) => column.id === listStatus)?.name || 'Selected'} tasks`}>
+            <header>
+              <div><span className="kb-dot" style={{ background: COLUMNS.find((column) => column.id === listStatus)?.dot }} /><strong>{COLUMNS.find((column) => column.id === listStatus)?.name}</strong><small>{byColumn[listStatus].length} tasks</small></div>
+              <button type="button" onClick={() => { setAddingColumn(listStatus); setAddDraft(''); }}><i className="ph-bold ph-plus" /> Add task</button>
+            </header>
+            {addingColumn === listStatus ? <TaskQuickAdd inputRef={addInputRef} value={addDraft} onChange={setAddDraft} onSave={() => addTask(listStatus)} onCancel={() => setAddingColumn(null)} /> : null}
+            <div className="kb-list-rows">
+              {byColumn[listStatus].map((task) => <TaskListRow key={task.id} task={task} onOpen={() => openTaskDetail(task.id)} />)}
+              {!byColumn[listStatus].length && addingColumn !== listStatus ? <div className="kb-empty">Nothing here yet. Add the first task.</div> : null}
+            </div>
+          </section>
+        </div>
+      ) : <div className="kb-board">
         {COLUMNS.map((column) => (
           <section
             key={column.id}
             className="kb-col"
+            aria-label={`${column.name} tasks`}
             onDragOver={(event) => { event.preventDefault(); event.currentTarget.classList.add('kb-col-over'); }}
             onDragLeave={(event) => event.currentTarget.classList.remove('kb-col-over')}
             onDrop={(event) => {
@@ -387,37 +560,22 @@ export function Tasks({ roomId, user }) {
             </header>
             <div className="kb-col-body">
               {addingColumn === column.id && (
-                <div className="kb-add-card">
-                  <textarea
-                    ref={addInputRef}
-                    className="kb-add-input"
-                    rows={2}
-                    value={addDraft}
-                    placeholder="Task title…"
-                    onChange={(event) => setAddDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); addTask(column.id); }
-                      if (event.key === 'Escape') setAddingColumn(null);
-                    }}
-                  />
-                  <div className="kb-add-actions">
-                    <button type="button" className="kb-add-save" onClick={() => addTask(column.id)} disabled={!addDraft.trim()}>Add</button>
-                    <button type="button" className="kb-add-cancel" onClick={() => setAddingColumn(null)}>Cancel</button>
-                  </div>
-                </div>
+                <TaskQuickAdd inputRef={addInputRef} value={addDraft} onChange={setAddDraft} onSave={() => addTask(column.id)} onCancel={() => setAddingColumn(null)} />
               )}
-              {byColumn[column.id].map((task) => <TaskCard key={task.id} task={task} onOpen={() => setSelectedId(task.id)} />)}
+              {byColumn[column.id].map((task) => <TaskCard key={task.id} task={task} onOpen={() => openTaskDetail(task.id)} />)}
               {!byColumn[column.id].length && addingColumn !== column.id && <div className="kb-empty">No tasks</div>}
             </div>
           </section>
         ))}
-      </div>
+      </div>}
 
       {selected && (
         <TaskDetail
+          active={isRoomTabActive}
+          key={selected.id}
           task={selected}
           memberNames={memberNames}
-          onClose={() => setSelectedId(null)}
+          onClose={closeTaskDetail}
           onPatch={(patch) => patchTask(selected.id, patch)}
           onDelete={() => deleteTask(selected.id)}
           onAddCategory={(name) => addCategory(selected.id, name)}
@@ -426,4 +584,8 @@ export function Tasks({ roomId, user }) {
       )}
     </div>
   );
+}
+
+export function Tasks(props) {
+  return <TasksRoom key={props.roomId} {...props} />;
 }

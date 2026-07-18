@@ -1,20 +1,20 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { Search } from './Search.jsx';
 
-let searchRoot = null;
+function handleSearchBackdropClick(event) {
+  if (event.target === event.currentTarget) {
+    window.dispatchEvent(new CustomEvent('minimalist:close-search'));
+  }
+}
+
+const searchRoot = createHostAwareRoot({
+  onAttach: (host) => host.addEventListener('click', handleSearchBackdropClick),
+  onDetach: (host) => host.removeEventListener('click', handleSearchBackdropClick),
+});
 
 export function mountSearch(props) {
   const host = document.getElementById('search-modal');
   if (!host) return;
-  if (!searchRoot) {
-    host.replaceChildren();
-    host.addEventListener('click', (event) => {
-      if (event.target === host) {
-        window.dispatchEvent(new CustomEvent('minimalist:close-search'));
-      }
-    });
-    searchRoot = createRoot(host);
-  }
-  searchRoot.render(createElement(Search, props));
+  searchRoot.render(host, createElement(Search, props));
 }

@@ -1,10 +1,16 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { ChatCore } from './ChatCore.jsx';
 
-let chatCoreRoot = null;
 let chatCoreApi = {};
 let pendingRoomSwitch = null;
+
+const chatCoreRoot = createHostAwareRoot({
+  onAttach: () => document.getElementById('room-list')?.replaceChildren(),
+  onDetach: () => {
+    chatCoreApi = {};
+  },
+});
 
 function registerChatCoreApi(api) {
   chatCoreApi = api || {};
@@ -29,11 +35,5 @@ export function mountChatCore({ user }) {
   const host = document.getElementById('room-view-chat');
   if (!host || !user) return;
 
-  if (!chatCoreRoot) {
-    document.getElementById('room-list')?.replaceChildren();
-    host.replaceChildren();
-    chatCoreRoot = createRoot(host);
-  }
-
-  chatCoreRoot.render(createElement(ChatCore, { user, registerApi: registerChatCoreApi }));
+  chatCoreRoot.render(host, createElement(ChatCore, { user, registerApi: registerChatCoreApi }));
 }

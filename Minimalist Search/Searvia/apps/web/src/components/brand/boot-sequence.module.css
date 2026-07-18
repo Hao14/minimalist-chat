@@ -1,0 +1,155 @@
+.boot {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #fff;
+  opacity: 1;
+  animation: boot-exit 180ms 620ms var(--ease-standard, ease) forwards;
+}
+
+.instrument {
+  position: absolute;
+  inset: 18px;
+  border-block: 1px solid #e8ebf0;
+  pointer-events: none;
+}
+
+.tick {
+  position: absolute;
+  top: -1px;
+  width: 1px;
+  height: 10px;
+  background: #b9c1cd;
+}
+
+.tick:nth-child(1) {
+  left: 12.5%;
+}
+.tick:nth-child(2) {
+  left: 50%;
+}
+.tick:nth-child(3) {
+  right: 12.5%;
+}
+
+.lockup {
+  display: grid;
+  justify-items: center;
+}
+
+.mark {
+  width: 72px;
+  height: 72px;
+  overflow: visible;
+}
+
+.pathBlue,
+.pathTeal {
+  stroke-linecap: round;
+  stroke-dasharray: 190;
+  stroke-dashoffset: 190;
+  animation: draw 460ms var(--ease-decelerate, cubic-bezier(0.33, 1, 0.68, 1)) forwards;
+}
+
+.pathBlue {
+  stroke: #4650d6;
+  stroke-width: 4;
+}
+
+.pathTeal {
+  stroke: #0b7568;
+  stroke-width: 2.5;
+  animation-delay: 80ms;
+}
+
+.point {
+  fill: #fff;
+  stroke: #5661e3;
+  stroke-width: 3;
+  opacity: 0;
+  transform-origin: 42px 40px;
+  animation: point 240ms 340ms var(--ease-decelerate, ease-out) forwards;
+}
+
+.wordmark {
+  margin-top: 14px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+}
+
+.label {
+  margin-top: 10px;
+  color: #727c8b;
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes point {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes boot-exit {
+  to {
+    visibility: hidden;
+    pointer-events: none;
+    opacity: 0;
+  }
+}
+
+:global(html[data-motion-mode="reduced"]) .boot {
+  animation-delay: 0ms;
+}
+
+:global(html[data-motion-mode="reduced"]) .pathBlue,
+:global(html[data-motion-mode="reduced"]) .pathTeal,
+:global(html[data-motion-mode="reduced"]) .point {
+  animation: none;
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+
+:global(html[data-motion-budget="low"]) .boot {
+  animation-duration: 80ms;
+  animation-delay: 0ms;
+}
+
+:global(html[data-motion-budget="low"]) .pathBlue,
+:global(html[data-motion-budget="low"]) .pathTeal,
+:global(html[data-motion-budget="low"]) .point {
+  animation: none;
+  opacity: 1;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global(html:not([data-motion-mode])) .boot {
+    animation-delay: 0ms;
+  }
+
+  :global(html:not([data-motion-mode])) .pathBlue,
+  :global(html:not([data-motion-mode])) .pathTeal,
+  :global(html:not([data-motion-mode])) .point {
+    animation: none;
+    opacity: 1;
+    stroke-dashoffset: 0;
+  }
+}

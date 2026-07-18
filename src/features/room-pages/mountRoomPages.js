@@ -1,16 +1,12 @@
 import { createElement } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import { RoomPages } from './RoomPages.jsx';
 
-let pagesRoot = null;
+const pagesRoot = createHostAwareRoot();
 
 export function mountRoomPages(props) {
   const host = document.getElementById('room-pages-dynamic');
   const menuHost = document.getElementById('room-add-page-menu');
   if (!host) return;
-  if (!pagesRoot) {
-    host.replaceChildren();
-    pagesRoot = createRoot(host);
-  }
-  pagesRoot.render(createElement(RoomPages, { ...props, key: props.roomId, menuHost }));
+  pagesRoot.render(host, createElement(RoomPages, { ...props, key: props.roomId, menuHost }));
 }

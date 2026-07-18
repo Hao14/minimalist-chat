@@ -10,9 +10,25 @@ const sameOriginAuthDomains = new Set([
   'chat-app-356c1.firebaseapp.com',
 ]);
 
+function configuredSameOriginAuthDomains() {
+  if (typeof window === 'undefined') return sameOriginAuthDomains;
+
+  const configuredHosts = new Set([
+    ...sameOriginAuthDomains,
+    ...(Array.isArray(window.FIREBASE_AUTH_SAME_ORIGIN_HOSTS) ? window.FIREBASE_AUTH_SAME_ORIGIN_HOSTS : []),
+    ...String(window.FIREBASE_AUTH_SAME_ORIGIN_HOSTS || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  ]);
+
+  return configuredHosts;
+}
+
 function resolveAuthDomain() {
   if (typeof window === 'undefined') return defaultAuthDomain;
-  return sameOriginAuthDomains.has(window.location.hostname)
+  if (window.FIREBASE_AUTH_DOMAIN) return String(window.FIREBASE_AUTH_DOMAIN).trim();
+  return configuredSameOriginAuthDomains().has(window.location.hostname)
     ? window.location.hostname
     : defaultAuthDomain;
 }
@@ -35,6 +51,47 @@ export const db = getDatabase(app);
 
 let storagePromise = null;
 let functionsPromise = null;
+let appCheckPromise = null;
+
+function appCheckSiteKey() {
+  if (typeof window === 'undefined') return '';
+  return String(window.FIREBASE_APP_CHECK_SITE_KEY || window.FIREBASE_APPCHECK_SITE_KEY || '').trim();
+}
+
+export function isAppCheckConfigured() {
+  return Boolean(appCheckSiteKey());
+}
+
+export async function getAppCheckHeaders(forceRefresh = false) {
+  const siteKey = appCheckSiteKey();
+  if (!siteKey) return {};
+
+  if (!appCheckPromise) {
+    appCheckPromise = import('firebase/app-check').then(({ initializeAppCheck, ReCaptchaV3Provider }) => {
+      if (typeof window !== 'undefined' && window.FIREBASE_APP_CHECK_DEBUG_TOKEN) {
+        globalThis.FIREBASE_APPCHECK_DEBUG_TOKEN = window.FIREBASE_APP_CHECK_DEBUG_TOKEN === true
+          ? true
+          : String(window.FIREBASE_APP_CHECK_DEBUG_TOKEN);
+      }
+      return initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(siteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    });
+  }
+
+  try {
+    const [{ getToken }, appCheck] = await Promise.all([
+      import('firebase/app-check'),
+      appCheckPromise,
+    ]);
+    const result = await getToken(appCheck, forceRefresh);
+    return result?.token ? { 'X-Firebase-AppCheck': result.token } : {};
+  } catch (error) {
+    console.warn('Firebase App Check token unavailable', error);
+    return {};
+  }
+}
 
 export function getStorageLazy() {
   if (!storagePromise) {

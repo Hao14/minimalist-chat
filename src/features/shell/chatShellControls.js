@@ -1,21 +1,148 @@
-function closeFloatingUI({ keep = '' } = {}) {
+import { ROOM_TAB_CHANGE_EVENT } from './roomTabActivity.js';
+
+const UPDATE_PANELS = {
+  'tab-notifications': 'notifications-list',
+  'tab-quests': 'quests-list',
+  'tab-leaderboard': 'leaderboard-list',
+  'tab-recognition': 'recognition-list',
+  'tab-changelog': 'updates-list',
+};
+
+const UPDATE_TAB_ALIASES = {
+  activity: 'tab-notifications',
+  notifications: 'tab-notifications',
+  quests: 'tab-quests',
+  leaderboard: 'tab-leaderboard',
+  ranks: 'tab-leaderboard',
+  recognition: 'tab-recognition',
+  kudos: 'tab-recognition',
+  changelog: 'tab-changelog',
+  updates: 'tab-changelog',
+  'whats-new': 'tab-changelog',
+};
+
+let updatesLastFocus = null;
+
+function syncUpdatesOpenState(isOpen) {
+  const panel = document.getElementById('updates-panel');
+  panel?.setAttribute('aria-hidden', String(!isOpen));
+  ['open-updates-btn-desktop', 'open-updates-btn-mobile'].forEach((id) => {
+    document.getElementById(id)?.setAttribute('aria-expanded', String(isOpen));
+  });
+  document.body.classList.toggle('updates-center-open', isOpen);
+}
+
+function resolveUpdatesTab(tab) {
+  const requested = String(tab || '').trim().toLowerCase();
+  if (UPDATE_PANELS[tab]) return tab;
+  return UPDATE_TAB_ALIASES[requested] || 'tab-notifications';
+}
+
+function activateUpdatesTab(tab, { focus = false } = {}) {
+  const tabId = resolveUpdatesTab(tab);
+  Object.entries(UPDATE_PANELS).forEach(([candidateTabId, panelId]) => {
+    const isActive = candidateTabId === tabId;
+    const candidateTab = document.getElementById(candidateTabId);
+    const panel = document.getElementById(panelId);
+    candidateTab?.classList.toggle('active', isActive);
+    candidateTab?.setAttribute('aria-selected', String(isActive));
+    if (candidateTab) candidateTab.tabIndex = isActive ? 0 : -1;
+    panel?.classList.toggle('hidden', !isActive);
+    panel?.setAttribute('aria-hidden', String(!isActive));
+  });
+
+  const updatesPanel = document.getElementById('updates-panel');
+  updatesPanel?.setAttribute('data-active-section', tabId.replace(/^tab-/, ''));
+  if (tabId === 'tab-leaderboard') window.renderLeaderboard?.();
+  else if (tabId === 'tab-recognition') window.renderRecognition?.();
+  else if (tabId === 'tab-quests') window.renderQuests?.();
+  else if (tabId === 'tab-changelog') window.fetchGitHubUpdates?.();
+  else window.renderNotificationActivity?.();
+
+  if (tabId !== 'tab-quests') window.stopQuestLiveSync?.();
+  if (tabId !== 'tab-changelog') window.stopGitHubUpdates?.();
+  if (focus) document.getElementById(tabId)?.focus();
+  return tabId;
+}
+
+function closeUpdatesPanel({ restoreFocus = true } = {}) {
+  const panel = document.getElementById('updates-panel');
+  const wasOpen = panel?.classList.contains('open');
+  const returnFocus = updatesLastFocus;
+  panel?.classList.remove('open');
+  syncUpdatesOpenState(false);
+  window.stopQuestLiveSync?.();
+  window.stopGitHubUpdates?.();
+
+  if (wasOpen && restoreFocus && returnFocus?.isConnected) {
+    window.requestAnimationFrame(() => returnFocus.focus());
+  }
+  updatesLastFocus = null;
+}
+
+window.closeUpdatesPanel = closeUpdatesPanel;
+window.setUpdatesTab = activateUpdatesTab;
+
+window.openUpdatesPanel = function openUpdatesPanel({ closeOthers = true, focus = true, opener, tab } = {}) {
+  const panel = document.getElementById('updates-panel');
+  if (!panel) return false;
+  if (closeOthers) closeFloatingUI({ keep: 'updates-panel' });
+
+  if (!panel.classList.contains('open')) {
+    const candidate = opener instanceof HTMLElement ? opener : document.activeElement;
+    updatesLastFocus = candidate instanceof HTMLElement && !panel.contains(candidate) ? candidate : null;
+  }
+
+  panel.classList.add('open');
+  syncUpdatesOpenState(true);
+  const activeTab = tab || panel.querySelector('.update-tab.active')?.id || 'tab-notifications';
+  activateUpdatesTab(activeTab);
+  if (focus) document.getElementById('close-updates-btn')?.focus();
+  return true;
+};
+
+function closeFloatingUI({ keep = '', restoreFocus = false } = {}) {
   const closeUnless = (id) => {
     if (keep === id) return;
+    if (id === 'pm-popup') {
+      if (typeof window.closePrivateChatDock === 'function') window.closePrivateChatDock({ restoreOrigin: false });
+      else document.getElementById(id)?.classList.add('hidden');
+      return;
+    }
     if (id === 'contacts-panel' && typeof window.closeContactsPanel === 'function') {
+      document.getElementById(id)?.classList.remove('open');
       window.closeContactsPanel();
+      return;
+    }
+    if (id === 'personal-ai-agent-panel' && typeof window.closePersonalAgent === 'function') {
+      window.closePersonalAgent();
       return;
     }
     if (id === 'bookmarks-panel' && typeof window.closeBookmarksPanel === 'function') {
       window.closeBookmarksPanel();
       return;
     }
+    if (id === 'updates-panel') {
+      closeUpdatesPanel({ restoreFocus });
+      return;
+    }
+    if (id === 'settings-modal' && typeof window.closeSettingsModal === 'function') {
+      window.closeSettingsModal({ restoreFocus });
+      return;
+    }
     const el = document.getElementById(id);
     if (!el) return;
+    if (id === 'search-modal') {
+      window.dispatchEvent(new CustomEvent('minimalist:close-search'));
+      el.classList.add('hidden');
+      return;
+    }
     if (id.endsWith('-modal') || id === 'settings-modal' || id === 'search-modal' || id === 'bookmarks-panel') el.classList.add('hidden');
     else el.classList.remove('open');
   };
 
   [
+    'pm-popup',
     'contacts-panel',
     'updates-panel',
     'personal-ai-agent-panel',
@@ -34,13 +161,90 @@ function closeFloatingUI({ keep = '' } = {}) {
 
   document.getElementById('room-settings-dropdown')?.classList.add('hidden');
   document.getElementById('room-add-page-menu')?.classList.add('hidden');
-  document.getElementById('emoji-picker')?.classList.add('hidden');
-  document.getElementById('user-profile-popup')?.classList.add('hidden');
+  if (keep !== 'emoji-picker' && typeof window.closeEmojiPicker === 'function') window.closeEmojiPicker();
+  else if (keep !== 'emoji-picker') document.getElementById('emoji-picker')?.classList.add('hidden');
+  document.getElementById('custom-context-menu')?.classList.add('hidden');
+  document.getElementById('profile-more-dropdown')?.classList.add('hidden');
+  if (typeof window.closeUserProfilePopup === 'function') {
+    window.closeUserProfilePopup({ restoreFocus: false });
+  } else {
+    document.getElementById('user-profile-popup')?.classList.add('hidden');
+  }
 
   if (!keep || keep !== 'settings-modal') document.getElementById('modal-overlay')?.classList.add('hidden');
 }
 
 window.closeFloatingUI = closeFloatingUI;
+
+function eventTargetElement(event) {
+  const target = event.target;
+  if (target instanceof Element) return target;
+  return target?.parentElement || null;
+}
+
+function syncRoomDropdownAccessibility() {
+  const trigger = document.getElementById('room-name-wrapper');
+  const dropdown = document.getElementById('room-settings-dropdown');
+  if (!trigger || !dropdown) return;
+
+  trigger.setAttribute('aria-expanded', String(!dropdown.classList.contains('hidden')));
+}
+
+function setupRoomDropdownAccessibility() {
+  const trigger = document.getElementById('room-name-wrapper');
+  const dropdown = document.getElementById('room-settings-dropdown');
+  if (!trigger || !dropdown || dropdown.dataset.roomA11yBound === 'true') return;
+
+  dropdown.dataset.roomA11yBound = 'true';
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-controls', 'room-settings-dropdown');
+  syncRoomDropdownAccessibility();
+
+  const observer = new MutationObserver(syncRoomDropdownAccessibility);
+  observer.observe(dropdown, { attributes: true, attributeFilter: ['class'] });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupRoomDropdownAccessibility, { once: true });
+} else {
+  window.requestAnimationFrame(setupRoomDropdownAccessibility);
+}
+
+function isVisibleElement(element) {
+  if (!element || element.classList.contains('hidden')) return false;
+  if (element.classList.contains('open')) return true;
+  return element.offsetParent !== null || getComputedStyle(element).position === 'fixed';
+}
+
+function syncRoomViewAccessibility(activeView, targetTab) {
+  const previousView = document.querySelector('.room-tab.active')?.getAttribute('data-target') || null;
+  const previousRoomId = syncRoomViewAccessibility.lastRoomId || null;
+
+  document.querySelectorAll('.room-tab').forEach((tab) => {
+    const isActive = tab === targetTab;
+    tab.classList.toggle('active', isActive);
+    tab.setAttribute('aria-selected', String(isActive));
+    tab.tabIndex = isActive ? 0 : -1;
+  });
+
+  document.querySelectorAll('.room-view').forEach((view) => {
+    const isActive = view.id === `room-view-${activeView}`;
+    view.classList.toggle('active', isActive);
+    view.classList.toggle('hidden', !isActive);
+    view.setAttribute('aria-hidden', String(!isActive));
+  });
+
+  const roomId = window.activeRoomId || null;
+  syncRoomViewAccessibility.lastRoomId = roomId;
+
+  // Lazy room features use this one lifecycle event to pause live listeners and
+  // timers while hidden. It also fires when the room changes but the tab does not.
+  if (previousView !== activeView || previousRoomId !== roomId) {
+    window.dispatchEvent(new CustomEvent(ROOM_TAB_CHANGE_EVENT, {
+      detail: { activeView, previousView, roomId, previousRoomId },
+    }));
+  }
+}
 
 function syncRoomChannelBar(targetView = document.querySelector('.room-tab.active')?.getAttribute('data-target')) {
   const channelBar = document.getElementById('room-channel-bar');
@@ -76,12 +280,7 @@ window.scrollMessagesToLatest = scrollMessagesToLatest;
 function activateRoomView(targetView = 'chat') {
   const targetTab = Array.from(document.querySelectorAll('.room-tab')).find((tab) => tab.getAttribute('data-target') === targetView);
 
-  document.querySelectorAll('.room-tab').forEach((tab) => {
-    tab.classList.toggle('active', tab === targetTab);
-  });
-
-  document.querySelectorAll('.room-view').forEach((view) => view.classList.add('hidden'));
-  document.getElementById(`room-view-${targetView}`)?.classList.remove('hidden');
+  syncRoomViewAccessibility(targetView, targetTab);
   syncRoomChannelBar(targetView);
 
   if (targetView === 'chat') {
@@ -104,18 +303,37 @@ function activateRoomView(targetView = 'chat') {
 
 window.activateRoomView = activateRoomView;
 
-const ROOM_COLLAPSE_STORAGE_KEY = 'minimalist.roomsCollapsed';
+function allowSpeculativeRoomFeaturePreload() {
+  const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+  if (connection?.saveData) return false;
+  if (['slow-2g', '2g'].includes(String(connection?.effectiveType || '').toLowerCase())) return false;
+  if (Number(navigator.deviceMemory || 4) <= 2) return false;
+  return true;
+}
+
+function preloadRoomFeatureFromIntent(event, { explicit = false } = {}) {
+  const tab = eventTargetElement(event)?.closest('.room-tab[data-target]');
+  const view = tab?.getAttribute('data-target');
+  if (!view || view === 'chat' || (!explicit && !allowSpeculativeRoomFeaturePreload())) return;
+  window.preloadRoomFeature?.(view).catch(() => {});
+}
+
+document.addEventListener('pointerover', (event) => preloadRoomFeatureFromIntent(event), true);
+document.addEventListener('focusin', (event) => preloadRoomFeatureFromIntent(event), true);
+document.addEventListener('pointerdown', (event) => preloadRoomFeatureFromIntent(event, { explicit: true }), true);
+
+// Version the preference so stale pre-fix collapsed state cannot hide every
+// room label after the responsive room-row layout changes.
+const ROOM_COLLAPSE_STORAGE_KEY = 'minimalist.roomsCollapsed.v2';
+const roomCollapseViewport = window.matchMedia?.('(min-width: 769px)');
 let roomCollapseTimer = null;
+
+function supportsCollapsedRoomRail() {
+  return roomCollapseViewport?.matches !== false;
+}
 
 function prefersReducedRoomMotion() {
   return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
-}
-
-function setRoomCollapseStagger() {
-  const roomItems = Array.from(document.querySelectorAll('#desktop-room-sidebar .room-item'));
-  roomItems.forEach((item, index) => {
-    item.style.setProperty('--room-stagger', `${Math.min(index * 18, 144)}ms`);
-  });
 }
 
 function syncRoomCollapseButton(collapsed) {
@@ -132,8 +350,8 @@ function setRoomsCollapsed(nextCollapsed, { persist = true, animate = true } = {
   const wrapper = document.getElementById('chat-wrapper');
   if (!wrapper) return;
 
-  const collapsed = Boolean(nextCollapsed);
-  setRoomCollapseStagger();
+  const requestedCollapsed = Boolean(nextCollapsed);
+  const collapsed = requestedCollapsed && supportsCollapsedRoomRail();
 
   if (roomCollapseTimer) window.clearTimeout(roomCollapseTimer);
   wrapper.classList.remove('rooms-expanding', 'rooms-collapsing');
@@ -146,7 +364,7 @@ function setRoomsCollapsed(nextCollapsed, { persist = true, animate = true } = {
 
   if (persist) {
     try {
-      window.localStorage?.setItem(ROOM_COLLAPSE_STORAGE_KEY, collapsed ? 'true' : 'false');
+      window.localStorage?.setItem(ROOM_COLLAPSE_STORAGE_KEY, requestedCollapsed ? 'true' : 'false');
     } catch {
       // Storage can be unavailable in private browsing; the UI should still animate.
     }
@@ -156,7 +374,7 @@ function setRoomsCollapsed(nextCollapsed, { persist = true, animate = true } = {
     roomCollapseTimer = window.setTimeout(() => {
       wrapper.classList.remove('room-collapse-animating', 'rooms-expanding', 'rooms-collapsing');
       roomCollapseTimer = null;
-    }, 640);
+    }, 260);
   } else {
     wrapper.classList.remove('room-collapse-animating', 'rooms-expanding', 'rooms-collapsing');
   }
@@ -185,68 +403,72 @@ if (document.readyState === 'loading') {
   window.requestAnimationFrame(hydrateRoomCollapsePreference);
 }
 
+if (roomCollapseViewport?.addEventListener) {
+  roomCollapseViewport.addEventListener('change', hydrateRoomCollapsePreference);
+} else if (roomCollapseViewport?.addListener) {
+  roomCollapseViewport.addListener(hydrateRoomCollapsePreference);
+}
+
 document.addEventListener('click', (event) => {
-  if (event.target.closest('#mobile-back-to-rooms')) {
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  if (target.closest('#mobile-back-to-rooms')) {
     document.getElementById('desktop-room-sidebar')?.classList.add('open');
   }
 
-  if (event.target.closest('.room-item')) {
+  if (target.closest('.room-item')) {
     const roomSearch = document.getElementById('room-search-input');
     if (roomSearch) roomSearch.value = '';
   }
 
-  if (['tab-notifications', 'tab-changelog', 'tab-leaderboard', 'tab-recognition', 'tab-quests'].includes(event.target.id)) {
-    ['tab-notifications', 'tab-changelog', 'tab-leaderboard', 'tab-recognition', 'tab-quests'].forEach((id) => {
-      document.getElementById(id)?.classList.toggle('active', id === event.target.id);
-    });
-
-    document.getElementById('notifications-list')?.classList.toggle('hidden', event.target.id !== 'tab-notifications');
-    document.getElementById('updates-list')?.classList.toggle('hidden', event.target.id !== 'tab-changelog');
-    document.getElementById('leaderboard-list')?.classList.toggle('hidden', event.target.id !== 'tab-leaderboard');
-    document.getElementById('recognition-list')?.classList.toggle('hidden', event.target.id !== 'tab-recognition');
-    document.getElementById('quests-list')?.classList.toggle('hidden', event.target.id !== 'tab-quests');
-
-    if (event.target.id === 'tab-leaderboard' && window.renderLeaderboard) window.renderLeaderboard();
-    if (event.target.id === 'tab-recognition' && window.renderRecognition) window.renderRecognition();
-    if (event.target.id === 'tab-quests' && window.renderQuests) window.renderQuests();
+  const updateTab = target.closest('.update-tab');
+  if (updateTab && UPDATE_PANELS[updateTab.id]) {
+    event.preventDefault();
+    activateUpdatesTab(updateTab.id);
   }
 });
 
 document.addEventListener('input', (event) => {
-  if (event.target.id === 'pm-search-input') {
-    const query = event.target.value.toLowerCase();
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  if (target.id === 'pm-search-input') {
+    const query = target.value.toLowerCase();
     document.querySelectorAll('#pm-messages li').forEach((msg) => {
       const text = msg.textContent.toLowerCase();
       msg.style.display = text.includes(query) ? 'list-item' : 'none';
     });
   }
 
-  if (event.target.id === 'contact-search-input') {
-    if (window.renderContactsUI) window.renderContactsUI();
-  }
 });
 
 document.addEventListener('click', (event) => {
+  const target = eventTargetElement(event);
+  if (!target) return;
+
   const profilePopup = document.getElementById('user-profile-popup');
   if (profilePopup && !profilePopup.classList.contains('hidden')) {
     if (
-      !event.target.closest('#user-profile-popup')
-      && !event.target.closest('.msg-avatar')
-      && !event.target.closest('.msg-name')
-      && !event.target.closest('.avatar-wrapper')
-      && !event.target.closest('.contact-icon-btn')
-      && !event.target.closest('#preview-profile-btn')
+      !target.closest('#user-profile-popup')
+      && !target.closest('.msg-avatar')
+      && !target.closest('.msg-name')
+      && !target.closest('.avatar-wrapper')
+      && !target.closest('.contact-icon-btn')
+      && !target.closest('#preview-profile-btn')
     ) {
-      profilePopup.classList.add('hidden');
-
-      const settings = document.getElementById('settings-modal');
-      if (!settings || settings.classList.contains('hidden')) {
-        document.getElementById('modal-overlay')?.classList.add('hidden');
+      if (typeof window.closeUserProfilePopup === 'function') window.closeUserProfilePopup();
+      else {
+        profilePopup.classList.add('hidden');
+        const settings = document.getElementById('settings-modal');
+        if (!settings || settings.classList.contains('hidden')) {
+          document.getElementById('modal-overlay')?.classList.add('hidden');
+        }
       }
     }
   }
 
-  if (event.target.id === 'modal-overlay') {
+  if (target.id === 'modal-overlay') {
     const modals = [
       'room-action-modal',
       'room-settings-modal',
@@ -266,13 +488,17 @@ document.addEventListener('click', (event) => {
 });
 
 document.addEventListener('click', (event) => {
-  const isRooms = event.target.closest('#open-rooms-btn-mobile');
-  const isContacts = event.target.closest('#open-contacts-btn') || event.target.closest('#open-contacts-btn-mobile');
-  const isPersonalAgent = event.target.closest('#open-personal-agent-btn');
-  const isVault = event.target.closest('#open-vault-btn') || event.target.closest('#open-vault-btn-mobile');
-  const isUpdates = event.target.closest('#open-updates-btn-desktop') || event.target.closest('#open-updates-btn-mobile');
-  const isBookmarks = event.target.closest('#open-bookmarks-btn');
-  const isSettings = event.target.closest('#open-settings-btn') || event.target.closest('#open-settings-btn-mobile');
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  const isRooms = target.closest('#open-rooms-btn-mobile');
+  const isContacts = target.closest('#open-contacts-btn') || target.closest('#open-contacts-btn-mobile');
+  const isPersonalAgent = target.closest('#open-personal-agent-btn') || target.closest('#open-personal-agent-btn-mobile');
+  const personalAgentSurface = isPersonalAgent?.id === 'open-personal-agent-btn-mobile' ? 'mobile' : 'desktop';
+  const isVault = target.closest('#open-vault-btn') || target.closest('#open-vault-btn-mobile');
+  const isUpdates = target.closest('#open-updates-btn-desktop') || target.closest('#open-updates-btn-mobile');
+  const isBookmarks = target.closest('#open-bookmarks-btn');
+  const isSettings = target.closest('#open-settings-btn') || target.closest('#open-settings-btn-mobile');
 
   if (!(isRooms || isContacts || isPersonalAgent || isVault || isUpdates || isBookmarks || isSettings)) return;
 
@@ -311,11 +537,15 @@ document.addEventListener('click', (event) => {
   if (isRooms && !wasRoomsOpen && roomsSidebar) roomsSidebar.classList.add('open');
 
   if (isContacts && !wasContactsOpen) {
-    if (window.toggleContacts) window.toggleContacts();
+    // Reveal the drawer immediately, even if its lazy service is still warming.
+    // openContactsPanel is idempotent and hydrates cached rows/subscriptions once ready.
+    contactsPanel?.classList.add('open');
+    if (window.openContactsPanel) window.openContactsPanel();
+    else if (window.toggleContacts) window.toggleContacts();
   }
 
   if (isPersonalAgent && !wasPersonalAgentOpen) {
-    if (window.openPersonalAgent) window.openPersonalAgent();
+    if (window.openPersonalAgent) window.openPersonalAgent({ surface: personalAgentSurface });
   }
 
   if (isVault && !wasVaultOpen) {
@@ -323,8 +553,7 @@ document.addEventListener('click', (event) => {
   }
 
   if (isUpdates && !wasUpdatesOpen && updatesPanel) {
-    updatesPanel.classList.add('open');
-    if (window.fetchGitHubUpdates) window.fetchGitHubUpdates();
+    window.openUpdatesPanel?.({ closeOthers: false, opener: isUpdates });
   }
 
   if (isBookmarks && !wasBookmarksOpen) {
@@ -337,22 +566,29 @@ document.addEventListener('click', (event) => {
 }, true);
 
 document.addEventListener('click', (event) => {
-  if (event.target.closest('#close-personal-agent-btn')) {
-    document.getElementById('personal-ai-agent-panel')?.classList.remove('open');
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  if (target.closest('#close-personal-agent-btn')) {
+    if (typeof window.closePersonalAgent === 'function') window.closePersonalAgent();
+    else document.getElementById('personal-ai-agent-panel')?.classList.remove('open');
   }
 
-  if (event.target.closest('#close-vault-btn')) {
+  if (target.closest('#close-vault-btn')) {
     document.getElementById('vault-panel')?.classList.remove('open');
   }
 
-  if (event.target.closest('#toggle-rooms-collapse-btn')) {
+  if (target.closest('#toggle-rooms-collapse-btn')) {
     const wrapper = document.getElementById('chat-wrapper');
     setRoomsCollapsed(!wrapper?.classList.contains('rooms-collapsed'));
   }
 });
 
 document.addEventListener('click', (event) => {
-  const samePageChatLink = event.target.closest('a[href="/chat"]');
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  const samePageChatLink = target.closest('a[href="/chat"]');
   if (samePageChatLink && window.location.pathname.includes('/chat')) {
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -363,24 +599,43 @@ document.addEventListener('click', (event) => {
   }
 }, true);
 
-document.addEventListener('click', (event) => {
-  if (!event.target.closest('#toggle-room-search-btn')) return;
-
+function setRoomSearchOpen(open, { focus = true } = {}) {
   const searchInput = document.getElementById('room-search-input');
-  if (!searchInput) return;
+  const toggle = document.getElementById('toggle-room-search-btn');
+  if (!searchInput) return false;
 
-  searchInput.classList.toggle('open');
-  if (searchInput.classList.contains('open')) {
-    searchInput.focus();
-    return;
+  searchInput.classList.toggle('open', open);
+  searchInput.setAttribute('aria-hidden', open ? 'false' : 'true');
+  searchInput.tabIndex = open ? 0 : -1;
+  toggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
+
+  if (open) {
+    if (focus) searchInput.focus();
+    return true;
   }
 
   searchInput.value = '';
   searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+  if (focus) toggle?.focus();
+  return true;
+}
+
+window.setRoomSearchOpen = setRoomSearchOpen;
+
+document.addEventListener('click', (event) => {
+  const target = eventTargetElement(event);
+  if (!target?.closest('#toggle-room-search-btn')) return;
+
+  const searchInput = document.getElementById('room-search-input');
+  if (!searchInput) return;
+  setRoomSearchOpen(!searchInput.classList.contains('open'));
 });
 
 document.addEventListener('click', (event) => {
-  const tabBtn = event.target.closest('.room-tab');
+  const target = eventTargetElement(event);
+  if (!target) return;
+
+  const tabBtn = target.closest('.room-tab');
   if (!tabBtn) return;
 
   const targetView = tabBtn.getAttribute('data-target');
@@ -397,16 +652,127 @@ document.addEventListener('click', (event) => {
   activateRoomView(targetView);
 });
 
+document.addEventListener('keydown', (event) => {
+  const roomNameTrigger = event.target?.closest?.('#room-name-wrapper');
+  if (roomNameTrigger && (event.key === 'Enter' || event.key === ' ')) {
+    event.preventDefault();
+    roomNameTrigger.click();
+    window.requestAnimationFrame(syncRoomDropdownAccessibility);
+    return;
+  }
+
+  const updatesTab = event.target?.closest?.('.update-tab');
+  if (updatesTab && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+    const tabs = Object.keys(UPDATE_PANELS)
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+    const currentIndex = Math.max(0, tabs.indexOf(updatesTab));
+    let nextIndex = currentIndex;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
+    else if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    event.preventDefault();
+    activateUpdatesTab(tabs[nextIndex]?.id, { focus: true });
+    return;
+  }
+
+  if (event.key !== 'Escape' || event.defaultPrevented) return;
+
+  const deleteAccountModal = document.getElementById('delete-account-modal');
+  if (isVisibleElement(deleteAccountModal)) {
+    event.preventDefault();
+    document.getElementById('delete-cancel-btn')?.click();
+    window.requestAnimationFrame(() => document.getElementById('delete-account-btn')?.focus());
+    return;
+  }
+
+  const profilePopup = document.getElementById('user-profile-popup');
+  if (isVisibleElement(profilePopup)) {
+    event.preventDefault();
+    if (typeof window.closeUserProfilePopup === 'function') window.closeUserProfilePopup();
+    else profilePopup?.classList.add('hidden');
+    return;
+  }
+
+  const settingsModal = document.getElementById('settings-modal');
+  if (isVisibleElement(settingsModal)) {
+    event.preventDefault();
+    const settingsPreview = document.getElementById('settings-profile-preview');
+    if (isVisibleElement(settingsPreview) && typeof window.closeSettingsCardPreview === 'function') {
+      window.closeSettingsCardPreview();
+    } else if (typeof window.closeSettingsModal === 'function') {
+      window.closeSettingsModal({ restoreFocus: true });
+    } else {
+      settingsModal.classList.add('hidden');
+    }
+    return;
+  }
+
+  const roomSidebar = document.getElementById('desktop-room-sidebar');
+  const menuIds = [
+    'room-settings-dropdown',
+    'room-add-page-menu',
+    'profile-more-dropdown',
+    'custom-context-menu',
+    'emoji-picker',
+  ];
+  const floatingIds = [
+    'contacts-panel',
+    'updates-panel',
+    'personal-ai-agent-panel',
+    'vault-panel',
+    'settings-modal',
+    'room-settings-modal',
+    'room-action-modal',
+    'room-invite-modal',
+    'leave-room-modal',
+    'delete-room-modal',
+    'mute-user-modal',
+    'admin-dashboard-modal',
+    'search-modal',
+  ];
+
+  const openMenuId = menuIds.find((id) => isVisibleElement(document.getElementById(id)));
+  if (openMenuId) {
+    if (openMenuId === 'emoji-picker' && typeof window.closeEmojiPicker === 'function') {
+      window.closeEmojiPicker({ restoreFocus: true });
+    } else {
+      document.getElementById(openMenuId)?.classList.add('hidden');
+    }
+    return;
+  }
+
+  if (floatingIds.some((id) => isVisibleElement(document.getElementById(id)))) {
+    closeFloatingUI({ restoreFocus: true });
+    return;
+  }
+
+  if (roomSidebar?.classList.contains('open')) {
+    roomSidebar.classList.remove('open');
+  }
+});
+
 window.onRoomChanged = function onRoomChanged() {
   const defaultView = window.isSimpleFeatureMode?.() ? 'chat' : window.activeRoomId === 'global' ? 'chat' : 'home';
 
-  document.querySelectorAll('.room-tab').forEach((tab) => {
-    tab.classList.toggle('active', tab.getAttribute('data-target') === defaultView);
-  });
-  document.querySelectorAll('.room-view').forEach((view) => view.classList.add('hidden'));
-  document.getElementById(`room-view-${defaultView}`)?.classList.remove('hidden');
+  const activeTab = Array.from(document.querySelectorAll('.room-tab')).find((tab) => tab.getAttribute('data-target') === defaultView);
+  syncRoomViewAccessibility(defaultView, activeTab);
   syncRoomChannelBar(defaultView);
 
   if (window.renderRoomPages) window.renderRoomPages();
-  if (defaultView === 'home' && window.loadRoomHome) window.loadRoomHome();
+  const roomScopedFeatureLoaders = {
+    home: window.loadRoomHome,
+    docs: window.loadRoomDocs,
+    whiteboard: window.loadRoomWhiteboard,
+    tasks: window.loadRoomTasks,
+    events: window.loadRoomEvents,
+    calendar: window.loadRoomCalendar,
+    ai: window.loadRoomAI,
+  };
+  const defaultLoader = roomScopedFeatureLoaders[defaultView];
+  if (typeof defaultLoader === 'function') defaultLoader();
+  // Calls are excluded here so changing rooms cannot interrupt an active or
+  // minimized call. Other hidden features rescope lazily when selected so room
+  // switching stays constant-cost no matter how many tabs were opened before.
 };

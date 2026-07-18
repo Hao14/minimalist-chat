@@ -15,7 +15,7 @@ window.currentMuteTimeout = null;
 window.currentMuteListenerRef = null;
 window.chatInitialized = false;
 
-window.currentUser = null;
+window.currentUser = window.currentUser || null;
 window.userProfileName = 'Anonymous';
 window.userPhotoUrl = '';
 window.userPronouns = '';
@@ -27,6 +27,7 @@ window.userBannerUrl = '';
 window.userFlair = '';
 window.userShortId = '';
 window.userTier = 'free';
+window.accountSubscriptionStatus = '';
 window.userPhone = 'No phone on file';
 
 window.getAvatarUrl = function getAvatarUrl(name, url) {

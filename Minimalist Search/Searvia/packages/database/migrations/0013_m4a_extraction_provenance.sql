@@ -1,0 +1,2 @@
+CREATE TYPE "public"."page_extraction_status" AS ENUM('succeeded', 'failed');--> statement-breakpoint
+ALTER TABLE "crawl_page_extractions" ADD COLUMN "status" "page_extraction_status" DEFAULT 'failed' NOT NULL;
