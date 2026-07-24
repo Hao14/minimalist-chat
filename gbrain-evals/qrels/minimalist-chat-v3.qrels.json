@@ -1,0 +1,1061 @@
+{
+  "schema_version": 2,
+  "_description": "Evaluation V3 for Minimalist Chat. It preserves all 50 V2 judgments and adds 50 source-grounded questions covering real user phrasing, code behavior, authority conflicts, visual history, negative/source-leakage checks, and citation-oriented evidence requests.",
+  "sources": {
+    "default": {
+      "kind": "markdown",
+      "root": "../../Minimalist-chat-vault",
+      "include": [
+        "00 Home",
+        "10 Product",
+        "11 Product",
+        "20 Research",
+        "30 Audits",
+        "40 Operations",
+        "50 Skills",
+        "90 Memory"
+      ],
+      "exclude": ["graphify-out", "skills", ".gbrain", ".obsidian"]
+    },
+    "minimalist-chat-code": {
+      "kind": "code",
+      "root": "../.."
+    }
+  },
+  "gate_thresholds": {
+    "hit_at_3_rate": 0.8,
+    "mean_recall_at_k": 0.85,
+    "mean_reciprocal_rank": 0.72,
+    "mean_ndcg_at_10": 0.75,
+    "expected_top1_hit_rate": 0.60,
+    "source_scope_pass_rate": 1.0,
+    "negative_check_pass_rate": 0.85
+  },
+  "_gate_rationale": "V3 preserves every accepted V2 baseline gate while doubling the source-grounded corpus from 50 to 100 cases. The live local brain passed these unchanged thresholds on 2026-07-22, so the gate remains the measured production baseline rather than being weakened or recalibrated after the run.",
+  "queries": [
+    {
+      "query_id": "product-purpose",
+      "category": "current-notes",
+      "query": "If I had to explain Minimalist Chat to a friend in one sentence, what problem does it solve?",
+      "relevant": [
+        { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+    },
+    {
+      "query_id": "technical-architecture",
+      "category": "current-notes",
+      "query": "Without jargon, what are the main pieces the app is built from, from the web screen to data, mobile apps, servers, and payments?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "product-priorities",
+      "category": "current-notes",
+      "query": "What should the team build next to make the product feel more complete, and which ideas were deliberately postponed?",
+      "relevant": [
+        { "source_id": "default", "slug": "20-research/claude-feature-research-and-implementation-plan" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "20-research/claude-feature-research-and-implementation-plan" }
+    },
+    {
+      "query_id": "browser-ai-protection",
+      "category": "current-notes",
+      "query": "When someone asks the website's AI a question, what prevents their browser from reaching the raw model on my computer?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+    },
+    {
+      "query_id": "ollama-runtime-separation",
+      "category": "current-notes",
+      "query": "Why are GBrain and Winston connected to different Ollama addresses, and which one uses the normal tray app?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/project-memory", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+    },
+    {
+      "query_id": "remote-analysis-boundary",
+      "category": "current-notes",
+      "query": "Can I view Minimalist Analysis while away from home without giving a remote webpage control over my Windows computer?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+    },
+    {
+      "query_id": "ai-overflow-queue",
+      "category": "current-notes",
+      "query": "If ninety AI jobs are already running, what happens to the next one, and how is the user's Banana charge kept safe?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/project-memory", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+    },
+    {
+      "query_id": "lighthouse-progress",
+      "category": "current-notes",
+      "query": "How did the public site's phone and desktop Lighthouse scores change from the first test to the final live test?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/lighthouse-history" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/lighthouse-history" }
+    },
+    {
+      "query_id": "long-session-performance",
+      "category": "current-notes",
+      "query": "What keeps a long chat session or repeatedly opened hidden tabs from growing memory, listeners, and network work forever?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/project-memory", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15" }
+    },
+    {
+      "query_id": "security-audit-hardening",
+      "category": "current-notes",
+      "query": "Which audit fixes stopped people from forging notifications, rewriting someone else's messages, or bypassing room permissions?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+    },
+    {
+      "query_id": "stripe-scope-isolation",
+      "category": "current-notes",
+      "query": "Why are account subscriptions sent to a separate customer portal from room billing, and how are duplicate or wrong-owner Stripe customers handled?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "mobile-navigation-dock",
+      "category": "current-notes",
+      "query": "What are the five buttons in the signed-in phone dock, and where do Search, Vault, and Settings live now?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "private-message-history",
+      "category": "current-notes",
+      "query": "How can a phone user load older private messages without losing their place, and when does the layout switch to two panes?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "winston-identity",
+      "category": "current-notes",
+      "query": "Who is Winston, where should the gorilla picture appear, and why does the sparkle icon stay in navigation?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "calendar-photo-sources",
+      "category": "current-notes",
+      "query": "On the calendar's Scan schedule action, what is the difference between Take photo and Import picture, especially on phones?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "gbrain-accepted-configuration",
+      "category": "current-notes",
+      "query": "What is the accepted GBrain embedding model, vector size, search mode, source layout, and reranker state?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup", "grade": 3 },
+        { "source_id": "default", "slug": "30-audits/gbrain-upgrade-and-retrieval-audit-2026-07-21", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+    },
+    {
+      "query_id": "gbrain-quality-ledger",
+      "category": "current-notes",
+      "query": "Where are the accepted GBrain retrieval scores, reranker comparison, and verification ledger recorded?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/gbrain-upgrade-and-retrieval-audit-2026-07-21", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/gbrain-setup", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/gbrain-upgrade-and-retrieval-audit-2026-07-21" }
+    },
+    {
+      "query_id": "memory-capture-and-promotion",
+      "category": "current-notes",
+      "query": "Where should a quick unclassified project note go, and how should it be promoted after verification?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/memory-protocol", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/inbox", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/memory-protocol" }
+    },
+    {
+      "query_id": "canonical-source-provenance",
+      "category": "current-notes",
+      "query": "Which catalog maps imported vault notes back to canonical repository files and their hashes?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" }
+    },
+    {
+      "query_id": "analysis-desktop-shape",
+      "category": "current-notes",
+      "query": "What are the five views in the native Minimalist Analysis Windows app, and what screen sizes were verified?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/minimalist-analysis-desktop-app-review-2026-07-13" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/minimalist-analysis-desktop-app-review-2026-07-13" }
+    },
+    {
+      "query_id": "prompt-library-routing",
+      "category": "current-notes",
+      "query": "Where is the map of reusable competitor research, feature implementation, mobile audit, and bug audit prompts?",
+      "relevant": [
+        { "source_id": "default", "slug": "50-skills/prompt-library/prompt-library" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "50-skills/prompt-library/prompt-library" }
+    },
+    {
+      "query_id": "code-ai-room-context",
+      "category": "authored-code",
+      "query": "Which authored code file defines buildAiRoomContext and the fixed 8192-token local AI context budget?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "functions-ai-context-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "functions-ai-context-js" }
+    },
+    {
+      "query_id": "code-billing-actions",
+      "category": "authored-code",
+      "query": "Which frontend file opens authenticated Stripe checkout and the account billing portal?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-billing-billingactions-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-billing-billingactions-js" }
+    },
+    {
+      "query_id": "code-winston-preference",
+      "category": "authored-code",
+      "query": "Where are the separate Winston desktop and mobile preference storage keys normalized and applied?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-ai-personalagentpreference-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-ai-personalagentpreference-js" }
+    },
+    {
+      "query_id": "code-calendar-photo-consumption",
+      "category": "authored-code",
+      "query": "Which small module consumes and clears the selected calendar image input after Take photo or Import picture?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-calendar-calendarphotoselection-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-calendar-calendarphotoselection-js" }
+    },
+    {
+      "query_id": "code-catchup-preference",
+      "category": "authored-code",
+      "query": "Which module stores the per-account Room Catch-up enabled preference and its change event?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-chat-core-catchuppreference-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-chat-core-catchuppreference-js" }
+    },
+    {
+      "query_id": "code-pm-history-model",
+      "category": "authored-code",
+      "query": "Which authored model sets the private-message page size to 80 and merges deduplicated older message pages?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-private-messages-pmhistorymodel-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-private-messages-pmhistorymodel-js" }
+    },
+    {
+      "query_id": "code-mobile-dock-state",
+      "category": "authored-code",
+      "query": "Which shell control file synchronizes the mobile dock, More sheet, Search, Vault, Updates, and floating UI dismissal?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-shell-chatshellcontrols-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-shell-chatshellcontrols-js" }
+    },
+    {
+      "query_id": "code-room-feature-loading",
+      "category": "authored-code",
+      "query": "Which shell module imports room features once, mounts deferred panels, and keeps Winston surface preferences synchronized?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-shell-roomfeatureloaders-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-shell-roomfeatureloaders-js" }
+    },
+    {
+      "query_id": "code-image-upload-optimization",
+      "category": "authored-code",
+      "query": "Which library resizes image uploads, preserves animated formats, and assigns versioned or mutable cache-control metadata?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-lib-imageuploadoptimization-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-lib-imageuploadoptimization-js" }
+    },
+    {
+      "query_id": "code-room-permission-registry",
+      "category": "authored-code",
+      "query": "Where are room permission definitions, defaults, member overrides, and legacy webhook fallbacks centralized?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-rooms-roompermissions-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-rooms-roompermissions-js" }
+    },
+    {
+      "query_id": "typo-gbrain-setup",
+      "category": "aliases-and-typos",
+      "query": "whear is the G brian set up for mx bai embedings and ollma?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+    },
+    {
+      "query_id": "typo-lighthouse-mobile",
+      "category": "aliases-and-typos",
+      "query": "show the ligthouse moblie and destkop scors befor and after",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/lighthouse-history" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/lighthouse-history" }
+    },
+    {
+      "query_id": "typo-remote-analysis",
+      "category": "aliases-and-typos",
+      "query": "how dose remtoe analisis stay read olny and not controll windos",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+    },
+    {
+      "query_id": "alias-personal-agent-mascot",
+      "category": "aliases-and-typos",
+      "query": "What is the fixed personal AI helper mascot, and why does its navigation symbol stay unchanged?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "alias-direct-chat-backscroll",
+      "category": "aliases-and-typos",
+      "query": "How does one-to-one chat backscroll load earlier conversations on a phone without jumping the reader?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "authority-current-product",
+      "category": "archived-vs-current",
+      "query": "What is the current product overview and present-day promise of Minimalist Chat?",
+      "relevant": [
+        { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "10-product/current/current-product-overview" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-home" },
+        { "source_id": "default", "slug": "11-product/legacy/legacy-features" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-import-status",
+      "category": "archived-vs-current",
+      "query": "How can I tell which imported product pages are current and which legacy pages are archived?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/memory-protocol", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-home" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-legacy-legal-status",
+      "category": "archived-vs-current",
+      "query": "Which authoritative note says the imported privacy policy and terms pages are historical archived copies rather than current legal truth?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog", "grade": 3 },
+        { "source_id": "default", "slug": "00-home/minimalist-chat-knowledge-hub", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-privacy-policy" },
+        { "source_id": "default", "slug": "11-product/legacy/legacy-terms-of-service" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-current-wording",
+      "category": "archived-vs-current",
+      "query": "Which current source should I use for today's concise product wording instead of old Story or Download copy?",
+      "relevant": [
+        { "source_id": "default", "slug": "10-product/current/current-product-overview", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/source-catalog", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "10-product/current/current-product-overview" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-story" },
+        { "source_id": "default", "slug": "11-product/legacy/legacy-download" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-current-guardrails",
+      "category": "archived-vs-current",
+      "query": "Where are the active architecture, security, billing, and operating guardrails for the current dirty worktree?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" },
+      "forbidden": [
+        { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "timeline-picture-provenance",
+      "category": "timeline-and-visuals",
+      "query": "Where are the six project timeline pictures listed with their original paths and whether each is a real capture or a concept?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-room-chat-capture",
+      "category": "timeline-and-visuals",
+      "query": "Which July 11 visual milestone uses the actual mobile room-chat QA capture?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-analysis-capture",
+      "category": "timeline-and-visuals",
+      "query": "Which dated picture shows the Porcelain-style Minimalist Analysis Windows app?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline", "grade": 3 },
+        { "source_id": "default", "slug": "30-audits/minimalist-analysis-desktop-app-review-2026-07-13", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-winston-concept",
+      "category": "timeline-and-visuals",
+      "query": "Is the July 16 Winston gorilla image proof of deployment or explicitly a design concept?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-new-dock-missing-capture",
+      "category": "timeline-and-visuals",
+      "query": "Why is the old July 11 phone image not reused as evidence for the new five-button mobile dock?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/project-memory", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "scope-notes-do-not-leak-code",
+      "category": "negative-and-source-scope",
+      "query": "Summarize the active GBrain setup in plain language from the project notes.",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "scope-code-does-not-leak-notes",
+      "category": "negative-and-source-scope",
+      "query": "Find the authored code module that defines PM_HISTORY_PAGE_SIZE.",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-private-messages-pmhistorymodel-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-private-messages-pmhistorymodel-js" },
+      "forbidden_sources": ["default"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-no-hosted-embedding-claim",
+      "category": "negative-and-source-scope",
+      "query": "Does the accepted GBrain setup send project embeddings to a hosted cloud service?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/gbrain-upgrade-and-retrieval-audit-2026-07-21", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/gbrain-setup", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/gbrain-upgrade-and-retrieval-audit-2026-07-21" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-archived-legal-not-current",
+      "category": "negative-and-source-scope",
+      "query": "Where is the rule that archived imported legal pages must not be presented as current legal truth?",
+      "relevant": [
+        { "source_id": "default", "slug": "00-home/minimalist-chat-knowledge-hub", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/memory-protocol", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "00-home/minimalist-chat-knowledge-hub" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-privacy-policy" },
+        { "source_id": "default", "slug": "11-product/legacy/legacy-terms-of-service" }
+      ],
+      "forbidden_top_k": 1,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "evidence-ai-rich-response",
+      "category": "current-notes",
+      "query": "Which current project note can I cite for the safe AI reply formatting rules, including escaped input, allowed links, and the three-card limit?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "evidence-app-sound-policy",
+      "category": "current-notes",
+      "query": "What is the source of truth for when app sounds play, when quiet hours or Do Not Disturb silence them, and which routine actions stay silent?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "evidence-live-ai-load-ledger",
+      "category": "current-notes",
+      "query": "Where is the evidence that the 100, 200, 400, and 1,000 request AI load stages completed without unresolved work?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "evidence-avatar-performance",
+      "category": "current-notes",
+      "query": "Which durable decision explains the visible-contact avatar preload policy and documents the oversized 6,120-pixel image found during verification?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "code-ai-provider-lease",
+      "category": "authored-code",
+      "query": "Which authored module normalizes the 10/40/40 provider tiers and allocates or releases provider leases deterministically?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "functions-ai-provider-routing-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "functions-ai-provider-routing-js" }
+    },
+    {
+      "query_id": "code-ai-queue-retry",
+      "category": "authored-code",
+      "query": "Where are durable AI queue job IDs, claim transitions, retry backoff, completion, and terminal failure implemented?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "functions-ai-request-queue-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "functions-ai-request-queue-js" }
+    },
+    {
+      "query_id": "code-ai-queue-capacity",
+      "category": "authored-code",
+      "query": "Which server helper owns global and per-user AI queue capacity reservations and ABA-safe release state?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "functions-ai-queue-capacity-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "functions-ai-queue-capacity-js" }
+    },
+    {
+      "query_id": "code-stripe-customer-ownership",
+      "category": "authored-code",
+      "query": "Which backend helper checks that a Stripe customer belongs to the Firebase UID and resets stale billing state when it does not?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "functions-stripe-customer-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "functions-stripe-customer-js" }
+    },
+    {
+      "query_id": "code-ai-response-markdown",
+      "category": "authored-code",
+      "query": "Which frontend parser handles AI headings, lists, quotes, code fences, safe HTTP links, and at most three deduplicated URL cards?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-ai-airesponseformatting-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-ai-airesponseformatting-js" }
+    },
+    {
+      "query_id": "code-calendar-week-export",
+      "category": "authored-code",
+      "query": "Which module filters events to the visible week, builds Google Calendar API events, and deduplicates room copies using private properties?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-calendar-googlecalendarweek-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-calendar-googlecalendarweek-js" }
+    },
+    {
+      "query_id": "code-performance-auto-mode",
+      "category": "authored-code",
+      "query": "Where does the client classify device capability, resolve automatic performance mode, and pause FPS and long-task observers?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-performance-performancesettings-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-performance-performancesettings-js" }
+    },
+    {
+      "query_id": "code-notification-quiet-hours",
+      "category": "authored-code",
+      "query": "Which model groups notifications and decides whether quiet schedules suppress realtime alerts?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-notifications-notificationmodel-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-notifications-notificationmodel-js" }
+    },
+    {
+      "query_id": "code-chat-boot-readiness",
+      "category": "authored-code",
+      "query": "Which small shell module defines the 900 ms first launch floor, 120 ms warm floor, and 2.5 second chat readiness timeout?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-shell-chatbootreadiness-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-shell-chatbootreadiness-js" }
+    },
+    {
+      "query_id": "code-ui-sound-policy",
+      "category": "authored-code",
+      "query": "Which client service stores the App sounds preference, reports why sound is blocked, and plays the reusable Web Audio cues?",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-audio-uisoundservice-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-audio-uisoundservice-js" }
+    },
+    {
+      "query_id": "typo-ai-gateway-proof",
+      "category": "aliases-and-typos",
+      "query": "can u show me the proof the web ai cant call raw ollma or skip banannas?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+    },
+    {
+      "query_id": "typo-provider-routing",
+      "category": "aliases-and-typos",
+      "query": "wats the 10 40 40 ai routng and wat happns after job ninty?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "typo-calendar-scan-source",
+      "category": "aliases-and-typos",
+      "query": "in calender scan schdule whats diffrent bout take foto and import pic?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "typo-winston-surface-toggle",
+      "category": "aliases-and-typos",
+      "query": "if i turn winsten off on moblie shuld room ai disapear too?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "typo-app-sounds-dnd",
+      "category": "aliases-and-typos",
+      "query": "dose app souhnds stay quiet in dnd and quite hours?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "typo-contact-avatar",
+      "category": "aliases-and-typos",
+      "query": "why was the contat avtar slow and how many rows load pics fast now?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "typo-google-calendar-week",
+      "category": "aliases-and-typos",
+      "query": "how dose add this week to goog cal stop dupes and not change shared room data?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "typo-gbrain-maintenance",
+      "category": "aliases-and-typos",
+      "query": "wheres the one comand gbrain maintnance thing that disconects mcp and puts it bak?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+    },
+    {
+      "query_id": "typo-long-session-budget",
+      "category": "aliases-and-typos",
+      "query": "whch audit proves long chats dont keep growng cache listners and hidden tab work?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15" }
+    },
+    {
+      "query_id": "typo-remote-readonly-access",
+      "category": "aliases-and-typos",
+      "query": "can i conect remtoe to analisis with out givng it pc admin controll?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+    },
+    {
+      "query_id": "authority-current-features-over-legacy",
+      "category": "archived-vs-current",
+      "query": "Which current note should I cite for today's product capabilities instead of the archived Features page?",
+      "relevant": [
+        { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "10-product/current/current-product-overview" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-features" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-legacy-faq-status",
+      "category": "archived-vs-current",
+      "query": "Where is the authoritative evidence that the imported FAQ is an archived historical copy?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-faq" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-legacy-story-status",
+      "category": "archived-vs-current",
+      "query": "Which provenance record says the old Story page is archived rather than present-day product truth?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-story" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-legacy-download-status",
+      "category": "archived-vs-current",
+      "query": "What source classifies the old Download page as archived instead of an active release instruction?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-download" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-current-home-over-legacy",
+      "category": "archived-vs-current",
+      "query": "For current homepage messaging, which source outranks the imported legacy Home copy?",
+      "relevant": [
+        { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "10-product/current/current-product-overview" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-home" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-privacy-provenance",
+      "category": "archived-vs-current",
+      "query": "Which catalog is evidence that the copied privacy policy is historical and cannot be cited as current legal truth?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-privacy-policy" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-terms-provenance",
+      "category": "archived-vs-current",
+      "query": "Where is the evidence that the imported Terms of Service is archived, not the current legal authority?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/source-catalog" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/source-catalog" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-terms-of-service" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-current-memory-over-audit",
+      "category": "archived-vs-current",
+      "query": "Which active memory should I use for current worktree guardrails instead of treating the June full-stack audit as timeless proof?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" },
+      "forbidden": [
+        { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "authority-research-needs-revalidation",
+      "category": "archived-vs-current",
+      "query": "What current note says the imported feature priorities require revalidation rather than proving those ideas are shipped?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" },
+      "forbidden": [
+        { "source_id": "default", "slug": "20-research/claude-feature-research-and-implementation-plan" }
+      ],
+      "forbidden_top_k": 1
+    },
+    {
+      "query_id": "timeline-direct-call-capture",
+      "category": "timeline-and-visuals",
+      "query": "Which dated visual is the actual phone-width direct-call and private-message QA capture?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-appearance-render",
+      "category": "timeline-and-visuals",
+      "query": "What July 18 picture is labelled as an implementation or design render for appearance settings?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-marketing-final-render",
+      "category": "timeline-and-visuals",
+      "query": "Which July 19 artifact is the final desktop marketing v5 render and what original path proves its provenance?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-lighthouse-no-screenshot",
+      "category": "timeline-and-visuals",
+      "query": "Why does the June 25 Lighthouse milestone use the report ledger instead of claiming a standalone screenshot as evidence?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline", "grade": 3 },
+        { "source_id": "default", "slug": "30-audits/lighthouse-history", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-hardening-no-backdate",
+      "category": "timeline-and-visuals",
+      "query": "Which timeline entry explicitly refuses to backdate a later QA image as proof of the June 28 hardening audit?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline", "grade": 3 },
+        { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-performance-report-evidence",
+      "category": "timeline-and-visuals",
+      "query": "For the July 15 performance milestone, what evidence is used when no unrelated image is substituted?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline", "grade": 3 },
+        { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-gbrain-no-fabricated-image",
+      "category": "timeline-and-visuals",
+      "query": "How is the July 21 GBrain upgrade documented without fabricating a product screenshot?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/gbrain-setup", "grade": 1 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "timeline-picture-byte-provenance",
+      "category": "timeline-and-visuals",
+      "query": "Where does the project state that the six timeline images are byte-for-byte copies and that the original repository artifacts remain authoritative?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" }
+    },
+    {
+      "query_id": "scope-code-formatting-does-not-leak-notes",
+      "category": "negative-and-source-scope",
+      "query": "Find only the authored code that parses AI response Markdown and extracts safe link cards.",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-ai-airesponseformatting-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-ai-airesponseformatting-js" },
+      "forbidden_sources": ["default"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "scope-notes-sound-policy-does-not-leak-code",
+      "category": "negative-and-source-scope",
+      "query": "Explain the approved App sounds policy using project notes, not implementation files.",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-browser-never-raw-ollama",
+      "category": "negative-and-source-scope",
+      "query": "Is there any approved path where the public browser may call raw Ollama or bypass the authenticated gateway?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway", "grade": 3 },
+        { "source_id": "default", "slug": "90-memory/project-memory", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-remote-analysis-no-admin",
+      "category": "negative-and-source-scope",
+      "query": "Does Remote Analysis provide SSH, desktop administration, or fallback control of the Windows client?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/remote-analysis-access" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-winston-concept-not-deployment",
+      "category": "negative-and-source-scope",
+      "query": "Does the Winston gorilla concept picture by itself prove that the design was deployed?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-timeline" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-timeline" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-no-unsupported-e2ee-claim",
+      "category": "negative-and-source-scope",
+      "query": "Can the product be described as end-to-end encrypted without implementation and threat-model evidence?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" },
+      "forbidden": [
+        { "source_id": "default", "slug": "11-product/legacy/legacy-privacy-policy" }
+      ],
+      "forbidden_top_k": 1,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-gbrain-reranker-disabled",
+      "category": "negative-and-source-scope",
+      "query": "Is the tested Jina reranker enabled in the accepted GBrain configuration?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup", "grade": 3 },
+        { "source_id": "default", "slug": "30-audits/gbrain-upgrade-and-retrieval-audit-2026-07-21", "grade": 2 }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" },
+      "forbidden_sources": ["minimalist-chat-code"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "scope-code-calendar-week-does-not-leak-notes",
+      "category": "negative-and-source-scope",
+      "query": "Return only the authored module that implements addRoomWeekToGoogleCalendar.",
+      "relevant": [
+        { "source_id": "minimalist-chat-code", "slug": "src-features-calendar-googlecalendarweek-js" }
+      ],
+      "expected_top1": { "source_id": "minimalist-chat-code", "slug": "src-features-calendar-googlecalendarweek-js" },
+      "forbidden_sources": ["default"],
+      "forbidden_top_k": 10,
+      "check_source_scope": true
+    },
+    {
+      "query_id": "negative-audit-not-current-proof",
+      "category": "negative-and-source-scope",
+      "query": "Does the dated June full-stack audit prove every security claim still matches the current dirty worktree?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" },
+      "forbidden": [
+        { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+      ],
+      "forbidden_top_k": 1,
+      "check_source_scope": true
+    }
+  ]
+}

@@ -101,8 +101,20 @@ export function UpdatesCenterShell() {
           <p>Your daily and weekly progress will appear here.</p>
         </li>
       </UpdatePanelHost>
-      <UpdatePanelHost id="leaderboard-list" labelledBy="tab-leaderboard" />
-      <UpdatePanelHost id="recognition-list" labelledBy="tab-recognition" />
+      <UpdatePanelHost id="leaderboard-list" labelledBy="tab-leaderboard">
+        <li className="activity-state activity-state-loading" role="status">
+          <span className="activity-state-icon" aria-hidden="true"><i className="ph-bold ph-chart-line-up" /></span>
+          <strong>Preparing your rank</strong>
+          <p>Your reputation and skill progress will appear here.</p>
+        </li>
+      </UpdatePanelHost>
+      <UpdatePanelHost id="recognition-list" labelledBy="tab-recognition">
+        <li className="activity-state activity-state-loading" role="status">
+          <span className="activity-state-icon" aria-hidden="true"><i className="ph-bold ph-hands-clapping" /></span>
+          <strong>Preparing Kudos</strong>
+          <p>Your community and kudos milestones will appear here.</p>
+        </li>
+      </UpdatePanelHost>
       <UpdatePanelHost id="updates-list" labelledBy="tab-changelog" />
     </aside>
   );

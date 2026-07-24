@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node tools/prerender-marketing.mjs && node tools/check-performance-budgets.mjs",
+    "build": "vite build && node tools/generate-offline-bootstrap.mjs && node tools/minify-static-css.mjs && node tools/prerender-marketing.mjs && node tools/check-performance-budgets.mjs",
     "build:analyze": "vite build --mode analyze",
     "preview": "vite preview",
     "start": "node server.js",
@@ -14,23 +14,48 @@
     "deploy:hourly:install": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/install-hourly-firebase-deploy.ps1",
     "android:sync": "npm run build && npx cap sync android",
     "audit:regression": "node tools/audit-regression-check.mjs",
+    "graphify:refresh": "node tools/refresh-graphify.mjs",
     "audit:rules": "firebase --config firebase.rules-test.json emulators:exec --only database --project chat-app-356c1 \"tools\\\\run-rtdb-rules-smoke.cmd\"",
     "audit:deployed": "node tools/deployed-smoke-test.mjs",
+    "audit:deployed:headers": "node --test tools/deployed-bootstrap-headers.test.mjs",
     "audit:seo:build": "node --test tools/seo-build-smoke.test.mjs",
     "audit:seo:hosting": "firebase --config firebase.json emulators:exec --only hosting --project chat-app-356c1 \"node tools/seo-hosting-smoke.mjs\"",
-    "audit:auth": "node --test tools/auth-session-recovery.test.mjs",
-    "audit:lifecycle": "node --test tools/feature-mount-coordinator.test.mjs tools/timed-single-flight-cache.test.mjs",
-    "audit:notifications": "node --test tools/notification-center.test.mjs",
+    "audit:auth": "node --test tools/auth-session-recovery.test.mjs tools/avatar.test.mjs",
+    "audit:calendar": "node --test tools/calendar-week-google-export.test.mjs tools/calendar-photo-sources.test.mjs tools/events-model.test.mjs",
+    "audit:i18n": "node --test tools/i18n-help.test.mjs tools/i18n-chat-enhancements.test.mjs tools/message-translation-contracts.test.mjs tools/room-activity.test.mjs",
+    "audit:lifecycle": "node --test tools/chat-boot-readiness.test.mjs tools/feature-mount-coordinator.test.mjs tools/timed-single-flight-cache.test.mjs tools/ui-runtime-foundations.test.mjs",
+    "audit:community": "node --test tools/community-presentation.test.mjs tools/updates-community-ui-regression.test.mjs",
+    "audit:notifications": "node --test tools/notification-center.test.mjs tools/ui-sound-service.test.mjs",
     "audit:billing": "node --test tools/account-billing.test.mjs tools/room-billing-contract.test.mjs",
-    "audit:ai-models": "node --test tools/ai-model-profiles.test.mjs tools/ai-provider-routing.test.mjs tools/ai-request-queue.test.mjs tools/ai-queue-capacity.test.mjs tools/ai-gateway-security.test.mjs tools/winston-personal-agent.test.mjs tools/ollama-bridge/ollama-bridge.test.mjs",
+    "audit:chat": "node --test tools/room-catchup-model.test.mjs tools/room-catchup-preference.test.mjs tools/quick-replies-model.test.mjs tools/quick-replies-preference.test.mjs tools/room-message-presentation.test.mjs tools/room-chat-context.test.mjs tools/room-tool-pins.test.mjs tools/link-preview-security.test.mjs tools/chat-enhancements-model.test.mjs tools/poll-model.test.mjs tools/scheduled-message-contracts.test.mjs tools/room-scheduling.test.mjs tools/moderation-contracts.test.mjs tools/moderation-endpoint.test.mjs src/features/search/workspaceSearchModel.test.mjs",
+    "audit:social": "node --test tools/ai-social-context.test.mjs tools/friendship-contracts.test.mjs tools/private-messages-model.test.mjs tools/private-messages-ui-regression.test.mjs",
+    "audit:ai-models": "node --test tools/ai-model-profiles.test.mjs tools/ai-provider-routing.test.mjs tools/ai-request-queue.test.mjs tools/ai-queue-capacity.test.mjs tools/ai-gateway-security.test.mjs tools/ai-context.test.mjs tools/ai-semantic-search.test.mjs tools/ai-agent-contracts.test.mjs tools/ai-agent-stream.test.mjs tools/ai-agent-ui-contracts.test.mjs tools/ai-model-quality.test.mjs tools/ai-local-benchmark.test.mjs tools/winston-upgrades-backend.test.mjs tools/winston-upgrades-contracts.test.mjs tools/winston-personal-agent.test.mjs tools/ollama-bridge/ollama-bridge.test.mjs",
     "audit:ai-queue-contention": "firebase --config firebase.rules-test.json emulators:exec --only database --project chat-app-356c1 \"node tools/ai-queue-rtdb-contention-test.mjs\"",
     "audit:ui": "node tools/ui-smoke-test.mjs",
     "audit:performance": "node tools/check-performance-budgets.mjs",
+    "audit:release": "node --test tools/publish-build-number.test.mjs",
+    "audit:offline": "node --test tools/service-worker-offline.test.mjs",
+    "audit:rum": "node tools/rum-performance-gate.mjs",
     "lint": "eslint .",
-    "test": "npm run lint && npm run build && npm run audit:seo:build && npm run audit:seo:hosting && npm run audit:auth && npm run audit:lifecycle && npm run audit:notifications && npm run audit:ai-models && npm run audit:regression && npm run audit:rules"
+    "test": "npm run lint && npm run build && npm run audit:release && npm run audit:offline && npm run audit:rum && npm run audit:seo:build && npm run audit:seo:hosting && npm run audit:auth && npm run audit:calendar && npm run audit:lifecycle && npm run audit:community && npm run audit:notifications && npm run audit:chat && npm run audit:social && npm run audit:ai-models && npm run audit:regression && npm run audit:rules",
+    "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open",
+    "build-storybook": "storybook build",
+    "test-storybook": "vitest run --project=storybook"
   },
   "engines": {
     "node": ">=22"
+  },
+  "browserslist": {
+    "production": [
+      "Chrome >= 111",
+      "Edge >= 111",
+      "Firefox >= 121",
+      "Safari >= 16.4",
+      "iOS >= 16.4"
+    ],
+    "development": [
+      "last 1 Chrome version"
+    ]
   },
   "keywords": [],
   "author": "",
@@ -44,22 +69,38 @@
     "@phosphor-icons/web": "^2.1.2",
     "express": "^5.2.1",
     "firebase": "^12.14.0",
+    "mammoth": "^1.12.0",
+    "pdfjs-dist": "^6.1.200",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.0",
     "socket.io": "^4.8.3",
-    "stripe": "^22.2.0"
+    "stripe": "^22.2.0",
+    "web-vitals": "^6.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
     "@firebase/rules-unit-testing": "^5.0.1",
+    "@storybook/addon-a11y": "10.5.3",
+    "@storybook/addon-docs": "10.5.3",
+    "@storybook/addon-mcp": "0.7.0",
+    "@storybook/addon-vitest": "10.5.3",
+    "@storybook/react-vite": "10.5.3",
     "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/browser": "4.1.10",
+    "@vitest/browser-playwright": "4.1.10",
+    "esbuild": "^0.25.12",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "eslint-plugin-storybook": "10.5.3",
     "firebase-tools": "^15.22.3",
     "globals": "^17.7.0",
+    "playwright": "1.61.1",
     "rollup-plugin-visualizer": "^7.0.1",
-    "vite": "^6.4.1"
+    "storybook": "10.5.3",
+    "vis-network": "9.1.6",
+    "vite": "^6.4.1",
+    "vitest": "4.1.10"
   }
 }

@@ -1,3 +1,5 @@
+import { resolveAvatarSource } from '../../lib/avatar.js';
+
 window.activeRoomId = 'global';
 window.activeRoomShortId = 'GLOBAL';
 window.currentRoomListener = null;
@@ -31,8 +33,7 @@ window.accountSubscriptionStatus = '';
 window.userPhone = 'No phone on file';
 
 window.getAvatarUrl = function getAvatarUrl(name, url) {
-  if (url && url.trim() !== '') return url;
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=000&color=FFD700&bold=true`;
+  return resolveAvatarSource(name, url);
 };
 
 window.generateShortId = function generateShortId() {

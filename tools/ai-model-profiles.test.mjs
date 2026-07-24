@@ -87,10 +87,11 @@ test('availability is reported independently for Fast and Smart', () => {
 });
 
 test('gateway payloads contain only a profile ID and ignore raw model injection', () => {
-  assert.deepEqual(buildAiGatewayStatusPayload('smart'), { action: 'status', modelProfile: 'smart' });
+  assert.deepEqual(buildAiGatewayStatusPayload('smart'), { action: 'status', modelProfile: 'smart', routingPolicy: 'balanced' });
   assert.deepEqual(buildAiGatewayStatusPayload('smart', { wake: true }), {
     action: 'status',
     modelProfile: 'smart',
+    routingPolicy: 'balanced',
     wake: true,
   });
   const payload = buildAiGatewayChatPayload({

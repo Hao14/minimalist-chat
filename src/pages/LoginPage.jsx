@@ -38,6 +38,7 @@ function loadAuthKit() {
       db: firebaseModule.db,
       ensureAuthProfile: profileModule.ensureAuthProfile,
       ensureWelcomeBadge: profileModule.ensureWelcomeBadge,
+      createInitialsAvatarDataUrl: profileModule.createInitialsAvatarDataUrl,
       isGoogleAuthUser: profileModule.isGoogleAuthUser,
       syncPublicUserDirectory: profileModule.syncPublicUserDirectory,
     }));
@@ -477,8 +478,8 @@ function AuthSignalScene() {
         <div className="auth-signal-stage">
           <span className="auth-signal-route auth-signal-route-in" />
           <span className="auth-signal-route auth-signal-route-out" />
-          <span className="auth-signal-spark auth-signal-spark-one">✦</span>
-          <span className="auth-signal-spark auth-signal-spark-two">✦</span>
+          <i className="ph-bold ph-sparkle auth-signal-spark auth-signal-spark-one" aria-hidden="true" />
+          <i className="ph-bold ph-sparkle auth-signal-spark auth-signal-spark-two" aria-hidden="true" />
 
           <div className="auth-signal-note auth-signal-note-one">
             <span className="auth-signal-avatar">J</span>
@@ -900,12 +901,11 @@ export default function LoginPage() {
       const credential = await kit.createUserWithEmailAndPassword(kit.auth, signup.email.trim(), signup.password);
       await kit.updateProfile(credential.user, { displayName: signup.username.trim() });
       const shortId = Math.random().toString(36).slice(2, 8).toUpperCase();
-      const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(signup.username.trim())}&background=000&color=FFD700&bold=true`;
       const profile = {
         displayName: signup.username.trim(),
         phoneNumber: signup.phone.trim(),
         birthday: signup.birthday,
-        photoUrl: avatar,
+        photoUrl: '',
         shortId,
         themeColor: '#FFD700',
         bio: "I'm new here!",
@@ -1182,36 +1182,38 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="auth-toggle" role="tablist" aria-label="Choose authentication mode">
-            <button
-              ref={loginTabRef}
-              id="auth-tab-login"
-              type="button"
-              className={`toggle-btn ${mode === 'login' ? 'active' : ''}`}
-              onClick={() => setAuthMode('login')}
-              onKeyDown={handleModeTabsKeyDown}
-              role="tab"
-              aria-controls="auth-tabpanel-login"
-              aria-selected={mode === 'login'}
-              tabIndex={mode === 'login' ? 0 : -1}
-            >
-              Log In
-            </button>
-            <button
-              ref={signupTabRef}
-              id="auth-tab-signup"
-              type="button"
-              className={`toggle-btn ${mode === 'signup' ? 'active' : ''}`}
-              onClick={() => setAuthMode('signup')}
-              onKeyDown={handleModeTabsKeyDown}
-              role="tab"
-              aria-controls="auth-tabpanel-signup"
-              aria-selected={mode === 'signup'}
-              tabIndex={mode === 'signup' ? 0 : -1}
-            >
-              Sign Up
-            </button>
-          </div>
+          {!verificationState ? (
+            <div className="auth-toggle" role="tablist" aria-label="Choose authentication mode">
+              <button
+                ref={loginTabRef}
+                id="auth-tab-login"
+                type="button"
+                className={`toggle-btn ${mode === 'login' ? 'active' : ''}`}
+                onClick={() => setAuthMode('login')}
+                onKeyDown={handleModeTabsKeyDown}
+                role="tab"
+                aria-controls="auth-tabpanel-login"
+                aria-selected={mode === 'login'}
+                tabIndex={mode === 'login' ? 0 : -1}
+              >
+                Log In
+              </button>
+              <button
+                ref={signupTabRef}
+                id="auth-tab-signup"
+                type="button"
+                className={`toggle-btn ${mode === 'signup' ? 'active' : ''}`}
+                onClick={() => setAuthMode('signup')}
+                onKeyDown={handleModeTabsKeyDown}
+                role="tab"
+                aria-controls="auth-tabpanel-signup"
+                aria-selected={mode === 'signup'}
+                tabIndex={mode === 'signup' ? 0 : -1}
+              >
+                Sign Up
+              </button>
+            </div>
+          ) : null}
 
           {verificationState ? (
             <section
@@ -1221,7 +1223,7 @@ export default function LoginPage() {
               aria-live="polite"
             >
               <p className="auth-step-pill">Verification required</p>
-              <h3 id="auth-verify-title">Verify your email before opening chat.</h3>
+              <h2 id="auth-verify-title">Verify your email before opening chat.</h2>
               <p id="auth-verify-message">{verificationState.message}</p>
               {verificationState.error ? <p id="auth-verify-error" className="auth-inline-error">{verificationState.error}</p> : null}
               <div className="auth-verify-actions">
@@ -1237,18 +1239,20 @@ export default function LoginPage() {
               </div>
             </section>
           ) : mode === 'login' ? (
-            <form
+            <div
               id="auth-tabpanel-login"
-              className="auth-form active"
-              onSubmit={handleLogin}
-              data-step={loginStep}
-              noValidate
               role="tabpanel"
               aria-labelledby="auth-tab-login"
             >
+              <form
+                className="auth-form active"
+                onSubmit={handleLogin}
+                data-step={loginStep}
+                noValidate
+              >
               <div className="auth-form-heading">
                 <span className="auth-step-pill">{loginStepMeta.badge}</span>
-                <h3>{loginStepMeta.title}</h3>
+                <h2>{loginStepMeta.title}</h2>
                 <p>{loginStepMeta.copy}</p>
               </div>
               <GoogleIdentityAuthButton
@@ -1318,20 +1322,23 @@ export default function LoginPage() {
                   <a href="#reset-password" className="text-link" onClick={handlePasswordReset}>Forgot Password?</a>
                 </div>
               )}
-            </form>
+              </form>
+            </div>
           ) : (
-            <form
+            <div
               id="auth-tabpanel-signup"
-              className="auth-form active"
-              onSubmit={handleSignup}
-              data-step={signupStep}
-              noValidate
               role="tabpanel"
               aria-labelledby="auth-tab-signup"
             >
+              <form
+                className="auth-form active"
+                onSubmit={handleSignup}
+                data-step={signupStep}
+                noValidate
+              >
               <div className="auth-form-heading">
                 <span className="auth-step-pill">{signupStepMeta.badge}</span>
-                <h3>{signupStepMeta.title}</h3>
+                <h2>{signupStepMeta.title}</h2>
                 <p>{signupStepMeta.copy}</p>
               </div>
               <GoogleIdentityAuthButton
@@ -1453,23 +1460,34 @@ export default function LoginPage() {
                   />
                   {fieldErrors.confirm ? <p id="signup-confirm-error" className="auth-inline-error">{fieldErrors.confirm}</p> : null}
                   <div id="signup-confirm-match" className="pw-match" aria-live="polite" style={{ color: passwordsMatch ? '#43a047' : '#e53935' }}>
-                    {signup.confirm ? (passwordsMatch ? '✓ Passwords match' : '✗ Passwords do not match') : ''}
+                    {signup.confirm ? (
+                      <>
+                        <i className={`ph-bold ${passwordsMatch ? 'ph-check-circle' : 'ph-x-circle'}`} aria-hidden="true" />
+                        <span>{passwordsMatch ? 'Passwords match' : 'Passwords do not match'}</span>
+                      </>
+                    ) : null}
                   </div>
+                  <p className="auth-legal-note">
+                    Creating an account means you agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms</a> and acknowledge the <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>.
+                  </p>
                   <button type="submit" className="auth-submit-btn" disabled={busy}>
                     {busy ? 'Creating…' : 'Create Account'}
                   </button>
                   <button type="button" className="action-btn mt-1 auth-back-btn" disabled={busy} onClick={returnToSignupProfile}>Back</button>
                 </div>
               )}
-            </form>
+              </form>
+            </div>
           )}
         </section>
       </main>
 
       <div id="brutalist-toast" className={toastClassName} role={toast?.isError ? 'alert' : 'status'} aria-live="polite" aria-hidden={!toast} hidden={!toast}>
-        <span id="toast-icon">{toast?.isError ? '⚠️' : '✅'}</span>
+        <i id="toast-icon" className={`ph-bold ${toast?.isError ? 'ph-warning' : 'ph-check-circle'}`} aria-hidden="true" />
         <span id="toast-message">{toast?.message || ''}</span>
-        <button type="button" id="toast-close" aria-label="Close notification" tabIndex={toast ? 0 : -1} onClick={() => setToast(null)}>✖</button>
+        <button type="button" id="toast-close" aria-label="Close notification" tabIndex={toast ? 0 : -1} onClick={() => setToast(null)}>
+          <i className="ph-bold ph-x" aria-hidden="true" />
+        </button>
       </div>
     </>
   );

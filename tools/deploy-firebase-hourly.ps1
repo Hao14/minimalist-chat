@@ -66,6 +66,16 @@ function Get-Node22Tool {
   return $candidates | Sort-Object Version -Descending | Select-Object -First 1
 }
 
+function Test-DeployIncludesHosting {
+  param([Parameter(Mandatory = $true)] [string] $OnlyTargets)
+
+  return @(
+    $OnlyTargets.Split(',') |
+      ForEach-Object { $_.Trim().ToLowerInvariant() } |
+      Where-Object { $_ -eq 'hosting' -or $_.StartsWith('hosting:') }
+  ).Count -gt 0
+}
+
 function Invoke-LoggedCommand {
   param(
     [Parameter(Mandatory = $true)] [string] $FilePath,
@@ -122,11 +132,24 @@ function Enter-DeployLock {
     repo = $repoRoot
   } | ConvertTo-Json -Compress
 
+  $stream = $null
   try {
-    Set-Content -LiteralPath $lockFile -Value $lock -NoNewline -ErrorAction Stop
+    $stream = [IO.File]::Open(
+      $lockFile,
+      [IO.FileMode]::CreateNew,
+      [IO.FileAccess]::Write,
+      [IO.FileShare]::None
+    )
+    $encoding = New-Object Text.UTF8Encoding($false)
+    $bytes = $encoding.GetBytes($lock)
+    $stream.Write($bytes, 0, $bytes.Length)
     return $true
   } catch {
     return $false
+  } finally {
+    if ($stream) {
+      $stream.Dispose()
+    }
   }
 }
 
@@ -274,19 +297,13 @@ function Stop-DeployInstances {
     $descendantIds[$processId] = $true
   }
 
-  $repoNeedle = $repoRoot.ToLowerInvariant()
   $managedNames = @('node.exe', 'npm.exe', 'npx.exe', 'cmd.exe', 'powershell.exe', 'pwsh.exe')
 
   $candidates = Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
     $processId = [int] $_.ProcessId
-    $commandLine = ''
-    if ($_.CommandLine) {
-      $commandLine = $_.CommandLine.ToLowerInvariant()
-    }
-
     $processId -ne $PID -and
       $managedNames -contains $_.Name.ToLowerInvariant() -and
-      ($descendantIds.ContainsKey($processId) -or $commandLine.Contains($repoNeedle))
+      $descendantIds.ContainsKey($processId)
   }
 
   foreach ($process in $candidates) {
@@ -300,9 +317,13 @@ function Stop-DeployInstances {
 }
 
 $locked = $false
+$nodeTool = $null
+$includesHosting = Test-DeployIncludesHosting -OnlyTargets $Only
 $originalPath = $env:PATH
 $originalSkipUpdateCheck = $env:FIREBASE_SKIP_UPDATE_CHECK
 $originalCi = $env:CI
+$originalHostingPublishOwner = $env:MINIMALIST_HOSTING_PUBLISH_OWNER
+$originalRequireRumGate = $env:REQUIRE_RUM_PERFORMANCE_GATE
 
 try {
   Write-DeployLog 'Starting guarded Firebase deploy.'
@@ -333,10 +354,20 @@ try {
   $env:PATH = "$($nodeTool.Root);$(Join-Path $repoRoot 'node_modules\.bin');$originalPath"
   $env:FIREBASE_SKIP_UPDATE_CHECK = 'true'
   $env:CI = 'true'
+  if ($includesHosting) {
+    $env:MINIMALIST_HOSTING_PUBLISH_OWNER = [guid]::NewGuid().ToString('N')
+    $env:REQUIRE_RUM_PERFORMANCE_GATE = 'true'
+  }
+  if ($SkipBuild -and $includesHosting) {
+    throw '-SkipBuild cannot be used when Hosting is being published.'
+  }
 
   Push-Location $repoRoot
   try {
     Write-DeployLog ('Using Node toolchain at {0}' -f $nodeTool.Root)
+    if ($includesHosting) {
+      Write-DeployLog 'Hosting predeploy will allocate one fresh build number, run the RUM gate, and build.'
+    }
     Invoke-LoggedCommand -FilePath $nodeTool.Node -Arguments @('--version')
     Invoke-LoggedCommand -FilePath $nodeTool.Npm -Arguments @('--version')
     Invoke-LoggedCommand -FilePath 'powershell.exe' -Arguments @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $firebase, '--version')
@@ -346,7 +377,7 @@ try {
       exit 0
     }
 
-    if (!$SkipBuild) {
+    if (!$SkipBuild -and !$includesHosting) {
       Invoke-LoggedCommand -FilePath $nodeTool.Npm -Arguments @('run', 'build')
     }
 
@@ -363,9 +394,23 @@ try {
     Exit-DeployLock
   }
 
+  if ($includesHosting -and $nodeTool) {
+    try {
+      & $nodeTool.Node (Join-Path $PSScriptRoot 'prepare-hosting-publish.mjs') --cleanup |
+        ForEach-Object { Write-DeployLog ([string] $_) }
+      if ($LASTEXITCODE -ne 0) {
+        Write-DeployLog "Hosting publish lock cleanup exited with code $LASTEXITCODE."
+      }
+    } catch {
+      Write-DeployLog ('Hosting publish lock cleanup failed: {0}' -f $_.Exception.Message)
+    }
+  }
+
   $env:PATH = $originalPath
   $env:FIREBASE_SKIP_UPDATE_CHECK = $originalSkipUpdateCheck
   $env:CI = $originalCi
+  $env:MINIMALIST_HOSTING_PUBLISH_OWNER = $originalHostingPublishOwner
+  $env:REQUIRE_RUM_PERFORMANCE_GATE = $originalRequireRumGate
 
   if (!$DryRun) {
     Stop-DeployInstances

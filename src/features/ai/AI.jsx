@@ -1,12 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { get, limitToLast, orderByChild, query, ref } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { UiButton, UiIconButton } from '../../components/ui/UiButton.jsx';
 import { useRoomTabActivity } from '../shell/roomTabActivity.js';
 import './room-ai.css';
 import './personalAgent.css';
+import './aiResponseContent.css';
+import './aiAgentControls.css';
+import { AiResponseContent } from './AiResponseContent.jsx';
+import {
+  AiActionCards,
+  AiClarificationCard,
+  AiEvidence,
+  AiImageComposerTools,
+  AiMessageControls,
+  CrossRoomBriefingPanel,
+  StructuredMemoryManager,
+} from './AiAgentControls.jsx';
+import {
+  AssistantResponseToolbar,
+  useWinstonConversations,
+  WinstonConversationDrawer,
+  WinstonMemorySuggestion,
+  WinstonPendingMemorySuggestions,
+  WinstonProactiveSettings,
+  WinstonSavedResponses,
+  WinstonWorkspaceSearchPanel,
+} from './WinstonEnhancements.jsx';
 import {
   askPersonalAgent,
   askRoomAgent,
+  cancelQueuedAiRequest,
+  confirmAiAction,
+  dismissAiAction,
   getLocalAiConfig,
   getLocalAiStatus,
   localAiStatusMessage,
@@ -14,7 +40,20 @@ import {
   savePersonalAiProfileToServer,
   shouldUseGatewayAi,
   shouldUseServerAiProfile,
+  tryAgentLiveTool,
 } from './localAiClient.js';
+import {
+  appendBoundedAiHistory,
+  buildRoomInstantSnapshot,
+  latestPendingAiClarification,
+  loadLocalAiMemories,
+  newAiUiId,
+  openAiActionContext,
+  prepareAiImageAttachment,
+  releaseAiImageAttachment,
+  resolveAiHistoryClarification,
+  upsertAiHistoryMessage,
+} from './aiAgentUi.js';
 import {
   AI_MODEL_PROFILE_EVENT,
   AI_MODEL_PROFILES,
@@ -22,11 +61,43 @@ import {
   normalizeAiModelProfile,
   saveAiModelProfile,
 } from './modelProfiles.js';
+import {
+  detectWinstonLiveTool,
+  getWinstonKnowledgeIndexStatus,
+  loadWinstonModelMode,
+  resolveWinstonModelProfile,
+  runWinstonLiveTool,
+  saveWinstonModelMode,
+  sendWinstonPlanCommand,
+  suggestWinstonMemory,
+  syncWinstonKnowledgeIndex,
+  winstonLiveToolFailureMessage,
+  WINSTON_MODEL_MODES,
+} from './winstonServices.js';
+import {
+  buildWinstonAdvancedRequestFields,
+  releaseWinstonAttachments,
+} from './winstonAdvancedServices.js';
+import {
+  useWinstonAttachments,
+  useWinstonContextSelection,
+} from './winstonAdvancedHooks.js';
+import { AiModelSegmentedControl } from './AiModelSegmentedControl.jsx';
 
-const stopWords = new Set('a an the and or but if then is are was were be been being to of in on at for with as by from this that these those it its i you he she we they me him her them my your our their not no yes do does did have has had will would can could should just so about into out up down over under again more most some any all'.split(' '));
 const ROOM_CONTEXT_CACHE_TTL_MS = 15_000;
 const ROOM_CONTEXT_CACHE_LIMIT = 12;
 const roomContextCache = new Map();
+const BALANCED_AI_ROUTING_POLICY = 'balanced';
+const WinstonContextPicker = lazy(() => import('./WinstonAdvancedControls.jsx')
+  .then((module) => ({ default: module.WinstonContextPicker })));
+const WinstonAttachmentComposerTools = lazy(() => import('./WinstonAdvancedControls.jsx')
+  .then((module) => ({ default: module.WinstonAttachmentComposerTools })));
+const WinstonPlanCard = lazy(() => import('./WinstonAdvancedControls.jsx')
+  .then((module) => ({ default: module.WinstonPlanCard })));
+const WinstonResumablePlans = lazy(() => import('./WinstonAdvancedControls.jsx')
+  .then((module) => ({ default: module.WinstonResumablePlans })));
+const WinstonTrustIndicators = lazy(() => import('./WinstonTrustIndicators.jsx')
+  .then((module) => ({ default: module.WinstonTrustIndicators })));
 
 let worker = null;
 let modelReady = false;
@@ -39,22 +110,28 @@ const DEFAULT_PERSONAL_AGENT_PROFILE = {
   tone: 'Modern, concise, friendly, and direct.',
   memory: '',
 };
-const PERSONAL_AGENT_ROUTING_NOTICE = 'Depending on request volume, Winston may use a different AI system to reply.';
-const PERSONAL_AGENT_REPLY_NOTICE = 'AI system chosen automatically based on request volume.';
+const PERSONAL_AGENT_ROUTING_NOTICE = 'Winston uses your PC first, then configured Cloudflare or Groq overflow when needed.';
 
 function timestamp() {
   return Date.now();
 }
 
-function aiProviderDisclosure({ provider, model } = {}) {
+function aiProviderDisclosure({ provider, model, modelProfile, requestedModelMode } = {}) {
   const label = {
     'ollama-bridge': 'PC · Ollama',
+    'local-ollama': 'PC · Ollama',
+    local: 'PC · Ollama',
     'cloudflare-workers-ai': 'Cloudflare Workers AI',
     groq: 'Groq',
     'groq-fallback': 'Groq fallback',
-  }[provider] || '';
-  if (!label) return '';
-  return model ? `${label} · ${model}` : label;
+    gateway: 'Shared AI gateway',
+    'market-data': 'Market data',
+  }[provider] || String(provider || '').trim();
+  if (!label && !model) return '';
+  const auto = requestedModelMode === 'auto' && ['fast', 'smart'].includes(modelProfile)
+    ? `Auto → ${modelProfile === 'smart' ? 'Smart' : 'Fast'}`
+    : '';
+  return [auto, label, model].filter(Boolean).join(' · ');
 }
 
 function aiQueueNotice(status = {}) {
@@ -66,6 +143,126 @@ function aiQueueNotice(status = {}) {
     return 'Running now on the next available AI system';
   }
   return '';
+}
+
+function useAiImageAttachment() {
+  const [attachment, setAttachment] = useState(null);
+  const [attachmentError, setAttachmentError] = useState('');
+  const [attachmentProcessing, setAttachmentProcessing] = useState(false);
+  const ownedAttachmentsRef = useRef(new Set());
+
+  const selectAttachmentFile = useCallback(async (file) => {
+    setAttachmentProcessing(true);
+    setAttachmentError('');
+    try {
+      const next = await prepareAiImageAttachment(file);
+      setAttachment((current) => {
+        if (current) {
+          releaseAiImageAttachment(current);
+          ownedAttachmentsRef.current.delete(current);
+        }
+        ownedAttachmentsRef.current.add(next);
+        return next;
+      });
+    } catch (error) {
+      setAttachmentError(error?.message || 'Could not prepare this image.');
+    } finally {
+      setAttachmentProcessing(false);
+    }
+  }, []);
+
+  const removeAttachment = useCallback(() => {
+    setAttachment((current) => {
+      if (current) {
+        releaseAiImageAttachment(current);
+        ownedAttachmentsRef.current.delete(current);
+      }
+      return null;
+    });
+    setAttachmentError('');
+  }, []);
+
+  const detachAttachment = useCallback(() => {
+    const current = attachment;
+    setAttachment(null);
+    setAttachmentError('');
+    return current;
+  }, [attachment]);
+
+  const restoreAttachment = useCallback((next) => {
+    if (!next) return;
+    ownedAttachmentsRef.current.add(next);
+    setAttachment(next);
+    setAttachmentError('');
+  }, []);
+
+  const handleAttachmentPaste = useCallback((event) => {
+    const imageItem = [...(event.clipboardData?.items || [])]
+      .find((item) => String(item.type || '').startsWith('image/'));
+    const file = imageItem?.getAsFile?.();
+    if (file) selectAttachmentFile(file);
+  }, [selectAttachmentFile]);
+
+  useEffect(() => () => {
+    ownedAttachmentsRef.current.forEach(releaseAiImageAttachment);
+    ownedAttachmentsRef.current.clear();
+  }, []);
+
+  return {
+    attachment,
+    attachmentError,
+    attachmentProcessing,
+    detachAttachment,
+    handleAttachmentPaste,
+    removeAttachment,
+    restoreAttachment,
+    selectAttachmentFile,
+  };
+}
+
+async function loadBriefingRoomOptions(currentRoomId) {
+  const uid = window.currentUser?.uid;
+  const currentId = String(currentRoomId || 'global').trim() || 'global';
+  const currentFallback = currentId === 'global' ? 'Global Chat' : 'Current room';
+  const seed = [
+    { id: currentId, name: currentFallback },
+    ...(currentId === 'global' ? [] : [{ id: 'global', name: 'Global Chat' }]),
+  ];
+  if (!uid) return seed;
+  const indexSnapshot = await get(ref(db, `user_rooms/${uid}`)).catch(() => null);
+  const index = indexSnapshot?.val() || {};
+  const indexedIds = Object.keys(index)
+    .filter((id) => /^[A-Za-z0-9_-]{1,160}$/.test(id) && !seed.some((room) => room.id === id))
+    .slice(0, 31);
+  const rooms = await Promise.all(indexedIds.map(async (id) => {
+    const indexed = index[id] && typeof index[id] === 'object' ? index[id] : {};
+    const nameSnapshot = await get(ref(db, `rooms_meta/${id}/name`)).catch(() => null);
+    return {
+      id,
+      name: String(nameSnapshot?.val() || indexed.name || `Room ${id.slice(0, 8)}`).trim().slice(0, 120),
+    };
+  }));
+  return [...seed, ...rooms].slice(0, 32);
+}
+
+async function loadWinstonContextPeopleOptions() {
+  const uid = window.currentUser?.uid;
+  if (!uid) return [];
+  const friendsSnapshot = await get(ref(db, `friends/${uid}`)).catch(() => null);
+  const acceptedIds = Object.entries(friendsSnapshot?.val() || {})
+    .filter(([, status]) => status === 'accepted')
+    .map(([friendUid]) => friendUid)
+    .filter((friendUid) => /^[A-Za-z0-9_-]{1,160}$/.test(friendUid))
+    .slice(0, 32);
+  const people = await Promise.all(acceptedIds.map(async (friendUid) => {
+    const profileSnapshot = await get(ref(db, `user_directory/${friendUid}`)).catch(() => null);
+    const profile = profileSnapshot?.val() || {};
+    return {
+      id: friendUid,
+      name: String(profile.displayName || profile.name || `Friend ${friendUid.slice(0, 8)}`).trim().slice(0, 120),
+    };
+  }));
+  return people.sort((left, right) => left.name.localeCompare(right.name));
 }
 
 async function readRoomContext(roomId, channelId = 'general') {
@@ -80,36 +277,27 @@ async function readRoomContext(roomId, channelId = 'general') {
     get(ref(db, `room_docs/${roomId}`)).catch(() => null),
     get(ref(db, `rooms_meta/${roomId}/events`)).catch(() => null),
   ]);
-  const messages = Object.values(messagesSnapshot?.val() || {})
-    .filter((message) => message?.text)
-    .map((message) => ({ name: message.name || 'Someone', text: String(message.text), at: message.timestamp || 0 }))
+  const messages = Object.entries(messagesSnapshot?.val() || {})
+    .filter(([, message]) => message?.text)
+    .map(([id, message]) => ({
+      id,
+      name: message.name || 'Someone',
+      text: String(message.text),
+      at: message.timestamp || 0,
+    }))
     .sort((a, b) => a.at - b.at);
   return {
     messages,
-    tasks: Object.values(tasksSnapshot?.val() || {}).filter(Boolean),
-    docs: Object.values(docsSnapshot?.val() || {}).filter(Boolean),
-    events: Object.values(eventsSnapshot?.val() || {}).filter(Boolean),
+    tasks: Object.entries(tasksSnapshot?.val() || {})
+      .filter(([, value]) => Boolean(value))
+      .map(([id, value]) => ({ id, ...value })),
+    docs: Object.entries(docsSnapshot?.val() || {})
+      .filter(([, value]) => Boolean(value))
+      .map(([id, value]) => ({ id, ...value })),
+    events: Object.entries(eventsSnapshot?.val() || {})
+      .filter(([, value]) => Boolean(value))
+      .map(([id, value]) => ({ id, ...value })),
   };
-}
-
-function extractiveSummary(context, limit = 4) {
-  const text = context.messages.slice(-120).map((message) => message.text).join(' ');
-  const sentences = text.split(/(?<=[.!?])\s+|\n+/).map((sentence) => sentence.trim()).filter((sentence) => sentence.length > 25);
-  if (sentences.length <= limit) return sentences;
-  const frequency = {};
-  sentences.forEach((sentence) => sentence.toLowerCase().match(/[a-z']+/g)?.forEach((word) => {
-    if (!stopWords.has(word) && word.length > 2) frequency[word] = (frequency[word] || 0) + 1;
-  }));
-  return sentences
-    .map((sentence, index) => {
-      const words = sentence.toLowerCase().match(/[a-z']+/g) || [];
-      const score = words.reduce((total, word) => total + (frequency[word] || 0), 0) / (words.length || 1);
-      return { sentence, index, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .sort((a, b) => a.index - b.index)
-    .map((item) => item.sentence);
 }
 
 function actionItems(context) {
@@ -141,6 +329,11 @@ function useRespectfulThreadScroll(threadRef, busy, history) {
   useEffect(() => {
     const element = threadRef.current;
     if (!element) return;
+    if (!busy && history.length === 0) {
+      element.scrollTop = 0;
+      wasNearBottomRef.current = true;
+      return;
+    }
     if (wasNearBottomRef.current) element.scrollTop = element.scrollHeight;
     wasNearBottomRef.current = isNearScrollBottom(element);
   }, [busy, history, threadRef]);
@@ -192,52 +385,19 @@ function useAiModelProfile() {
   return [profile, selectProfile];
 }
 
-function AiModelProfilePicker({ disabled = false, onChange, value }) {
-  const selectedIndex = Math.max(0, AI_MODEL_PROFILES.findIndex((profile) => profile.id === value));
-  const selectByIndex = (index, source) => {
-    const profile = AI_MODEL_PROFILES[(index + AI_MODEL_PROFILES.length) % AI_MODEL_PROFILES.length];
-    onChange(profile.id);
-    window.requestAnimationFrame(() => {
-      source?.parentElement?.querySelector?.(`[data-model-profile="${profile.id}"]`)?.focus?.();
-    });
-  };
-
+function CompactAiModelProfilePicker({ disabled = false, onChange, profiles = AI_MODEL_PROFILES, value }) {
+  const selected = profiles.find((profile) => profile.id === value) || profiles[0];
   return (
-    <div className="ai-model-profile-picker" role="radiogroup" aria-label="AI response model">
-      {AI_MODEL_PROFILES.map((profile) => {
-        const selected = profile.id === value;
-        return (
-          <button
-            key={profile.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            className={selected ? 'is-selected' : ''}
-            data-model-profile={profile.id}
-            disabled={disabled}
-            tabIndex={selected ? 0 : -1}
-            title={`${profile.label}: ${profile.description}`}
-            onClick={() => onChange(profile.id)}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
-                event.preventDefault();
-                selectByIndex(selectedIndex + 1, event.currentTarget);
-              } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
-                event.preventDefault();
-                selectByIndex(selectedIndex - 1, event.currentTarget);
-              } else if (event.key === 'Home' || event.key === 'End') {
-                event.preventDefault();
-                selectByIndex(event.key === 'Home' ? 0 : AI_MODEL_PROFILES.length - 1, event.currentTarget);
-              }
-            }}
-          >
-            <i className={`ph-bold ${profile.id === 'fast' ? 'ph-lightning' : 'ph-brain'}`} aria-hidden="true" />
-            <span>{profile.label}</span>
-            {selected ? <i className="ph-bold ph-check ai-model-profile-check" aria-hidden="true" /> : null}
-          </button>
-        );
-      })}
-    </div>
+    <label className="pa-compact-model-picker" title={selected?.description || ''}>
+      <span className="pa-sr-only">Response model</span>
+      <i className={`ph-bold ${value === 'auto' ? 'ph-sparkle' : value === 'smart' ? 'ph-brain' : 'ph-lightning'}`} aria-hidden="true" />
+      <select value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled} aria-label="Response model">
+        {profiles.map((profile) => (
+          <option key={profile.id} value={profile.id}>{profile.label}</option>
+        ))}
+      </select>
+      <i className="ph-bold ph-caret-down" aria-hidden="true" />
+    </label>
   );
 }
 
@@ -412,6 +572,20 @@ function personalLifecycleDetails(status, agentName) {
   };
 }
 
+function personalAgentHeaderStatus({ gateway, serverProfile, status }) {
+  const state = status?.state || 'standby';
+  const setup = gateway
+    ? `Protected gateway · ${serverProfile ? 'Synced setup' : 'Local setup'}`
+    : 'On-device companion · Local setup';
+  if (state === 'ready') return { state, label: 'Ready · PC first', setup };
+  if (state === 'checking' || state === 'warming') return { state: 'warming', label: 'Waking · PC first', setup };
+  if (state === 'unavailable' || state === 'offline' || state === 'request-failed' || state === 'blocked') {
+    return { state: 'unavailable', label: 'Needs attention', setup };
+  }
+  if (state === 'missing-model') return { state, label: 'Model setup needed', setup };
+  return { state: 'standby', label: 'Ready on demand', setup };
+}
+
 function PersonalAgentLifecycle({ agentName, onWake, status }) {
   const details = personalLifecycleDetails(status, agentName);
   const currentStep = details.state === 'ready' ? 2 : details.state === 'warming' ? 1 : 0;
@@ -466,16 +640,16 @@ function PersonalBananaSummary({ gateway, status, usage }) {
 
 const ROOM_AI_QUICK_ACTIONS = [
   {
-    label: 'Catch me up',
-    hint: 'The important parts, fast',
-    icon: 'ph-lightning',
+    label: 'Summarize this conversation',
+    hint: 'Get the key points and decisions',
+    icon: 'ph-chat-text',
     prompt: 'Catch me up on this room. Use sections: What changed, Key decisions, Open questions, and Next steps.',
   },
   {
-    label: 'Find decisions',
-    hint: 'What the room agreed on',
-    icon: 'ph-check-circle',
-    prompt: 'Find the decisions made in this room. Separate confirmed decisions from proposals or unresolved questions.',
+    label: 'Draft a project update',
+    hint: 'Turn room activity into a clear status',
+    icon: 'ph-note-pencil',
+    prompt: 'Draft a concise project update from this room. Include progress, decisions, blockers, and next steps.',
   },
   {
     label: 'Turn into tasks',
@@ -507,7 +681,7 @@ function RoomAIStatus({ onRetry, status }) {
       <span className="room-ai-status-dot" aria-hidden="true" />
       <span>{roomAiStatusLabel(status)}</span>
       {state !== 'ready' && state !== 'standby' && state !== 'checking' && state !== 'warming' ? (
-        <button type="button" onClick={onRetry} aria-label="Check Room AI again">Retry</button>
+        <UiButton variant="inherit" onClick={onRetry} aria-label="Check Room AI again">Retry</UiButton>
       ) : null}
     </div>
   );
@@ -547,13 +721,26 @@ function RoomAICreditStatus({ gateway, status, usage }) {
   );
 }
 
-function RoomAIContextRail({ actions, context, localAiConfig, onClose, open, status, usage }) {
+function RoomAISourcesDetails({
+  actions,
+  context,
+  latestMessage,
+  localAiConfig,
+  status,
+  summary,
+  usage,
+  detailsRef,
+}) {
   const recentContributors = useMemo(
     () => new Set(context.messages.map((message) => message.name).filter(Boolean)).size,
     [context.messages]
   );
   const openTasks = context.tasks.filter((task) => !task.done).length;
   const gateway = shouldUseGatewayAi(getLocalAiConfig(localAiConfig));
+  const provider = aiProviderDisclosure(latestMessage)
+    || aiProviderDisclosure(status)
+    || (gateway ? 'Shared AI gateway' : 'Local connection');
+  const sourceCount = latestMessage?.sources?.length || context.docs.length;
   const metrics = [
     ['ph-chat-circle-dots', 'Recent messages', context.messages.length],
     ['ph-users-three', 'Recent contributors', recentContributors],
@@ -562,41 +749,58 @@ function RoomAIContextRail({ actions, context, localAiConfig, onClose, open, sta
     ['ph-calendar-blank', 'Events', context.events.length],
   ];
   return (
-    <aside className={`room-ai-rail${open ? ' is-open' : ''}`} aria-label="Room AI context">
-      <div className="room-ai-rail-head">
-        <div>
-          <span className="room-ai-eyebrow">Authorized context</span>
-          <h2>What AI can use</h2>
-        </div>
-        <button type="button" className="room-ai-icon-btn room-ai-rail-close" onClick={onClose} aria-label="Close context panel">×</button>
-      </div>
-      <p className="room-ai-rail-intro">Room access is checked before the AI reads any server-side context.</p>
-      <div className="room-ai-metrics">
-        {metrics.map(([icon, label, value]) => (
-          <div className="room-ai-metric" key={label}>
-            <span><i className={`ph-bold ${icon}`} aria-hidden="true" /></span>
-            <div><strong>{value}</strong><small>{label}</small></div>
+    <details ref={detailsRef} className="room-ai-sources">
+      <summary>
+        <span className="room-ai-sources-icon" aria-hidden="true"><i className="ph-bold ph-database" /></span>
+        <span className="room-ai-sources-copy">
+          <strong>Sources &amp; details</strong>
+          <small>{provider} · {sourceCount} {sourceCount === 1 ? 'source' : 'sources'} · Room context</small>
+        </span>
+        <i className="ph-bold ph-caret-down room-ai-sources-caret" aria-hidden="true" />
+      </summary>
+      <div className="room-ai-sources-panel">
+        <div className="room-ai-sources-head">
+          <div>
+            <span className="room-ai-eyebrow">Authorized context</span>
+            <h2>What Room AI can use</h2>
           </div>
-        ))}
-      </div>
-      <section className="room-ai-rail-section">
-        <div className="room-ai-rail-section-title"><i className="ph-bold ph-shield-check" aria-hidden="true" /> AI credits</div>
-        <RoomAICreditStatus gateway={gateway} status={status} usage={usage} />
-      </section>
-      {actions.length ? (
+          <span className="room-ai-source-provider"><i className="ph-bold ph-cpu" aria-hidden="true" /> {provider}</span>
+        </div>
+        <p className="room-ai-rail-intro">Room access is checked before server-side context is read.</p>
+        <div className="room-ai-metrics">
+          {metrics.map(([icon, label, value]) => (
+            <div className="room-ai-metric" key={label}>
+              <span><i className={`ph-bold ${icon}`} aria-hidden="true" /></span>
+              <div><strong>{value}</strong><small>{label}</small></div>
+            </div>
+          ))}
+        </div>
+        {summary.length ? (
+          <section className="room-ai-rail-section">
+            <div className="room-ai-rail-section-title"><i className="ph-bold ph-clock" aria-hidden="true" /> Instant room snapshot</div>
+            <ul className="room-ai-snapshot-list">{summary.slice(0, 3).map((sentence) => <li key={sentence}>{sentence}</li>)}</ul>
+          </section>
+        ) : null}
         <section className="room-ai-rail-section">
-          <div className="room-ai-rail-section-title"><i className="ph-bold ph-list-checks" aria-hidden="true" /> Open action items</div>
-          <ul className="room-ai-action-list">
-            {actions.slice(0, 4).map((item) => <li key={item.text}><span>{item.text}</span><small>{item.owner}</small></li>)}
-          </ul>
+          <div className="room-ai-rail-section-title"><i className="ph-bold ph-shield-check" aria-hidden="true" /> AI credits</div>
+          <RoomAICreditStatus gateway={gateway} status={status} usage={usage} />
         </section>
-      ) : null}
-      <details className="room-ai-utility">
-        <summary><span><i className="ph-bold ph-cpu" aria-hidden="true" /> On-device summary</span><i className="ph-bold ph-caret-down" aria-hidden="true" /></summary>
-        <p>Optional browser-only model. The first run downloads its files to this device.</p>
-        <LocalAI context={context} />
-      </details>
-    </aside>
+        {actions.length ? (
+          <section className="room-ai-rail-section">
+            <div className="room-ai-rail-section-title"><i className="ph-bold ph-list-checks" aria-hidden="true" /> Open action items</div>
+            <ul className="room-ai-action-list">
+              {actions.slice(0, 4).map((item) => <li key={item.text}><span>{item.text}</span><small>{item.owner}</small></li>)}
+            </ul>
+          </section>
+        ) : null}
+        {gateway ? <p className="room-ai-routing-disclosure">Balanced routing uses your PC first, then Cloudflare or Groq overflow when needed.</p> : null}
+        <details className="room-ai-utility">
+          <summary><span><i className="ph-bold ph-cpu" aria-hidden="true" /> On-device summary</span><i className="ph-bold ph-caret-down" aria-hidden="true" /></summary>
+          <p>Optional browser-only model. The first run downloads its files to this device.</p>
+          <LocalAI context={context} />
+        </details>
+      </div>
+    </details>
   );
 }
 
@@ -604,17 +808,25 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
   const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stopPending, setStopPending] = useState(false);
   const [bananaUsage, setBananaUsage] = useState(null);
   const [notice, setNotice] = useState('');
   const [queueNotice, setQueueNotice] = useState('');
-  const [railOpen, setRailOpen] = useState(false);
+  const activeClarification = latestPendingAiClarification(history);
+  const routingPolicy = BALANCED_AI_ROUTING_POLICY;
   const threadRef = useRef(null);
   const composerRef = useRef(null);
+  const sourcesRef = useRef(null);
+  const overflowRef = useRef(null);
   const requestAbortRef = useRef(null);
+  const currentRequestRef = useRef(null);
+  const editPromptRef = useRef(false);
+  const requestAttachmentsRef = useRef(new Map());
+  const imageAttachment = useAiImageAttachment();
   const [modelProfile, selectModelProfile] = useAiModelProfile();
   const config = useMemo(
-    () => getLocalAiConfig({ ...localAiConfig, modelProfile }),
-    [localAiConfig, modelProfile],
+    () => getLocalAiConfig({ ...localAiConfig, modelProfile, routingPolicy }),
+    [localAiConfig, modelProfile, routingPolicy],
   );
   const gateway = shouldUseGatewayAi(config);
   const [agentStatus, setAgentStatus] = useState(() => gateway
@@ -664,21 +876,104 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
     return () => { subscribed = false; };
   }, [active, config, gateway]);
 
-  const sendPrompt = async (text) => {
+  const confirmAction = useCallback(
+    (action) => confirmAiAction({ config, actionId: action.id }),
+    [config],
+  );
+  const dismissAction = useCallback(
+    (action) => dismissAiAction({ config, actionId: action.id }),
+    [config],
+  );
+  const openAction = useCallback(
+    (action, response) => openAiActionContext(action, response),
+    [],
+  );
+
+  const sendPrompt = async (text, options = {}) => {
     const prompt = text.trim();
-    if (!prompt || busy) return false;
-    const nextHistory = [...history, { role: 'user', content: prompt }];
+    if (!prompt || busy || currentRequestRef.current) return false;
+    const pendingClarification = options.resolveClarification === false
+      ? null
+      : latestPendingAiClarification(history);
+    const requestedClarificationId = String(options.clarificationAnswer?.messageId || '');
+    const clarificationTarget = pendingClarification
+      && (!requestedClarificationId || pendingClarification.messageId === requestedClarificationId)
+      ? pendingClarification
+      : null;
+    const promptId = newAiUiId('prompt');
+    const assistantId = newAiUiId('reply');
+    const originAttachment = clarificationTarget?.message?.originPromptId
+      ? requestAttachmentsRef.current.get(clarificationTarget.message.originPromptId) || null
+      : null;
+    const requestAttachment = Object.hasOwn(options, 'attachment')
+      ? options.attachment
+      : originAttachment || imageAttachment.attachment || null;
+    const userMessage = {
+      id: promptId,
+      role: 'user',
+      content: prompt,
+      attachmentName: requestAttachment?.name || '',
+    };
+    const resolvedHistory = clarificationTarget
+      ? resolveAiHistoryClarification(
+        history,
+        options.clarificationAnswer?.value || prompt,
+        {
+          messageId: clarificationTarget.messageId,
+          freeText: options.clarificationAnswer?.freeText !== false,
+        },
+      )
+      : history;
+    const nextHistory = appendBoundedAiHistory(resolvedHistory, userMessage);
     setHistory(nextHistory);
+    if (requestAttachment) {
+      requestAttachmentsRef.current.set(promptId, requestAttachment);
+      while (requestAttachmentsRef.current.size > 8) {
+        const oldestId = requestAttachmentsRef.current.keys().next().value;
+        releaseAiImageAttachment(requestAttachmentsRef.current.get(oldestId));
+        requestAttachmentsRef.current.delete(oldestId);
+      }
+      if (requestAttachment === imageAttachment.attachment) imageAttachment.detachAttachment();
+    }
     setNotice('');
     setQueueNotice('');
     setBusy(true);
     const requestController = new AbortController();
     requestAbortRef.current = requestController;
+    const requestState = {
+      assistantId,
+      controller: requestController,
+      jobId: '',
+      promptId,
+      queueStatus: '',
+      stopConfirmed: false,
+    };
+    currentRequestRef.current = requestState;
     try {
+      const liveToolResult = requestAttachment || options.requestMode === 'briefing'
+        ? null
+        : await tryAgentLiveTool({ context, messages: nextHistory, signal: requestController.signal });
+      if (liveToolResult) {
+        setHistory((current) => appendBoundedAiHistory(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: liveToolResult.reply,
+          provider: liveToolResult.provider || '',
+          model: liveToolResult.model || '',
+          status: 'complete',
+        }));
+        return true;
+      }
       let currentStatus = agentStatus;
       if (currentStatus?.state !== 'ready') currentStatus = await refreshStatus();
       if (currentStatus?.state !== 'ready') {
         setNotice(currentStatus.message || localAiStatusMessage(currentStatus));
+        setHistory((current) => appendBoundedAiHistory(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: currentStatus.message || localAiStatusMessage(currentStatus),
+          status: 'error',
+        }));
         return true;
       }
       const result = await askRoomAgent({
@@ -687,20 +982,65 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
         config,
         roomId,
         channelId,
+        routingPolicy,
+        attachment: requestAttachment,
         signal: requestController.signal,
-        onQueueUpdate: (status) => setQueueNotice(aiQueueNotice(status)),
+        onQueueUpdate: (status) => {
+          requestState.jobId = String(status?.jobId || requestState.jobId || '');
+          requestState.queueStatus = String(status?.status || requestState.queueStatus || '');
+          setQueueNotice(aiQueueNotice(status));
+        },
+        onProgress: (progress) => {
+          const partial = String(progress?.text || '').trim();
+          if (!partial || requestController.signal.aborted) return;
+          setHistory((current) => upsertAiHistoryMessage(current, {
+            id: assistantId,
+            role: 'assistant',
+            content: partial,
+            provider: progress.provider || '',
+            model: progress.model || '',
+            status: 'streaming',
+          }));
+        },
       });
       setBananaUsage(result);
       const { reply } = result;
-      setHistory([...nextHistory, {
+      setHistory((current) => upsertAiHistoryMessage(current, {
+        id: assistantId,
         role: 'assistant',
         content: reply,
         provider: result.provider || '',
         model: result.model || '',
-      }]);
+        sources: result.sources || [],
+        actions: result.actions || [],
+        interaction: result.interaction || null,
+        originPromptId: promptId,
+        requestMode: options.requestMode === 'briefing' ? 'briefing' : 'chat',
+        selectedRoomIds: Array.isArray(options.selectedRoomIds) ? options.selectedRoomIds : [],
+        status: 'complete',
+      }));
     } catch (error) {
       if (requestController.signal.aborted) {
         setNotice('');
+        setHistory((current) => upsertAiHistoryMessage(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: requestState.stopConfirmed
+            ? 'Request cancelled.'
+            : 'Stopped waiting before a server queue job was confirmed.',
+          status: 'stopped',
+        }));
+        return true;
+      }
+      if (error?.state === 'cancelled' || error?.details?.queueStatus === 'cancelled') {
+        requestState.stopConfirmed = true;
+        setNotice('');
+        setHistory((current) => upsertAiHistoryMessage(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: 'Request cancelled.',
+          status: 'stopped',
+        }));
         return true;
       }
       setQueueNotice('');
@@ -708,13 +1048,86 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
       if (error?.details?.bananas) setBananaUsage(error.details.bananas);
       setAgentStatus({ state: error?.state || 'request-failed', message, model: config.model });
       setNotice(message);
+      setHistory((current) => upsertAiHistoryMessage(current, {
+        id: assistantId,
+        role: 'assistant',
+        content: error?.message || message,
+        status: error?.state === 'cancelled' ? 'stopped' : 'error',
+      }));
     } finally {
       if (requestAbortRef.current === requestController) requestAbortRef.current = null;
+      if (currentRequestRef.current === requestState) currentRequestRef.current = null;
       setQueueNotice('');
+      setStopPending(false);
       setBusy(false);
     }
     return true;
   };
+
+  const selectClarificationOption = (message, option) => {
+    if (busy || currentRequestRef.current || activeClarification?.messageId !== message.id) return false;
+    return sendPrompt(option.label, {
+      attachment: message.originPromptId ? requestAttachmentsRef.current.get(message.originPromptId) || null : null,
+      clarificationAnswer: { messageId: message.id, value: option, freeText: false },
+      requestMode: message.requestMode,
+      selectedRoomIds: message.selectedRoomIds,
+    });
+  };
+
+  const focusClarificationComposer = () => {
+    editPromptRef.current = false;
+    window.requestAnimationFrame(() => composerRef.current?.focus?.());
+  };
+
+  const stopRequest = useCallback(async () => {
+    const request = currentRequestRef.current;
+    if (!request || stopPending) return;
+    setStopPending(true);
+    if (!request.jobId || !gateway) {
+      request.stopConfirmed = !gateway;
+      request.controller.abort();
+      return;
+    }
+    try {
+      const result = await cancelQueuedAiRequest({ config, jobId: request.jobId });
+      if (result.cancelled) {
+        request.stopConfirmed = true;
+        request.controller.abort();
+        setNotice('');
+        return;
+      }
+      setNotice(result.status === 'running'
+        ? 'This request is already running, so it will finish safely.'
+        : 'The server did not confirm cancellation. The request is still active.');
+    } catch (error) {
+      setNotice(error?.details?.queueStatus === 'running'
+        ? 'This request is already running, so it will finish safely.'
+        : error?.message || 'Cancellation was not confirmed. The request is still active.');
+    } finally {
+      if (currentRequestRef.current === request && !request.controller.signal.aborted) setStopPending(false);
+    }
+  }, [config, gateway, stopPending]);
+
+  const retryMessage = useCallback((message) => {
+    if (busy) return;
+    sendPrompt(message.content, { attachment: requestAttachmentsRef.current.get(message.id) || null, resolveClarification: false });
+  // sendPrompt intentionally uses the latest render state and remains interaction-scoped.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, history, routingPolicy]);
+
+  const editMessage = useCallback((message) => {
+    if (busy) return;
+    editPromptRef.current = true;
+    setDraft(message.content);
+    const previousAttachment = requestAttachmentsRef.current.get(message.id);
+    if (previousAttachment) imageAttachment.restoreAttachment(previousAttachment);
+    window.requestAnimationFrame(() => {
+      composerRef.current?.focus?.();
+      if (composerRef.current) resizeComposer(composerRef.current);
+    });
+  // resizeComposer and the attachment controller are stable for this mounted composer.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy]);
 
   const resizeComposer = (element) => {
     element.style.height = 'auto';
@@ -723,64 +1136,189 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
 
   const submitDraft = async (event) => {
     event.preventDefault();
-    if (!(await sendPrompt(draft))) return;
+    const prompt = draft.trim() || (imageAttachment.attachment ? 'What should I know about this image?' : '');
+    if (!prompt || busy) return;
     setDraft('');
     if (composerRef.current) composerRef.current.style.height = 'auto';
+    const resolveClarification = !editPromptRef.current;
+    editPromptRef.current = false;
+    await sendPrompt(prompt, { resolveClarification });
   };
+
+  const startNewChat = () => {
+    if (busy) return;
+    new Set(requestAttachmentsRef.current.values()).forEach(releaseAiImageAttachment);
+    requestAttachmentsRef.current.clear();
+    imageAttachment.removeAttachment();
+    setHistory([]);
+    setDraft('');
+    setNotice('');
+    setQueueNotice('');
+    editPromptRef.current = false;
+    if (composerRef.current) composerRef.current.style.height = 'auto';
+    window.requestAnimationFrame(() => composerRef.current?.focus?.());
+  };
+
+  const closeOverflowAndRestoreFocus = (trigger) => {
+    const details = trigger?.closest?.('details');
+    const summary = details?.querySelector?.('summary');
+    details?.removeAttribute?.('open');
+    window.requestAnimationFrame(() => summary?.focus?.());
+  };
+
+  const openSourcesDetails = (event) => {
+    if (sourcesRef.current) {
+      sourcesRef.current.open = true;
+      window.requestAnimationFrame(() => sourcesRef.current?.querySelector('summary')?.focus?.());
+    }
+    event?.currentTarget?.closest?.('details')?.removeAttribute('open');
+  };
+
+  const streamingReply = busy && history.some((message) => (
+    message.id === currentRequestRef.current?.assistantId && message.status === 'streaming'
+  ));
+  const latestAssistantMessage = [...history].reverse().find((message) => message.role === 'assistant') || null;
+
+  useEffect(() => {
+    const details = overflowRef.current;
+    if (!details) return undefined;
+
+    const closeOverflow = ({ restoreFocus = false } = {}) => {
+      if (!details.open) return;
+      details.open = false;
+      if (restoreFocus) {
+        window.requestAnimationFrame(() => details.querySelector('summary')?.focus?.());
+      }
+    };
+    const handlePointerDown = (event) => {
+      if (!details.open || details.contains(event.target)) return;
+      closeOverflow();
+    };
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape' || !details.open) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeOverflow({ restoreFocus: true });
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, []);
 
   return (
     <div className="room-ai-shell">
       <main className="room-ai-main">
-        <header className="room-ai-header">
+        <header className="room-ai-header" aria-label="Room AI toolbar">
           <div className="room-ai-title-mark" aria-hidden="true"><i className="ph-bold ph-sparkle" /></div>
           <div className="room-ai-title-copy">
-            <span className="room-ai-eyebrow">Room workspace</span>
             <h1>Room AI</h1>
+            <span>{displayRoomName}</span>
           </div>
-          <AiModelProfilePicker disabled={busy} value={modelProfile} onChange={changeModelProfile} />
-          <RoomAIStatus status={agentStatus} onRetry={refreshStatus} />
-          <div className="room-ai-header-actions">
-            <button type="button" className="room-ai-icon-btn room-ai-context-toggle" onClick={() => setRailOpen(true)} aria-label="Open AI context" title="Context"><i className="ph-bold ph-squares-four" aria-hidden="true" /></button>
-            <button type="button" className="room-ai-icon-btn" onClick={refreshStatus} aria-label="Refresh AI status" title="Refresh AI"><i className="ph-bold ph-arrows-clockwise" aria-hidden="true" /></button>
+          <div className="room-ai-toolbar-actions">
+            <RoomAIStatus status={agentStatus} onRetry={refreshStatus} />
+            <AiModelSegmentedControl
+              disabled={busy}
+              onChange={changeModelProfile}
+              profiles={AI_MODEL_PROFILES}
+              value={modelProfile}
+            />
+            <UiButton
+              aria-label="New chat"
+              className="room-ai-new-chat"
+              disabled={busy}
+              onClick={startNewChat}
+              tooltip="Start a new Room AI conversation"
+              variant="inherit"
+            >
+              <i className="ph-bold ph-plus" aria-hidden="true" />
+              <span>New chat</span>
+            </UiButton>
+            <details ref={overflowRef} className="room-ai-overflow">
+              <summary aria-label="More Room AI actions" title="More actions">
+                <i className="ph-bold ph-dots-three-vertical" aria-hidden="true" />
+              </summary>
+              <div className="room-ai-overflow-menu" role="group" aria-label="More Room AI actions">
+                <span className="room-ai-overflow-label">Prompts</span>
+                {ROOM_AI_QUICK_ACTIONS.slice(2).map((action) => (
+                  <UiButton
+                    key={action.label}
+                    disabled={busy}
+                    variant="inherit"
+                    onClick={(event) => {
+                      closeOverflowAndRestoreFocus(event.currentTarget);
+                      sendPrompt(action.prompt);
+                    }}
+                  >
+                    <i className={`ph-bold ${action.icon}`} aria-hidden="true" />
+                    <span>{action.label}</span>
+                  </UiButton>
+                ))}
+                <span className="room-ai-overflow-label">Room AI</span>
+                <UiButton variant="inherit" disabled={busy} onClick={(event) => {
+                  closeOverflowAndRestoreFocus(event.currentTarget);
+                  refreshStatus();
+                }}>
+                  <i className="ph-bold ph-arrows-clockwise" aria-hidden="true" />
+                  <span>Refresh status</span>
+                </UiButton>
+                <UiButton variant="inherit" onClick={openSourcesDetails}>
+                  <i className="ph-bold ph-database" aria-hidden="true" />
+                  <span>Sources &amp; details</span>
+                </UiButton>
+              </div>
+            </details>
           </div>
         </header>
 
         <div ref={threadRef} id="ai-thread" className={`room-ai-canvas${history.length ? ' has-thread' : ''}`} aria-live="polite" aria-relevant="additions text">
           {!history.length ? (
             <div className="room-ai-welcome">
-              <div className="room-ai-orbit" aria-hidden="true"><span /><span /><i className="ph-bold ph-sparkle" /></div>
-              <span className="room-ai-eyebrow">Ask across this room</span>
-              <h2>What should we find in {displayRoomName}?</h2>
+              <div className="room-ai-orbit" aria-hidden="true"><i className="ph-bold ph-sparkle" /></div>
+              <h2>How can I help your team today?</h2>
               <p>{hasRoomContext ? 'Turn the conversation into a clear answer, decision, or next step.' : 'This room is quiet, but Room AI is ready when the conversation starts.'}</p>
               <div className="room-ai-quick-grid">
-                {ROOM_AI_QUICK_ACTIONS.map((action) => (
-                  <button key={action.label} type="button" disabled={busy} onClick={() => sendPrompt(action.prompt)}>
+                {ROOM_AI_QUICK_ACTIONS.slice(0, 2).map((action) => (
+                  <UiButton key={action.label} variant="inherit" disabled={busy} onClick={() => sendPrompt(action.prompt)}>
                     <i className={`ph-bold ${action.icon}`} aria-hidden="true" />
                     <span><strong>{action.label}</strong><small>{action.hint}</small></span>
-                    <span className="room-ai-action-arrow" aria-hidden="true">↗</span>
-                  </button>
+                    <i className="ph-bold ph-arrow-right room-ai-action-arrow" aria-hidden="true" />
+                  </UiButton>
                 ))}
               </div>
-              {summary.length ? (
-                <section className="room-ai-instant-snapshot" aria-label="Instant room snapshot">
-                  <div><i className="ph-bold ph-clock" aria-hidden="true" /><span><strong>Instant room snapshot</strong><small>Extracted locally from recent messages</small></span></div>
-                  <ul>{summary.slice(0, 3).map((sentence) => <li key={sentence}>{sentence}</li>)}</ul>
-                </section>
-              ) : null}
             </div>
           ) : (
             <div className="room-ai-thread">
               {history.map((message, index) => (
-                <article key={`${message.role}-${index}`} className={`room-ai-message room-ai-message-${message.role}`}>
+                <article key={message.id || `${message.role}-${index}`} className={`room-ai-message room-ai-message-${message.role} is-${message.status || 'complete'}`}>
                   <div className="room-ai-message-avatar" aria-hidden="true">{message.role === 'assistant' ? <i className="ph-bold ph-sparkle" /> : 'You'}</div>
                   <div>
                     <span>{message.role === 'assistant' ? 'Room AI' : 'You'}</span>
-                    <p>{message.content}</p>
-                    {message.role === 'assistant' && message.provider ? <small className="room-ai-provider-disclosure">{aiProviderDisclosure(message)}</small> : null}
+                    <div className={`room-ai-message-bubble${message.status === 'streaming' ? ' ai-streaming-caret' : ''}`}>
+                      {message.role === 'assistant'
+                        ? (message.content ? <AiResponseContent text={message.content} /> : null)
+                        : <p>{message.content}</p>}
+                      {message.role === 'user' && message.attachmentName ? <small className="ai-prompt-attachment"><i className="ph-bold ph-image" aria-hidden="true" /> {message.attachmentName}</small> : null}
+                      {message.role === 'assistant' ? <AiEvidence sources={message.sources} /> : null}
+                      {message.role === 'assistant' ? <AiActionCards actions={message.actions} disabled={busy} onConfirm={confirmAction} onDismiss={dismissAction} onOpen={openAction} /> : null}
+                      {message.role === 'assistant' ? (
+                        <AiClarificationCard
+                          interaction={message.interaction}
+                          messageText={message.content}
+                          disabled={busy || activeClarification?.messageId !== message.id}
+                          onSelect={(option) => selectClarificationOption(message, option)}
+                          onFreeText={focusClarificationComposer}
+                        />
+                      ) : null}
+                    </div>
+                    <AiMessageControls message={message} disabled={busy} onRetry={retryMessage} onEdit={editMessage} />
                   </div>
                 </article>
               ))}
-              {busy ? (
+              {busy && !streamingReply ? (
                 <article className="room-ai-message room-ai-message-assistant" role="status" aria-label="Room AI is replying">
                   <div className="room-ai-message-avatar" aria-hidden="true"><i className="ph-bold ph-sparkle" /></div>
                   <div><span>Room AI</span><div className="room-ai-typing"><i /><i /><i /></div></div>
@@ -791,6 +1329,16 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
         </div>
 
         <div className="room-ai-composer-zone">
+          <RoomAISourcesDetails
+            actions={actions}
+            context={context}
+            detailsRef={sourcesRef}
+            latestMessage={latestAssistantMessage}
+            localAiConfig={config}
+            status={agentStatus}
+            summary={summary}
+            usage={bananaUsage}
+          />
           {queueNotice ? (
             <div className="room-ai-status room-ai-status-loading room-ai-queue-status" role="status" aria-live="polite">
               <i className="ph-bold ph-clock-countdown" aria-hidden="true" />
@@ -801,9 +1349,19 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
             <div className="room-ai-agent-alert" role="alert">
               <i className="ph-bold ph-warning-circle" aria-hidden="true" />
               <span>{notice || agentStatus.message || 'Room AI needs a quick check before it can answer.'}</span>
-              <button type="button" onClick={refreshStatus}>Retry</button>
+              <UiButton variant="inherit" onClick={refreshStatus}>Retry</UiButton>
             </div>
           ) : null}
+          <div className="ai-composer-enhancements">
+            <AiImageComposerTools
+              attachment={imageAttachment.attachment}
+              disabled={busy || !gateway}
+              error={gateway ? imageAttachment.attachmentError : ''}
+              processing={imageAttachment.attachmentProcessing}
+              onRemove={imageAttachment.removeAttachment}
+              onSelectFile={imageAttachment.selectAttachmentFile}
+            />
+          </div>
           <form id="ai-chat-form" className="room-ai-composer" aria-label="Ask Room AI" onSubmit={submitDraft}>
             <textarea
               ref={composerRef}
@@ -811,6 +1369,7 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
               rows="1"
               value={draft}
               onChange={(event) => { setDraft(event.target.value); resizeComposer(event.currentTarget); }}
+              onPaste={gateway ? imageAttachment.handleAttachmentPaste : undefined}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault();
@@ -821,22 +1380,15 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
               autoComplete="off"
               aria-label="Message Room AI"
             />
-            <button type="submit" id="ai-send-btn" title="Send" aria-label="Send to Room AI" disabled={busy || !draft.trim()}><i className="ph-bold ph-paper-plane-tilt" aria-hidden="true" /></button>
+            {busy ? (
+              <UiIconButton id="ai-send-btn" className="ai-stop-button" label="Stop Room AI request" tooltip="Stop" disabled={stopPending} onClick={stopRequest}><i className="ph-bold ph-square" aria-hidden="true" /></UiIconButton>
+            ) : (
+              <UiIconButton type="submit" id="ai-send-btn" label="Send to Room AI" tooltip="Send" disabled={!draft.trim() && !imageAttachment.attachment}><i className="ph-bold ph-paper-plane-tilt" aria-hidden="true" /></UiIconButton>
+            )}
           </form>
           <div className="room-ai-composer-meta"><span><i className="ph-bold ph-shield-check" aria-hidden="true" /> Room access checked</span><span>Enter to send · Shift + Enter for a new line</span></div>
-          {gateway ? <p className="room-ai-routing-disclosure">If cloud overflow is enabled, busy requests may be processed by Cloudflare or Groq. Each answer shows its provider.</p> : null}
         </div>
       </main>
-      <RoomAIContextRail
-        actions={actions}
-        context={context}
-        localAiConfig={config}
-        onClose={() => setRailOpen(false)}
-        open={railOpen}
-        status={agentStatus}
-        usage={bananaUsage}
-      />
-      {railOpen ? <button type="button" className="room-ai-rail-backdrop" onClick={() => setRailOpen(false)} aria-label="Close context panel" /> : null}
     </div>
   );
 }
@@ -844,8 +1396,10 @@ function RoomAgent({ actions, active, context, localAiConfig, roomId, roomName, 
 const EMPTY_CONTEXT = { messages: [], tasks: [], docs: [], events: [] };
 
 const PERSONAL_QUICK_ACTIONS = [
-  { label: 'Catch me up', hint: 'What changed recently', icon: 'ph-lightning', prompt: 'Catch me up on this room like my personal assistant. Focus on what matters to me and what changed recently.' },
-  { label: 'My next steps', hint: 'What I should do now', icon: 'ph-list-checks', prompt: 'Based on this room, what should I personally do next? Separate urgent items from nice-to-haves.' },
+  { label: 'Catch me up', hint: 'Recent room changes', icon: 'ph-chats-circle', prompt: 'Catch me up on this room like my personal assistant. Focus on what matters to me and what changed recently.' },
+  { label: 'My next steps', hint: 'Make an action plan', icon: 'ph-list-checks', prompt: 'Based on this room, what should I personally do next? Separate urgent items from nice-to-haves.' },
+  { label: 'Find events', hint: 'Search my rooms', icon: 'ph-calendar-blank', prompt: 'Show me the upcoming events I can access. Include the date, time, room, and a citation for each result.' },
+  { label: 'Make a room', hint: 'Invite accepted friends', icon: 'ph-user-plus', prompt: 'Help me create a room and invite accepted friends. Ask for the room name and which friends if I have not provided them.' },
 ];
 
 function WinstonAvatar({ alt = '', className = '' }) {
@@ -868,28 +1422,70 @@ function PersonalAgentShell({ children, className = '' }) {
 
 export function PersonalAIAgent({ context, loading = false, error = '', localAiConfig, onRefresh, roomId = 'global', channelId = 'general' }) {
   const [profile, setProfile] = useState(loadLocalPersonalAgentProfile);
-  const [history, setHistory] = useState([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [stopPending, setStopPending] = useState(false);
   const [saved, setSaved] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaveError, setProfileSaveError] = useState('');
   const [profileLoadError, setProfileLoadError] = useState('');
   const [bananaUsage, setBananaUsage] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [conversationDrawerOpen, setConversationDrawerOpen] = useState(false);
+  const [workspaceSearchOpen, setWorkspaceSearchOpen] = useState(false);
   const [requestNotice, setRequestNotice] = useState('');
   const [queueNotice, setQueueNotice] = useState('');
+  const routingPolicy = BALANCED_AI_ROUTING_POLICY;
+  const [memories, setMemories] = useState(loadLocalAiMemories);
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const [briefingRooms, setBriefingRooms] = useState([]);
+  const [briefingRoomIds, setBriefingRoomIds] = useState(() => [String(roomId || 'global')]);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [briefingError, setBriefingError] = useState('');
+  const [contextPeople, setContextPeople] = useState([]);
+  const [knowledgeIndexStatus, setKnowledgeIndexStatus] = useState(null);
+  const [knowledgeIndexSyncing, setKnowledgeIndexSyncing] = useState(false);
+  const [planMode, setPlanMode] = useState(false);
   const threadRef = useRef(null);
+  const composerRef = useRef(null);
   const requestAbortRef = useRef(null);
+  const currentRequestRef = useRef(null);
+  const editPromptRef = useRef(false);
+  const requestAttachmentsRef = useRef(new Map());
+  const winstonAttachments = useWinstonAttachments();
+  const {
+    selection: contextSelection,
+    setSelection: setContextSelection,
+  } = useWinstonContextSelection(roomId);
   const pro = isProTier();
   const ctx = context || EMPTY_CONTEXT;
-  const [modelProfile, selectModelProfile] = useAiModelProfile();
+  const [, selectModelProfile] = useAiModelProfile();
+  const [modelMode, setModelMode] = useState(loadWinstonModelMode);
+  const configuredModelProfile = modelMode === 'smart' ? 'smart' : 'fast';
   const config = useMemo(
-    () => getLocalAiConfig({ ...localAiConfig, modelProfile }),
-    [localAiConfig, modelProfile],
+    () => getLocalAiConfig({
+      ...localAiConfig,
+      modelProfile: configuredModelProfile,
+      requestedModelProfile: modelMode,
+      routingPolicy,
+    }),
+    [configuredModelProfile, localAiConfig, modelMode, routingPolicy],
   );
   const serverProfile = shouldUseServerAiProfile(config);
   const gateway = shouldUseGatewayAi(config);
+  const {
+    activeConversation,
+    activeId: activeConversationId,
+    conversations,
+    deleteConversation,
+    history,
+    newConversation,
+    renameConversation,
+    selectConversation,
+    setHistory,
+    syncState: conversationSyncState,
+  } = useWinstonConversations({ config, serverEnabled: pro && serverProfile });
+  const activeClarification = latestPendingAiClarification(history);
   const [agentStatus, setAgentStatus] = useState(() => gateway
     ? { ...config, state: 'standby', provider: 'gateway', message: localAiStatusMessage({ ...config, state: 'standby', provider: 'gateway' }) }
     : { ...config, state: 'checking', message: localAiStatusMessage({ ...config, state: 'checking' }) });
@@ -897,14 +1493,97 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
   const wakeTimerRef = useRef(null);
   const statusRequestIdRef = useRef(0);
   const lifecycleBusy = agentStatus?.state === 'checking' || agentStatus?.state === 'warming';
-  const changeModelProfile = useCallback((nextProfile) => {
+  const changeModelProfile = useCallback((nextMode) => {
+    const mode = saveWinstonModelMode(nextMode);
+    const nextProfile = mode === 'smart' ? 'smart' : 'fast';
     setRequestNotice('');
     setQueueNotice('');
     setAgentStatus(gateway
       ? { ...config, state: 'standby', provider: 'gateway', modelProfile: nextProfile, message: localAiStatusMessage({ ...config, state: 'standby', provider: 'gateway', modelProfile: nextProfile }) }
       : { ...config, state: 'checking', modelProfile: nextProfile, message: localAiStatusMessage({ ...config, state: 'checking', modelProfile: nextProfile }) });
-    selectModelProfile(nextProfile);
+    setModelMode(mode);
+    if (mode !== 'auto') selectModelProfile(nextProfile);
   }, [config, gateway, selectModelProfile]);
+
+  const handleMemoriesChange = useCallback((nextMemories) => {
+    setMemories(nextMemories);
+  }, []);
+  const syncKnowledgeIndex = useCallback(async (selectedRoomIds) => {
+    if (!gateway) throw new Error('Full-history indexing requires the protected Winston gateway.');
+    setKnowledgeIndexSyncing(true);
+    try {
+      const result = await syncWinstonKnowledgeIndex({
+        config,
+        selectedRoomIds,
+        onProgress: (progress) => setKnowledgeIndexStatus((current) => ({
+          ...(current || {}),
+          indexed: progress.indexed,
+          activeSyncId: progress.complete ? '' : progress.syncId,
+          progress: progress.progress,
+        })),
+      });
+      const status = await getWinstonKnowledgeIndexStatus({ config }).catch(() => ({
+        indexed: result.indexed,
+        activeSyncId: '',
+      }));
+      setKnowledgeIndexStatus(status);
+      return result;
+    } finally {
+      setKnowledgeIndexSyncing(false);
+    }
+  }, [config, gateway]);
+  const updateVisiblePlan = useCallback((nextPlan) => {
+    if (!nextPlan?.id) return;
+    setHistory((current) => current.map((message) => (
+      message.plan?.id === nextPlan.id ? { ...message, plan: nextPlan } : message
+    )));
+  }, [setHistory]);
+  const commandWinstonPlan = useCallback(async (payload) => {
+    const response = await sendWinstonPlanCommand({
+      command: payload?.command,
+      config,
+      planId: payload?.planId,
+      stepId: payload?.stepId,
+    });
+    if (response?.plan) updateVisiblePlan(response.plan);
+    return response;
+  }, [config, updateVisiblePlan]);
+
+  const confirmAction = useCallback(
+    (action) => confirmAiAction({ config, actionId: action.id }),
+    [config],
+  );
+  const dismissAction = useCallback(
+    (action) => dismissAiAction({ config, actionId: action.id }),
+    [config],
+  );
+  const openAction = useCallback(
+    (action, response) => openAiActionContext(action, response),
+    [],
+  );
+
+  const openBriefing = useCallback(async () => {
+    setBriefingOpen(true);
+    setBriefingLoading(true);
+    setBriefingError('');
+    const currentId = String(roomId || 'global');
+    setBriefingRoomIds([currentId]);
+    try {
+      setBriefingRooms(gateway
+        ? await loadBriefingRoomOptions(currentId)
+        : [{ id: currentId, name: currentId === 'global' ? 'Global Chat' : 'Current room' }]);
+    } catch (loadError) {
+      setBriefingError(loadError?.message || 'Could not load your rooms.');
+    } finally {
+      setBriefingLoading(false);
+    }
+  }, [gateway, roomId]);
+
+  const toggleBriefingRoom = useCallback((selectedId) => {
+    setBriefingRoomIds((current) => current.includes(selectedId)
+      ? current.filter((id) => id !== selectedId)
+      : [...current, selectedId].slice(0, 8));
+  }, []);
 
   const contextBits = useMemo(() => {
     const bits = [];
@@ -914,10 +1593,66 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
     if (ctx.docs.length) bits.push(`${ctx.docs.length} docs`);
     return bits;
   }, [ctx]);
+  const contextDocuments = useMemo(
+    () => ctx.docs.map((document, index) => ({
+      id: String(document?.id || document?.docId || `doc-${index}`),
+      title: String(document?.title || document?.name || 'Untitled document').trim().slice(0, 120),
+    })),
+    [ctx.docs],
+  );
 
   useRespectfulThreadScroll(threadRef, busy, history);
 
   useEffect(() => () => requestAbortRef.current?.abort(), []);
+  useEffect(() => () => {
+    requestAttachmentsRef.current.forEach((attachments) => releaseWinstonAttachments(attachments));
+    requestAttachmentsRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      Promise.all([
+        loadBriefingRoomOptions(String(roomId || 'global')),
+        loadWinstonContextPeopleOptions(),
+      ]).then(([rooms, people]) => {
+        if (!active) return;
+        setBriefingRooms(rooms);
+        setContextPeople(people);
+      }).catch(() => {
+        if (!active) return;
+        setBriefingRooms([{ id: String(roomId || 'global'), name: roomId === 'global' ? 'Global Chat' : 'Current room' }]);
+        setContextPeople([]);
+      });
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (!gateway) {
+      setKnowledgeIndexStatus(null);
+      return undefined;
+    }
+    let active = true;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      getWinstonKnowledgeIndexStatus({ config, signal: controller.signal })
+        .then((status) => {
+          if (active) setKnowledgeIndexStatus(status);
+        })
+        .catch(() => {
+          if (active) setKnowledgeIndexStatus(null);
+        });
+    }, 0);
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [config, gateway]);
 
   const wakeAgent = useCallback(() => {
     if (wakeRequestRef.current) return wakeRequestRef.current;
@@ -1045,9 +1780,9 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
     }
   };
 
-  const sendPrompt = async (text) => {
+  const sendPrompt = async (text, options = {}) => {
     const prompt = text.trim();
-    if (!prompt || busy) return false;
+    if (!prompt || busy || currentRequestRef.current) return false;
     if (!window.currentUser?.getIdToken) {
       const message = 'Please sign in again before using Winston.';
       setAgentStatus({ ...config, state: 'blocked', message });
@@ -1055,62 +1790,291 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
       return false;
     }
 
-    const nextHistory = [...history, { role: 'user', content: prompt }];
+    const pendingClarification = options.resolveClarification === false
+      ? null
+      : latestPendingAiClarification(history);
+    const requestedClarificationId = String(options.clarificationAnswer?.messageId || '');
+    const clarificationTarget = pendingClarification
+      && (!requestedClarificationId || pendingClarification.messageId === requestedClarificationId)
+      ? pendingClarification
+      : null;
+    const promptId = newAiUiId('prompt');
+    const assistantId = newAiUiId('reply');
+    const originAttachmentValue = clarificationTarget?.message?.originPromptId
+      ? requestAttachmentsRef.current.get(clarificationTarget.message.originPromptId) || []
+      : [];
+    const originAttachments = Array.isArray(originAttachmentValue)
+      ? originAttachmentValue
+      : originAttachmentValue ? [originAttachmentValue] : [];
+    const hasExplicitAttachments = Object.hasOwn(options, 'attachments') || Object.hasOwn(options, 'attachment');
+    const explicitAttachmentValue = Object.hasOwn(options, 'attachments')
+      ? options.attachments
+      : options.attachment ? [options.attachment] : [];
+    const explicitAttachments = Array.isArray(explicitAttachmentValue)
+      ? explicitAttachmentValue
+      : explicitAttachmentValue ? [explicitAttachmentValue] : [];
+    const composerAttachments = winstonAttachments.attachments;
+    const requestAttachments = (hasExplicitAttachments
+      ? explicitAttachments
+      : originAttachments.length ? originAttachments : composerAttachments)
+      .filter(Boolean)
+      .slice(0, 6);
+    const requestAttachment = requestAttachments[0] || null;
+    const usesComposerAttachments = !hasExplicitAttachments
+      && !originAttachments.length
+      && requestAttachments.length > 0;
+    const requestPlanMode = Object.hasOwn(options, 'planMode')
+      ? options.planMode === true
+      : planMode;
+    const advancedRequestFields = buildWinstonAdvancedRequestFields({
+      attachments: requestAttachments,
+      contextSelection,
+    });
+    const inheritedRequestMode = options.requestMode || clarificationTarget?.message?.requestMode;
+    const requestMode = inheritedRequestMode === 'briefing' ? 'briefing' : 'chat';
+    const selectedRoomIds = requestMode === 'briefing'
+      ? [...new Set(options.selectedRoomIds || clarificationTarget?.message?.selectedRoomIds || [roomId])].slice(0, 8)
+      : [];
+    const resolvedModelProfile = resolveWinstonModelProfile(prompt, {
+      attachment: requestAttachment,
+      mode: modelMode,
+      requestMode,
+    });
+    const requestConfig = getLocalAiConfig({
+      ...localAiConfig,
+      modelProfile: resolvedModelProfile,
+      requestedModelProfile: modelMode,
+      routingPolicy,
+    });
+    const localMemorySuggestion = suggestWinstonMemory(prompt, memories);
+    const userMessage = {
+      id: promptId,
+      role: 'user',
+      content: prompt,
+      attachmentName: requestAttachment?.name || '',
+      attachmentNames: requestAttachments.map((attachment) => attachment.name).filter(Boolean),
+      contextSelection,
+      planMode: requestPlanMode,
+      requestMode,
+      selectedRoomIds,
+      createdAt: Date.now(),
+    };
+    const resolvedHistory = clarificationTarget
+      ? resolveAiHistoryClarification(
+        history,
+        options.clarificationAnswer?.value || prompt,
+        {
+          messageId: clarificationTarget.messageId,
+          freeText: options.clarificationAnswer?.freeText !== false,
+        },
+      )
+      : history;
+    const nextHistory = appendBoundedAiHistory(resolvedHistory, userMessage);
+    setHistory(nextHistory);
+    if (requestAttachments.length) {
+      requestAttachmentsRef.current.set(promptId, requestAttachments);
+      while (requestAttachmentsRef.current.size > 8) {
+        const oldestId = requestAttachmentsRef.current.keys().next().value;
+        releaseWinstonAttachments(requestAttachmentsRef.current.get(oldestId));
+        requestAttachmentsRef.current.delete(oldestId);
+      }
+      if (usesComposerAttachments) winstonAttachments.detachAttachments();
+    }
     setBusy(true);
     setRequestNotice('');
     setQueueNotice('');
     const requestController = new AbortController();
     requestAbortRef.current = requestController;
-    let promptAccepted = false;
+    const requestState = {
+      assistantId,
+      controller: requestController,
+      jobId: '',
+      promptId,
+      queueStatus: '',
+      stopConfirmed: false,
+    };
+    currentRequestRef.current = requestState;
+    let promptAccepted = true;
     try {
+      let liveToolResult = requestAttachments.length || requestMode === 'briefing'
+        ? null
+        : await tryAgentLiveTool({ context: ctx, messages: nextHistory, signal: requestController.signal });
+      const extendedToolRequest = !liveToolResult && gateway && !requestAttachments.length && requestMode !== 'briefing'
+        ? detectWinstonLiveTool(prompt)
+        : null;
+      if (extendedToolRequest) {
+        liveToolResult = await runWinstonLiveTool({
+          config: requestConfig,
+          request: extendedToolRequest,
+          signal: requestController.signal,
+        }).catch((toolError) => {
+          if (requestController.signal.aborted) throw toolError;
+          return null;
+        });
+      }
+      if (extendedToolRequest && !liveToolResult) {
+        const failureMessage = winstonLiveToolFailureMessage(extendedToolRequest);
+        setRequestNotice(failureMessage);
+        setHistory((current) => appendBoundedAiHistory(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: failureMessage,
+          provider: `${extendedToolRequest.tool}-tool`,
+          modelProfile: resolvedModelProfile,
+          requestedModelMode: modelMode,
+          createdAt: Date.now(),
+          status: 'error',
+        }));
+        return true;
+      }
+      if (liveToolResult) {
+        setHistory((current) => appendBoundedAiHistory(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: liveToolResult.reply,
+          provider: liveToolResult.provider || '',
+          model: liveToolResult.model || '',
+          sources: liveToolResult.sources || [],
+          modelProfile: resolvedModelProfile,
+          requestedModelMode: modelMode,
+          memorySuggestions: localMemorySuggestion ? [localMemorySuggestion] : [],
+          createdAt: Date.now(),
+          status: 'complete',
+        }));
+        return true;
+      }
       let currentStatus = agentStatus;
-      if (currentStatus?.state !== 'ready') currentStatus = await wakeAgent();
+      if (currentStatus?.state !== 'ready' || currentStatus?.modelProfile !== resolvedModelProfile) {
+        currentStatus = await getLocalAiStatus(requestConfig, { wake: gateway });
+        setAgentStatus(currentStatus);
+      }
       if (currentStatus?.state !== 'ready') {
         setRequestNotice(currentStatus?.message || localAiStatusMessage(currentStatus));
-        return false;
+        setHistory((current) => appendBoundedAiHistory(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: currentStatus?.message || localAiStatusMessage(currentStatus),
+          status: 'error',
+        }));
+        return true;
       }
       if (serverProfile) {
-        await savePersonalAiProfileToServer({ profile, config }).catch(() => null);
+        await savePersonalAiProfileToServer({ profile, config: requestConfig }).catch(() => null);
       } else {
         saveLocalPersonalAgentProfile(profile);
       }
-      setHistory(nextHistory);
-      promptAccepted = true;
       const result = await askPersonalAgent({
         context: ctx,
         messages: nextHistory,
         profile,
+        memories,
         userName: window.userProfileName || window.currentUser?.displayName || 'the user',
-        config,
+        config: requestConfig,
         roomId,
         channelId,
+        requestMode,
+        selectedRoomIds,
+        routingPolicy,
+        ...advancedRequestFields,
+        verificationMode: 'auto',
+        planMode: requestPlanMode,
         signal: requestController.signal,
-        onQueueUpdate: (status) => setQueueNotice(aiQueueNotice(status)),
+        onQueueUpdate: (status) => {
+          requestState.jobId = String(status?.jobId || requestState.jobId || '');
+          requestState.queueStatus = String(status?.status || requestState.queueStatus || '');
+          setQueueNotice(aiQueueNotice(status));
+        },
+        onProgress: (progress) => {
+          const partial = String(progress?.text || '').trim();
+          if (!partial || requestController.signal.aborted) return;
+          setHistory((current) => upsertAiHistoryMessage(current, {
+            id: assistantId,
+            role: 'assistant',
+            content: partial,
+            provider: progress.provider || '',
+            model: progress.model || '',
+            modelProfile: resolvedModelProfile,
+            requestedModelMode: modelMode,
+            status: 'streaming',
+          }));
+        },
       });
       setBananaUsage(result);
       const { reply } = result;
-      setHistory([...nextHistory, {
+      const serverSuggestions = [
+        ...(Array.isArray(result.memorySuggestions) ? result.memorySuggestions : []),
+        ...(result.memorySuggestion ? [result.memorySuggestion] : []),
+      ].map((suggestion) => ({
+        id: String(suggestion?.id || newAiUiId('memory-suggestion')),
+        text: String(suggestion?.text || '').trim().slice(0, 600),
+        scope: suggestion?.scope === 'room' ? 'room' : 'personal',
+        ...(suggestion?.scope === 'room' ? { roomId: String(suggestion?.roomId || roomId) } : {}),
+        expiresAt: Math.max(0, Number(suggestion?.expiresAt) || 0),
+      })).filter((suggestion) => suggestion.text);
+      const memorySuggestions = serverSuggestions.length
+        ? serverSuggestions
+        : localMemorySuggestion ? [localMemorySuggestion] : [];
+      setHistory((current) => upsertAiHistoryMessage(current, {
+        id: assistantId,
         role: 'assistant',
         content: reply,
         provider: result.provider || '',
         model: result.model || '',
-      }]);
+        sources: result.sources || [],
+        actions: result.actions || [],
+        interaction: result.interaction || null,
+        routeReceipt: result.routeReceipt || null,
+        contextReceipt: result.contextReceipt || null,
+        verification: result.verification || null,
+        plan: result.plan || null,
+        modelProfile: result.modelProfile || resolvedModelProfile,
+        requestedModelMode: modelMode,
+        memorySuggestions,
+        originPromptId: promptId,
+        requestMode,
+        selectedRoomIds,
+        createdAt: Date.now(),
+        status: 'complete',
+      }));
       setAgentStatus((current) => ({
         ...current,
         state: 'ready',
-        model: result.model || current?.model || config.model,
-        modelProfile: result.modelProfile || config.modelProfile,
+        model: result.model || current?.model || requestConfig.model,
+        modelProfile: result.modelProfile || resolvedModelProfile,
         message: localAiStatusMessage({
-          ...config,
+          ...requestConfig,
           state: 'ready',
-          provider: config.provider,
-          model: result.model || config.model,
-          modelProfile: result.modelProfile || config.modelProfile,
+          provider: requestConfig.provider,
+          model: result.model || requestConfig.model,
+          modelProfile: result.modelProfile || resolvedModelProfile,
         }),
       }));
       setRequestNotice('');
     } catch (requestError) {
       setQueueNotice('');
+      if (requestController.signal.aborted) {
+        setRequestNotice('');
+        setHistory((current) => upsertAiHistoryMessage(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: requestState.stopConfirmed
+            ? 'Request cancelled.'
+            : 'Stopped waiting before a server queue job was confirmed.',
+          status: 'stopped',
+        }));
+        return true;
+      }
+      if (requestError?.state === 'cancelled' || requestError?.details?.queueStatus === 'cancelled') {
+        requestState.stopConfirmed = true;
+        setRequestNotice('');
+        setHistory((current) => upsertAiHistoryMessage(current, {
+          id: assistantId,
+          role: 'assistant',
+          content: 'Request cancelled.',
+          status: 'stopped',
+        }));
+        return true;
+      }
       const statusCode = Number(requestError?.details?.status || 0);
       const affectsAvailability = requestError?.state === 'offline' || statusCode >= 500 || (!statusCode && requestError?.state === 'request-failed');
       const nextState = ['blocked', 'missing-model'].includes(requestError?.state)
@@ -1126,13 +2090,151 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
         setAgentStatus({ ...config, state: nextState, message, model: config.model });
       }
       setRequestNotice(requestError?.message || message);
+      setHistory((current) => upsertAiHistoryMessage(current, {
+        id: assistantId,
+        role: 'assistant',
+        content: requestError?.message || message,
+        status: requestError?.state === 'cancelled' ? 'stopped' : 'error',
+      }));
     } finally {
       if (requestAbortRef.current === requestController) requestAbortRef.current = null;
+      if (currentRequestRef.current === requestState) currentRequestRef.current = null;
       setQueueNotice('');
+      setStopPending(false);
       setBusy(false);
     }
     return promptAccepted;
   };
+
+  const selectClarificationOption = (message, option) => {
+    if (busy || currentRequestRef.current || activeClarification?.messageId !== message.id) return false;
+    return sendPrompt(option.label, {
+      attachments: message.originPromptId ? requestAttachmentsRef.current.get(message.originPromptId) || [] : [],
+      clarificationAnswer: { messageId: message.id, value: option, freeText: false },
+      requestMode: message.requestMode,
+      selectedRoomIds: message.selectedRoomIds,
+    });
+  };
+
+  const focusClarificationComposer = () => {
+    editPromptRef.current = false;
+    window.requestAnimationFrame(() => composerRef.current?.focus?.());
+  };
+
+  const stopRequest = useCallback(async () => {
+    const request = currentRequestRef.current;
+    if (!request || stopPending) return;
+    setStopPending(true);
+    if (!request.jobId || !gateway) {
+      request.stopConfirmed = !gateway;
+      request.controller.abort();
+      return;
+    }
+    try {
+      const result = await cancelQueuedAiRequest({ config, jobId: request.jobId });
+      if (result.cancelled) {
+        request.stopConfirmed = true;
+        request.controller.abort();
+        setRequestNotice('');
+        return;
+      }
+      setRequestNotice(result.status === 'running'
+        ? 'Winston is already running this request, so it will finish safely.'
+        : 'The server did not confirm cancellation. This request is still active.');
+    } catch (cancelError) {
+      setRequestNotice(cancelError?.details?.queueStatus === 'running'
+        ? 'Winston is already running this request, so it will finish safely.'
+        : cancelError?.message || 'Cancellation was not confirmed. This request is still active.');
+    } finally {
+      if (currentRequestRef.current === request && !request.controller.signal.aborted) setStopPending(false);
+    }
+  }, [config, gateway, stopPending]);
+
+  const retryMessage = useCallback((message) => {
+    if (busy) return;
+    sendPrompt(message.content, {
+      attachments: requestAttachmentsRef.current.get(message.id) || [],
+      planMode: message.planMode === true,
+      requestMode: message.requestMode,
+      selectedRoomIds: message.selectedRoomIds,
+      resolveClarification: false,
+    });
+  // sendPrompt intentionally uses the latest render state and remains interaction-scoped.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, history, memories, routingPolicy]);
+
+  const editMessage = useCallback((message) => {
+    if (busy) return;
+    editPromptRef.current = true;
+    setDraft(message.content);
+    const previousAttachments = requestAttachmentsRef.current.get(message.id);
+    if (previousAttachments) winstonAttachments.restoreAttachments(previousAttachments);
+    setPlanMode(message.planMode === true);
+    window.requestAnimationFrame(() => composerRef.current?.focus?.());
+  // The mounted attachment controller is stable for this composer.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy]);
+
+  const runBriefing = useCallback(() => {
+    if (busy || !briefingRoomIds.length) return;
+    const count = briefingRoomIds.length;
+    setBriefingOpen(false);
+    sendPrompt(
+      `Prepare my attention briefing across ${count === 1 ? 'the selected room' : `${count} selected rooms`}. Prioritize urgent tasks, decisions, unanswered questions, and items that need my response. Cite every claim.`,
+      { attachments: [], requestMode: 'briefing', selectedRoomIds: briefingRoomIds },
+    );
+  // sendPrompt intentionally uses current render state and remains interaction-scoped.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [briefingRoomIds, busy, history, memories, routingPolicy]);
+
+  const toggleAgentSettings = useCallback(async () => {
+    const opening = !settingsOpen;
+    setSettingsOpen(opening);
+    setConversationDrawerOpen(false);
+    setWorkspaceSearchOpen(false);
+    if (!opening || briefingRooms.length) return;
+    try {
+      setBriefingRooms(await loadBriefingRoomOptions(String(roomId || 'global')));
+    } catch {
+      setBriefingRooms([{ id: String(roomId || 'global'), name: roomId === 'global' ? 'Global Chat' : 'Current room' }]);
+    }
+  }, [briefingRooms.length, roomId, settingsOpen]);
+
+  const openConversationDrawer = useCallback(() => {
+    setConversationDrawerOpen((open) => !open);
+    setWorkspaceSearchOpen(false);
+    setSettingsOpen(false);
+  }, []);
+
+  const openWorkspaceSearch = useCallback(() => {
+    setWorkspaceSearchOpen((open) => !open);
+    setConversationDrawerOpen(false);
+    setSettingsOpen(false);
+  }, []);
+
+  const startNewConversation = useCallback(() => {
+    if (busy) return;
+    newConversation();
+    setConversationDrawerOpen(false);
+    setWorkspaceSearchOpen(false);
+  }, [busy, newConversation]);
+
+  const chooseConversation = useCallback((conversationId) => {
+    if (busy) return;
+    selectConversation(conversationId);
+    setConversationDrawerOpen(false);
+  }, [busy, selectConversation]);
+
+  const removeMemorySuggestion = useCallback((messageId, suggestionId) => {
+    setHistory((current) => current.map((message) => (
+      message.id === messageId
+        ? {
+          ...message,
+          memorySuggestions: (message.memorySuggestions || []).filter((suggestion) => suggestion.id !== suggestionId),
+        }
+        : message
+    )));
+  }, [setHistory]);
 
   const openProPlan = async () => {
     const panel = document.getElementById('personal-ai-agent-panel');
@@ -1205,6 +2307,25 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
 
   const empty = history.length === 0;
   const agentName = WINSTON_NAME;
+  const headerStatus = personalAgentHeaderStatus({ gateway, serverProfile, status: agentStatus });
+  const lifecycleState = agentStatus?.state || 'standby';
+  const contextLabel = loading
+    ? 'Reading this room…'
+    : error
+      ? 'Room context paused'
+      : contextBits.length
+        ? 'Using this room'
+        : 'This room is quiet';
+  const contextDescription = loading
+    ? 'Preparing the context you can access'
+    : error
+      ? error
+      : contextBits.length
+        ? contextBits.join(' · ')
+        : 'Ask anything to get started';
+  const streamingReply = busy && history.some((message) => (
+    message.id === currentRequestRef.current?.assistantId && message.status === 'streaming'
+  ));
 
   return (
     <PersonalAgentShell className="pa-shell-redesign">
@@ -1212,47 +2333,84 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
         <WinstonAvatar className="pa-agent-avatar" />
         <div className="pa-agent-identity">
           <strong>{agentName}</strong>
-          <span>
-            <i className="ph-bold ph-shield-check" aria-hidden="true" />
-            {gateway
-              ? `Protected gateway · ${serverProfile ? 'Synced setup' : 'Local setup'}`
-              : 'On-device companion · Local setup'}
+          <span className={`pa-agent-status is-${headerStatus.state}`} title={headerStatus.setup}>
+            <i className="pa-agent-status-dot" aria-hidden="true" />
+            {headerStatus.label}
           </span>
         </div>
         <div className="pa-agent-actions">
+          <button type="button" className={`pa-icon-btn ${conversationDrawerOpen ? 'active' : ''}`} onClick={openConversationDrawer} title="Conversations" aria-label="Winston conversations" aria-expanded={conversationDrawerOpen}>
+            <i className="ph-bold ph-chat-circle-dots" aria-hidden="true" />
+          </button>
+          <button type="button" className={`pa-icon-btn ${workspaceSearchOpen ? 'active' : ''}`} onClick={openWorkspaceSearch} title="Search workspace" aria-label="Search your workspace" aria-expanded={workspaceSearchOpen}>
+            <i className="ph-bold ph-magnifying-glass" aria-hidden="true" />
+          </button>
           <button type="button" className="pa-icon-btn" onClick={onRefresh} title="Re-read this room" aria-label="Re-read this room" disabled={loading} aria-busy={loading}>
             <i className={`ph-bold ph-arrows-clockwise ${loading ? 'pa-spin' : ''}`} aria-hidden="true" />
           </button>
-          <button type="button" className={`pa-icon-btn ${settingsOpen ? 'active' : ''}`} onClick={() => setSettingsOpen((open) => !open)} title="Agent setup" aria-label="Agent setup" aria-expanded={settingsOpen} aria-controls="pa-settings-panel">
+          <button type="button" className={`pa-icon-btn ${settingsOpen ? 'active' : ''}`} onClick={toggleAgentSettings} title="Agent setup" aria-label="Agent setup" aria-expanded={settingsOpen} aria-controls="pa-settings-panel">
             <i className="ph-bold ph-sliders-horizontal" aria-hidden="true" />
           </button>
         </div>
       </header>
 
-      <div className={`pa-agent-workspace${settingsOpen ? ' is-settings-open' : ''}`}>
+      <div className={`pa-agent-workspace${settingsOpen ? ' is-settings-open' : ''}${empty ? ' is-empty' : ' has-conversation'}${briefingOpen ? ' is-briefing-open' : ''}`}>
+        <WinstonConversationDrawer
+          activeId={activeConversationId}
+          conversations={conversations}
+          disabled={busy}
+          onClose={() => setConversationDrawerOpen(false)}
+          onDelete={deleteConversation}
+          onNew={startNewConversation}
+          onRename={renameConversation}
+          onSelect={chooseConversation}
+          open={conversationDrawerOpen}
+          syncState={conversationSyncState}
+        />
+        <WinstonWorkspaceSearchPanel
+          config={config}
+          context={ctx}
+          disabled={busy}
+          gateway={gateway}
+          onClose={() => setWorkspaceSearchOpen(false)}
+          open={workspaceSearchOpen}
+          roomId={roomId}
+        />
         <div className="pa-agent-overview">
-          <PersonalAgentLifecycle agentName={agentName} status={agentStatus} onWake={wakeAgent} />
+          {!['ready', 'standby'].includes(lifecycleState) ? (
+            <PersonalAgentLifecycle agentName={agentName} status={agentStatus} onWake={wakeAgent} />
+          ) : null}
 
-          <div className="pa-context-summary" role="status" aria-live="polite">
-            <span className={`pa-context-copy${error ? ' is-error' : ''}`}>
-              <span className={`pa-context-dot${loading ? ' pulsing' : ''}`} aria-hidden="true" />
-              {loading
-                ? 'Reading this room…'
-                : error
-                  ? error
-                  : contextBits.length
-                    ? `Using ${contextBits.join(' · ')}`
-                    : 'Room is quiet — ask anything'}
+          <div className="pa-context-rail" role="status" aria-live="polite">
+            <span className={`pa-context-copy${error ? ' is-error' : ''}`} title={contextDescription}>
+              <i className="ph-bold ph-users-three" aria-hidden="true" />
+              <span>
+                <strong>{contextLabel}</strong>
+                <small>{contextDescription}</small>
+              </span>
             </span>
-            <PersonalBananaSummary gateway={gateway} status={agentStatus} usage={bananaUsage} />
+            <span className="pa-context-actions">
+              {!empty && !briefingOpen ? (
+                <button type="button" className="pa-context-briefing" onClick={openBriefing} disabled={busy || lifecycleBusy} title="Review what needs my attention" aria-label="Review what needs my attention">
+                  <i className="ph-bold ph-binoculars" aria-hidden="true" />
+                </button>
+              ) : null}
+              <CompactAiModelProfilePicker disabled={busy || lifecycleBusy} profiles={WINSTON_MODEL_MODES} value={modelMode} onChange={changeModelProfile} />
+            </span>
           </div>
 
-          <div className="pa-model-control">
-            <span>Response model</span>
-            <AiModelProfilePicker disabled={busy || lifecycleBusy} value={modelProfile} onChange={changeModelProfile} />
-          </div>
-
-          {gateway && empty ? <p className="pa-routing-disclosure"><i className="ph-bold ph-cloud" aria-hidden="true" /> {PERSONAL_AGENT_ROUTING_NOTICE}</p> : null}
+          {!settingsOpen && briefingOpen ? (
+            <CrossRoomBriefingPanel
+              disabled={busy}
+              error={briefingError}
+              loading={briefingLoading}
+              rooms={briefingRooms}
+              selectedRoomIds={briefingRoomIds}
+              onClose={() => setBriefingOpen(false)}
+              onRun={runBriefing}
+              onToggleRoom={toggleBriefingRoom}
+            />
+          ) : null}
 
           {profileLoadError ? (
             <div className="pa-profile-sync" role="status"><i className="ph-bold ph-cloud-warning" aria-hidden="true" /> {profileLoadError}</div>
@@ -1266,6 +2424,14 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
 
           {settingsOpen ? (
             <div className="pa-settings" id="pa-settings-panel">
+              <div className="pa-settings-heading">
+                <span><strong>Winston setup</strong><small>Shape how your personal assistant responds and remembers.</small></span>
+                <button type="button" onClick={() => setSettingsOpen(false)} aria-label="Close Winston setup"><i className="ph-bold ph-x" aria-hidden="true" /></button>
+              </div>
+              <div className="pa-settings-meta">
+                <PersonalBananaSummary gateway={gateway} status={agentStatus} usage={bananaUsage} />
+                <span><i className="ph-bold ph-shield-check" aria-hidden="true" /> {PERSONAL_AGENT_ROUTING_NOTICE}</span>
+              </div>
               <label>
                 What should Winston help with?
                 <textarea value={profile.instructions} onChange={(event) => updateProfile('instructions', event.target.value)} rows={3} />
@@ -1275,7 +2441,7 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
                 <input value={profile.tone} onChange={(event) => updateProfile('tone', event.target.value)} maxLength={400} />
               </label>
               <label>
-                Memory / preferences
+                Working preferences
                 <textarea value={profile.memory} onChange={(event) => updateProfile('memory', event.target.value)} rows={3} placeholder="Example: keep replies short. I prefer action lists over paragraphs." />
               </label>
               <div className="pa-settings-actions">
@@ -1284,6 +2450,37 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
                 {saved ? <span className="pa-saved" role="status"><i className="ph-bold ph-check-circle" aria-hidden="true" /> Saved</span> : null}
                 {profileSaveError ? <span className="pa-save-error" role="alert">{profileSaveError}</span> : null}
               </div>
+              <StructuredMemoryManager
+                active={settingsOpen}
+                config={config}
+                roomId={roomId}
+                serverSynced={serverProfile}
+                onMemoriesChange={handleMemoriesChange}
+              />
+              <WinstonPendingMemorySuggestions
+                active={settingsOpen}
+                config={config}
+                memories={memories}
+                onMemoriesChange={handleMemoriesChange}
+                roomId={roomId}
+                serverEnabled={serverProfile}
+              />
+              <Suspense fallback={null}>
+                <WinstonResumablePlans
+                  active={settingsOpen}
+                  disabled={busy}
+                  onCommand={commandWinstonPlan}
+                  onPlanChange={updateVisiblePlan}
+                />
+              </Suspense>
+              <WinstonSavedResponses />
+              <WinstonProactiveSettings
+                active={settingsOpen}
+                config={config}
+                roomId={roomId}
+                rooms={briefingRooms}
+                serverEnabled={serverProfile}
+              />
             </div>
           ) : null}
         </div>
@@ -1291,35 +2488,104 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
         {!settingsOpen ? <div ref={threadRef} className="pa-thread pa-agent-thread" aria-live="polite" aria-relevant="additions text">
           {empty ? (
             <div className="pa-empty-thread">
-              <div className="pa-msg pa-msg-assistant pa-welcome-message">
-                <WinstonAvatar className="pa-msg-avatar" />
-                <div className="pa-bubble"><span className="pa-sr-only">Winston: </span><span>Hey — I’m Winston. Ask me to catch you up, draft a reply, or help decide what to do next.</span></div>
+              <div className="pa-empty-intro">
+                <span className="pa-sr-only">Winston: </span>
+                <h1>What can I take off your plate?</h1>
+                <p>Catch up, find events, organize rooms, and reach accepted friends.</p>
               </div>
-              <div className="pa-suggest pa-suggest-compact" aria-label="Suggested questions">
-                {PERSONAL_QUICK_ACTIONS.map((action) => (
-                  <button key={action.label} type="button" className="pa-suggest-card" onClick={() => sendPrompt(action.prompt)} disabled={busy || lifecycleBusy}>
-                    <i className={`ph-bold ${action.icon}`} aria-hidden="true" />
-                    <span className="pa-suggest-copy">
-                      <strong>{action.label}</strong>
-                      <small>{action.hint}</small>
-                    </span>
-                  </button>
-                ))}
+              {!briefingOpen ? (
+                <button type="button" className="pa-briefing-launch" onClick={openBriefing} disabled={busy || lifecycleBusy}>
+                  <i className="ph-bold ph-binoculars" aria-hidden="true" />
+                  <span><strong>Review what needs my attention</strong><small>Select rooms before Winston reads them.</small></span>
+                  <i className="ph-bold ph-arrow-right" aria-hidden="true" />
+                </button>
+              ) : null}
+              <div className="pa-suggest-block">
+                <span className="pa-suggest-heading">Start with</span>
+                <div className="pa-suggest pa-suggest-compact" aria-label="Suggested questions">
+                  {PERSONAL_QUICK_ACTIONS.map((action) => (
+                    <button key={action.label} type="button" className="pa-suggest-card" onClick={() => sendPrompt(action.prompt)} disabled={busy || lifecycleBusy}>
+                      <i className={`ph-bold ${action.icon}`} aria-hidden="true" />
+                      <span className="pa-suggest-copy">
+                        <strong>{action.label}</strong>
+                        <small>{action.hint}</small>
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           ) : (
             <>
               {history.map((message, index) => (
-                <div key={`${message.role}-${index}`} className={`pa-msg pa-msg-${message.role}`}>
+                <div key={message.id || `${message.role}-${index}`} className={`pa-msg pa-msg-${message.role} is-${message.status || 'complete'}`}>
                   {message.role === 'assistant' ? <WinstonAvatar className="pa-msg-avatar" /> : null}
-                  <div className="pa-bubble">
+                  <div className={`pa-bubble${message.status === 'streaming' ? ' ai-streaming-caret' : ''}`}>
                     <span className="pa-sr-only">{message.role === 'assistant' ? 'Winston: ' : 'You: '}</span>
-                    <span>{message.content}</span>
-                    {message.role === 'assistant' && message.provider && gateway ? <small className="pa-provider-disclosure">{PERSONAL_AGENT_REPLY_NOTICE}</small> : null}
+                    {message.role === 'assistant'
+                      ? (message.content ? <AiResponseContent text={message.content} compact /> : null)
+                      : <span>{message.content}</span>}
+                    {message.role === 'user' && (message.attachmentNames?.length || message.attachmentName) ? (
+                      <small className="ai-prompt-attachment">
+                        <i className="ph-bold ph-paperclip" aria-hidden="true" />
+                        {(message.attachmentNames || [message.attachmentName]).filter(Boolean).join(', ')}
+                      </small>
+                    ) : null}
+                    {message.role === 'assistant' ? <AiEvidence sources={message.sources} /> : null}
+                    {message.role === 'assistant' ? (
+                      <Suspense fallback={null}>
+                        <WinstonTrustIndicators
+                          contextReceipt={message.contextReceipt}
+                          routeReceipt={message.routeReceipt}
+                          verification={message.verification}
+                        />
+                      </Suspense>
+                    ) : null}
+                    {message.role === 'assistant' && message.plan ? (
+                      <Suspense fallback={null}>
+                        <WinstonPlanCard
+                          disabled={busy}
+                          onCommand={commandWinstonPlan}
+                          onPlanChange={updateVisiblePlan}
+                          plan={message.plan}
+                        />
+                      </Suspense>
+                    ) : null}
+                    {message.role === 'assistant' ? <AiActionCards actions={message.actions} disabled={busy} onConfirm={confirmAction} onDismiss={dismissAction} onOpen={openAction} /> : null}
+                    {message.role === 'assistant' ? (
+                      <AiClarificationCard
+                        interaction={message.interaction}
+                        messageText={message.content}
+                        disabled={busy || activeClarification?.messageId !== message.id}
+                        onSelect={(option) => selectClarificationOption(message, option)}
+                        onFreeText={focusClarificationComposer}
+                      />
+                    ) : null}
+                    {message.role === 'assistant' ? (message.memorySuggestions || []).map((suggestion) => (
+                      <WinstonMemorySuggestion
+                        key={suggestion.id}
+                        config={config}
+                        memories={memories}
+                        onMemoriesChange={handleMemoriesChange}
+                        onRemove={() => removeMemorySuggestion(message.id, suggestion.id)}
+                        roomId={roomId}
+                        serverEnabled={serverProfile}
+                        suggestion={suggestion}
+                      />
+                    )) : null}
+                    {message.role === 'assistant' && (message.provider || message.model) ? <small className="pa-provider-disclosure">{aiProviderDisclosure(message)}</small> : null}
+                    {message.role === 'assistant' && message.status === 'complete' ? (
+                      <AssistantResponseToolbar
+                        config={config}
+                        conversationId={activeConversation?.serverId || activeConversationId}
+                        message={message}
+                      />
+                    ) : null}
+                    <AiMessageControls message={message} disabled={busy} onRetry={retryMessage} onEdit={editMessage} />
                   </div>
                 </div>
               ))}
-              {busy ? (
+              {busy && !streamingReply ? (
                 <div className="pa-msg pa-msg-assistant">
                   <WinstonAvatar className="pa-msg-avatar" />
                   <div className="pa-bubble pa-typing" role="status" aria-label="Winston is replying"><span /><span /><span /></div>
@@ -1330,55 +2596,143 @@ export function PersonalAIAgent({ context, loading = false, error = '', localAiC
         </div> : null}
       </div>
 
-      <form className="pa-composer" aria-label="Ask Winston" onSubmit={async (event) => { event.preventDefault(); if (await sendPrompt(draft)) setDraft(''); }}>
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          type="text"
-          placeholder="Ask Winston…"
-          autoComplete="off"
-          aria-label="Message Winston"
-          disabled={busy}
-          data-pa-initial-focus="true"
-        />
-        <button type="submit" className="pa-send" title="Send" aria-label="Send to Winston" disabled={busy || !draft.trim()}>
-          <i className="ph-bold ph-arrow-up" aria-hidden="true" />
-        </button>
+      <form className="pa-composer" aria-label="Ask Winston" onSubmit={async (event) => {
+        event.preventDefault();
+        if (busy) return;
+        const requestAttachments = winstonAttachments.detachAttachments();
+        const prompt = draft.trim() || (requestAttachments.length ? 'What should I know about these files?' : '');
+        if (!prompt) return;
+        setDraft('');
+        const resolveClarification = !editPromptRef.current;
+        editPromptRef.current = false;
+        const accepted = await sendPrompt(prompt, {
+          attachments: requestAttachments,
+          planMode,
+          resolveClarification,
+        });
+        if (!accepted) winstonAttachments.restoreAttachments(requestAttachments);
+      }}>
+        <div className={`pa-composer-surface${winstonAttachments.attachments.length ? ' has-attachment' : ''}`}>
+          <div className="ai-composer-enhancements">
+            <Suspense fallback={<span className="pa-composer-tools-loading" aria-hidden="true" />}>
+              <div className="pa-composer-mode-row">
+                <WinstonContextPicker
+                  currentRoomId={roomId}
+                  disabled={busy || !gateway}
+                  documents={contextDocuments}
+                  indexStatus={knowledgeIndexStatus}
+                  onChange={setContextSelection}
+                  onSyncIndex={syncKnowledgeIndex}
+                  people={contextPeople}
+                  rooms={briefingRooms}
+                  syncingIndex={knowledgeIndexSyncing}
+                  value={contextSelection}
+                />
+                <button
+                  type="button"
+                  className={`pa-plan-mode-toggle${planMode ? ' is-active' : ''}`}
+                  aria-pressed={planMode}
+                  disabled={busy}
+                  onClick={() => setPlanMode((active) => !active)}
+                  title="Ask Winston to turn this request into a resumable plan"
+                >
+                  <i className="ph-bold ph-list-checks" aria-hidden="true" />
+                  <span>Plan</span>
+                </button>
+              </div>
+              <WinstonAttachmentComposerTools
+                attachments={winstonAttachments.attachments}
+                disabled={busy || !gateway}
+                error={gateway ? winstonAttachments.attachmentError : ''}
+                processing={winstonAttachments.attachmentProcessing}
+                onRemove={winstonAttachments.removeAttachment}
+                onSelectFiles={winstonAttachments.selectAttachmentFiles}
+              />
+            </Suspense>
+          </div>
+          <input
+            ref={composerRef}
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+            onPaste={gateway ? winstonAttachments.handleAttachmentPaste : undefined}
+            type="text"
+            placeholder="Ask Winston anything…"
+            autoComplete="off"
+            aria-label="Message Winston"
+            data-pa-initial-focus="true"
+          />
+          {busy ? (
+            <button type="button" className="pa-send ai-stop-button" title="Stop" aria-label="Stop Winston request" disabled={stopPending} onClick={stopRequest}>
+              <i className="ph-bold ph-square" aria-hidden="true" />
+            </button>
+          ) : (
+            <button type="submit" className="pa-send" title="Send" aria-label="Send to Winston" disabled={!draft.trim() && !winstonAttachments.attachments.length}>
+              <i className="ph-bold ph-arrow-up" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <p className="pa-composer-note" title={gateway ? 'Try /preview https://… for a safe webpage preview.' : ''}><i className="ph-bold ph-lock-simple" aria-hidden="true" /> {gateway ? 'Privacy Shield · sensitive requests stay on your PC' : 'On device · actions ask before they run'}</p>
       </form>
     </PersonalAgentShell>
   );
 }
 
 export function PersonalAIAgentLauncher({ localAiConfig, roomId, channelId = window.activeChannelId || 'general' }) {
-  const [context, setContext] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const scopeKey = `${roomId || 'global'}:${channelId || 'general'}`;
+  const requestVersionRef = useRef(0);
+  const [contextState, setContextState] = useState({
+    scopeKey: '',
+    context: null,
+    loading: true,
+    error: '',
+  });
+  const visibleState = contextState.scopeKey === scopeKey
+    ? contextState
+    : { scopeKey, context: null, loading: true, error: '' };
 
   const load = useCallback(async ({ force = false } = {}) => {
-    if (!roomId) return;
-    setLoading(true);
-    setError('');
-    try {
-      setContext(await gatherContext(roomId, channelId, { force }));
-    } catch (loadError) {
-      setError(`Couldn't load room context: ${loadError.message}`);
-    } finally {
-      setLoading(false);
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
+    if (!roomId) {
+      setContextState({ scopeKey, context: null, loading: false, error: '' });
+      return;
     }
-  }, [channelId, roomId]);
+    setContextState((current) => ({
+      scopeKey,
+      context: current.scopeKey === scopeKey ? current.context : null,
+      loading: true,
+      error: '',
+    }));
+    try {
+      const nextContext = await gatherContext(roomId, channelId, { force });
+      if (requestVersionRef.current !== requestVersion) return;
+      setContextState({ scopeKey, context: nextContext, loading: false, error: '' });
+    } catch (loadError) {
+      if (requestVersionRef.current !== requestVersion) return;
+      setContextState({
+        scopeKey,
+        context: null,
+        loading: false,
+        error: `Couldn't load room context: ${loadError.message}`,
+      });
+    }
+  }, [channelId, roomId, scopeKey]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => load(), 0);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      requestVersionRef.current += 1;
+    };
   }, [load]);
 
   return (
     <PersonalAIAgent
-      key={`${roomId || 'global'}:${channelId || 'general'}`}
-      context={context}
+      key={scopeKey}
+      context={visibleState.context}
       localAiConfig={localAiConfig}
-      loading={loading}
-      error={error}
+      loading={visibleState.loading}
+      error={visibleState.error}
       roomId={roomId}
       channelId={channelId}
       onRefresh={() => load({ force: true })}
@@ -1440,41 +2794,55 @@ function RoomAIContextState({ error = '', loading = false, onRefresh }) {
 
 export function AI({ localAiConfig, roomId, roomName = '', channelId = 'general' }) {
   const tabActive = useRoomTabActivity('ai');
-  const [context, setContext] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const scopeKey = `${roomId || 'global'}:${channelId || 'general'}`;
+  const requestVersionRef = useRef(0);
+  const [contextState, setContextState] = useState({
+    scopeKey: '',
+    context: null,
+    loading: true,
+    error: '',
+  });
+  const visibleState = contextState.scopeKey === scopeKey
+    ? contextState
+    : { scopeKey, context: null, loading: true, error: '' };
+  const { context, error, loading } = visibleState;
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
+  const load = useCallback(async ({ force = true } = {}) => {
+    const requestVersion = requestVersionRef.current + 1;
+    requestVersionRef.current = requestVersion;
+    setContextState((current) => ({
+      scopeKey,
+      context: current.scopeKey === scopeKey ? current.context : null,
+      loading: true,
+      error: '',
+    }));
     try {
-      const nextContext = await gatherContext(roomId, channelId, { force: true });
-      setContext(nextContext);
+      const nextContext = await gatherContext(roomId, channelId, { force });
+      if (requestVersionRef.current !== requestVersion) return;
+      setContextState({ scopeKey, context: nextContext, loading: false, error: '' });
     } catch (loadError) {
-      setError(`Couldn't load room data: ${loadError.message}`);
-    } finally {
-      setLoading(false);
+      if (requestVersionRef.current !== requestVersion) return;
+      setContextState({
+        scopeKey,
+        context: null,
+        loading: false,
+        error: `Couldn't load room data: ${loadError.message}`,
+      });
     }
-  };
+  }, [channelId, roomId, scopeKey]);
 
   useEffect(() => {
     if (!tabActive) return undefined;
-    let active = true;
-    const runInitialLoad = async () => {
-      try {
-        const nextContext = await gatherContext(roomId, channelId);
-        if (active) setContext(nextContext);
-      } catch (loadError) {
-        if (active) setError(`Couldn't load room data: ${loadError.message}`);
-      } finally {
-        if (active) setLoading(false);
-      }
+    const timer = window.setTimeout(() => {
+      void load({ force: false });
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      requestVersionRef.current += 1;
     };
-    runInitialLoad();
-    return () => { active = false; };
-  }, [channelId, roomId, tabActive]);
+  }, [load, tabActive]);
 
-  const summary = useMemo(() => context ? extractiveSummary(context) : [], [context]);
+  const summary = useMemo(() => context ? buildRoomInstantSnapshot(context) : [], [context]);
   const actions = useMemo(() => context ? actionItems(context) : [], [context]);
 
   if (loading) return <RoomAIContextState loading onRefresh={load} />;

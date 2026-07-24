@@ -462,7 +462,7 @@ export function RoomAppsPanel() {
           <small>Up to 12 symbols. A matching plain symbol or any $CASHTAG can trigger up to three replies.</small>
         </div>
         <details className="apps-manifest-disclosure">
-          <summary>View runtime and access details</summary>
+          <summary><span>View runtime and access details</span><i className="ph-bold ph-caret-down apps-manifest-caret" aria-hidden="true" /></summary>
           <BotManifest bot={STOCK_BOT} />
         </details>
         <div className="apps-detail-actions">
@@ -490,7 +490,7 @@ export function RoomAppsPanel() {
           <label><input type="checkbox" id="rs-automod-flood" /><span><strong>Character flood</strong><small>Block repeated-character spam</small></span></label>
         </fieldset>
         <details className="apps-manifest-disclosure">
-          <summary>View runtime and access details</summary>
+          <summary><span>View runtime and access details</span><i className="ph-bold ph-caret-down apps-manifest-caret" aria-hidden="true" /></summary>
           <BotManifest bot={AUTOMOD_BOT} />
         </details>
         <div className="apps-detail-actions">
@@ -513,7 +513,7 @@ export function RoomAppsPanel() {
         </div>
         <div className="apps-connection-health" id="rs-webhook-health-copy" role="status" aria-live="polite">Not tested yet.</div>
         <details className="apps-manifest-disclosure">
-          <summary>View delivery and trust details</summary>
+          <summary><span>View delivery and trust details</span><i className="ph-bold ph-caret-down apps-manifest-caret" aria-hidden="true" /></summary>
           <WebhookManifest />
         </details>
         <div className="apps-detail-actions apps-detail-actions-three">

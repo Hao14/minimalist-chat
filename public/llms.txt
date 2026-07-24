@@ -1,0 +1,18 @@
+# Minimalist.chat
+
+> Calm, organized room chat with optional collaboration and AI tools.
+
+Minimalist.chat is a room-based communication app for conversation, catch-up, shared work, calls, search, moderation, and optional AI assistance.
+
+## Product
+
+- [Home](https://minimalist.chat/)
+- [Features](https://minimalist.chat/features)
+- [Pricing](https://minimalist.chat/pricing)
+- [Download](https://minimalist.chat/download)
+
+## Help and policies
+
+- [Help Center](https://minimalist.chat/faq)
+- [Privacy Policy](https://minimalist.chat/privacy)
+- [Terms of Service](https://minimalist.chat/terms)

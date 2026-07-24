@@ -12,6 +12,7 @@ import {
 import { ref, remove, set, update } from 'firebase/database';
 import { app, auth, db } from '../../lib/firebase.js';
 import { syncPublicUserDirectory } from '../../lib/authProfile.js';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
 import { getStorageUploadTools } from '../../lib/firebaseStorage.js';
 import { imageUploadMetadata, optimizeImageForUpload } from '../../lib/imageUploadOptimization.js';
 import { writeAuthPresenceHint } from '../../lib/authPresenceHint.js';
@@ -35,7 +36,7 @@ document.getElementById('save-new-profile-btn')?.addEventListener('click', async
     const rawPhoto = document.getElementById('new-photo-url')?.value.trim() || '';
     if (!name) return;
 
-    const finalPhotoUrl = window.getAvatarUrl(name, rawPhoto);
+    const finalPhotoUrl = normalizeStoredAvatarUrl(rawPhoto);
     window.userShortId = window.generateShortId();
 
     const profile = {
@@ -73,7 +74,7 @@ document.getElementById('save-new-profile-btn')?.addEventListener('click', async
 document.getElementById('update-profile-btn')?.addEventListener('click', async () => {
   try {
     const fileInput = document.getElementById('edit-photo-file');
-    let finalPhotoUrl = window.userPhotoUrl;
+    let finalPhotoUrl = normalizeStoredAvatarUrl(window.userPhotoUrl);
 
     if (fileInput?.files.length > 0) {
       const photoFile = await optimizeImageForUpload(fileInput.files[0], { maxWidth: 512, maxHeight: 512 });
@@ -359,9 +360,10 @@ function rememberCurrentAccount() {
 function createAccountAvatar(account) {
   const avatar = document.createElement('span');
   avatar.className = 'switch-account-avatar';
-  if (account.photoUrl) {
+  const photoUrl = normalizeStoredAvatarUrl(account.photoUrl);
+  if (photoUrl) {
     const image = document.createElement('img');
-    image.src = account.photoUrl;
+    image.src = photoUrl;
     image.alt = '';
     image.loading = 'lazy';
     image.decoding = 'async';

@@ -8,19 +8,24 @@ const CONTACT_FILTERS = [
   { id: 'requests', label: 'Requests' },
 ];
 
+const PRIORITY_AVATAR_LIMIT = 6;
+
 const EMPTY_FILTER_COPY = {
   online: ['No one is online', 'Your contacts will appear here when they are active.'],
   messages: ['No recent messages', 'Private-message contacts will appear here.'],
   requests: ['No contact requests', 'Incoming and pending requests will appear here.'],
 };
 
-function ContactActions({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfile, onRemoveFriend, onSendRequest }) {
+function ContactActions({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfile, onPrepareProfile, onRemoveFriend, onSendRequest }) {
   if (contact.status === 'accepted' || (!contact.status && contact.lastPm)) {
     return (
       <>
         <button
           className="contact-icon-btn pm-open-btn"
-          onClick={() => onOpenPrivateChat(contact.uid, contact.displayName, { photoUrl: contact.avatar || '' })}
+          onClick={(event) => onOpenPrivateChat(contact.uid, contact.displayName, {
+            opener: event.currentTarget,
+            photoUrl: contact.avatar || '',
+          })}
           aria-label={`Message ${contact.displayName}`}
           title="Message"
           type="button"
@@ -29,7 +34,10 @@ function ContactActions({ contact, onAcceptRequest, onOpenPrivateChat, onOpenPro
         </button>
         <button
           className="contact-icon-btn"
-          onClick={() => onOpenProfile(contact.uid)}
+          onClick={() => onOpenProfile(contact)}
+          onFocus={() => onPrepareProfile?.(contact)}
+          onPointerDown={() => onPrepareProfile?.(contact)}
+          onPointerEnter={() => onPrepareProfile?.(contact)}
           aria-label={`Open ${contact.displayName} profile`}
           title="View profile"
           type="button"
@@ -103,7 +111,7 @@ function matchesContactFilter(contact, filter) {
   return true;
 }
 
-function ContactItem({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfile, onRemoveFriend, onSendRequest }) {
+function ContactItem({ contact, prioritizeAvatar, onAcceptRequest, onOpenPrivateChat, onOpenProfile, onPrepareProfile, onRemoveFriend, onSendRequest }) {
   const activity = getContactActivity(contact);
   const presenceLabel = contact.isOnline ? 'Online' : 'Offline';
   const relationshipClass = contact.status || (contact.lastPm ? 'recent' : 'suggested');
@@ -116,12 +124,22 @@ function ContactItem({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfil
       <div className="contact-info">
         <button
           className="avatar-wrapper contact-profile-btn"
-          onClick={() => onOpenProfile(contact.uid)}
+          onClick={() => onOpenProfile(contact)}
+          onFocus={() => onPrepareProfile?.(contact)}
+          onPointerDown={() => onPrepareProfile?.(contact)}
+          onPointerEnter={() => onPrepareProfile?.(contact)}
           title="View profile"
           aria-label={`View ${contact.displayName} profile`}
           type="button"
         >
-          <img src={contact.avatar} className="contact-avatar" alt="" loading="lazy" decoding="async" />
+          <img
+            src={contact.avatar}
+            className="contact-avatar"
+            alt=""
+            loading={prioritizeAvatar ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchPriority={prioritizeAvatar ? 'high' : 'auto'}
+          />
           <span className={`status-dot ${contact.isOnline ? 'online' : 'offline'}`} title={presenceLabel} aria-hidden="true" />
         </button>
         <span className="contact-copy">
@@ -152,6 +170,7 @@ function ContactItem({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfil
           onAcceptRequest={onAcceptRequest}
           onOpenPrivateChat={onOpenPrivateChat}
           onOpenProfile={onOpenProfile}
+          onPrepareProfile={onPrepareProfile}
           onRemoveFriend={onRemoveFriend}
           onSendRequest={onSendRequest}
         />
@@ -160,7 +179,7 @@ function ContactItem({ contact, onAcceptRequest, onOpenPrivateChat, onOpenProfil
   );
 }
 
-function ContactSection({ section, ...handlers }) {
+function ContactSection({ priorityAvatarUids, section, ...handlers }) {
   const headingId = `contacts-section-${section.id}`;
   return (
     <li className={`contacts-section contacts-section-${section.id} ${section.subdued ? 'is-subdued' : ''}`}>
@@ -171,7 +190,12 @@ function ContactSection({ section, ...handlers }) {
         </div>
         <ul className="contacts-section-list" role="list">
           {section.items.map((contact) => (
-            <ContactItem key={contact.uid} contact={contact} {...handlers} />
+            <ContactItem
+              key={contact.uid}
+              contact={contact}
+              prioritizeAvatar={priorityAvatarUids.has(contact.uid)}
+              {...handlers}
+            />
           ))}
         </ul>
       </section>
@@ -285,6 +309,7 @@ export default function ContactsList({
   onAcceptRequest,
   onOpenPrivateChat,
   onOpenProfile,
+  onPrepareProfile,
   onRemoveFriend,
   onRetry,
   onSendRequest,
@@ -296,6 +321,12 @@ export default function ContactsList({
       items: section.items.filter((contact) => matchesContactFilter(contact, activeFilter)),
     }))
     .filter((section) => section.items.length), [activeFilter, sections]);
+  const priorityAvatarUids = useMemo(() => new Set(
+    filteredSections
+      .flatMap((section) => section.items)
+      .slice(0, PRIORITY_AVATAR_LIMIT)
+      .map((contact) => contact.uid),
+  ), [filteredSections]);
 
   if (status) return <ContactsState status={status} onRetry={onRetry} />;
 
@@ -303,6 +334,7 @@ export default function ContactsList({
     onAcceptRequest,
     onOpenPrivateChat,
     onOpenProfile,
+    onPrepareProfile,
     onRemoveFriend,
     onSendRequest,
   };
@@ -311,7 +343,12 @@ export default function ContactsList({
     <>
       <ContactsOverview activeFilter={activeFilter} onFilterChange={setActiveFilter} summary={summary} />
       {filteredSections.length ? filteredSections.map((section) => (
-        <ContactSection key={section.id} section={section} {...handlers} />
+        <ContactSection
+          key={section.id}
+          section={section}
+          priorityAvatarUids={priorityAvatarUids}
+          {...handlers}
+        />
       )) : (
         <ContactsFilterEmpty
           activeFilter={activeFilter}

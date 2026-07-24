@@ -466,10 +466,12 @@
 }
 
 .room-ai-instant-snapshot li {
+  min-width: 0;
   color: var(--room-ai-muted);
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .room-ai-thread {
@@ -524,8 +526,7 @@
 
 .room-ai-message-user > div:last-child > span { text-align: right; }
 
-.room-ai-message p {
-  margin: 0;
+.room-ai-message-bubble {
   padding: 0.72rem 0.85rem;
   border: 1px solid var(--room-ai-line);
   border-radius: 4px 14px 14px 14px;
@@ -534,10 +535,14 @@
   font-weight: 560;
   line-height: 1.55;
   overflow-wrap: anywhere;
+}
+
+.room-ai-message-bubble > p {
+  margin: 0;
   white-space: pre-wrap;
 }
 
-.room-ai-message-user p {
+.room-ai-message-user .room-ai-message-bubble {
   border-color: color-mix(in srgb, var(--accent-color, #ffd400) 58%, var(--text-color, #111));
   border-radius: 14px 4px 14px 14px;
   background: var(--room-ai-accent-soft);
@@ -1105,4 +1110,753 @@ body.dark-mode .room-ai-local-error { color: #ff7d86; }
     scroll-behavior: auto !important;
     transition-duration: 1ms !important;
   }
+}
+
+/* Compact Room AI workspace -------------------------------------------------
+   Mirrors the accepted flat toolbar and disclosure concept without adding a
+   second component runtime. These rules intentionally override the older rail
+   presentation while preserving its context and credit content. */
+
+.room-ai-shell {
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-main {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.room-ai-header {
+  min-height: 64px;
+  gap: 10px;
+  padding: 11px clamp(12px, 2vw, 20px);
+  border-bottom: 1px solid var(--room-ai-line);
+  background: var(--bg-color, #fff);
+  backdrop-filter: none;
+}
+
+.room-ai-title-mark {
+  width: 36px;
+  height: 36px;
+  border-color: var(--room-ai-line-strong);
+  border-radius: 12px;
+  background: var(--room-ai-accent-soft);
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+.room-ai-title-copy {
+  display: grid;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.room-ai-title-copy h1 {
+  font-size: 0.98rem;
+  letter-spacing: -0.025em;
+}
+
+.room-ai-title-copy > span {
+  max-width: 160px;
+  overflow: hidden;
+  color: var(--room-ai-muted);
+  font-size: 0.64rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-ai-toolbar-actions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+}
+
+.room-ai-status {
+  min-height: 40px;
+  padding: 0 11px;
+  border-color: var(--room-ai-line);
+  background: var(--bg-color, #fff);
+  font-size: 0.68rem;
+}
+
+.room-ai-header .pa-compact-model-picker {
+  min-width: 104px;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--room-ai-line);
+  border-radius: 12px;
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #111);
+  cursor: pointer;
+}
+
+.room-ai-header .pa-compact-model-picker > i {
+  flex: 0 0 auto;
+  color: var(--room-ai-muted);
+  font-size: 0.76rem;
+}
+
+.room-ai-header .pa-compact-model-picker select {
+  min-width: 0;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.room-ai-header .ai-model-segmented {
+  min-width: 112px;
+  min-height: 40px;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--room-ai-line);
+  border-radius: 12px;
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-header .ai-model-segment {
+  min-width: 0;
+  min-height: 32px;
+  gap: 4px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--room-ai-muted);
+  font-size: 0.68rem;
+  font-weight: 820;
+}
+
+.room-ai-header .ai-model-segment > i {
+  display: none;
+}
+
+.room-ai-header .ai-model-segment:hover:not(:disabled) {
+  background: var(--room-ai-soft);
+  color: var(--text-color, #111);
+}
+
+.room-ai-header .ai-model-segment[aria-pressed='true'] {
+  background: var(--accent-color, #ffd400);
+  color: #111;
+}
+
+.room-ai-header .ai-model-segment:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-color, #ffd400) 55%, var(--text-color, #111));
+  outline-offset: 1px;
+}
+
+.room-ai-header .pa-compact-model-picker:focus-within,
+.room-ai-new-chat:focus-visible,
+.room-ai-overflow > summary:focus-visible,
+.room-ai-sources > summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-color, #ffd400) 55%, var(--text-color, #111));
+  outline-offset: 2px;
+}
+
+.room-ai-new-chat {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in srgb, #111 72%, transparent);
+  border-radius: 12px;
+  background: var(--accent-color, #ffd400);
+  color: #111 !important;
+  font-size: 0.72rem !important;
+  font-weight: 850 !important;
+  cursor: pointer;
+}
+
+.room-ai-new-chat:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-color, #ffd400) 84%, #fff);
+}
+
+.room-ai-overflow {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.room-ai-overflow > summary {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--room-ai-line);
+  border-radius: 12px;
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #111);
+  cursor: pointer;
+  list-style: none;
+}
+
+.room-ai-overflow > summary::-webkit-details-marker,
+.room-ai-sources > summary::-webkit-details-marker {
+  display: none;
+}
+
+.room-ai-overflow[open] > summary,
+.room-ai-overflow > summary:hover {
+  border-color: var(--room-ai-line-strong);
+  background: var(--room-ai-soft);
+}
+
+.room-ai-overflow-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: min(230px, calc(100vw - 24px));
+  padding: 6px;
+  display: grid;
+  border: 1px solid var(--room-ai-line-strong);
+  border-radius: 12px;
+  background: var(--bg-color, #fff);
+  box-shadow: 0 18px 48px -28px color-mix(in srgb, #000 50%, transparent);
+}
+
+.room-ai-overflow-label {
+  padding: 8px 9px 5px;
+  color: var(--room-ai-muted);
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.room-ai-overflow-menu button {
+  width: 100%;
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-color, #111);
+  font-size: 0.72rem;
+  font-weight: 730;
+  text-align: left;
+  cursor: pointer;
+}
+
+.room-ai-overflow-menu button:hover:not(:disabled),
+.room-ai-overflow-menu button:focus-visible {
+  background: var(--room-ai-soft);
+}
+
+.room-ai-overflow-menu button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent-color, #ffd400) 55%, var(--text-color, #111));
+  outline-offset: -3px;
+}
+
+.room-ai-canvas {
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-welcome {
+  width: min(100%, 680px);
+  padding: clamp(24px, 5vh, 52px) clamp(16px, 4vw, 32px) 24px;
+  align-items: center;
+  text-align: center;
+}
+
+.room-ai-orbit {
+  width: 48px;
+  height: 48px;
+  margin-bottom: 16px;
+  border-color: var(--room-ai-line-strong);
+  border-radius: 16px;
+  background: var(--bg-color, #fff);
+  box-shadow: none;
+  font-size: 1.12rem;
+}
+
+.room-ai-orbit::before,
+.room-ai-orbit::after,
+.room-ai-orbit > span {
+  content: none;
+  display: none;
+}
+
+.room-ai-welcome h2 {
+  max-width: 560px;
+  font-size: clamp(1.45rem, 3.1cqi, 2rem);
+  letter-spacing: -0.035em;
+}
+
+.room-ai-welcome > p {
+  max-width: 540px;
+  margin: 8px 0 18px;
+  font-size: 0.82rem;
+  font-weight: 560;
+}
+
+.room-ai-quick-grid {
+  width: min(100%, 620px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.room-ai-quick-grid > button {
+  min-height: 52px;
+  grid-template-columns: 34px minmax(0, 1fr) 18px;
+  gap: 10px;
+  padding: 7px 12px;
+  border-color: var(--room-ai-line);
+  border-radius: 12px;
+  background: var(--bg-color, #fff);
+  box-shadow: none;
+}
+
+.room-ai-quick-grid > button:hover {
+  border-color: var(--room-ai-line-strong);
+  background: var(--room-ai-soft);
+  translate: none;
+}
+
+.room-ai-quick-grid > button > i:first-child {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--room-ai-line);
+  border-radius: 10px;
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-quick-grid > button:hover > i:first-child {
+  background: var(--room-ai-accent-soft);
+  color: var(--text-color, #111);
+}
+
+.room-ai-quick-grid strong {
+  font-size: 0.78rem;
+}
+
+.room-ai-quick-grid small {
+  font-size: 0.64rem;
+}
+
+.room-ai-action-arrow {
+  color: var(--room-ai-muted);
+  font-size: 0.78rem;
+  transition: translate 150ms ease;
+}
+
+.room-ai-quick-grid > button:hover .room-ai-action-arrow {
+  translate: 2px 0;
+}
+
+.room-ai-composer-zone {
+  padding: 8px clamp(10px, 2vw, 18px) 8px;
+  background: var(--bg-color, #fff);
+  backdrop-filter: none;
+}
+
+.room-ai-sources {
+  max-width: 820px;
+  margin: 0 auto 8px;
+  overflow: hidden;
+  border: 1px solid var(--room-ai-line);
+  border-radius: 12px;
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-sources > summary {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 11px;
+  color: var(--text-color, #111);
+  cursor: pointer;
+  list-style: none;
+}
+
+.room-ai-sources > summary:hover {
+  background: var(--room-ai-soft);
+}
+
+.room-ai-sources-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--room-ai-soft);
+  color: var(--room-ai-muted);
+  font-size: 0.74rem;
+}
+
+.room-ai-sources-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  text-align: left;
+}
+
+.room-ai-sources-copy strong {
+  font-size: 0.7rem;
+  font-weight: 820;
+}
+
+.room-ai-sources-copy small {
+  overflow: hidden;
+  color: var(--room-ai-muted);
+  font-size: 0.58rem;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.room-ai-sources-caret {
+  color: var(--room-ai-muted);
+  font-size: 0.72rem;
+  transition: rotate 150ms ease;
+}
+
+.room-ai-sources[open] .room-ai-sources-caret {
+  rotate: 180deg;
+}
+
+.room-ai-sources-panel {
+  max-height: min(44vh, 410px);
+  padding: 14px;
+  overflow-y: auto;
+  border-top: 1px solid var(--room-ai-line);
+  background: var(--room-ai-panel);
+}
+
+.room-ai-sources-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.room-ai-sources-head h2 {
+  margin: 0;
+  color: var(--text-color, #111);
+  font-size: 0.94rem;
+  letter-spacing: -0.025em;
+}
+
+.room-ai-source-provider {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  border: 1px solid var(--room-ai-line);
+  border-radius: 999px;
+  background: var(--bg-color, #fff);
+  color: var(--room-ai-muted);
+  font-size: 0.6rem;
+  font-weight: 720;
+  white-space: nowrap;
+}
+
+.room-ai-sources-panel .room-ai-rail-intro {
+  margin: 3px 0 12px;
+}
+
+.room-ai-sources-panel .room-ai-metrics {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.room-ai-sources-panel .room-ai-metric {
+  min-height: 48px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-sources-panel .room-ai-metric > span {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+.room-ai-sources-panel .room-ai-rail-section,
+.room-ai-sources-panel .room-ai-utility {
+  margin-top: 12px;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid var(--room-ai-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.room-ai-snapshot-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: var(--room-ai-muted);
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.room-ai-sources-panel .room-ai-routing-disclosure {
+  margin: 12px 0 0;
+  text-align: left;
+}
+
+.room-ai-composer {
+  min-height: 52px;
+  box-shadow: none;
+}
+
+.room-ai-composer:focus-within {
+  outline: 3px solid color-mix(in srgb, var(--accent-color, #ffd400) 18%, transparent);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+.room-ai-context-state {
+  background: var(--bg-color, #fff);
+}
+
+.room-ai-context-state-mark {
+  box-shadow: none;
+}
+
+@container (max-width: 700px) {
+  .room-ai-header {
+    min-height: 60px;
+    display: grid;
+    grid-template-columns: minmax(48px, 1fr) auto;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .room-ai-title-mark {
+    display: none;
+  }
+
+  .room-ai-title-copy {
+    margin: 0;
+  }
+
+  .room-ai-toolbar-actions {
+    grid-column: 2;
+    width: auto;
+    margin: 0;
+    gap: 5px;
+  }
+
+  .room-ai-status,
+  .room-ai-header .pa-compact-model-picker,
+  .room-ai-header .ai-model-segmented,
+  .room-ai-new-chat,
+  .room-ai-overflow > summary,
+  .room-ai-overflow-menu button {
+    min-height: 44px;
+  }
+
+  .room-ai-status {
+    width: 44px;
+    max-width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .room-ai-status > span:not(.room-ai-status-dot),
+  .room-ai-status > button,
+  .room-ai-new-chat > span {
+    display: none;
+  }
+
+  .room-ai-header .pa-compact-model-picker {
+    min-width: 88px;
+  }
+
+  .room-ai-header .ai-model-segmented {
+    min-width: 100px;
+    min-height: 46px;
+    padding: 0;
+  }
+
+  .room-ai-header .ai-model-segment {
+    min-height: 44px;
+    padding-inline: 7px;
+  }
+
+  .room-ai-overflow > summary {
+    width: 44px;
+    height: 44px;
+  }
+
+  .room-ai-new-chat {
+    width: 44px;
+    padding: 0;
+  }
+
+  .room-ai-sources > summary {
+    min-height: 44px;
+  }
+
+  .room-ai-sources-panel .room-ai-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 520px) {
+  .room-ai-header {
+    grid-template-columns: minmax(0, 1fr) repeat(3, 44px);
+    grid-template-rows: 44px 46px;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .room-ai-title-copy {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .room-ai-toolbar-actions {
+    display: contents;
+  }
+
+  .room-ai-status {
+    grid-column: 2;
+    grid-row: 1;
+    width: 44px;
+    max-width: 44px;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .room-ai-status > span:not(.room-ai-status-dot),
+  .room-ai-status > button,
+  .room-ai-new-chat > span {
+    display: none;
+  }
+
+  .room-ai-new-chat {
+    grid-column: 3;
+    grid-row: 1;
+    width: 44px;
+    padding: 0;
+  }
+
+  .room-ai-overflow {
+    grid-column: 4;
+    grid-row: 1;
+  }
+
+  .room-ai-header .pa-compact-model-picker,
+  .room-ai-header .ai-model-segmented {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .room-ai-welcome {
+    justify-content: center;
+    padding: 22px 12px 18px;
+  }
+
+  .room-ai-welcome h2 {
+    font-size: clamp(1.35rem, 7cqi, 1.72rem);
+  }
+
+  .room-ai-quick-grid > button {
+    min-height: 58px;
+  }
+
+  .room-ai-sources-copy small {
+    max-width: 220px;
+  }
+
+  .room-ai-sources-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .room-ai-source-provider {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .room-ai-composer-zone {
+    padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .room-ai-composer > button {
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px;
+  }
+}
+
+@container (max-width: 360px) {
+  .room-ai-toolbar-actions {
+    gap: 5px;
+  }
+
+  .room-ai-header .pa-compact-model-picker {
+    min-width: 80px;
+  }
+
+  .room-ai-header .ai-model-segmented {
+    min-width: 88px;
+  }
+
+  .room-ai-header .ai-model-segment {
+    padding-inline: 5px;
+    font-size: 0.62rem;
+  }
+
+  .room-ai-title-copy > span {
+    display: none;
+  }
+
+  .room-ai-title-copy h1 {
+    font-size: 0.88rem;
+  }
+
+  .room-ai-sources-copy small {
+    max-width: 170px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room-ai-action-arrow,
+  .room-ai-sources-caret {
+    transition: none;
+  }
+}
+
+html.prefers-reduced-motion .room-ai-action-arrow,
+html.prefers-reduced-motion .room-ai-sources-caret {
+  transition: none;
 }

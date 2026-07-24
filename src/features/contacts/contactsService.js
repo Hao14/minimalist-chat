@@ -2,12 +2,12 @@ import {
   get,
   onValue,
   ref,
-  remove,
-  set,
 } from 'firebase/database';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
+import { getAuthedJsonHeaders } from '../../lib/authToken.js';
 import { db } from '../../lib/firebase.js';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
 import ContactsList from './ContactsList.jsx';
 
 let contactsRoot = null;
@@ -51,6 +51,34 @@ const CONTACT_USER_CACHE_TTL = 10 * 60 * 1000;
 const CONTACT_USER_MISS_TTL = 60 * 1000;
 const CONTACT_USER_CACHE_LIMIT = 400;
 const CONTACT_ROOM_MEMBERS_CACHE_TTL = 30 * 1000;
+const CONTACT_AVATAR_PRELOAD_LIMIT = 24;
+const contactAvatarPreloads = new Map();
+
+function friendshipEndpoint() {
+  return window.FRIENDSHIP_ENDPOINT
+    || 'https://us-central1-chat-app-356c1.cloudfunctions.net/manageFriendship';
+}
+
+async function manageFriendship(action, targetUid) {
+  const normalizedTargetUid = String(targetUid || '').trim();
+  if (!normalizedTargetUid || normalizedTargetUid === getCurrentUid()) {
+    throw new Error('Choose another person.');
+  }
+
+  const response = await fetch(friendshipEndpoint(), {
+    method: 'POST',
+    headers: await getAuthedJsonHeaders('Please sign in before managing contacts.'),
+    body: JSON.stringify({ action, targetUid: normalizedTargetUid }),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = new Error(data?.error || `Contact request failed (${response.status}).`);
+    error.status = response.status;
+    error.code = data?.code || '';
+    throw error;
+  }
+  return data?.friendship || null;
+}
 
 function getCurrentUid() {
   return window.currentUser?.uid || null;
@@ -92,7 +120,14 @@ function mountContactsList(list, sections, options = {}) {
       closeContactsPanel({ restoreFocus: false });
       window.openPrivateChat(uid, name, { ...chatOptions, returnTo: 'contacts' });
     },
-    onOpenProfile: (uid) => window.viewUserProfile(uid),
+    onOpenProfile: (contact) => {
+      prepareContactProfile(contact);
+      window.viewUserProfile(contact?.uid, {
+        displayName: contact?.displayName || '',
+        photoUrl: contact?.avatar || '',
+      });
+    },
+    onPrepareProfile: prepareContactProfile,
     onRemoveFriend: (uid) => runContactAction(() => window.removeFriend(uid)),
     onRetry: () => {
       renderContactsStatus('Refreshing your contacts…', { mode: 'loading', title: 'Loading contacts' });
@@ -127,6 +162,32 @@ async function runContactAction(action) {
   }
 }
 
+function preloadContactAvatar(photoUrl) {
+  const normalizedUrl = normalizeStoredAvatarUrl(photoUrl);
+  if (!normalizedUrl || typeof Image !== 'function') return Promise.resolve(false);
+  if (contactAvatarPreloads.has(normalizedUrl)) return contactAvatarPreloads.get(normalizedUrl);
+
+  const load = new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = 'async';
+    image.fetchPriority = 'high';
+    image.onload = () => resolve(true);
+    image.onerror = () => resolve(false);
+    image.src = normalizedUrl;
+  });
+
+  if (contactAvatarPreloads.size >= CONTACT_AVATAR_PRELOAD_LIMIT) {
+    contactAvatarPreloads.delete(contactAvatarPreloads.keys().next().value);
+  }
+  contactAvatarPreloads.set(normalizedUrl, load);
+  return load;
+}
+
+function prepareContactProfile(contact = {}) {
+  Promise.resolve(window.prefetchProfilePopupService?.()).catch(() => {});
+  void preloadContactAvatar(contact.avatar);
+}
+
 function normalizeUserRecord(user = {}) {
   const displayName = (user.displayName || user.name || user.username || 'Unknown').trim();
   return {
@@ -137,7 +198,7 @@ function normalizeUserRecord(user = {}) {
     bio: user.bio || '',
     status: user.status || '',
     flair: user.flair || '',
-    photoUrl: user.photoUrl || user.photoURL || '',
+    photoUrl: normalizeStoredAvatarUrl(user.photoUrl || user.photoURL),
     themeColor: user.themeColor || '',
     updatedAt: user.updatedAt || 0,
   };
@@ -150,7 +211,7 @@ function toContact(uid, user, status, presenceData, inboxEntry = null) {
     uid,
     displayName,
     shortId: user.shortId || '',
-    avatar: user.photoUrl || window.getAvatarUrl?.(displayName, '') || '',
+    avatar: window.getAvatarUrl?.(displayName, user.photoUrl) || '',
     status,
     profileStatus: String(user.status || '').trim(),
     isOnline: presenceData[uid]?.state === 'online',
@@ -571,8 +632,7 @@ window.sendRequest = async (targetUid) => {
   const uid = getCurrentUid();
   if (!uid) throw new Error('Please sign in first.');
 
-  await set(ref(db, `friends/${uid}/${targetUid}`), 'pending_sent');
-  await set(ref(db, `friends/${targetUid}/${uid}`), 'pending_received');
+  await manageFriendship('send', targetUid);
 
   if (window.createNotification) {
     window.createNotification(
@@ -588,8 +648,7 @@ window.acceptRequest = async (targetUid) => {
   const uid = getCurrentUid();
   if (!uid) throw new Error('Please sign in first.');
 
-  await set(ref(db, `friends/${uid}/${targetUid}`), 'accepted');
-  await set(ref(db, `friends/${targetUid}/${uid}`), 'accepted');
+  await manageFriendship('accept', targetUid);
 
   if (window.awardBadge) {
     window.awardBadge(uid, 'first_friend');
@@ -612,8 +671,7 @@ window.removeFriend = async (targetUid) => {
   const uid = getCurrentUid();
   if (!uid) throw new Error('Please sign in first.');
 
-  await remove(ref(db, `friends/${uid}/${targetUid}`));
-  await remove(ref(db, `friends/${targetUid}/${uid}`));
+  await manageFriendship('remove', targetUid);
 };
 
 async function readCurrentRoomMembers() {
@@ -845,6 +903,7 @@ async function performContactsRender() {
     const incomingRequests = [];
     const pendingRequests = [];
     const unreadPm = [];
+    const recentPm = [];
     const online = [];
     const offline = [];
     const roomPeople = [];
@@ -873,6 +932,8 @@ async function performContactsRender() {
         } else if (status === 'accepted') {
           if (contact.isOnline) online.push(withDiscoverySource(contact, 'contact'));
           else offline.push(withDiscoverySource(contact, 'contact'));
+        } else if (contact.lastPm) {
+          recentPm.push(withDiscoverySource(contact, 'message'));
         } else if (currentRoomMembers?.[contactUid]) {
           roomPeople.push(withDiscoverySource(contact, 'room'));
         } else if (mutualUids.has(contactUid)) {
@@ -885,6 +946,7 @@ async function performContactsRender() {
       pushSection(sections, 'search', 'Search Results', searchResults, { empty: 'No users found.' });
     } else {
       pushSection(sections, 'unread-pm', 'New Private Messages', unreadPm);
+      pushSection(sections, 'recent-pm', 'Recent Messages', recentPm);
       pushSection(sections, 'requests', 'Requests for you', incomingRequests);
       pushSection(sections, 'online', 'Online Friends', online);
       pushSection(sections, 'offline', 'Offline Friends', offline, { subdued: true });
@@ -897,6 +959,7 @@ async function performContactsRender() {
       ? searchResults
       : [
         ...unreadPm,
+        ...recentPm,
         ...incomingRequests,
         ...online,
         ...offline,

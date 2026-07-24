@@ -257,8 +257,9 @@
   border-radius: 50%;
   background: #ffffff;
   color: #ffffff;
+  font-family: "Phosphor-Bold-Subset";
   font-size: 13px;
-  font-weight: 900;
+  font-weight: normal;
   line-height: 1;
 }
 
@@ -280,7 +281,7 @@
 }
 
 #room-action-modal .room-type-option.selected::after {
-  content: "✓";
+  content: "\e182";
   border-color: #111111;
   background: #111111;
   box-shadow: 0 0 0 3px var(--rc-accent);

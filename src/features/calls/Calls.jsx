@@ -864,7 +864,7 @@ export function Calls({ adminUid, roomId, user, activeChannelId = 'general', ena
     }
   }, [adminUid, joinedCallPath, myUid, roomId, screenShareProfile, stopScreenShare, user]);
 
-  const avatarFor = (name, photoUrl) => photoUrl || window.getAvatarUrl?.(name || 'Anonymous', '') || '';
+  const avatarFor = (name, photoUrl) => window.getAvatarUrl?.(name || 'Anonymous', photoUrl) || '';
   const callPageHeader = (
     <header className="calls-page-header">
       <div className="calls-page-heading">

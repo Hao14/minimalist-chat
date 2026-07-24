@@ -1,5 +1,6 @@
 import { onDisconnect, onValue, ref, serverTimestamp, set } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { setDatabaseConnectionState } from '../../lib/databaseConnection.js';
 
 let presenceUid = null;
 let presenceRef = null;
@@ -28,6 +29,7 @@ window.stopPresence = function stopPresence({ keepDisconnect = false, markOfflin
   presenceUid = null;
   presenceRef = null;
   disconnectHandle = null;
+  setDatabaseConnectionState('offline');
 };
 
 window.initializePresence = function initializePresence() {
@@ -43,10 +45,13 @@ window.initializePresence = function initializePresence() {
   const version = ++presenceVersion;
   presenceRef = ref(db, `presence/${uid}`);
   disconnectHandle = onDisconnect(presenceRef);
+  setDatabaseConnectionState('connecting');
 
   stopConnectionListener = onValue(ref(db, '.info/connected'), (snapshot) => {
     if (version !== presenceVersion || presenceUid !== uid || window.currentUser?.uid !== uid) return;
-    if (snapshot.val() !== true) return;
+    const isConnected = snapshot.val() === true;
+    setDatabaseConnectionState(isConnected ? 'online' : 'offline');
+    if (!isConnected) return;
     disconnectHandle
       .set(presencePayload('offline'))
       .then(() => {

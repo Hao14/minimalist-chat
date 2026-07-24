@@ -5484,9 +5484,12 @@ body.codex-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-setti
 }
 
 #room-settings-card.room-settings-v2 .apps-manifest-disclosure > summary {
-  position: relative;
   min-height: 46px;
-  padding: 14px 42px 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
   color: var(--rsv2-ink);
   font-size: .76rem;
   font-weight: 760;
@@ -5503,18 +5506,15 @@ body.codex-mode:not(.marketing):not(.auth-screen) #room-settings-card.room-setti
   outline-offset: -3px;
 }
 
-#room-settings-card.room-settings-v2 .apps-manifest-disclosure > summary::after {
-  position: absolute;
-  top: 50%;
-  right: 16px;
-  content: '+';
+#room-settings-card.room-settings-v2 .apps-manifest-caret {
+  flex: 0 0 auto;
   color: var(--rsv2-muted);
-  font-size: 1rem;
-  transform: translateY(-50%);
+  font-size: .9rem;
+  transition: rotate 150ms ease;
 }
 
-#room-settings-card.room-settings-v2 .apps-manifest-disclosure[open] > summary::after {
-  content: '−';
+#room-settings-card.room-settings-v2 .apps-manifest-disclosure[open] .apps-manifest-caret {
+  rotate: 180deg;
 }
 
 #room-settings-card.room-settings-v2 .apps-manifest-disclosure .apps-manifest-card {

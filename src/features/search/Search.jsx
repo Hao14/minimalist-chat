@@ -1,17 +1,83 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { get, limitToLast, query, ref } from 'firebase/database';
-import { db } from '../../lib/firebase.js';
 import { getAuthedJsonHeaders } from '../../lib/authToken.js';
+import {
+  buildMessageJumpContext,
+  describeWorkspaceSearchFilters,
+  filterWorkspaceMessages,
+  parseWorkspaceSearchQuery,
+} from './workspaceSearchModel.js';
+import {
+  loadOlderWorkspaceMessages,
+  loadWorkspacePeopleDirectory,
+  loadWorkspaceSearchIndex,
+} from './workspaceSearchService.js';
 import './search.css';
 
-const EMPTY_SEARCH_RESULTS = { query: '', rooms: [], people: [], messages: [], error: '' };
+const EMPTY_SEARCH_META = {
+  hasMore: false,
+  loadedMessageCount: 0,
+  messageMatchCount: 0,
+  sourceCount: 0,
+  failedSourceCount: 0,
+};
+const EMPTY_SEARCH_RESULTS = {
+  query: '',
+  rooms: [],
+  people: [],
+  messages: [],
+  meta: EMPTY_SEARCH_META,
+  error: '',
+};
 const ROOM_SEARCH_ENDPOINT = () => window.ROOM_SEARCH_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/searchDiscoverableRooms';
 const JOIN_DISCOVERABLE_ROOM_ENDPOINT = () => window.JOIN_DISCOVERABLE_ROOM_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/joinDiscoverableRoom';
-const SEARCH_INDEX_TTL = 2 * 60 * 1000;
-const MESSAGE_INDEX_TTL = 30 * 1000;
-let baseIndexCache = null;
-let baseIndexLoad = null;
-const messageIndexCache = new Map();
+const MESSAGE_RESULT_LIMIT = 80;
+const QUICK_MESSAGE_FILTERS = [
+  {
+    token: 'has:attachment',
+    aliases: ['has:attachment', 'has:attachments', 'has:file', 'has:files', 'has:image', 'has:images'],
+    label: 'Files',
+    icon: 'ph-paperclip',
+    type: 'attachment',
+  },
+  {
+    token: 'has:link',
+    aliases: ['has:link', 'has:links'],
+    label: 'Links',
+    icon: 'ph-link',
+    type: 'link',
+  },
+  {
+    token: 'has:poll',
+    aliases: ['has:poll', 'has:polls'],
+    label: 'Polls',
+    icon: 'ph-chart-bar',
+    type: 'poll',
+  },
+  {
+    token: 'has:mention',
+    aliases: ['has:mention', 'has:mentions'],
+    label: 'Mentions',
+    icon: 'ph-at',
+    type: 'mention',
+  },
+  {
+    token: 'has:thread',
+    aliases: ['has:thread', 'has:threads', 'has:reply', 'has:replies', 'is:thread'],
+    label: 'Threads',
+    icon: 'ph-chats-circle',
+    type: 'thread',
+  },
+];
+const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_YEAR_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+});
+const OTHER_YEAR_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
 
 function highlightedParts(value, queryText) {
   const text = String(value || '');
@@ -94,71 +160,6 @@ async function searchDiscoverableRooms(queryText, signal) {
   return Array.isArray(data.rooms) ? data.rooms : [];
 }
 
-async function loadBaseIndex(uid) {
-  const fresh = baseIndexCache?.uid === uid && Date.now() - baseIndexCache.loadedAt < SEARCH_INDEX_TTL;
-  if (fresh) return baseIndexCache;
-  if (baseIndexLoad?.uid === uid) return baseIndexLoad.promise;
-  const promise = Promise.all([
-    get(ref(db, `user_rooms/${uid}`)),
-    get(ref(db, 'user_directory')),
-  ]).then(([roomsSnapshot, usersSnapshot]) => {
-    const rooms = [];
-    roomsSnapshot.forEach((child) => rooms.push({ id: child.key, ...(child.val() || {}) }));
-    baseIndexCache = { uid, loadedAt: Date.now(), rooms, users: usersSnapshot.val() || {} };
-    return baseIndexCache;
-  }).finally(() => {
-    if (baseIndexLoad?.promise === promise) baseIndexLoad = null;
-  });
-  baseIndexLoad = { uid, promise };
-  return promise;
-}
-
-async function loadMessageIndex(uid) {
-  const roomId = window.activeRoomId || 'global';
-  const cacheKey = `${uid}:${roomId}`;
-  const cached = messageIndexCache.get(cacheKey);
-  if (cached && Date.now() - cached.loadedAt < MESSAGE_INDEX_TTL) return cached.messages;
-  if (cached?.promise) return cached.promise;
-
-  const sources = [{ dbRef: ref(db, 'messages'), room: 'global', name: 'Global Chat', shortId: 'GLOBAL', channelId: 'general' }];
-  if (roomId !== 'global') {
-    sources.push({
-      dbRef: ref(db, `rooms_data/${roomId}/messages`),
-      room: roomId,
-      name: document.getElementById('active-room-name-display')?.textContent || 'Room',
-      shortId: window.activeRoomShortId || '',
-      channelId: 'general',
-    });
-  }
-  const promise = Promise.all(sources.map((source) => get(query(source.dbRef, limitToLast(300)))))
-    .then((snapshots) => {
-      const messages = [];
-      snapshots.forEach((snapshot, index) => {
-        const source = sources[index];
-        snapshot.forEach((child) => {
-          const message = child.val() || {};
-          messages.push({
-            id: child.key,
-            messageId: child.key,
-            text: message.text || '',
-            name: message.name || 'Someone',
-            timestamp: Number(message.ts || message.timestamp || message.createdAt || 0),
-            room: source.room,
-            roomName: source.name,
-            shortId: source.shortId,
-            channelId: source.channelId,
-          });
-        });
-      });
-      messages.sort((a, b) => b.timestamp - a.timestamp);
-      messageIndexCache.set(cacheKey, { loadedAt: Date.now(), messages });
-      if (messageIndexCache.size > 8) messageIndexCache.delete(messageIndexCache.keys().next().value);
-      return messages;
-    });
-  messageIndexCache.set(cacheKey, { loadedAt: 0, messages: [], promise });
-  return promise;
-}
-
 function matchRank(value, queryText) {
   const text = String(value || '').toLowerCase();
   if (text === queryText) return 0;
@@ -166,24 +167,46 @@ function matchRank(value, queryText) {
   return 2;
 }
 
-async function runSearch(queryText, getAvatarUrl, signal) {
+function matchesAllTerms(value, terms) {
+  const text = String(value || '').toLowerCase();
+  return terms.every((term) => text.includes(term));
+}
+
+function toggleQueryToken(value, filter) {
+  const tokens = String(value || '').trim().split(/\s+/).filter(Boolean);
+  const aliases = new Set(filter.aliases);
+  const without = tokens.filter((item) => !aliases.has(item.toLowerCase()));
+  return without.length === tokens.length
+    ? [...tokens, filter.token].join(' ')
+    : without.join(' ');
+}
+
+async function runSearch(queryValue, getAvatarUrl, signal, { loadOlder = false } = {}) {
   const uid = window.currentUser?.uid;
   if (!uid) return EMPTY_SEARCH_RESULTS;
-  const [baseIndex, discoverableRooms, messageIndex] = await Promise.all([
-    loadBaseIndex(uid),
-    searchDiscoverableRooms(queryText, signal).catch((error) => {
+  const parsedQuery = parseWorkspaceSearchQuery(queryValue);
+  const queryText = parsedQuery.text;
+  const [workspaceIndex, discoverableRooms, users] = await Promise.all([
+    loadOlder ? loadOlderWorkspaceMessages(uid) : loadWorkspaceSearchIndex(uid),
+    queryText.length >= 2 ? searchDiscoverableRooms(queryText, signal).catch((error) => {
       if (error?.name === 'AbortError') throw error;
       return [];
-    }),
-    loadMessageIndex(uid),
+    }) : [],
+    loadWorkspacePeopleDirectory(uid),
   ]);
+
+  const roomTerms = parsedQuery.textTerms.length
+    ? parsedQuery.textTerms
+    : parsedQuery.filters.rooms;
   const rooms = [];
-  baseIndex.rooms.forEach((room) => {
+  workspaceIndex.rooms.forEach((room) => {
     const searchableText = [
       room.name,
       room.shortId,
-    ].filter(Boolean).join(' ').toLowerCase();
-    if (searchableText.includes(queryText)) {
+      room.topic,
+      room.category,
+    ].filter(Boolean).join(' ');
+    if (roomTerms.length && matchesAllTerms(searchableText, roomTerms)) {
       rooms.push({
         id: room.id,
         name: room.name || 'Room',
@@ -196,11 +219,11 @@ async function runSearch(queryText, getAvatarUrl, signal) {
       });
     }
   });
-  if ('global chat'.includes(queryText) && !rooms.find((room) => room.id === 'global')) rooms.unshift({ id: 'global', name: 'Global Chat', shortId: 'GLOBAL' });
   discoverableRooms.forEach((room) => {
-    if (rooms.some((existing) => existing.id === room.id)) return;
+    const roomId = room.id || room.key;
+    if (!roomId || rooms.some((existing) => existing.id === roomId)) return;
     rooms.push({
-      id: room.id || room.key,
+      id: roomId,
       name: room.name || 'Room',
       shortId: room.shortId || '',
       mine: false,
@@ -214,16 +237,45 @@ async function runSearch(queryText, getAvatarUrl, signal) {
   });
 
   const people = [];
-  const users = baseIndex.users;
-  Object.entries(users).forEach(([id, user]) => {
+  const peopleTerms = parsedQuery.textTerms.length
+    ? parsedQuery.textTerms
+    : parsedQuery.filters.authors;
+  Object.entries(users || {}).forEach(([id, user]) => {
     if (id === uid) return;
-    if ((user.displayName || '').toLowerCase().includes(queryText) || (user.shortId || '').toLowerCase().includes(queryText)) people.push({ id, name: user.displayName || 'Unknown', photo: user.photoUrl || '', shortId: user.shortId || '', avatar: getAvatarUrl?.(user.displayName, user.photoUrl) || '' });
+    const searchableText = `${user.displayName || ''} ${user.shortId || ''}`;
+    if (peopleTerms.length && matchesAllTerms(searchableText, peopleTerms)) {
+      people.push({
+        id,
+        name: user.displayName || 'Unknown',
+        photo: user.photoUrl || '',
+        shortId: user.shortId || '',
+        avatar: getAvatarUrl?.(user.displayName, user.photoUrl) || '',
+      });
+    }
   });
 
-  const messages = messageIndex.filter((message) => message.text.toLowerCase().includes(queryText)).slice(0, 30);
+  const messageMatches = filterWorkspaceMessages(workspaceIndex.messages, parsedQuery, {
+    viewer: {
+      uid,
+      name: window.userProfileName || window.currentUser?.displayName || '',
+      shortId: window.userShortId || window.currentUserShortId || '',
+    },
+  });
+  const messages = messageMatches.slice(0, MESSAGE_RESULT_LIMIT);
   rooms.sort((a, b) => matchRank(a.name, queryText) - matchRank(b.name, queryText) || a.name.localeCompare(b.name));
   people.sort((a, b) => matchRank(a.name, queryText) - matchRank(b.name, queryText) || a.name.localeCompare(b.name));
-  return { rooms: rooms.slice(0, 20), people: people.slice(0, 20), messages };
+  return {
+    rooms: rooms.slice(0, 20),
+    people: people.slice(0, 20),
+    messages,
+    meta: {
+      hasMore: workspaceIndex.hasMore,
+      loadedMessageCount: workspaceIndex.loadedMessageCount,
+      messageMatchCount: messageMatches.length,
+      sourceCount: workspaceIndex.sourceCount,
+      failedSourceCount: workspaceIndex.failedSourceCount,
+    },
+  };
 }
 
 function ResultItem({ active = false, children, disabled = false, icon, index = 0, kind = 'result', onClick, onHover }) {
@@ -266,6 +318,15 @@ function SearchState({ body, icon, title }) {
   );
 }
 
+function formatMessageDate(timestamp) {
+  const value = Number(timestamp || 0);
+  if (!value) return '';
+  return (new Date(value).getFullYear() === CURRENT_YEAR
+    ? CURRENT_YEAR_DATE_FORMATTER
+    : OTHER_YEAR_DATE_FORMATTER
+  ).format(value);
+}
+
 export function Search({ getAvatarUrl, initialOpen = false }) {
   const [open, setOpen] = useState(() => Boolean(initialOpen));
   const [searchText, setSearchText] = useState('');
@@ -273,33 +334,42 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
   const [results, setResults] = useState(EMPTY_SEARCH_RESULTS);
   const [activeIndex, setActiveIndex] = useState(0);
   const [joiningId, setJoiningId] = useState('');
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const deferredSearchText = useDeferredValue(searchText);
   const inputRef = useRef(null);
   const rootRef = useRef(null);
   const openRef = useRef(false);
   const returnFocusRef = useRef(null);
+  const requestedReturnFocusRef = useRef(null);
+  const searchRequestVersionRef = useRef(0);
+  const loadOlderControllerRef = useRef(null);
 
   useEffect(() => { openRef.current = open; }, [open]);
 
   useEffect(() => {
-    const openButton = document.getElementById('open-search-btn');
+    const openButtons = [
+      document.getElementById('open-search-btn'),
+      document.getElementById('open-search-btn-mobile'),
+    ].filter(Boolean);
     // Clicking the nav icon toggles: open if closed, close if already open.
-    const toggleSearch = () => {
+    const toggleSearch = (event) => {
       if (openRef.current) { setOpen(false); return; }
+      requestedReturnFocusRef.current = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
       setSearchText('');
       setActiveScope('all');
       setResults(EMPTY_SEARCH_RESULTS);
       setActiveIndex(0);
       setJoiningId('');
+      setLoadingOlder(false);
       setOpen(true);
     };
     const closeOnEscape = (event) => { if (event.key === 'Escape') setOpen(false); };
     const closeFromBackdrop = () => setOpen(false);
-    openButton?.addEventListener('click', toggleSearch);
+    openButtons.forEach((button) => button.addEventListener('click', toggleSearch));
     document.addEventListener('keydown', closeOnEscape);
     window.addEventListener('minimalist:close-search', closeFromBackdrop);
     return () => {
-      openButton?.removeEventListener('click', toggleSearch);
+      openButtons.forEach((button) => button.removeEventListener('click', toggleSearch));
       document.removeEventListener('keydown', closeOnEscape);
       window.removeEventListener('minimalist:close-search', closeFromBackdrop);
     };
@@ -307,13 +377,25 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
 
   useEffect(() => {
     const modal = document.getElementById('search-modal');
-    const openButton = document.getElementById('open-search-btn');
+    const openButtons = [
+      document.getElementById('open-search-btn'),
+      document.getElementById('open-search-btn-mobile'),
+    ].filter(Boolean);
+    const visibleOpenButton = openButtons.find((button) => button.offsetParent !== null)
+      || document.getElementById('open-more-btn-mobile')
+      || openButtons[0];
     let focusFrame = 0;
     modal?.classList.toggle('hidden', !open);
     modal?.setAttribute('aria-hidden', open ? 'false' : 'true');
-    openButton?.setAttribute('aria-expanded', open ? 'true' : 'false');
+    openButtons.forEach((button) => button.setAttribute('aria-expanded', open ? 'true' : 'false'));
     if (open) {
-      returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : openButton;
+      const requestedReturnFocus = requestedReturnFocusRef.current;
+      const activeElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      returnFocusRef.current = requestedReturnFocus && requestedReturnFocus.offsetParent !== null
+        ? requestedReturnFocus
+        : activeElement && activeElement.offsetParent !== null
+          ? activeElement
+          : visibleOpenButton;
       const siblings = [...(modal?.parentElement?.children || [])].filter((element) => element !== modal);
       siblings.forEach((element) => {
         element.dataset.searchPreviousAriaHidden = element.getAttribute('aria-hidden') ?? '';
@@ -336,28 +418,48 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
       };
     } else if (returnFocusRef.current && document.contains(returnFocusRef.current)) {
       returnFocusRef.current.focus();
+      requestedReturnFocusRef.current = null;
     }
     return undefined;
   }, [open]);
 
   useEffect(() => {
-    const queryText = deferredSearchText.trim().toLowerCase();
-    if (queryText.length < 2) {
-      return undefined;
+    const queryValue = deferredSearchText.trim();
+    const queryKey = queryValue.toLowerCase();
+    loadOlderControllerRef.current?.abort();
+    loadOlderControllerRef.current = null;
+    if (!open || queryKey.length < 2) {
+      searchRequestVersionRef.current += 1;
+      const resetTimer = window.setTimeout(() => setLoadingOlder(false), 0);
+      return () => window.clearTimeout(resetTimer);
     }
+    const requestVersion = searchRequestVersionRef.current + 1;
+    searchRequestVersionRef.current = requestVersion;
     let active = true;
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
+      setLoadingOlder(false);
       try {
-        const nextResults = await runSearch(queryText, getAvatarUrl, controller.signal);
-        if (active) setResults({ query: queryText, ...nextResults, error: '' });
+        const nextResults = await runSearch(queryValue, getAvatarUrl, controller.signal);
+        if (active && searchRequestVersionRef.current === requestVersion) {
+          setResults({ ...nextResults, query: queryKey, error: '' });
+        }
       } catch (error) {
         if (error?.name === 'AbortError') return;
-        if (active) setResults({ query: queryText, rooms: [], people: [], messages: [], error: `Search failed: ${error.message}` });
+        if (active && searchRequestVersionRef.current === requestVersion) {
+          setResults({
+            query: queryKey,
+            rooms: [],
+            people: [],
+            messages: [],
+            meta: EMPTY_SEARCH_META,
+            error: `Search failed: ${error.message}`,
+          });
+        }
       }
     }, 180);
     return () => { active = false; controller.abort(); window.clearTimeout(timer); };
-  }, [deferredSearchText, getAvatarUrl]);
+  }, [deferredSearchText, getAvatarUrl, open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -392,17 +494,9 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
     close();
     const roomId = room.id || room.room;
     if (room.messageId) {
-      const jump = {
-        messageId: room.messageId,
-        roomId,
-        roomName: room.name || room.roomName,
-        shortId: room.shortId || '',
-        channelId: room.channelId || 'general',
-        source: 'search',
-        messageText: room.text || '',
-      };
+      const jump = buildMessageJumpContext(room, deferredSearchText);
       window.pendingMessageJump = jump;
-      window.switchRoom?.(roomId, jump.roomName, jump.shortId, { channelId: jump.channelId });
+      window.switchRoom?.(jump.roomId, jump.roomName, jump.shortId, { channelId: jump.channelId });
       window.dispatchEvent(new CustomEvent('minimalist:message-jump', { detail: jump }));
     } else {
       window.switchRoom?.(roomId, room.name || room.roomName, room.shortId);
@@ -410,7 +504,17 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
     if (room.room) window.setTimeout(() => document.querySelector('.room-tab[data-target="chat"]')?.click(), 400);
   };
   const viewPerson = (person) => { close(); window.viewUserProfile?.(person.id); };
-  const queryText = deferredSearchText.trim().toLowerCase();
+  const queryValue = deferredSearchText.trim();
+  const queryText = queryValue.toLowerCase();
+  const parsedQuery = useMemo(
+    () => parseWorkspaceSearchQuery(queryValue),
+    [queryValue],
+  );
+  const highlightQueryText = parsedQuery.text;
+  const filterLabels = useMemo(
+    () => describeWorkspaceSearchFilters(parsedQuery),
+    [parsedQuery],
+  );
   const inputStale = searchText !== deferredSearchText;
   const queryReady = queryText.length >= 2;
   const activeResults = queryReady ? results : EMPTY_SEARCH_RESULTS;
@@ -418,7 +522,8 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
   const hasResults = activeResults.rooms.length || activeResults.people.length || activeResults.messages.length;
   const canShowResults = queryText.length >= 2 && !searching;
 
-  const resultCount = activeResults.rooms.length + activeResults.people.length + activeResults.messages.length;
+  const messageMatchCount = Number(activeResults.meta?.messageMatchCount ?? activeResults.messages.length);
+  const resultCount = activeResults.rooms.length + activeResults.people.length + messageMatchCount;
   const visibleRooms = activeScope === 'all' || activeScope === 'rooms';
   const visiblePeople = activeScope === 'all' || activeScope === 'people';
   const visibleMessages = activeScope === 'all' || activeScope === 'messages';
@@ -435,6 +540,36 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
   const peopleOffset = visibleRooms ? activeResults.rooms.length : 0;
   const messagesOffset = peopleOffset + (visiblePeople ? activeResults.people.length : 0);
   const safeActiveIndex = flatResults.length ? Math.min(activeIndex, flatResults.length - 1) : 0;
+
+  const loadOlderMessages = async () => {
+    if (loadingOlder || !activeResults.meta?.hasMore || !window.currentUser?.uid) return;
+    loadOlderControllerRef.current?.abort();
+    const controller = new AbortController();
+    loadOlderControllerRef.current = controller;
+    const requestVersion = searchRequestVersionRef.current + 1;
+    searchRequestVersionRef.current = requestVersion;
+    setLoadingOlder(true);
+    try {
+      const nextResults = await runSearch(
+        deferredSearchText.trim(),
+        getAvatarUrl,
+        controller.signal,
+        { loadOlder: true },
+      );
+      if (searchRequestVersionRef.current === requestVersion) {
+        setResults({ ...nextResults, query: queryText, error: '' });
+      }
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        window.showToast?.(`Could not search older messages: ${error.message}`);
+      }
+    } finally {
+      if (loadOlderControllerRef.current === controller) {
+        loadOlderControllerRef.current = null;
+        if (searchRequestVersionRef.current === requestVersion) setLoadingOlder(false);
+      }
+    }
+  };
 
   useEffect(() => {
     if (!flatResults.length) return;
@@ -457,7 +592,7 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
     { id: 'all', icon: 'ph-sparkle', label: 'All', count: resultCount },
     { id: 'rooms', icon: 'ph-chats', label: 'Rooms', count: activeResults.rooms.length },
     { id: 'people', icon: 'ph-users', label: 'People', count: activeResults.people.length },
-    { id: 'messages', icon: 'ph-chat-text', label: 'Messages', count: activeResults.messages.length },
+    { id: 'messages', icon: 'ph-chat-text', label: 'Messages', count: messageMatchCount },
   ];
   const handleScopeKeyDown = (event, index) => {
     const keys = ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp', 'Home', 'End'];
@@ -499,9 +634,9 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
           value={searchText}
           onChange={(event) => { setSearchText(event.target.value); setActiveIndex(0); }}
           onKeyDown={handleInputKeyDown}
-          placeholder="Search rooms, people, messages..."
+          placeholder="Search messages or use room:, from:, has:..."
           autoComplete="off"
-          aria-label="Search rooms, people, and messages"
+          aria-label="Search rooms, people, and messages; filters include room, channel, author, date, and content type"
         />
         {queryText ? (
           <button type="button" className="search-clear-btn" onClick={() => { setSearchText(''); setActiveScope('all'); setResults(EMPTY_SEARCH_RESULTS); setActiveIndex(0); inputRef.current?.focus(); }} aria-label="Clear search">
@@ -527,24 +662,52 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
           </button>
         ))}
       </div>
-      <div id="search-results" className={hasVisibleResults ? 'search-results has-results' : 'search-results'} aria-live="polite" aria-busy={searching}>
-        {!queryText ? <SearchState icon="ph-bold ph-sparkle" title="Start typing" body="Search across your workspace without leaving the current room." /> : null}
+      <div className="search-filter-tools">
+        <div className="search-quick-filters" role="group" aria-label="Message content filters">
+          {QUICK_MESSAGE_FILTERS.map((filter) => {
+            const active = parsedQuery.filters.has.includes(filter.type);
+            return (
+              <button
+                key={filter.token}
+                type="button"
+                className={active ? 'is-active' : ''}
+                aria-pressed={active}
+                onClick={() => {
+                  setSearchText((value) => toggleQueryToken(value, filter));
+                  setActiveIndex(0);
+                }}
+              >
+                <i className={`ph-bold ${filter.icon}`} aria-hidden="true" />
+                {filter.label}
+              </button>
+            );
+          })}
+        </div>
+        <span className="search-filter-help">Filters: room: · channel: · from: · after: · before:</span>
+        {filterLabels.length ? (
+          <div className="search-active-filters" aria-label="Active search filters">
+            {filterLabels.map((label) => <span key={label}>{label}</span>)}
+          </div>
+        ) : null}
+      </div>
+      <div id="search-results" className={hasVisibleResults ? 'search-results has-results' : 'search-results'} aria-live="polite" aria-busy={searching || loadingOlder}>
+        {!queryText ? <SearchState icon="ph-bold ph-sparkle" title="Start typing" body="Search every channel in every room you have joined." /> : null}
         {queryText && queryText.length < 2 ? <SearchState icon="ph-bold ph-keyboard" title="Keep going" body="Type at least 2 characters to begin searching." /> : null}
-        {searching ? <SearchState icon="ph-bold ph-circle-notch search-spin" title="Searching" body="Checking rooms, people, and recent messages…" /> : null}
+        {searching ? <SearchState icon="ph-bold ph-circle-notch search-spin" title="Searching" body="Checking every accessible room and channel…" /> : null}
         {!searching && activeResults.error ? <SearchState icon="ph-bold ph-warning-circle" title="Search paused" body={activeResults.error} /> : null}
-        {!searching && !activeResults.error && queryText.length >= 2 && !hasResults ? <SearchState icon="ph-bold ph-binoculars" title="No matches yet" body="Try a room name, username, short ID, or a phrase from a message." /> : null}
+        {!searching && !activeResults.error && queryText.length >= 2 && !hasResults ? <SearchState icon="ph-bold ph-binoculars" title="No matches yet" body="Try another phrase or load older messages below." /> : null}
         {!searching && queryText.length >= 2 && hasResults && !hasVisibleResults ? <SearchState icon="ph-bold ph-faders" title="No matches in this filter" body="Try switching back to All or choosing another result type." /> : null}
         {canShowResults && visibleRooms && activeResults.rooms.length ? (
           <Section title="Rooms" icon="ph-bold ph-chats" count={activeResults.rooms.length} kind="rooms">
             {activeResults.rooms.map((room, index) => (
               <ResultItem key={room.id} kind="room" index={index} active={safeActiveIndex === index} onHover={() => setActiveIndex(index)} disabled={joiningId === room.id} icon={<i className={`ph-bold ${joiningId === room.id ? 'ph-circle-notch search-spin' : 'ph-chats'}`} aria-hidden="true" />} onClick={() => goToRoom(room)}>
                 <div className="search-item-body">
-                  <div className="search-item-title"><HighlightText text={room.name} queryText={queryText} /></div>
+                  <div className="search-item-title"><HighlightText text={room.name} queryText={highlightQueryText} /></div>
                   <div className="search-item-sub">
                     {joiningId === room.id ? 'Joining room…' : room.mine ? (
-                      room.shortId ? <HighlightText text={`#${room.shortId}`} queryText={queryText} /> : 'Room'
+                      room.shortId ? <HighlightText text={`#${room.shortId}`} queryText={highlightQueryText} /> : 'Room'
                     ) : (
-                      <HighlightText text={`Discoverable${room.category ? ` · ${room.category}` : ''}`} queryText={queryText} />
+                      <HighlightText text={`Discoverable${room.category ? ` · ${room.category}` : ''}`} queryText={highlightQueryText} />
                     )}
                   </div>
                   {!room.mine && room.recommended ? <div className="search-item-sub">Recommended by topic/category match</div> : null}
@@ -558,24 +721,54 @@ export function Search({ getAvatarUrl, initialOpen = false }) {
             {activeResults.people.map((person, index) => (
               <ResultItem key={person.id} kind="person" index={peopleOffset + index} active={safeActiveIndex === peopleOffset + index} onHover={() => setActiveIndex(peopleOffset + index)} icon={<img className="search-item-avatar" src={person.avatar} alt="" />} onClick={() => viewPerson(person)}>
                 <div className="search-item-body">
-                  <div className="search-item-title"><HighlightText text={person.name} queryText={queryText} /></div>
-                  <div className="search-item-sub">{person.shortId ? <HighlightText text={`#${person.shortId}`} queryText={queryText} /> : 'Profile'}</div>
+                  <div className="search-item-title"><HighlightText text={person.name} queryText={highlightQueryText} /></div>
+                  <div className="search-item-sub">{person.shortId ? <HighlightText text={`#${person.shortId}`} queryText={highlightQueryText} /> : 'Profile'}</div>
                 </div>
               </ResultItem>
             ))}
           </Section>
         ) : null}
         {canShowResults && visibleMessages && activeResults.messages.length ? (
-          <Section title="Messages" icon="ph-bold ph-chat-text" count={activeResults.messages.length} kind="messages">
+          <Section
+            title="Messages"
+            icon="ph-bold ph-chat-text"
+            count={messageMatchCount > activeResults.messages.length ? `${activeResults.messages.length} of ${messageMatchCount}` : messageMatchCount}
+            kind="messages"
+          >
             {activeResults.messages.map((message, index) => (
-              <ResultItem key={`${message.room}-${message.id}`} kind="message" index={messagesOffset + index} active={safeActiveIndex === messagesOffset + index} onHover={() => setActiveIndex(messagesOffset + index)} icon={<i className="ph-bold ph-chat-text" aria-hidden="true" />} onClick={() => goToRoom(message)}>
+              <ResultItem key={`${message.room}-${message.channelId}-${message.id}`} kind="message" index={messagesOffset + index} active={safeActiveIndex === messagesOffset + index} onHover={() => setActiveIndex(messagesOffset + index)} icon={<i className="ph-bold ph-chat-text" aria-hidden="true" />} onClick={() => goToRoom(message)}>
                 <div className="search-item-body">
-                  <div className="search-item-title"><HighlightText text={(message.text || '').slice(0, 120)} queryText={queryText} /></div>
-                  <div className="search-item-sub"><HighlightText text={`${message.name || 'Someone'} · in ${message.roomName}`} queryText={queryText} /></div>
+                  <div className="search-item-title"><HighlightText text={(message.text || message.poll?.question || message.attachedFile?.name || 'Shared message').slice(0, 160)} queryText={highlightQueryText} /></div>
+                  <div className="search-item-sub">
+                    <HighlightText
+                      text={`${message.name || 'Someone'} · ${message.roomName} · #${message.channelName || message.channelId || 'general'}${message.timestamp ? ` · ${formatMessageDate(message.timestamp)}` : ''}`}
+                      queryText={highlightQueryText}
+                    />
+                  </div>
                 </div>
               </ResultItem>
             ))}
           </Section>
+        ) : null}
+        {canShowResults && visibleMessages && activeResults.meta?.sourceCount ? (
+          <div className="search-index-status">
+            <span>
+              Searched {activeResults.meta.loadedMessageCount.toLocaleString()} recent messages
+              {' '}across {activeResults.meta.sourceCount.toLocaleString()} channels.
+            </span>
+            {activeResults.meta.failedSourceCount ? <small>{activeResults.meta.failedSourceCount} unavailable.</small> : null}
+          </div>
+        ) : null}
+        {canShowResults && visibleMessages && activeResults.meta?.hasMore ? (
+          <button
+            type="button"
+            className="search-load-older"
+            onClick={loadOlderMessages}
+            disabled={loadingOlder}
+          >
+            <i className={`ph-bold ${loadingOlder ? 'ph-circle-notch search-spin' : 'ph-clock-counter-clockwise'}`} aria-hidden="true" />
+            {loadingOlder ? 'Searching older messages…' : 'Search older messages'}
+          </button>
         ) : null}
       </div>
       <div className="search-footer-hint">

@@ -84,12 +84,20 @@ function closeMenu({ restoreFocus = false } = {}) {
 
 function closeForward() {
   if (!state.forward) return;
+  const returnFocus = state.forward.returnFocus;
   setToolState({ forward: null });
+  if (returnFocus?.isConnected) {
+    window.requestAnimationFrame(() => returnFocus.focus());
+  }
 }
 
 function closeBookmarkPrompt() {
   if (!state.bookmarkPrompt) return;
+  const returnFocus = state.bookmarkPrompt.returnFocus;
   setToolState({ bookmarkPrompt: null });
+  if (returnFocus?.isConnected) {
+    window.requestAnimationFrame(() => returnFocus.focus());
+  }
 }
 
 function closeBookmarksPanel() {
@@ -187,7 +195,8 @@ window.openMsgMenu = function openMsgMenu(event, id) {
 async function handleMenuAction(action) {
   const menu = state.menu;
   const id = menu?.messageId;
-  closeMenu();
+  const returnFocus = menu?.trigger;
+  closeMenu({ restoreFocus: action !== 'forward' && action !== 'edit' });
   if (!id) return;
 
   if (action === 'edit' || action === 'delete') {
@@ -218,8 +227,8 @@ async function handleMenuAction(action) {
     return;
   }
 
-  if (action === 'forward') await openForward(id);
-  else if (action === 'bookmark') await toggleBookmark(id);
+  if (action === 'forward') await openForward(id, returnFocus);
+  else if (action === 'bookmark') await toggleBookmark(id, returnFocus);
   else if (action === 'flag') await toggleImportant(id);
   else if (action === 'impact') await showImpact(id);
 }
@@ -256,11 +265,23 @@ async function showImpact(id) {
   window.showToast?.(`🔥 Impact — ${reactions} reaction${reactions === 1 ? '' : 's'} · ${replies} repl${replies === 1 ? 'y' : 'ies'}`, false);
 }
 
-async function openForward(id) {
+async function openForward(id, returnFocus = null) {
   const message = window.msgCache?.[id];
-  if (!message) return;
+  if (!message) {
+    if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
+    return;
+  }
 
   let rooms = [{ id: 'global', name: 'Global Chat' }];
+  setToolState({
+    forward: {
+      open: true,
+      messageId: id,
+      rooms: [],
+      loading: true,
+      returnFocus,
+    },
+  });
   try {
     const snapshot = await get(ref(db, `user_rooms/${window.currentUser.uid}`));
     snapshot.forEach((child) => {
@@ -271,7 +292,16 @@ async function openForward(id) {
     rooms = [{ id: 'global', name: 'Global Chat' }];
   }
 
-  setToolState({ forward: { open: true, messageId: id, rooms } });
+  if (state.forward?.messageId !== id) return;
+  setToolState({
+    forward: {
+      open: true,
+      messageId: id,
+      rooms,
+      loading: false,
+      returnFocus,
+    },
+  });
 }
 
 async function forwardToSelectedRoom(roomId) {
@@ -315,7 +345,7 @@ async function forwardTo(id, roomId) {
   }
 }
 
-async function toggleBookmark(id) {
+async function toggleBookmark(id, returnFocus = null) {
   const message = window.msgCache?.[id];
   if (!message) return;
 
@@ -325,12 +355,20 @@ async function toggleBookmark(id) {
     if (snapshot.exists()) {
       await remove(bookmarkRef);
       window.showToast?.('Removed from saved.', false);
+      if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
       return;
     }
 
-    setToolState({ bookmarkPrompt: { open: true, messageId: id } });
+    setToolState({
+      bookmarkPrompt: {
+        open: true,
+        messageId: id,
+        returnFocus,
+      },
+    });
   } catch (error) {
     window.showToast?.(`Could not save: ${error.message}`);
+    if (returnFocus?.isConnected) window.requestAnimationFrame(() => returnFocus.focus());
   }
 }
 

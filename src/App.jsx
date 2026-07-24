@@ -1,12 +1,13 @@
 import { Component, createElement, lazy, Suspense, useLayoutEffect } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { readAuthPresenceHint } from './lib/authPresenceHint.js';
+import { loadMarketingPagesModule, readMarketingPagesModule } from './lib/marketingModuleLoader.js';
 
 const ChatPage = lazy(() => import('./pages/ChatPage.jsx'));
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'));
 const VaultSharePage = lazy(() => import('./features/vault/VaultSharePage.jsx'));
-const marketingPage = (name) => lazy(() => import('./pages/MarketingPages.jsx').then((module) => ({ default: module[name] })));
-const NativeHomePage = marketingPage('HomePage');
+const marketingPage = (name) => lazy(() => loadMarketingPagesModule().then((module) => ({ default: module[name] })));
+const LazyHomePage = marketingPage('HomePage');
 const FeaturesPage = marketingPage('FeaturesPage');
 const PricingPage = marketingPage('PricingPage');
 const DownloadPage = marketingPage('DownloadPage');
@@ -16,8 +17,13 @@ const PrivacyPage = marketingPage('PrivacyPage');
 const TermsPage = marketingPage('TermsPage');
 const NotFoundPage = marketingPage('NotFoundPage');
 
+function HomeRoute() {
+  const HomePage = readMarketingPagesModule()?.HomePage || LazyHomePage;
+  return createElement(HomePage);
+}
+
 const pageRoutes = [
-  ['/', NativeHomePage],
+  ['/', HomeRoute],
   ['/login', LoginPage],
   ['/vault/share/:shareId', VaultSharePage],
   ['/features', FeaturesPage],
@@ -134,6 +140,7 @@ export default function App() {
     if (!isMarketingPath(location.pathname)) return;
     document.body.className = 'marketing marketing-scroll';
     document.body.removeAttribute('style');
+    document.documentElement.classList.remove('home-react-pending');
     if (!location.hash) window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [location.pathname, location.hash]);
 

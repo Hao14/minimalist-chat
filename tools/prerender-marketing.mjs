@@ -6,7 +6,17 @@ import {
   faqItems,
   pricingPageMeta,
   roomSubscriptionPlans,
+  termsPageMeta,
+  termsSections,
 } from '../src/content/marketingContent.js';
+import {
+  downloadPageContent,
+  featureStatusLabels,
+  featuresPageContent,
+  homePageContent,
+  privacyPageContent,
+  storyPageContent,
+} from '../src/content/publicMarketingContent.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
@@ -32,6 +42,196 @@ function renderPlanCards(plans) {
             <p>${escapeHtml(plan.scope)}</p>
             <ul>${plan.features.map((feature) => `<li>${escapeHtml(feature)}</li>`).join('')}</ul>
           </article>`).join('');
+}
+
+const featureById = new Map(
+  featuresPageContent.catalog.map((feature) => [feature.id, feature]),
+);
+
+function renderFeatureList(featureIds) {
+  return `<ul>${featureIds.map((featureId) => {
+    const feature = featureById.get(featureId);
+    if (!feature) throw new Error(`Unknown marketing feature id: ${featureId}`);
+    return `
+            <li data-feature-status="${escapeHtml(feature.status)}">
+              <h3>${escapeHtml(feature.title)}</h3>
+              <p>${escapeHtml(feature.summary)}</p>
+              <p><strong>Status:</strong> ${escapeHtml(featureStatusLabels[feature.status])}</p>
+            </li>`;
+  }).join('')}</ul>`;
+}
+
+function buildHomeRouteSections() {
+  return `
+      <section class="landing-section" data-prerender-home-workflow aria-labelledby="prerender-home-workflow">
+        <h2 id="prerender-home-workflow">${escapeHtml(homePageContent.workflow.title)}</h2>
+        <p>${escapeHtml(homePageContent.workflow.copy)}</p>
+        <ol>${homePageContent.workflow.steps.map((step) => `
+          <li>
+            <h3>${escapeHtml(step.title)}</h3>
+            <p>${escapeHtml(step.copy)}</p>
+          </li>`).join('')}</ol>
+      </section>
+      <section class="landing-section" data-prerender-home-signal aria-labelledby="prerender-home-signal">
+        <h2 id="prerender-home-signal">${escapeHtml(homePageContent.signal.title)}</h2>
+        <p>${escapeHtml(homePageContent.signal.copy)}</p>
+        ${renderFeatureList(homePageContent.signal.featureIds)}
+      </section>
+      <section class="landing-section landing-pricing" data-prerender-home-pricing aria-labelledby="prerender-home-plans">
+        <div class="landing-section-heading">
+          <h2 id="prerender-home-plans">${escapeHtml(homePageContent.plans.title)}</h2>
+          <p>${escapeHtml(homePageContent.plans.copy)}</p>
+          <a href="${escapeHtml(homePageContent.plans.action.href)}">${escapeHtml(homePageContent.plans.action.label)}</a>
+        </div>
+        <div class="landing-pricing-grid">${renderPlanCards(accountPlans)}</div>
+      </section>
+      <section class="landing-section" data-prerender-home-close aria-labelledby="prerender-home-close">
+        <h2 id="prerender-home-close">${escapeHtml(homePageContent.close.title)}</h2>
+        <p>${escapeHtml(homePageContent.close.copy)}</p>
+        <p>
+          <a href="${escapeHtml(homePageContent.close.primaryAction.href)}">${escapeHtml(homePageContent.close.primaryAction.label)}</a>
+          <a href="${escapeHtml(homePageContent.close.secondaryAction.href)}">${escapeHtml(homePageContent.close.secondaryAction.label)}</a>
+        </p>
+      </section>`;
+}
+
+function buildFeaturesRouteBody() {
+  return `
+      <main class="prerender-route" data-prerender-route="features">
+        <section>
+          <p>${escapeHtml(featuresPageContent.hero.label)}</p>
+          <h1>${escapeHtml(featuresPageContent.hero.title)}</h1>
+          <p>${escapeHtml(featuresPageContent.hero.copy)}</p>
+          <p>${escapeHtml(featuresPageContent.statusIntro)}</p>
+        </section>
+        <div id="feature-groups">
+          <section aria-labelledby="prerender-features-overview">
+            <h2 id="prerender-features-overview">What the room can do</h2>
+            <ul>${featuresPageContent.overview.map((item) => `
+              <li>
+                <h3>${escapeHtml(item.title)}: ${escapeHtml(item.benefit)}</h3>
+                <p>${escapeHtml(item.summary)}</p>
+                <p>${escapeHtml(item.plan)}</p>
+              </li>`).join('')}</ul>
+          </section>
+          ${featuresPageContent.groups.map((group) => `
+            <section id="feature-group-${escapeHtml(group.id)}">
+              <h2>${escapeHtml(group.title)}</h2>
+              <p>${escapeHtml(group.summary)}</p>
+              ${renderFeatureList(group.featureIds)}
+            </section>`).join('')}
+        </div>
+        <section aria-labelledby="prerender-features-workflow">
+          <h2 id="prerender-features-workflow">${escapeHtml(featuresPageContent.workflow.title)}</h2>
+          <ol>${featuresPageContent.workflow.steps.map((step) => `
+            <li><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.copy)}</p></li>`).join('')}</ol>
+        </section>
+        <section aria-labelledby="prerender-features-close">
+          <h2 id="prerender-features-close">${escapeHtml(featuresPageContent.close.title)}</h2>
+          <p>${escapeHtml(featuresPageContent.close.copy)}</p>
+        </section>
+      </main>`;
+}
+
+function buildDownloadRouteBody() {
+  return `
+      <main class="prerender-route" data-prerender-route="download">
+        <section>
+          <p>${escapeHtml(downloadPageContent.hero.label)}</p>
+          <h1>${escapeHtml(downloadPageContent.hero.title)}</h1>
+          <p>${escapeHtml(downloadPageContent.hero.copy)}</p>
+        </section>
+        <section aria-labelledby="prerender-download-platforms">
+          <h2 id="prerender-download-platforms">Platform availability</h2>
+          <ul>${downloadPageContent.platforms.map((platform) => `
+            <li data-platform-availability="${escapeHtml(platform.availability)}">
+              <h3>${escapeHtml(platform.title)}</h3>
+              <p><strong>${escapeHtml(platform.status)}</strong></p>
+              <p>${escapeHtml(platform.summary)}</p>
+              <a href="${escapeHtml(platform.action.href)}">${escapeHtml(platform.action.label)}</a>
+            </li>`).join('')}</ul>
+        </section>
+        <section aria-labelledby="prerender-download-install">
+          <h2 id="prerender-download-install">Install the web experience when it is available</h2>
+          <ol>${downloadPageContent.installSteps.map((step) => `
+            <li><h3>${escapeHtml(step.title)}</h3><p>${escapeHtml(step.copy)}</p></li>`).join('')}</ol>
+        </section>
+        <section aria-labelledby="prerender-download-sync">
+          <h2 id="prerender-download-sync">What follows your sign-in</h2>
+          <ul>${downloadPageContent.syncFacts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join('')}</ul>
+        </section>
+        <section aria-labelledby="prerender-download-faq">
+          <h2 id="prerender-download-faq">Download questions</h2>
+          <dl>${downloadPageContent.faqs.map((item) => `
+            <div><dt><strong>${escapeHtml(item.question)}</strong></dt><dd>${escapeHtml(item.answer)}</dd></div>`).join('')}</dl>
+        </section>
+        <section aria-labelledby="prerender-download-close">
+          <h2 id="prerender-download-close">${escapeHtml(downloadPageContent.close.title)}</h2>
+          <p>${escapeHtml(downloadPageContent.close.copy)}</p>
+        </section>
+      </main>`;
+}
+
+function buildStoryRouteBody() {
+  return `
+      <main class="prerender-route" data-prerender-route="story">
+        <section>
+          <p>${escapeHtml(storyPageContent.hero.label)}</p>
+          <h1>${escapeHtml(storyPageContent.hero.title)}</h1>
+          <p>${escapeHtml(storyPageContent.hero.copy)}</p>
+        </section>
+        <section aria-labelledby="prerender-story-manifesto">
+          <h2 id="prerender-story-manifesto">${escapeHtml(storyPageContent.manifesto.title)}</h2>
+          <p>${escapeHtml(storyPageContent.manifesto.copy)}</p>
+        </section>
+        <section aria-labelledby="prerender-story-timeline">
+          <h2 id="prerender-story-timeline">From noise to room to context</h2>
+          <ol>${storyPageContent.timeline.map((stage) => `
+            <li id="story-stage-${escapeHtml(stage.id)}"><h3>${escapeHtml(stage.title)}</h3><p>${escapeHtml(stage.copy)}</p></li>`).join('')}</ol>
+        </section>
+        <section id="story-principles" aria-labelledby="prerender-story-principles">
+          <h2 id="prerender-story-principles">Principles in practice</h2>
+          <ol>${storyPageContent.principles.map((principle) => `
+            <li id="story-principle-${escapeHtml(principle.id)}">
+              <h3>${escapeHtml(principle.title)}</h3>
+              <p>${escapeHtml(principle.copy)}</p>
+            </li>`).join('')}</ol>
+        </section>
+        <section aria-labelledby="prerender-story-position">
+          <h2 id="prerender-story-position">${escapeHtml(storyPageContent.position.title)}</h2>
+          <p>${escapeHtml(storyPageContent.position.copy)}</p>
+        </section>
+        <blockquote><p>${escapeHtml(storyPageContent.quote)}</p><cite>Minimalist manifesto</cite></blockquote>
+        <section aria-labelledby="prerender-story-close">
+          <h2 id="prerender-story-close">${escapeHtml(storyPageContent.close.title)}</h2>
+          <p>${escapeHtml(storyPageContent.close.copy)}</p>
+        </section>
+      </main>`;
+}
+
+function buildPrivacyRouteBody() {
+  return `
+      <main class="prerender-route" data-prerender-route="privacy">
+        <section>
+          <p>${escapeHtml(privacyPageContent.hero.label)}</p>
+          <h1>${escapeHtml(privacyPageContent.hero.title)}</h1>
+          <p>${escapeHtml(privacyPageContent.hero.copy)}</p>
+          <p>Last updated <time datetime="${escapeHtml(privacyPageContent.meta.updatedAt)}">${escapeHtml(privacyPageContent.meta.lastUpdated)}</time>.</p>
+        </section>
+        <section aria-labelledby="prerender-privacy-summary">
+          <h2 id="prerender-privacy-summary">At a glance</h2>
+          <ul>${privacyPageContent.summary.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>
+        </section>
+        <article aria-label="Privacy Policy">
+          ${privacyPageContent.sections.map((section, index) => `
+            <section id="${escapeHtml(section.id)}">
+              <p>${String(index + 1).padStart(2, '0')}</p>
+              <h2>${escapeHtml(section.title)}</h2>
+              <p>${escapeHtml(section.copy)}</p>
+              ${section.items.length ? `<ul>${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
+            </section>`).join('')}
+        </article>
+      </main>`;
 }
 
 function buildPricingRouteBody() {
@@ -93,31 +293,36 @@ function buildFaqStructuredData() {
   };
 }
 
+function buildTermsRouteBody() {
+  return `
+      <main class="prerender-route" data-prerender-route="terms">
+        <section>
+          <p>Terms of Service</p>
+          <h1>Current terms for using Minimalist</h1>
+          <p>Accounts, rooms, content, AI, recurring subscriptions, cancellation, safety, and service use—written to be read, not decoded.</p>
+          <p>Last updated <time datetime="${escapeHtml(termsPageMeta.updatedAt)}">${escapeHtml(termsPageMeta.lastUpdated)}</time>.</p>
+        </section>
+        <article aria-label="Terms of Service">
+          ${termsSections.map((section, index) => `
+            <section id="${escapeHtml(section.id)}">
+              <p>${String(index + 1).padStart(2, '0')}</p>
+              <h2>${escapeHtml(section.title)}</h2>
+              ${section.copy ? `<p>${escapeHtml(section.copy)}</p>` : ''}
+              ${section.items?.length ? `<ul>${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>` : ''}
+            </section>`).join('')}
+        </article>
+      </main>`;
+}
+
 const routes = [
   {
     slug: 'features',
-    title: 'Minimalist | Features',
-    description: 'Explore Minimalist rooms, Catch-Me-Up, focus tools, decisions, action items, scheduling, templates, offline reading, search, and room memory.',
-    shellKicker: 'Features',
-    shellTitle: 'Everything your room needs. Nothing in the way.',
-    shellCopy: 'The quiet core and advanced room tools are loading now.',
-    body: `
-      <main class="prerender-route" data-prerender-route="features">
-        <section>
-          <p>Features</p>
-          <h1>Everything your room needs. Nothing in the way.</h1>
-          <p>Start with a calm conversation. Reveal decisions, tasks, scheduling, room memory, and AI only when the work calls for them.</p>
-        </section>
-        <section>
-          <h2>Core workflow</h2>
-          <ul>
-            <li>Catch-Me-Up digests for decisions, links, and important updates.</li>
-            <li>Quiet-by-default rooms with focus, zen, and compact reading modes.</li>
-            <li>Global search across rooms, people, and recent messages.</li>
-            <li>Structured follow-through with tasks, scheduled messages, and room memory.</li>
-          </ul>
-        </section>
-      </main>`,
+    title: featuresPageContent.meta.title,
+    description: featuresPageContent.meta.description,
+    shellKicker: featuresPageContent.shell.kicker,
+    shellTitle: featuresPageContent.shell.title,
+    shellCopy: featuresPageContent.shell.copy,
+    body: buildFeaturesRouteBody(),
   },
   {
     slug: 'pricing',
@@ -130,110 +335,49 @@ const routes = [
   },
   {
     slug: 'download',
-    title: 'Minimalist | Download',
-    description: 'Use the Minimalist web app today, install it from a supported browser, and check the roadmap status for desktop and mobile apps.',
-    shellKicker: 'Download',
-    shellTitle: 'Your rooms, ready wherever you open them.',
-    shellCopy: 'Web availability, install readiness, and platform status are loading now.',
-    body: `
-      <main class="prerender-route" data-prerender-route="download">
-        <section>
-          <p>Download</p>
-          <h1>Your rooms, ready wherever you open them.</h1>
-          <p>Use the web app today, install it from a supported browser, and follow desktop and mobile availability without losing your place.</p>
-        </section>
-        <section>
-          <h2>Available now</h2>
-          <ul>
-            <li>Web app with no installer required.</li>
-            <li>PWA install flow for supported browsers.</li>
-            <li>Shared sign-in across rooms, files, chats, and settings.</li>
-          </ul>
-        </section>
-      </main>`,
+    title: downloadPageContent.meta.title,
+    description: downloadPageContent.meta.description,
+    shellKicker: downloadPageContent.shell.kicker,
+    shellTitle: downloadPageContent.shell.title,
+    shellCopy: downloadPageContent.shell.copy,
+    body: buildDownloadRouteBody(),
   },
   {
     slug: 'story',
-    title: 'Minimalist | Story',
-    description: 'Why Minimalist is building calmer rooms where conversation, memory, files, events, and decisions can live together without turning into noise.',
-    shellKicker: 'Story',
-    shellTitle: 'Chat should give your group room to breathe.',
-    shellCopy: 'The thinking behind calmer, more useful rooms is loading now.',
-    body: `
-      <main class="prerender-route" data-prerender-route="story">
-        <section>
-          <p>Story</p>
-          <h1>Chat should give your group room to breathe.</h1>
-          <p>Minimalist is a calmer rooms platform where conversation, files, events, memory, and decisions can stay useful without becoming a noisy feed.</p>
-        </section>
-        <section>
-          <h2>Design principles</h2>
-          <ul>
-            <li>Calm by default.</li>
-            <li>Power stays tucked away until it helps.</li>
-            <li>Room memory should make the space more useful over time.</li>
-          </ul>
-        </section>
-      </main>`,
+    title: storyPageContent.meta.title,
+    description: storyPageContent.meta.description,
+    shellKicker: storyPageContent.shell.kicker,
+    shellTitle: storyPageContent.shell.title,
+    shellCopy: storyPageContent.shell.copy,
+    body: buildStoryRouteBody(),
   },
   {
     slug: 'faq',
     title: 'Minimalist | Frequently Asked Questions',
-    description: 'Answers about Minimalist rooms, collaboration tools, plans, contacts, and privacy.',
+    description: 'Current answers about Minimalist rooms, messaging, plans, billing, AI, contacts, privacy, and account controls.',
     shellKicker: 'FAQ',
-    shellTitle: 'Answers without the scavenger hunt.',
-    shellCopy: 'Searchable answers about rooms, plans, people, and privacy are loading now.',
+    shellTitle: 'Helpful answers. No support maze.',
+    shellCopy: 'Searchable answers about rooms, billing, AI, messaging, and privacy are loading now.',
     body: buildFaqRouteBody(),
     structuredData: buildFaqStructuredData(),
   },
   {
     slug: 'privacy',
-    title: 'Minimalist | Privacy Policy',
-    description: 'Read how Minimalist handles account, chat, billing, Firebase, Stripe, and account-deletion data.',
-    shellKicker: 'Privacy',
-    shellTitle: 'Privacy, in plain language.',
-    shellCopy: 'The current privacy policy is loading with collection, billing, and deletion details.',
-    body: `
-      <main class="prerender-route" data-prerender-route="privacy">
-        <section>
-          <p>Privacy Policy</p>
-          <h1>Clear details about what Minimalist stores and why.</h1>
-          <p>Minimalist.chat collects the account, chat, collaboration, and billing data needed to run the service, and relies on Firebase and Stripe for core platform infrastructure.</p>
-        </section>
-        <section>
-          <h2>At a glance</h2>
-          <ul>
-            <li>Account, profile, and authentication records.</li>
-            <li>Messages, files, room content, and collaboration data.</li>
-            <li>Billing status and Stripe customer identifiers, not raw card numbers.</li>
-            <li>Deletion controls from account settings.</li>
-          </ul>
-        </section>
-      </main>`,
+    title: privacyPageContent.meta.title,
+    description: privacyPageContent.meta.description,
+    shellKicker: privacyPageContent.shell.kicker,
+    shellTitle: privacyPageContent.shell.title,
+    shellCopy: privacyPageContent.shell.copy,
+    body: buildPrivacyRouteBody(),
   },
   {
     slug: 'terms',
-    title: 'Minimalist | Terms of Service',
-    description: 'Read the Minimalist terms covering acceptance, user conduct, content, subscriptions, and refunds.',
+    title: termsPageMeta.title,
+    description: termsPageMeta.description,
     shellKicker: 'Terms',
-    shellTitle: 'Terms of service, minus the fog.',
-    shellCopy: 'The current service terms are loading with conduct, billing, and subscription details.',
-    body: `
-      <main class="prerender-route" data-prerender-route="terms">
-        <section>
-          <p>Terms of Service</p>
-          <h1>What you agree to when you use Minimalist.</h1>
-          <p>Using Minimalist.chat means agreeing to the platform terms, including responsible conduct, subscription handling through Stripe, and respect for billing, authentication, and security controls.</p>
-        </section>
-        <section>
-          <h2>Key topics</h2>
-          <ul>
-            <li>Acceptance of service terms.</li>
-            <li>User conduct and content restrictions.</li>
-            <li>Subscription renewals and billing flows.</li>
-          </ul>
-        </section>
-      </main>`,
+    shellTitle: 'Current terms for using Minimalist.',
+    shellCopy: 'The complete service terms are loading with accounts, safety, AI, billing, and cancellation details.',
+    body: buildTermsRouteBody(),
   },
   {
     slug: 'login',
@@ -298,44 +442,70 @@ function removeStructuredData(html) {
 }
 
 function replaceRoot(html, body) {
-  return html.replace('<div id="root"></div>', `<div id="root">${body}\n    </div>`);
+  return html.replace(/<div id="root">\s*<\/div>/, `<div id="root">${body}\n    </div>`);
+}
+
+const prerenderNavigation = [
+  ['/', 'Home', ''],
+  ['/features', 'Features', 'features'],
+  ['/pricing', 'Pricing', 'pricing'],
+  ['/download', 'Download', 'download'],
+  ['/story', 'Story', 'story'],
+  ['/faq', 'FAQ', 'faq'],
+  ['/login', 'Log in', 'login'],
+];
+
+function buildPrerenderChrome(body, activeSlug) {
+  const navigation = prerenderNavigation.map(([href, label, slug]) => `
+          <a href="${href}"${slug === activeSlug ? ' aria-current="page"' : ''}>${label}</a>`).join('');
+  return `
+      <header class="prerender-site-header" data-prerender-chrome>
+        <a class="prerender-site-brand" href="/" aria-label="Minimalist home">
+          <img src="/icon.svg" alt="" width="32" height="32" />
+          <span>Minimalist</span>
+        </a>
+        <nav aria-label="Primary">${navigation}
+        </nav>
+      </header>
+${body}
+      <footer class="prerender-site-footer" data-prerender-chrome>
+        <p>One calm room for conversation and follow-through.</p>
+        <nav aria-label="Legal">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+        </nav>
+      </footer>`;
 }
 
 function removeHomeOnlyShell(html) {
   return html.replace(
-    /\s*<main id="static-home-shell"[\s\S]*?<\/main>\s*(?=<div id="root")/,
+    /\s*<main id="static-home-shell"[\s\S]*?<\/main>\s*/,
     '\n    ',
   );
 }
 
-function replaceRoutePublicShell(html, route) {
+function replaceRouteLoadingShell(html, route) {
+  if (route.slug === 'features') {
+    return html.replace(
+      /(<div class="route-shell-panel route-shell-features">[\s\S]*?<span class="route-shell-kicker">)[\s\S]*?(<\/span>[\s\S]*?<div class="route-shell-title">)[\s\S]*?(<\/div>[\s\S]*?<p class="route-shell-copy">)[\s\S]*?(<\/p>)/,
+      `$1${escapeHtml(route.shellKicker)}$2${escapeHtml(route.shellTitle)}$3${escapeHtml(route.shellCopy)}$4`,
+    );
+  }
+
   const publicShellPattern = /<div class="route-shell-panel route-shell-public">[\s\S]*?<\/div>\s*<div class="instant-status"/;
   const replacement = `<div class="route-shell-panel route-shell-public">
-        <span class="route-shell-kicker">${route.shellKicker}</span>
-        <div class="route-shell-title">${route.shellTitle}</div>
-        <p class="route-shell-copy">${route.shellCopy}</p>
+        <span class="route-shell-kicker">${escapeHtml(route.shellKicker)}</span>
+        <div class="route-shell-title">${escapeHtml(route.shellTitle)}</div>
+        <p class="route-shell-copy">${escapeHtml(route.shellCopy)}</p>
       </div>
       <div class="instant-status"`;
   return html.replace(publicShellPattern, replacement);
 }
 
-function injectHomePricing(template) {
-  const pricingSummary = `
-      <section class="landing-section landing-pricing" data-prerender-home-pricing aria-label="Account plans">
-        <div class="landing-section-heading">
-          <p>Plans</p>
-          <h2>Start free. Upgrade when your account needs more room.</h2>
-          <a href="/pricing">Compare plans</a>
-        </div>
-        <div class="landing-pricing-grid">${renderPlanCards(accountPlans)}</div>
-      </section>`;
-  return template.replace(/\s*<\/main>\s*(?=<div id="root"><\/div>)/, `${pricingSummary}\n    </main>\n    `);
-}
-
-function buildRouteHtml(template, route) {
-  const canonicalUrl = `${siteOrigin}/${route.slug}`;
+function applyRouteMetadata(template, route) {
+  const canonicalUrl = route.slug ? `${siteOrigin}/${route.slug}` : `${siteOrigin}/`;
   let html = template;
-  html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${route.title}</title>`);
+  html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(route.title)}</title>`);
   html = html.replace(/<meta name="description" content="[^"]*"/, `<meta name="description" content="${escapeAttribute(route.description)}"`);
   html = html.replace(/<meta property="og:title" content="[^"]*"/, `<meta property="og:title" content="${escapeAttribute(route.title)}"`);
   html = html.replace(/<meta property="og:description" content="[^"]*"/, `<meta property="og:description" content="${escapeAttribute(route.description)}"`);
@@ -351,9 +521,34 @@ function buildRouteHtml(template, route) {
     html = upsertMeta(html, /<meta name="robots" content="[^"]*"\s*\/?>/, '<meta name="robots" content="noindex,follow" />');
   }
   if (route.structuredData) html = appendStructuredData(html, route.structuredData);
+  return html;
+}
+
+function injectHomeContent(template) {
+  let html = applyRouteMetadata(template, {
+    slug: homePageContent.slug,
+    title: homePageContent.meta.title,
+    description: homePageContent.meta.description,
+  });
+  html = html.replace(
+    /(<h1 id="static-home-heading">)[\s\S]*?(<\/h1>)/,
+    `$1${escapeHtml(homePageContent.hero.title)}$2`,
+  );
+  html = html.replace(
+    /(<div class="static-home-copy">[\s\S]*?<\/h1>\s*<p>)[\s\S]*?(<\/p>)/,
+    `$1${escapeHtml(homePageContent.hero.copy)}$2`,
+  );
+  return html.replace(
+    /(<main id="static-home-shell"[\s\S]*?)\s*<\/main>/,
+    (_match, shell) => `${shell}${buildHomeRouteSections()}\n      </main>`,
+  );
+}
+
+function buildRouteHtml(template, route) {
+  let html = applyRouteMetadata(template, route);
   html = removeHomeOnlyShell(html);
-  html = replaceRoot(html, route.body);
-  html = replaceRoutePublicShell(html, route);
+  html = replaceRoot(html, buildPrerenderChrome(route.body, route.slug));
+  html = replaceRouteLoadingShell(html, route);
   return html;
 }
 
@@ -390,7 +585,7 @@ async function writeRouteOutputs(route, html) {
 
 async function main() {
   const template = await readFile(templatePath, 'utf8');
-  const homeHtml = injectHomePricing(template);
+  const homeHtml = injectHomeContent(template);
   await writeFile(templatePath, homeHtml, 'utf8');
   await Promise.all(routes.map(async (route) => {
     const html = buildRouteHtml(homeHtml, route);

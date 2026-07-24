@@ -16,6 +16,7 @@ $CloudflaredServiceControlScript = Join-Path $PSScriptRoot "CloudflaredServiceCo
 $ControlDir = Join-Path $RepoRoot ".bridge-control"
 $BridgeOutLog = Join-Path $ControlDir "ollama-bridge.out.log"
 $BridgeErrLog = Join-Path $ControlDir "ollama-bridge.err.log"
+$BridgeRestartRequestFile = Join-Path $ControlDir "bridge-restart.request"
 $ProjectEnvFile = Join-Path $RepoRoot "functions\.env.chat-app-356c1"
 $FirebaseHelper = Join-Path $RepoRoot "tools\firebase-node22.ps1"
 $DedicatedOllamaBaseUrl = "http://127.0.0.1:11435"
@@ -41,7 +42,24 @@ function Get-CommandProcesses {
 }
 
 function Get-BridgeProcesses {
-  Get-CommandProcesses -ProcessName "node.exe" -CommandPattern "ollama-bridge\.cjs"
+  $commandMatches = @(Get-CommandProcesses -ProcessName "node.exe" -CommandPattern "ollama-bridge\.cjs")
+  if ($commandMatches.Count -gt 0) { return $commandMatches }
+
+  # Some Windows process providers hide command lines even for the current
+  # user's background process. In that case, fall back to the loopback listener
+  # only after the endpoint proves it is this protected bridge and exact upstream.
+  $health = Test-ProtectedBridgeHealth -Url "http://127.0.0.1:$Port/health" -TimeoutSec 2
+  if (!$health.Ok -or !$health.MarkerOk -or !$health.UpstreamOk) { return @() }
+
+  $listenerPids = @(
+    Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue |
+      Where-Object { $_.LocalAddress -eq "127.0.0.1" -or $_.LocalAddress -eq "::1" } |
+      Select-Object -ExpandProperty OwningProcess -Unique
+  )
+  @($listenerPids | ForEach-Object {
+    $process = Get-CimInstance Win32_Process -Filter "ProcessId=$([int]$_)" -ErrorAction SilentlyContinue
+    if ($process -and $process.Name -ieq "node.exe") { $process }
+  })
 }
 
 function Get-ConfiguredTunnelUrl {
@@ -382,6 +400,23 @@ function Start-PublicTunnelReconcilerTask {
   Start-ScheduledTask -TaskName $taskName -ErrorAction Stop
 }
 
+function Test-CurrentProcessElevated {
+  $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+  $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+  return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Request-ElevatedBridgeRestart {
+  [IO.File]::WriteAllText($BridgeRestartRequestFile, [DateTimeOffset]::UtcNow.ToString("o"))
+  try {
+    Start-PublicTunnelReconcilerTask
+  } catch {
+    Remove-Item -LiteralPath $BridgeRestartRequestFile -Force -ErrorAction SilentlyContinue
+    throw
+  }
+  return "Protected bridge restart requested through the elevated recovery task."
+}
+
 function Invoke-PublicTunnelReconciliation {
   Invoke-WithTunnelReconcileLock -Operation {
     $desiredState = Get-PublicTunnelDesiredState
@@ -475,6 +510,10 @@ function Stop-BridgeProcessSafely {
 }
 
 function Restart-BridgeProcessSafely {
+  if (!(Test-CurrentProcessElevated)) {
+    return Request-ElevatedBridgeRestart
+  }
+
   Invoke-WithTunnelReconcileLock -Operation {
     $service = Get-NamedTunnelServiceSnapshot -Config $NamedTunnelConfig
     if ($service.State -eq "Running") {
@@ -530,7 +569,12 @@ if ($Action) {
       Stop-BridgeTunnel
     }
     "reconcile-tunnel" {
-      Invoke-PublicTunnelReconciliation
+      if (Test-Path -LiteralPath $BridgeRestartRequestFile) {
+        Remove-Item -LiteralPath $BridgeRestartRequestFile -Force
+        Restart-BridgeProcessSafely
+      } else {
+        Invoke-PublicTunnelReconciliation
+      }
     }
     "open-logs" {
       Open-LogFolder

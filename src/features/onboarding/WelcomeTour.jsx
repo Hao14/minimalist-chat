@@ -213,7 +213,7 @@ export default function WelcomeTour({ steps = [], onClose }) {
                 aria-pressed={mode === option.id}
                 onClick={() => setMode(option.id)}
               >
-                <span className="wt-mode-check" aria-hidden="true">✓</span>
+                <i className="ph-bold ph-check wt-mode-check" aria-hidden="true" />
                 <span className="wt-mode-emoji" aria-hidden="true">{option.emoji}</span>
                 <span className="wt-mode-tag">{option.tag}</span>
                 <strong>{option.label}</strong>
@@ -224,7 +224,10 @@ export default function WelcomeTour({ steps = [], onClose }) {
           </div>
           <div className="wt-modal-actions">
             <button type="button" className="wt-ghost" onClick={onClose}>Skip tour</button>
-            <button type="button" className="wt-primary wt-cta" onClick={startTour}>Start the tour →</button>
+            <button type="button" className="wt-primary wt-cta" onClick={startTour}>
+              Start the tour
+              <i className="ph-bold ph-arrow-right" aria-hidden="true" />
+            </button>
           </div>
         </div>
       </div>

@@ -1,11 +1,18 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BootSequence } from './BootSequence.jsx';
+import {
+  CHAT_BOOT_READY_TIMEOUT_MS,
+  FIRST_CHAT_BOOT_MIN_MS,
+  WARM_CHAT_BOOT_MIN_MS,
+  isChatBootReadyStatus,
+  waitForChatBootReadiness,
+} from './chatBootReadiness.js';
 
 let bootSequenceRoot = null;
+let notificationRuntimeScheduled = false;
+let notificationRuntimeRetryCount = 0;
 const BOOT_TASK_TIMEOUT_MS = 900;
-const FIRST_BOOT_MIN_MS = 450;
-const WARM_BOOT_MIN_MS = 120;
 const BOOT_FADE_MS = 220;
 
 const wait = (ms) => new Promise((resolve) => {
@@ -43,15 +50,6 @@ function warmCriticalStyles(timeoutMs = 1400) {
   return withTimeout(() => window.__minimalistCssReady || Promise.resolve(), timeoutMs);
 }
 
-function warmFeatureStyles(timeoutMs = 1400) {
-  return withTimeout(() => {
-    if (typeof window.__minimalistLoadFeatureStyles === 'function') {
-      return window.__minimalistLoadFeatureStyles();
-    }
-    return window.__minimalistFeatureCssReady || Promise.resolve();
-  }, timeoutMs);
-}
-
 function warmCriticalFonts(timeoutMs = 1000) {
   return withTimeout(async () => {
     if (!document.fonts?.load) return;
@@ -70,17 +68,76 @@ function warmShellAssets(timeoutMs = 850) {
     warmStaticAsset(config, timeoutMs),
     warmStaticAsset(manifest, timeoutMs),
     warmStaticAsset('/icon.svg', timeoutMs),
-    warmStaticAsset('/phosphor-bold-subset.css?v=2', timeoutMs),
+    warmStaticAsset('/phosphor-bold-subset.css?v=4', timeoutMs),
     warmImage(icon, timeoutMs),
   ]);
 }
+
+function scheduleNotificationRuntimeAfterHandoff() {
+  if (notificationRuntimeScheduled) return;
+  notificationRuntimeScheduled = true;
+
+  const start = () => {
+    Promise.resolve()
+      .then(() => window.ensureNotificationRuntime?.())
+      .then(() => Promise.allSettled([
+        Promise.resolve().then(() => window.listenForPmInbox?.()),
+        Promise.resolve().then(() => window.listenForNotifications?.()),
+      ]))
+      .catch((error) => {
+        notificationRuntimeScheduled = false;
+        console.warn('[boot] Notification runtime deferred startup failed.', error);
+        if (notificationRuntimeRetryCount >= 1) return;
+        notificationRuntimeRetryCount += 1;
+        window.setTimeout(scheduleNotificationRuntimeAfterHandoff, 2000);
+      });
+  };
+
+  const queueIdleStart = () => {
+    if (typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(start, { timeout: 1200 });
+    } else {
+      window.setTimeout(start, 80);
+    }
+  };
+
+  window.requestAnimationFrame(() => window.requestAnimationFrame(queueIdleStart));
+}
+
+window.addEventListener(
+  'minimalist:chat-visible',
+  scheduleNotificationRuntimeAfterHandoff,
+  { once: true },
+);
 
 window.enterChat = function enterChat() {
   try {
     const desktopNavActions = document.getElementById('nav-actions');
 
-    const launchChatUI = () => {
+    const stageChatBehindLoader = () => {
+      const chatWrapper = document.getElementById('chat-wrapper');
+      if (!chatWrapper) return;
+      chatWrapper.classList.remove('hidden');
+      chatWrapper.classList.add('chat-boot-staging');
+      chatWrapper.setAttribute('inert', '');
+      chatWrapper.setAttribute('aria-hidden', 'true');
+    };
+
+    const releaseStagedChat = () => {
+      const chatWrapper = document.getElementById('chat-wrapper');
+      if (!chatWrapper) return;
+      chatWrapper.classList.remove('chat-boot-staging');
+      chatWrapper.removeAttribute('inert');
+      chatWrapper.removeAttribute('aria-hidden');
+    };
+
+    const launchChatUI = (runtimeStatus) => {
       window.showScreen('chat-wrapper');
+      releaseStagedChat();
+      window.dispatchEvent(new Event('minimalist:chat-visible'));
+      if (isChatBootReadyStatus(runtimeStatus)) {
+        window.dispatchEvent(new Event('minimalist:chat-interactive'));
+      }
 
       const handlePendingJoinRoute = () => {
         const pendingJoin = sessionStorage.getItem('pendingJoinUrl');
@@ -132,70 +189,87 @@ window.enterChat = function enterChat() {
     };
 
     const initializeChatRuntime = async () => {
-      if (window.chatInitialized) return;
+      if (window.chatInitialized) return true;
 
-      await window.ensureNotificationRuntime?.();
-      if (window.initializeRooms) await Promise.resolve().then(() => window.initializeRooms());
-      await Promise.allSettled([
-        Promise.resolve().then(() => window.listenForPmInbox?.()),
-        Promise.resolve().then(() => window.listenForNotifications?.()),
-        Promise.resolve().then(() => window.initializePresence?.()),
+      const chatCoreReadyPromise = window.initializeRooms
+        ? Promise.resolve().then(() => window.initializeRooms())
+        : Promise.resolve(false);
+      const presenceReady = Promise.resolve()
+        .then(() => window.initializePresence?.())
+        .catch(() => undefined);
+      const [chatCoreReady] = await Promise.all([
+        chatCoreReadyPromise,
+        presenceReady,
       ]);
-      window.chatInitialized = true;
+      window.chatInitialized = chatCoreReady !== false;
+      return window.chatInitialized;
     };
+
+    const prepareChatRuntime = (minimumMs) => waitForChatBootReadiness({
+      readiness: initializeChatRuntime(),
+      minimumMs,
+      maximumMs: CHAT_BOOT_READY_TIMEOUT_MS,
+    }).then((status) => {
+      if (status !== 'ready') {
+        console.warn(`[boot] Chat runtime readiness ${status}; continuing with guarded handoff.`);
+      }
+      return status;
+    });
 
     const performanceSettings = window.getPerformanceSettings?.();
     const reducedMotion = performanceSettings?.reducedMotion || window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
-    const completeBoot = () => {
-      sessionStorage.setItem('blipLoaded', 'true');
-      launchChatUI();
+    const completeBoot = (runtimeStatus) => {
+      if (isChatBootReadyStatus(runtimeStatus)) sessionStorage.setItem('blipLoaded', 'true');
+      else sessionStorage.removeItem('blipLoaded');
+      launchChatUI(runtimeStatus);
     };
     const hasBootedThisSession = sessionStorage.getItem('blipLoaded') === 'true';
-    const launchAfterWarmStart = (minVisibleMs = WARM_BOOT_MIN_MS) => {
+    const launchAfterWarmStart = (minVisibleMs = WARM_CHAT_BOOT_MIN_MS) => {
       window.showScreen('loading-screen');
+      stageChatBehindLoader();
       if (desktopNavActions) desktopNavActions.replaceChildren();
 
+      const runtimeReady = prepareChatRuntime(minVisibleMs);
       Promise.allSettled([
-        initializeChatRuntime(),
+        runtimeReady,
         warmCriticalStyles(BOOT_TASK_TIMEOUT_MS),
-        warmFeatureStyles(BOOT_TASK_TIMEOUT_MS),
         warmCriticalFonts(BOOT_TASK_TIMEOUT_MS),
         warmShellAssets(BOOT_TASK_TIMEOUT_MS),
-        wait(minVisibleMs),
       ])
-        .then(nextFrame)
+        .then(async () => {
+          const runtimeStatus = await runtimeReady;
+          await nextFrame();
+          return runtimeStatus;
+        })
         .then(completeBoot)
         .catch((error) => window.showToast(`Error launching chat interface: ${error.message}`));
     };
 
     if (performanceSettings?.effectiveLowPerformanceMode || reducedMotion) {
-      launchAfterWarmStart(hasBootedThisSession ? WARM_BOOT_MIN_MS : FIRST_BOOT_MIN_MS);
+      launchAfterWarmStart(hasBootedThisSession ? WARM_CHAT_BOOT_MIN_MS : FIRST_CHAT_BOOT_MIN_MS);
       return;
     }
 
     if (hasBootedThisSession) {
-      launchAfterWarmStart(WARM_BOOT_MIN_MS);
+      launchAfterWarmStart(WARM_CHAT_BOOT_MIN_MS);
       return;
     }
 
     window.showScreen('loading-screen');
+    stageChatBehindLoader();
     if (desktopNavActions) desktopNavActions.replaceChildren();
 
-    const stylesReady = Promise.allSettled([
-      warmCriticalStyles(BOOT_TASK_TIMEOUT_MS),
-      warmFeatureStyles(BOOT_TASK_TIMEOUT_MS),
-    ]);
+    const stylesReady = warmCriticalStyles(BOOT_TASK_TIMEOUT_MS);
     const fontsReady = warmCriticalFonts(BOOT_TASK_TIMEOUT_MS);
     const assetsReady = warmShellAssets(BOOT_TASK_TIMEOUT_MS);
-    const runtimeReady = initializeChatRuntime();
-    const minBootReady = wait(FIRST_BOOT_MIN_MS);
+    const runtimeReady = prepareChatRuntime(FIRST_CHAT_BOOT_MIN_MS);
 
     const bootLines = [
       { scope: 'theme', action: 'resolve', target: 'css-graph', note: 'app styles', run: () => stylesReady },
       { scope: 'font', action: 'warm', target: 'brand-type', note: 'swap-safe text', run: () => fontsReady },
       { scope: 'asset', action: 'cache', target: 'icons+manifest', note: 'logo pack ready', run: () => assetsReady },
       { scope: 'runtime', action: 'bind', target: 'chat-core', note: 'listeners + composer', run: () => runtimeReady },
-      { scope: 'surface', action: 'paint', target: 'minimalist.ui', note: 'handoff frame', run: () => Promise.allSettled([stylesReady, fontsReady, assetsReady, runtimeReady, minBootReady]).then(nextFrame) },
+      { scope: 'surface', action: 'paint', target: 'minimalist.ui', note: 'handoff frame', run: () => Promise.allSettled([stylesReady, fontsReady, assetsReady, runtimeReady]).then(nextFrame) },
     ];
 
     const seqContainer = document.getElementById('boot-sequence');
@@ -245,13 +319,17 @@ window.enterChat = function enterChat() {
 
       const loader = document.getElementById('loading-screen');
       if (!loader) {
-        completeBoot();
+        runtimeReady
+          .then(completeBoot)
+          .catch((error) => window.showToast(`Error launching chat interface: ${error.message}`));
         return;
       }
 
       loader.style.opacity = '0';
       window.setTimeout(() => {
-        completeBoot();
+        runtimeReady
+          .then(completeBoot)
+          .catch((error) => window.showToast(`Error launching chat interface: ${error.message}`));
         loader.classList.add('hidden');
         loader.style.opacity = '1';
       }, reducedMotion ? 0 : BOOT_FADE_MS);

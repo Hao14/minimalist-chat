@@ -2,10 +2,11 @@ import js from '@eslint/js';
 import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
+import storybook from 'eslint-plugin-storybook';
 import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist', 'node_modules', '.claude', '.codex-build-check', '.codex-temp', 'Minimalist Search', 'public/js', 'src/legacy-engine', 'functions', 'android', 'legacy']),
+  globalIgnores(['dist', 'storybook-static', 'tools/gbrain/dashboard/dist', 'node_modules', '.claude', '.codex-build-check', '.codex-temp', 'Minimalist Search', 'public/js', 'src/legacy-engine', 'functions', 'android', 'legacy']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [js.configs.recommended, reactHooks.configs.flat.recommended],
@@ -26,4 +27,5 @@ export default defineConfig([
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  ...storybook.configs['flat/recommended'],
 ]);

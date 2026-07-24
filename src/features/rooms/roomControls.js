@@ -26,6 +26,7 @@ import {
 } from './RoomControlPanels.jsx';
 import { ROOM_BILLING_PLANS, roomBillingPlan } from '../billing/roomBillingPlans.js';
 import { normalizeRoomEntitlement } from '../billing/roomEntitlements.js';
+import { createRoomActivity } from './roomActivity.js';
 import {
     createRoomBillingPortal,
     createRoomCheckout,
@@ -87,14 +88,14 @@ window.initializeRooms = function() {
         throw new Error('Sign-in is still loading. Please refresh or sign in again.');
     }
 
-    mountChatCore({ user: window.currentUser });
+    const chatCoreReady = mountChatCore({ user: window.currentUser });
     window.setTimeout(() => void handleRoomBillingReturn(), 0);
 
     if (window.innerWidth <= 768) {
         document.getElementById('desktop-room-sidebar')?.classList.add('open');
     }
 
-    return true;
+    return chatCoreReady;
 };
 window.switchRoom = switchChatRoom;
 
@@ -1186,14 +1187,20 @@ async function joinRoomFromInvite(rawValue, options = {}) {
 
         const roomId = foundRoom.key || foundRoom.id;
         const alreadyMember = Boolean(joined.alreadyMember || foundRoom.members?.[window.currentUser.uid]);
-        await writeMyRoomIndex(roomId, foundRoom);
-
         if (!alreadyMember && !joined.joinedByServer) {
-            await set(ref(db, `rooms_meta/${roomId}/members/${window.currentUser.uid}`), window.userProfileName);
+            const now = Date.now();
             const logText = joined.inviterId
                 ? `${window.userProfileName} joined via invite link from user #${joined.inviterId}.`
                 : `${window.userProfileName} joined the room.`;
-            await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: logText, timestamp: Date.now() });
+            const eventCode = joined.inviterId ? 'member_joined_via_invite' : 'member_joined';
+            await update(ref(db), {
+                [`user_rooms/${window.currentUser.uid}/${roomId}`]: roomIndexPayload(roomId, foundRoom),
+                [`rooms_meta/${roomId}/members/${window.currentUser.uid}`]: window.userProfileName,
+                [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity(eventCode, {
+                    actor: window.userProfileName,
+                    inviterId: joined.inviterId,
+                }, logText, now),
+            });
 
             if (window.createNotification && foundRoom.creatorId) {
                 window.createNotification(foundRoom.creatorId, 'room', `${window.userProfileName || 'Someone'} joined your room!`, {
@@ -1206,6 +1213,8 @@ async function joinRoomFromInvite(rawValue, options = {}) {
             }
 
             await sendAiWelcomeMessage(roomId, foundRoom.name, window.userProfileName || 'new member');
+        } else {
+            await writeMyRoomIndex(roomId, foundRoom);
         }
 
         if(roomActionModal) {
@@ -1394,7 +1403,7 @@ async function getRoomInviteTargets() {
             return {
                 uid,
                 name,
-                photoUrl: user.photoUrl || window.getAvatarUrl?.(name, '') || '',
+                photoUrl: window.getAvatarUrl?.(name, user.photoUrl) || '',
             };
         })
         .sort((a, b) => a.name.localeCompare(b.name));
@@ -1549,6 +1558,8 @@ async function createRoomFromWizard() {
         const newRoomRef = push(ref(db, 'rooms_meta'));
         const newShortId = window.generateShortId();
         const photoUrl = await uploadCreateRoomPicture(newRoomRef.key);
+        const roomCreatedAt = Date.now();
+        const createdLogText = `${window.userProfileName} created the ${roomKind.label.toLowerCase()} room.`;
         const payload = {
             name: val,
             lastMessage: 'Room created.',
@@ -1588,16 +1599,18 @@ async function createRoomFromWizard() {
             },
             members: { [window.currentUser.uid]: window.userProfileName },
             logs: {
-                [Date.now()]: {
-                    text: `${window.userProfileName} created the ${roomKind.label.toLowerCase()} room.`,
-                    timestamp: Date.now(),
-                },
+                [roomCreatedAt]: createRoomActivity('room_created', {
+                    actor: window.userProfileName,
+                    subject: createRoomDraft.type,
+                }, createdLogText, roomCreatedAt),
             },
         };
         if (photoUrl) payload.photoUrl = photoUrl;
 
-        await set(newRoomRef, payload);
-        await writeMyRoomIndex(newRoomRef.key, payload);
+        await update(ref(db), {
+            [`rooms_meta/${newRoomRef.key}`]: payload,
+            [`user_rooms/${window.currentUser.uid}/${newRoomRef.key}`]: roomIndexPayload(newRoomRef.key, payload),
+        });
         await publishRoomInvite(`${window.location.origin}/join/${newShortId}-${window.userShortId}`, newRoomRef.key);
         if (roomActionModal) {
             roomActionModal.classList.add('hidden');
@@ -1856,8 +1869,15 @@ document.getElementById('room-drop-settings')?.addEventListener('click', async (
                         confirmText: 'Kick',
                         destructive: true,
                     })) {
-                        await remove(ref(db, `rooms_meta/${roomId}/members/${member.uid}`));
-                        await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: `${window.userProfileName} kicked ${member.name}.`, timestamp: Date.now() });
+                        const now = Date.now();
+                        const logText = `${window.userProfileName} kicked ${member.name}.`;
+                        await update(ref(db), {
+                            [`rooms_meta/${roomId}/members/${member.uid}`]: null,
+                            [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity('member_removed', {
+                                actor: window.userProfileName,
+                                target: member.name,
+                            }, logText, now),
+                        });
                         window.showToast(`${member.name} was kicked.`, false);
                         document.getElementById('room-drop-settings')?.click();
                     }
@@ -2143,8 +2163,12 @@ document.getElementById('rs-save-room-picture-btn')?.addEventListener('click', a
         const target = storageRef(storage, `room_pictures/${roomId}/${Date.now()}_${safeName}`);
         await uploadBytesResumable(target, uploadFile, imageUploadMetadata(uploadFile, { versioned: true }));
         const photoUrl = await getDownloadURL(target);
-        await set(ref(db, `rooms_meta/${roomId}/photoUrl`), photoUrl);
-        await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: `${window.userProfileName} updated the room picture.`, timestamp: Date.now() });
+        const now = Date.now();
+        const logText = `${window.userProfileName} updated the room picture.`;
+        await update(ref(db), {
+            [`rooms_meta/${roomId}/photoUrl`]: photoUrl,
+            [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity('room_picture_updated', { actor: window.userProfileName }, logText, now),
+        });
         renderRoomPicturePreview(photoUrl, roomData.name);
         if (input) input.value = '';
         document.getElementById('rs-remove-room-picture-btn')?.removeAttribute('disabled');
@@ -2167,8 +2191,12 @@ document.getElementById('rs-remove-room-picture-btn')?.addEventListener('click',
 
     setRoomPictureBusy(true);
     try {
-        await remove(ref(db, `rooms_meta/${roomId}/photoUrl`));
-        await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: `${window.userProfileName} removed the room picture.`, timestamp: Date.now() });
+        const now = Date.now();
+        const logText = `${window.userProfileName} removed the room picture.`;
+        await update(ref(db), {
+            [`rooms_meta/${roomId}/photoUrl`]: null,
+            [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity('room_picture_removed', { actor: window.userProfileName }, logText, now),
+        });
         renderRoomPicturePreview('', roomData.name);
         removedPicture = true;
         window.showToast('Room picture removed.', false);
@@ -2202,8 +2230,12 @@ document.getElementById('rs-save-room-banner-btn')?.addEventListener('click', as
         const target = storageRef(storage, `room_banners/${roomId}/${Date.now()}_${safeName}`);
         await uploadBytesResumable(target, uploadFile, imageUploadMetadata(uploadFile, { versioned: true }));
         const bannerUrl = await getDownloadURL(target);
-        await set(ref(db, `rooms_meta/${roomId}/bannerUrl`), bannerUrl);
-        await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: `${window.userProfileName} updated the room banner.`, timestamp: Date.now() });
+        const now = Date.now();
+        const logText = `${window.userProfileName} updated the room banner.`;
+        await update(ref(db), {
+            [`rooms_meta/${roomId}/bannerUrl`]: bannerUrl,
+            [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity('room_banner_updated', { actor: window.userProfileName }, logText, now),
+        });
         renderRoomBannerPreview(bannerUrl);
         if (input) input.value = '';
         document.getElementById('rs-remove-room-banner-btn')?.removeAttribute('disabled');
@@ -2224,8 +2256,12 @@ document.getElementById('rs-remove-room-banner-btn')?.addEventListener('click', 
 
     setRoomBannerBusy(true);
     try {
-        await remove(ref(db, `rooms_meta/${roomId}/bannerUrl`));
-        await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: `${window.userProfileName} removed the room banner.`, timestamp: Date.now() });
+        const now = Date.now();
+        const logText = `${window.userProfileName} removed the room banner.`;
+        await update(ref(db), {
+            [`rooms_meta/${roomId}/bannerUrl`]: null,
+            [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity('room_banner_removed', { actor: window.userProfileName }, logText, now),
+        });
         renderRoomBannerPreview('');
         document.getElementById('rs-remove-room-banner-btn')?.setAttribute('disabled', '');
         window.showToast('Room banner removed.', false);
@@ -2253,19 +2289,21 @@ document.getElementById('rs-save-room-identity-btn')?.addEventListener('click', 
 
     setRoomIdentityBusy(true);
     try {
-        await Promise.all([
-            set(ref(db, `rooms_meta/${roomId}/description`), description),
-            set(ref(db, `rooms_meta/${roomId}/topic`), topic),
-            set(ref(db, `rooms_meta/${roomId}/category`), category),
-            set(ref(db, `rooms_meta/${roomId}/template`), template),
-            set(ref(db, `rooms_meta/${roomId}/discovery`), {
+        const now = Date.now();
+        const logText = `${window.userProfileName} updated room identity.`;
+        await update(ref(db), {
+            [`rooms_meta/${roomId}/description`]: description,
+            [`rooms_meta/${roomId}/topic`]: topic,
+            [`rooms_meta/${roomId}/category`]: category,
+            [`rooms_meta/${roomId}/template`]: template,
+            [`rooms_meta/${roomId}/discovery`]: {
                 enabled: discoveryEnabled,
                 recommendations,
-                updatedAt: Date.now(),
+                updatedAt: now,
                 updatedBy: window.currentUser.uid,
-            }),
-            set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), { text: `${window.userProfileName} updated room identity.`, timestamp: Date.now() }),
-        ]);
+            },
+            [`rooms_meta/${roomId}/logs/${now}`]: createRoomActivity('room_identity_updated', { actor: window.userProfileName }, logText, now),
+        });
         window.showToast('Room identity saved.', false);
         window.loadRoomHome?.();
     } catch (error) {
@@ -2503,10 +2541,13 @@ async function persistRoomBot(botId, { removeApp = false } = {}) {
         }
 
         const displayName = isStock ? 'Ticker mention watcher' : 'Basic Message Filter';
-        await set(ref(db, `rooms_meta/${roomId}/logs/${Date.now()}`), {
-            text: `${window.userProfileName} ${removeApp ? 'removed' : 'updated'} ${displayName}.`,
-            timestamp: Date.now(),
-        });
+        const logText = `${window.userProfileName} ${removeApp ? 'removed' : 'updated'} ${displayName}.`;
+        await set(ref(db, `rooms_meta/${roomId}/logs/${now}`), createRoomActivity(
+            removeApp ? 'room_app_removed' : 'room_app_updated',
+            { actor: window.userProfileName, subject: displayName },
+            logText,
+            now,
+        ));
         if (!(await refreshPlatformManager(roomId, actionContext))) return;
         const enabledId = isStock ? 'rs-stock-bot-enabled' : 'rs-automod-bot-enabled';
         const enabled = document.getElementById(enabledId)?.checked === true && !removeApp;
@@ -2833,8 +2874,12 @@ document.getElementById('rs-save-permissions-btn')?.addEventListener('click', as
             },
             [`rooms_meta/${roomId}/memberPermissions`]: Object.keys(memberPermissions).length ? memberPermissions : null,
             [`rooms_meta/${roomId}/logs/${now}`]: {
-                text: `${window.userProfileName} updated room permissions.`,
-                timestamp: now,
+                ...createRoomActivity(
+                    'room_permissions_updated',
+                    { actor: window.userProfileName },
+                    `${window.userProfileName} updated room permissions.`,
+                    now,
+                ),
             },
         });
 
@@ -2869,10 +2914,14 @@ document.getElementById('confirm-leave-btn')?.addEventListener('click', async ()
     if (!roomIdToLeave || roomIdToLeave === 'global') return window.showToast('This room is no longer available.');
     try {
         closeRoomSettings();
+        const now = Date.now();
+        const logText = `${window.userProfileName} left the room.`;
+        await update(ref(db), {
+            [`rooms_meta/${roomIdToLeave}/logs/${now}`]: createRoomActivity('member_left', { actor: window.userProfileName }, logText, now),
+            [`rooms_meta/${roomIdToLeave}/members/${window.currentUser.uid}`]: null,
+            [`user_rooms/${window.currentUser.uid}/${roomIdToLeave}`]: null,
+        });
         window.switchRoom('global', 'Global Chat', 'GLOBAL');
-        await set(ref(db, `rooms_meta/${roomIdToLeave}/logs/${Date.now()}`), { text: `${window.userProfileName} left the room.`, timestamp: Date.now() });
-        await remove(ref(db, `rooms_meta/${roomIdToLeave}/members/${window.currentUser.uid}`));
-        await removeMyRoomIndex(roomIdToLeave);
         window.showToast("You left the room.", false);
     } catch (e) { window.showToast("Error leaving room: " + e.message); }
 });

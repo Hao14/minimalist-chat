@@ -1,9 +1,9 @@
 import { onChildAdded, onChildChanged, onValue, ref, remove, set } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { playUiSound } from '../audio/uiSoundService.js';
 import { isQuietScheduleActive } from '../notifications/notificationModel.js';
 
 let blinkInterval = null;
-let audioContext = null;
 let inboxUnsubscribe = null;
 let listeningUid = null;
 let listenerStartedAt = 0;
@@ -85,6 +85,16 @@ async function ensureNotificationServiceWorker() {
 
 function phoneAlertsEnabled() {
   return localStorage.getItem('minimalist:phone-notifications') === 'enabled';
+}
+
+function appHasAttention() {
+  return document.visibilityState === 'visible' && document.hasFocus();
+}
+
+function browserPmAlertsReady() {
+  return phoneAlertsEnabled()
+    && notificationSupported()
+    && window.Notification.permission === 'granted';
 }
 
 function privateMessageDeliveryPaused(data = {}) {
@@ -267,6 +277,8 @@ function consumePmOpenFromUrl() {
 
 async function sendBrowserPmNotification(senderName, data = {}, senderUid = '') {
   if (!phoneAlertsEnabled() || !notificationSupported() || window.Notification.permission !== 'granted') return;
+  const rememberedToken = readRememberedPushToken();
+  if (!import.meta.env?.DEV && rememberedToken?.uid === window.currentUser?.uid) return;
 
   const isVoiceCall = data.eventType === 'call';
 
@@ -507,39 +519,15 @@ window.requestPhoneNotifications = async function requestPhoneNotifications() {
   }
 };
 
-window.playPing = async function playPing() {
-  try {
-    const AudioCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtor) return;
-    audioContext ||= new AudioCtor();
-    if (audioContext.state === 'suspended') await audioContext.resume();
-    const context = audioContext;
-    const playNote = (frequency, startTime, duration) => {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, startTime);
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(0.08, startTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    };
-
-    const now = context.currentTime;
-    playNote(523.25, now, 0.18);
-    playNote(659.25, now + 0.11, 0.32);
-  } catch (error) {
-    console.debug('Notification sound unavailable', error);
-  }
-};
-
 window.triggerNotification = function triggerNotification(senderName, data = {}, senderUid = '') {
   if (privateMessageDeliveryPaused(data)) return;
-  window.playPing();
-  sendBrowserPmNotification(senderName, data, senderUid);
+  const browserOwnsAlert = !appHasAttention() && browserPmAlertsReady();
+  if (data.eventType !== 'call' && !browserOwnsAlert) {
+    void playUiSound('notification', {
+      dedupeKey: `${senderUid}:${data.timestamp || ''}:${data.lastText || ''}`,
+    });
+  }
+  if (!appHasAttention()) void sendBrowserPmNotification(senderName, data, senderUid);
   const isVoiceCall = data.eventType === 'call';
   activeTitleAlert = isVoiceCall ? `📞 ${senderName} is calling!` : `💬 New PM from ${senderName}!`;
   document.title = activeTitleAlert;
@@ -616,7 +604,10 @@ window.listenForPmInbox = function listenForPmInbox() {
     const data = snapshot.val();
     if (!data || data.read !== false) return;
 
-    if (window.currentPmTargetUid !== snapshot.key) {
+    const activePmIsVisible = window.currentPmTargetUid === snapshot.key
+      && document.visibilityState === 'visible'
+      && document.hasFocus();
+    if (!activePmIsVisible) {
       const eventKey = `${snapshot.key}:${data.timestamp || ''}:${data.lastText || ''}`;
       const isOldInitialUnread = reason === 'added' && data.timestamp && data.timestamp < listenerStartedAt - 3000;
       if (!isOldInitialUnread && rememberInboxEvent(eventKey)) {

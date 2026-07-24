@@ -111,6 +111,10 @@ Assert-True ($hiddenLauncherText -match '-Action reconcile-tunnel') "The hidden 
 Assert-True ($hiddenLauncherText -match 'shell\.Run\(command,\s*0,\s*True\)') "The hidden launcher does not hide and await PowerShell."
 Assert-True ($hiddenLauncherText -match 'WScript\.Quit exitCode') "The hidden launcher does not forward the reconciliation result."
 Assert-True ($controllerText -match '"reconcile-tunnel"') "BridgeControl does not expose reconcile-tunnel."
+Assert-True ($controllerText -match 'bridge-restart\.request') "BridgeControl does not use the fixed one-shot restart request."
+Assert-True ($controllerText -match 'function Test-CurrentProcessElevated') "BridgeControl does not distinguish elevated service control from a standard user session."
+Assert-True ($controllerText -match 'function Request-ElevatedBridgeRestart') "BridgeControl cannot delegate a fixed restart to the elevated recovery task."
+Assert-True ($controllerText -match 'Test-Path -LiteralPath \$BridgeRestartRequestFile') "The elevated reconciler does not consume the one-shot restart request."
 Assert-True ($controllerText -notmatch '"recover"') "The retired recover action is still exposed."
 
 $liveRecoveryTask = "skipped"

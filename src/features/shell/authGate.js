@@ -3,6 +3,7 @@ import { auth, db } from '../../lib/firebase.js';
 import { getRedirectResult, onAuthStateChanged } from 'firebase/auth';
 import { ref, set, get } from 'firebase/database';
 import { ensureAuthProfile, ensureWelcomeBadge, isGoogleAuthUser, syncPublicUserDirectory } from '../../lib/authProfile.js';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
 import { rememberAccount } from '../../lib/accountProfiles.js';
 import { withTimeout } from '../../lib/promiseTimeout.js';
 
@@ -161,9 +162,20 @@ async function checkUserProfile(uid) {
         const snapshot = await getWithRetry('users/' + uid);
         if (snapshot.exists()) {
             const data = snapshot.val();
+            const storedPhotoUrl = normalizeStoredAvatarUrl(data.photoUrl || data.photoURL);
+            if ((data.photoUrl || '') !== storedPhotoUrl || data.photoURL) {
+                data.photoUrl = storedPhotoUrl;
+                delete data.photoURL;
+                set(ref(db, `users/${uid}/photoUrl`), storedPhotoUrl).catch((error) => {
+                    console.warn('Legacy avatar migration skipped', error);
+                });
+                if (snapshot.val()?.photoURL) {
+                    set(ref(db, `users/${uid}/photoURL`), null).catch(() => {});
+                }
+            }
             window.applyPerformanceSettingsFromProfile?.(data.performanceSettings);
             window.userProfileName = data.displayName || "Anonymous";
-            window.userPhotoUrl = data.photoUrl || "";
+            window.userPhotoUrl = storedPhotoUrl;
             window.userPronouns = data.pronouns || "";
             window.userBio = data.bio || "";
             window.userThemeColor = data.themeColor || "#FFD700";

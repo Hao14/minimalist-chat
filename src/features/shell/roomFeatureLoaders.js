@@ -249,7 +249,7 @@ function setPanelError(rootId, label, error) {
 }
 
 function loadFeatureStyles() {
-  window.__minimalistLoadFeatureStyles?.();
+  return window.__minimalistLoadFeatureStyles?.() || Promise.resolve();
 }
 
 function aiConfigFromWindow() {
@@ -297,7 +297,7 @@ function mountSearchOnce({ initialOpen = false } = {}) {
 
 document.addEventListener('click', (event) => {
   const target = eventTargetElement(event);
-  if (!target?.closest('#open-search-btn') || searchMountedInCurrentHost()) return;
+  if (!target?.closest('#open-search-btn, #open-search-btn-mobile') || searchMountedInCurrentHost()) return;
   event.preventDefault();
   event.stopImmediatePropagation();
   mountSearchOnce({ initialOpen: true }).catch((error) => {
@@ -307,17 +307,17 @@ document.addEventListener('click', (event) => {
 
 document.addEventListener('pointerenter', (event) => {
   const target = eventTargetElement(event);
-  if (target?.closest('#open-search-btn')) mountSearchOnce().catch(() => {});
+  if (target?.closest('#open-search-btn, #open-search-btn-mobile')) mountSearchOnce().catch(() => {});
 }, true);
 
 document.addEventListener('touchstart', (event) => {
   const target = eventTargetElement(event);
-  if (target?.closest('#open-search-btn')) mountSearchOnce().catch(() => {});
+  if (target?.closest('#open-search-btn, #open-search-btn-mobile')) mountSearchOnce().catch(() => {});
 }, { passive: true, capture: true });
 
 document.addEventListener('focusin', (event) => {
   const target = eventTargetElement(event);
-  if (target?.closest('#open-search-btn')) mountSearchOnce().catch(() => {});
+  if (target?.closest('#open-search-btn, #open-search-btn-mobile')) mountSearchOnce().catch(() => {});
 }, true);
 
 async function mountDeferredRoomView(
@@ -335,7 +335,10 @@ async function mountDeferredRoomView(
   const scheduled = roomMountCoordinator.schedule(
     view,
     contextKey,
-    () => importOnce(view, importer),
+    () => Promise.all([
+      loadFeatureStyles(),
+      importOnce(view, importer),
+    ]).then(([, module]) => module),
     (module) => {
       module[mountName](props);
       markFeatureMounted(view);
@@ -393,7 +396,10 @@ const roomFeatureImporters = Object.freeze({
 window.preloadRoomFeature = function preloadRoomFeature(view) {
   const importer = roomFeatureImporters[view];
   if (!importer) return Promise.resolve(false);
-  return importOnce(view, importer).then(() => true);
+  return Promise.all([
+    loadFeatureStyles(),
+    importOnce(view, importer),
+  ]).then(() => true);
 };
 
 window.loadRoomHome = function loadRoomHome() {
@@ -695,6 +701,8 @@ window.openVault = async function openVault(initialView = 'all') {
   const contextKey = userId;
   panel.dataset.vaultView = requestedView;
   panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  window.setVaultPanelOpenState?.(true);
   window.dispatchEvent(new CustomEvent('minimalist:vault-open', { detail: { view: requestedView } }));
   const scheduled = panelMountCoordinator.schedule(
     'vault',
@@ -731,15 +739,14 @@ window.openVault = async function openVault(initialView = 'all') {
   }
 };
 
-['#open-vault-btn', '#open-vault-btn-mobile'].forEach((selector) => {
-  const shouldPrewarm = (target) => target instanceof Element && target.closest(selector);
-  document.addEventListener('pointerenter', (event) => {
-    if (shouldPrewarm(event.target)) window.prewarmVault?.();
-  }, true);
-  document.addEventListener('touchstart', (event) => {
-    if (shouldPrewarm(event.target)) window.prewarmVault?.();
-  }, { passive: true, capture: true });
-  document.addEventListener('focusin', (event) => {
-    if (shouldPrewarm(event.target)) window.prewarmVault?.();
-  }, true);
-});
+const vaultPrewarmSelector = '#open-vault-btn, #open-vault-btn-mobile';
+const shouldPrewarmVault = (target) => target instanceof Element && target.closest(vaultPrewarmSelector);
+document.addEventListener('pointerenter', (event) => {
+  if (shouldPrewarmVault(event.target)) window.prewarmVault?.();
+}, true);
+document.addEventListener('touchstart', (event) => {
+  if (shouldPrewarmVault(event.target)) window.prewarmVault?.();
+}, { passive: true, capture: true });
+document.addEventListener('focusin', (event) => {
+  if (shouldPrewarmVault(event.target)) window.prewarmVault?.();
+}, true);

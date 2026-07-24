@@ -1,16 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  accountPlans,
-  faqItems,
-  pricingPageMeta,
-  roomSubscriptionPlans,
-} from '../content/marketingContent.js';
+  downloadPageContent,
+  featuresPageContent,
+  homePageContent,
+  storyPageContent,
+} from '../content/publicMarketingContent.js';
 import {
   AUTH_PRESENCE_HINT_EVENT,
   AUTH_PRESENCE_HINT_KEY,
   readAuthPresenceHint,
 } from '../lib/authPresenceHint.js';
+import './faqTerms.css';
+import './marketingV5.css';
+import './helpCenter.css';
+
+const MarketingFaqContent = lazy(() => import('./MarketingFaqContent.jsx'));
+const MarketingLegalContent = lazy(() => import('./MarketingLegalContent.jsx'));
+const MarketingPricingContent = lazy(() => import('./MarketingPricingContent.jsx'));
 
 const MARKETING_REVEAL_SELECTOR = [
   '.lp-hero',
@@ -48,6 +55,7 @@ const MARKETING_REVEAL_SELECTOR = [
   '.mkt4-faq-row',
   '.mkt4-legal-section',
   '.mkt4-close',
+  '[data-marketing-reveal]',
 ].join(',');
 
 const marketingMotionPathKeys = new Set([
@@ -72,8 +80,35 @@ function marketingMotionPathKey(pathname) {
 
 const marketingNavItems = [
   ['/features', 'Features'],
+  ['/pricing', 'Pricing'],
   ['/download', 'Download'],
   ['/story', 'Story'],
+];
+
+const mobileMarketingNavGroups = [
+  {
+    id: 'marketing-mobile-discover',
+    label: 'Discover',
+    items: [
+      ['/', 'Home', 'ph-house'],
+      ['/features', 'Features', 'ph-sparkle'],
+      ['/pricing', 'Pricing', 'ph-currency-circle-dollar'],
+    ],
+  },
+  {
+    id: 'marketing-mobile-resources',
+    label: 'Resources',
+    items: [
+      ['/download', 'Download', 'ph-download-simple'],
+      ['/story', 'Story', 'ph-book-open-text'],
+      ['/faq', 'FAQ', 'ph-info'],
+    ],
+  },
+];
+
+const mobileMarketingPolicyItems = [
+  ['/privacy', 'Privacy'],
+  ['/terms', 'Terms'],
 ];
 
 function Brand() {
@@ -97,14 +132,17 @@ function CtaArrowIcon() {
 function useMarketingMotion() {
   const { pathname } = useLocation();
   const motionPathKey = marketingMotionPathKey(pathname);
+  const [suppressInitialHomeReveal] = useState(() => (
+    pathname === '/' && Boolean(document.getElementById('static-home-shell'))
+  ));
   const [playNavigationIntro] = useState(() => (
     !animatedMarketingPaths.has(motionPathKey)
-      && !(pathname === '/' && document.getElementById('static-home-shell'))
+      && !suppressInitialHomeReveal
   ));
 
   useEffect(() => {
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const playRevealMotion = !animatedMarketingPaths.has(motionPathKey);
+    const playRevealMotion = !suppressInitialHomeReveal && !animatedMarketingPaths.has(motionPathKey);
     animatedMarketingPaths.add(motionPathKey);
     const revealed = new WeakSet();
     let revealOrder = 0;
@@ -144,9 +182,11 @@ function useMarketingMotion() {
     const onAnchorClick = (event) => {
       const anchor = event.target.closest?.('a[href^="#"]');
       if (!anchor) return;
-      const target = document.querySelector(anchor.getAttribute('href'));
+      const hash = anchor.getAttribute('href');
+      const target = document.querySelector(hash);
       if (!target) return;
       event.preventDefault();
+      if (window.location.hash !== hash) window.history.pushState(null, '', hash);
       target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
     };
 
@@ -159,7 +199,7 @@ function useMarketingMotion() {
       document.removeEventListener('click', onAnchorClick);
       window.removeEventListener(FEATURE_MODE_EVENT, attachReveal);
     };
-  }, [motionPathKey]);
+  }, [motionPathKey, suppressInitialHomeReveal]);
 
   return playNavigationIntro;
 }
@@ -171,7 +211,6 @@ function MarketingHeader({ playEntryMotion = false }) {
     : location.pathname.replace(/\/+$/, '');
   const navRef = useRef(null);
   const menuButtonRef = useRef(null);
-  const menuRef = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [authPresentation, setAuthPresentation] = useState(() => {
     const signedIn = readAuthPresenceHint();
@@ -200,9 +239,6 @@ function MarketingHeader({ playEntryMotion = false }) {
   useEffect(() => {
     if (!menuOpen) return undefined;
 
-    const firstLink = menuRef.current?.querySelector('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])');
-    firstLink?.focus();
-
     const handlePointerDown = (event) => {
       if (navRef.current?.contains(event.target)) return;
       setMenuOpen(false);
@@ -229,10 +265,19 @@ function MarketingHeader({ playEntryMotion = false }) {
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    const desktopQuery = window.matchMedia('(min-width: 901px)');
+    const handleDesktopChange = (event) => {
+      if (event.matches) setMenuOpen(false);
+    };
+    desktopQuery.addEventListener('change', handleDesktopChange);
+    return () => desktopQuery.removeEventListener('change', handleDesktopChange);
+  }, []);
+
   return (
     <nav
       ref={navRef}
-      className={playEntryMotion ? 'marketing-nav-enter' : undefined}
+      className={`marketing-site-nav${playEntryMotion ? ' marketing-nav-enter' : ''}`}
       aria-label="Primary"
     >
       <div className="marketing-nav-shell">
@@ -268,32 +313,68 @@ function MarketingHeader({ playEntryMotion = false }) {
           aria-controls="marketing-mobile-nav-links"
           onClick={() => setMenuOpen((open) => !open)}
         >
-          <span>Menu</span>
+          <span>{menuOpen ? 'Close' : 'Menu'}</span>
           <span className="nav-menu-icon" aria-hidden="true"><i /><i /></span>
         </button>
         <div
-          ref={menuRef}
           id="marketing-mobile-nav-links"
           className={`mobile-only marketing-mobile-nav-links ${menuOpen ? 'is-open' : ''}`}
+          role="group"
+          aria-labelledby="marketing-mobile-nav-title"
           aria-hidden={!menuOpen}
         >
-          {marketingNavItems.map(([path, label]) => (
-            <Link
-              key={path}
-              to={path}
-              className={`mobile-link ${activePath === path ? 'active' : ''}`}
-              aria-current={activePath === path ? 'page' : undefined}
-              tabIndex={menuOpen ? undefined : -1}
-              onClick={() => setMenuOpen(false)}
-            >
-              {label}
+          <header className="mobile-nav-panel-heading">
+            <span>Menu</span>
+            <strong id="marketing-mobile-nav-title">Explore Minimalist</strong>
+          </header>
+
+          <div className="mobile-nav-scroll-region">
+            <div className="mobile-nav-groups">
+              {mobileMarketingNavGroups.map((group) => (
+                <section className="mobile-nav-group" aria-labelledby={group.id} key={group.id}>
+                  <h2 id={group.id}>{group.label}</h2>
+                  <div className="mobile-nav-group-links">
+                    {group.items.map(([path, label, icon]) => (
+                      <Link
+                        key={path}
+                        to={path}
+                        className={`mobile-link ${activePath === path ? 'active' : ''}`}
+                        aria-current={activePath === path ? 'page' : undefined}
+                        tabIndex={menuOpen ? undefined : -1}
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <span className="mobile-nav-link-icon" aria-hidden="true"><i className={`ph-bold ${icon}`} /></span>
+                        <span>{label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              ))}
+            </div>
+
+            <div className="mobile-nav-policy-links" aria-label="Policies">
+              {mobileMarketingPolicyItems.map(([path, label]) => (
+                <Link
+                  key={path}
+                  to={path}
+                  className={`mobile-nav-policy-link ${activePath === path ? 'active' : ''}`}
+                  aria-current={activePath === path ? 'page' : undefined}
+                  tabIndex={menuOpen ? undefined : -1}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className={`mobile-nav-action-zone${showLogin ? ' has-login' : ''}`}>
+            {showLogin ? <Link to="/login" reloadDocument className="mobile-link mobile-login-link" tabIndex={menuOpen ? undefined : -1} onClick={() => setMenuOpen(false)}>Log in</Link> : null}
+            <Link to="/chat" reloadDocument className="mobile-link mobile-signup-link" tabIndex={menuOpen ? undefined : -1} onClick={() => setMenuOpen(false)}>
+              <span>Open the app</span>
+              <span className="nav-cta-icon"><CtaArrowIcon /></span>
             </Link>
-          ))}
-          {showLogin ? <Link to="/login" reloadDocument className="mobile-link" tabIndex={menuOpen ? undefined : -1} onClick={() => setMenuOpen(false)}>Log in</Link> : null}
-          <Link to="/chat" reloadDocument className="mobile-link mobile-signup-link" tabIndex={menuOpen ? undefined : -1} onClick={() => setMenuOpen(false)}>
-            <span>Open the app</span>
-            <span className="nav-cta-icon"><CtaArrowIcon /></span>
-          </Link>
+          </div>
         </div>
       </div>
     </nav>
@@ -310,7 +391,7 @@ function MarketingFooter() {
             <span>MINIMALIST</span>
           </Link>
           <p>Calm rooms for friends, teams, students, creators, clubs, and communities.</p>
-          <Link className="footer-primary-link" to="/chat" reloadDocument>Create your first room <i className="ph-bold ph-arrow-right" /></Link>
+          <Link className="footer-primary-link" to="/chat" reloadDocument>Create your first room <i className="ph-bold ph-arrow-right" aria-hidden="true" /></Link>
         </div>
 
         <div className="footer-grid" aria-label="Footer navigation">
@@ -318,6 +399,7 @@ function MarketingFooter() {
             <h2>Product</h2>
             <Link to="/">Home</Link>
             <Link to="/features">Features</Link>
+            <Link to="/pricing">Pricing</Link>
             <Link to="/download">Download</Link>
             <Link to="/story">Story</Link>
           </div>
@@ -344,24 +426,10 @@ function MarketingFooter() {
   );
 }
 
-const DEFAULT_META_DESCRIPTION = 'Minimalist.chat is the calm, organized rooms platform with Catch-Me-Up digests, focus modes, decisions, action items, scheduled messages, and offline-first reading.';
-const DEFAULT_META_TITLE = 'Minimalist.chat | Calm, organized rooms';
+const DEFAULT_META_DESCRIPTION = homePageContent.meta.description;
+const DEFAULT_META_TITLE = homePageContent.meta.title;
 const SITE_ORIGIN = 'https://minimalist.chat';
 const PAGE_STRUCTURED_DATA_ID = 'minimalist-page-structured-data';
-const FAQ_PAGE_STRUCTURED_DATA = {
-  '@context': 'https://schema.org',
-  '@type': 'FAQPage',
-  '@id': `${SITE_ORIGIN}/faq#faq`,
-  url: `${SITE_ORIGIN}/faq`,
-  mainEntity: faqItems.map((item) => ({
-    '@type': 'Question',
-    name: item.question,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: item.answer,
-    },
-  })),
-};
 
 function upsertMeta(selector, createAttrs, valueAttr, value) {
   let tag = document.head.querySelector(selector);
@@ -475,12 +543,14 @@ function MarketingShell({
   );
 }
 
-function Toast({ message, onClose, icon = '📦' }) {
+function Toast({ message, onClose, icon = 'ph-package' }) {
   return (
     <div id="brutalist-toast" className={message ? '' : 'toast-hidden'} role="status" aria-live="polite" aria-hidden={!message} hidden={!message}>
-      <span id="toast-icon">{icon}</span>
+      <span id="toast-icon"><i className={`ph-bold ${icon}`} aria-hidden="true" /></span>
       <span id="toast-message">{message}</span>
-      <button type="button" id="toast-close" aria-label="Close notification" tabIndex={message ? 0 : -1} onClick={onClose}>✖</button>
+      <button type="button" id="toast-close" aria-label="Close notification" tabIndex={message ? 0 : -1} onClick={onClose}>
+        <i className="ph-bold ph-x" aria-hidden="true" />
+      </button>
     </div>
   );
 }
@@ -492,12 +562,12 @@ const landingDemoRooms = [
 
 const landingDemoMessages = {
   global: [
-    { id: 'global-1', author: 'Mina', initials: 'MI', time: '10:08 AM', text: 'Welcome! The new room guide is pinned above.' },
-    { id: 'global-2', author: 'You', initials: 'YO', time: '10:11 AM', text: 'Perfect — I found everything.', self: true },
+    { id: 'global-1', author: 'Mina', initials: 'MI', time: '10:08 AM', dateTime: '10:08', text: 'Welcome! The new room guide is pinned above.' },
+    { id: 'global-2', author: 'You', initials: 'YO', time: '10:11 AM', dateTime: '10:11', text: 'Perfect — I found everything.', self: true },
   ],
   home: [
-    { id: 'home-ai', author: 'AI Agent', initials: 'AA', time: '12:18 AM', text: 'Welcome to HOME. I can summarize the chat, explain shared notes, and turn the conversation into next steps.', ai: true },
-    { id: 'home-1', author: 'wane', initials: 'WA', time: '10:01 AM', text: 'I added the study outline and tonight’s checklist.', self: true },
+    { id: 'home-ai', author: 'AI Agent', initials: 'AA', time: '12:18 AM', dateTime: '00:18', text: 'Welcome to HOME. I can summarize the chat, explain shared notes, and turn the conversation into next steps.', ai: true },
+    { id: 'home-1', author: 'wane', initials: 'WA', time: '10:01 AM', dateTime: '10:01', text: 'I added the study outline and tonight’s checklist.', self: true },
   ],
 };
 
@@ -529,23 +599,23 @@ const landingQuickReplies = [
 
 const simpleFeatures = [
   'Rooms',
-  'Quiet messages',
+  'Readable chat',
   'Catch-Me-Up',
-  'Offline reading',
   'Search',
+  'Notifications',
 ];
 
 const powerFeatures = [
-  'Decisions',
-  'Action Items',
-  'Scheduled Messages',
-  'Room Templates',
-  'Role Onboarding',
+  'Tasks',
+  'Docs',
+  'Whiteboards',
   'Events',
-  'Wiki',
+  'Calls',
+  'Permissions',
   'Moderation',
-  'Integrations',
-  'Room Memory',
+  'Analytics',
+  'AI workflows',
+  'Calendar tools',
 ];
 
 const FEATURE_MODE_KEY = 'minimalistMarketingMode';
@@ -553,19 +623,19 @@ const FEATURE_MODE_EVENT = 'minimalist:marketing-mode';
 
 const featureModeMeta = {
   simple: {
-    label: 'Simple Mode',
-    shortLabel: 'Simple',
-    helper: 'calm essentials',
-    title: 'Simple Mode stays quiet by default.',
-    copy: 'Visitors see the calm loop first: a room, readable messages, Catch-Me-Up digests, offline-first reading, and search. No wall of tools before they feel organized.',
+    label: 'Calm mode',
+    shortLabel: 'Calm',
+    helper: 'Chat, catch-up, search, and notifications.',
+    title: 'Calm mode keeps the room readable.',
+    copy: 'Conversation, Catch-Me-Up, notifications, and search stay close without turning the room into a wall of controls.',
     list: simpleFeatures,
   },
   power: {
-    label: 'Power Mode',
+    label: 'Power mode',
     shortLabel: 'Power',
-    helper: 'organized follow-through',
-    title: 'Power Mode adds structure when the room grows.',
-    copy: 'When groups need depth, Minimalist reveals decisions, action items, scheduled messages, room templates, role onboarding, events, wiki, moderation, integrations, and memory.',
+    helper: 'Tasks, documents, events, calls, permissions, and AI.',
+    title: 'Power mode adds organized follow-through.',
+    copy: 'Decisions, tasks, docs, events, calls, moderation, integrations, and permissions appear when a group needs more structure.',
     list: powerFeatures,
   },
 };
@@ -633,7 +703,6 @@ function FeatureModeSwitch({ mode, onChange, className = '' }) {
         <button
           type="button"
           className={mode === key ? 'active' : ''}
-          aria-label={`${meta.label}: ${meta.helper}`}
           aria-pressed={mode === key}
           onClick={() => onChange(key)}
           key={key}
@@ -646,7 +715,36 @@ function FeatureModeSwitch({ mode, onChange, className = '' }) {
   );
 }
 
-function PricingPlanRail({ ariaLabel, featureLimit = null, plans, showScope = false }) {
+const pricingPlanPresentation = Object.freeze({
+  base: Object.freeze({
+    bestFor: 'Small groups trying a calm shared room.',
+    cta: 'Start free',
+  }),
+  advanced: Object.freeze({
+    bestFor: 'Active collaborators who need practical upload and screen-sharing headroom.',
+    cta: 'Choose Advanced',
+    recommended: true,
+  }),
+  pro: Object.freeze({
+    bestFor: 'Power users who want unlimited rooms, analytics, video, and Winston.',
+    cta: 'Choose Pro',
+  }),
+  'base-room': Object.freeze({
+    bestFor: 'Rooms that rely on each member’s existing account benefits.',
+    cta: 'Create a room',
+  }),
+  'advanced-room': Object.freeze({
+    bestFor: 'Growing private rooms assigning stronger benefits to up to 20 people.',
+    cta: 'Choose Advanced Room',
+    recommended: true,
+  }),
+  'pro-room': Object.freeze({
+    bestFor: 'Larger private rooms assigning top room benefits to up to 50 people.',
+    cta: 'Choose Pro Room',
+  }),
+});
+
+export function PricingPlanRail({ ariaLabel, featureLimit = null, plans, showScope = false }) {
   return (
     <div className="landing-plans-rail" aria-label={ariaLabel}>
       {plans.map((plan) => {
@@ -654,17 +752,61 @@ function PricingPlanRail({ ariaLabel, featureLimit = null, plans, showScope = fa
         const visibleFeatures = Number.isInteger(featureLimit)
           ? planFeatures.slice(0, featureLimit)
           : planFeatures;
+        const presentation = pricingPlanPresentation[plan.id] || {
+          bestFor: plan.intent,
+          cta: `Choose ${plan.name}`,
+        };
 
         return (
-          <article key={plan.id}>
-            <span>{plan.name}</span>
+          <article className={presentation.recommended ? 'is-recommended' : ''} key={plan.id}>
+            <div className="landing-plan-heading">
+              <span>{plan.name}</span>
+              {presentation.recommended ? (
+                <em><i className="ph-bold ph-star" aria-hidden="true" /> Recommended</em>
+              ) : null}
+            </div>
             <strong>{plan.displayPrice}</strong>
-            <p>{plan.intent}</p>
-            <ul>{visibleFeatures.map((feature) => <li key={feature}><i className="ph-bold ph-check" /> {feature}</li>)}</ul>
+            <p className="landing-plan-best-for"><span>Best for</span>{presentation.bestFor}</p>
+            <ul>{visibleFeatures.map((feature) => <li key={feature}><i className="ph-bold ph-check" aria-hidden="true" /> {feature}</li>)}</ul>
+            <Link
+              to="/chat"
+              reloadDocument
+              className={`landing-plan-cta${presentation.recommended ? ' is-primary' : ''}`}
+            >
+              {presentation.cta} <CtaArrowIcon />
+            </Link>
           </article>
         );
       })}
     </div>
+  );
+}
+
+export function LandingOutcomeVisual({ staticMotion = false }) {
+  return (
+    <aside className={`home-outcome-visual${staticMotion ? ' is-static' : ''}`} aria-label="A conversation becomes a decision and an assigned task">
+      <header>
+        <span><i className="ph-bold ph-hash" aria-hidden="true" /> Product launch</span>
+        <small>Context stays attached</small>
+      </header>
+      <div className="home-outcome-flow">
+        <div className="home-outcome-step is-conversation">
+          <i className="ph-bold ph-chats-circle" aria-hidden="true" />
+          <span><small>Conversation</small><strong>“Let’s ship Friday.”</strong></span>
+        </div>
+        <span className="home-outcome-connector" aria-hidden="true"><i /></span>
+        <div className="home-outcome-step is-decision">
+          <i className="ph-bold ph-seal-check" aria-hidden="true" />
+          <span><small>Decision</small><strong>Friday launch approved</strong></span>
+        </div>
+        <span className="home-outcome-connector" aria-hidden="true"><i /></span>
+        <div className="home-outcome-step is-task">
+          <i className="ph-bold ph-check-square" aria-hidden="true" />
+          <span><small>Task</small><strong>Publish the launch page</strong><em>Jordan · Today</em></span>
+        </div>
+      </div>
+      <footer><i className="ph-bold ph-link" aria-hidden="true" /> One room, one useful thread of work.</footer>
+    </aside>
   );
 }
 
@@ -694,24 +836,24 @@ const landingWorkflowStates = {
 
 const landingSignalFeatures = [
   ['Catch-Me-Up', 'ph-newspaper-clipping'],
-  ['Decisions', 'ph-seal-check'],
   ['Tasks', 'ph-check-square'],
-  ['Offline reading', 'ph-book-open'],
-  ['Room memory', 'ph-brain'],
+  ['Docs', 'ph-file-text'],
+  ['Events', 'ph-calendar-dots'],
+  ['Search', 'ph-magnifying-glass'],
 ];
 
 function DemoGlobalRail() {
   return (
     <div className="desktop-demo-global-rail" aria-hidden="true">
       <div className="desktop-demo-mark"><span /><span /></div>
-      <i className="ph-bold ph-chat-circle-text is-active" />
-      <i className="ph-bold ph-users" />
-      <i className="ph-bold ph-sparkle" />
-      <i className="ph-bold ph-identification-card" />
+      <i className="ph-bold ph-chat-circle-text is-active" aria-hidden="true" />
+      <i className="ph-bold ph-users" aria-hidden="true" />
+      <i className="ph-bold ph-sparkle" aria-hidden="true" />
+      <i className="ph-bold ph-identification-card" aria-hidden="true" />
       <span className="desktop-demo-rail-spacer" />
-      <i className="ph-bold ph-bell" />
-      <i className="ph-bold ph-magnifying-glass" />
-      <i className="ph-bold ph-gear" />
+      <i className="ph-bold ph-bell" aria-hidden="true" />
+      <i className="ph-bold ph-magnifying-glass" aria-hidden="true" />
+      <i className="ph-bold ph-gear" aria-hidden="true" />
     </div>
   );
 }
@@ -724,7 +866,7 @@ function DemoRoomRail({ roomKey, onRoomChange }) {
         <i className="ph-bold ph-sidebar" aria-hidden="true" />
       </div>
       <div className="desktop-demo-room-search" aria-hidden="true">
-        <i className="ph-bold ph-magnifying-glass" />
+        <i className="ph-bold ph-magnifying-glass" aria-hidden="true" />
         <span>Jump to room or channel</span>
         <kbd>Ctrl K</kbd>
       </div>
@@ -737,39 +879,47 @@ function DemoRoomRail({ roomKey, onRoomChange }) {
             onClick={() => onRoomChange(room.key)}
             key={room.key}
           >
-            <span className="desktop-demo-room-icon"><i className={`ph-bold ${room.icon}`} /></span>
+            <span className="desktop-demo-room-icon"><i className={`ph-bold ${room.icon}`} aria-hidden="true" /></span>
             <span>
-              <strong>{room.name}{room.favorite ? <em aria-label="Favorite room">★</em> : null}</strong>
+              <strong>
+                {room.name}
+                {room.favorite ? <em aria-label="Favorite room"><i className="ph-bold ph-star" aria-hidden="true" /></em> : null}
+              </strong>
               <small>{room.preview}</small>
             </span>
           </button>
         ))}
       </div>
       <div className="desktop-demo-room-actions" aria-hidden="true">
-        <span>+ New room</span>
+        <span><i className="ph-bold ph-plus" aria-hidden="true" /> New room</span>
         <span>Join</span>
       </div>
     </aside>
   );
 }
 
-function DemoRoomTabs({ activeTab, onTabChange }) {
+function DemoRoomTabs({ activeTab, onTabChange, tasksTabRef }) {
   return (
-    <div className="desktop-demo-tabs" role="tablist" aria-label="Demo room views">
-      {landingDemoTabs.map(([key, label, icon]) => (
+    <div className="desktop-demo-tabs" role="tablist" aria-label="Demo room views" aria-orientation="horizontal">
+      {landingDemoTabs.map(([key, label, icon], index) => (
         <button
           type="button"
+          id={`home-demo-tab-${key}`}
           role="tab"
+          tabIndex={activeTab === key ? 0 : -1}
           aria-selected={activeTab === key}
+          aria-controls="home-demo-panel"
           className={activeTab === key ? 'is-active' : ''}
+          ref={key === 'tasks' ? tasksTabRef : undefined}
           onClick={() => onTabChange(key)}
+          onKeyDown={(event) => handleTabListKeyDown(event, index, landingDemoTabs.length, (nextIndex) => onTabChange(landingDemoTabs[nextIndex][0]))}
           key={key}
         >
-          <i className={`ph-bold ${icon}`} />
+          <i className={`ph-bold ${icon}`} aria-hidden="true" />
           <span>{label}</span>
         </button>
       ))}
-      <span className="desktop-demo-tab-add" aria-hidden="true">+</span>
+      <span className="desktop-demo-tab-add" aria-hidden="true"><i className="ph-bold ph-plus" /></span>
     </div>
   );
 }
@@ -781,8 +931,10 @@ function DemoMessage({ message }) {
       <div className="desktop-demo-message-body">
         <header>
           <strong>{message.author}</strong>
-          {message.ai ? <em>✦ AI</em> : null}
-          <time>{message.time}</time>
+          {message.ai ? <em><i className="ph-bold ph-sparkle" aria-hidden="true" /> AI</em> : null}
+          {message.dateTime
+            ? <time dateTime={message.dateTime}>{message.time}</time>
+            : <span className="desktop-demo-relative-time">{message.time}</span>}
         </header>
         <p>{message.text}</p>
       </div>
@@ -795,16 +947,30 @@ function DemoChatPanel({
   draft,
   messages,
   messageViewportRef,
+  composerInputRef,
   catchUpCollapsed,
+  taskConfirmationOpen,
+  taskDraft,
+  taskTriggerRef,
   onChannelChange,
   onDraftChange,
   onSend,
   onQuickReply,
   onToggleCatchUp,
   onCatchUpAction,
+  onTaskDraftChange,
+  onConfirmTask,
+  onCancelTask,
 }) {
   return (
-    <div className="desktop-demo-chat-panel" role="tabpanel" aria-label="Chat">
+    <div
+      className="desktop-demo-chat-panel"
+      id="home-demo-panel"
+      role="tabpanel"
+      aria-labelledby="home-demo-tab-chat"
+      aria-label="Chat"
+      tabIndex={0}
+    >
       <div className="desktop-demo-channels" aria-label="Demo channels">
         <span>CHANNELS</span>
         {landingDemoChannels.map((name) => (
@@ -818,7 +984,9 @@ function DemoChatPanel({
             # {name}
           </button>
         ))}
-        <button type="button" onClick={() => onCatchUpAction('Channel creation stays inside the full app.')}>+ Channel</button>
+        <button type="button" onClick={() => onCatchUpAction('Channel creation stays inside the full app.')}>
+          <i className="ph-bold ph-plus" aria-hidden="true" /> Channel
+        </button>
       </div>
 
       <div className="desktop-demo-messages" ref={messageViewportRef} aria-live="polite">
@@ -837,14 +1005,24 @@ function DemoChatPanel({
           )}
         </div>
         <div className="desktop-demo-catchup-actions">
-          <button type="button" onClick={() => onCatchUpAction('Catch-up refreshed with three key updates.')}><i className="ph-bold ph-sparkle" /> Summarize</button>
-          <button type="button" onClick={() => onCatchUpAction('task')}><i className="ph-bold ph-check-square" /> Task</button>
-          <button type="button" onClick={() => onCatchUpAction('Search opened for this demo room.')}><i className="ph-bold ph-magnifying-glass" /> Search</button>
-          <button type="button" onClick={() => onCatchUpAction('You are at the latest message.')}>Latest</button>
+          <button type="button" onClick={() => onCatchUpAction('Catch-up refreshed with three key updates.')}><i className="ph-bold ph-sparkle" aria-hidden="true" /> Summarize</button>
+          <button ref={taskTriggerRef} type="button" onClick={() => onCatchUpAction('task')}><i className="ph-bold ph-check-square" aria-hidden="true" /> Task</button>
+          <button type="button" onClick={() => onCatchUpAction('Search opened for this demo room.')}><i className="ph-bold ph-magnifying-glass" aria-hidden="true" /> Search</button>
+          <button type="button" onClick={() => onCatchUpAction('You are at the latest message.')}><i className="ph-bold ph-arrow-down" aria-hidden="true" /> Latest</button>
           <button type="button" className="desktop-demo-collapse" aria-label={catchUpCollapsed ? 'Expand catch-up' : 'Collapse catch-up'} onClick={onToggleCatchUp}>
-            <i className={`ph-bold ph-caret-down${catchUpCollapsed ? ' is-up' : ''}`} />
+            <i className={`ph-bold ph-caret-down${catchUpCollapsed ? ' is-up' : ''}`} aria-hidden="true" />
           </button>
         </div>
+        {taskConfirmationOpen ? (
+          <form className="desktop-demo-task-confirm" aria-label="Confirm demo task" onSubmit={onConfirmTask}>
+            <label>
+              <span>Task title</span>
+              <input value={taskDraft} onChange={(event) => onTaskDraftChange(event.target.value)} autoFocus />
+            </label>
+            <button type="submit" disabled={!taskDraft.trim()}><i className="ph-bold ph-check" aria-hidden="true" /> Add task</button>
+            <button type="button" onClick={onCancelTask}>Cancel</button>
+          </form>
+        ) : null}
       </section>
 
       <div className="desktop-demo-quick-replies" aria-label="Quick replies">
@@ -856,15 +1034,15 @@ function DemoChatPanel({
 
       <form className="desktop-demo-composer" onSubmit={onSend}>
         <div className="desktop-demo-composer-row">
-          <input name="demo-message" value={draft} onChange={(event) => onDraftChange(event.target.value)} placeholder="Message HOME..." aria-label="Type a demo message" />
-          <button type="submit" aria-label="Send demo message"><i className="ph-bold ph-paper-plane-tilt" /></button>
+          <input ref={composerInputRef} name="demo-message" value={draft} onChange={(event) => onDraftChange(event.target.value)} placeholder="Message HOME..." aria-label="Type a demo message" />
+          <button type="submit" aria-label="Send demo message" disabled={!draft.trim()}><i className="ph-bold ph-paper-plane-tilt" aria-hidden="true" /></button>
         </div>
         <div className="desktop-demo-composer-tools" aria-hidden="true">
-          <span><i className="ph-bold ph-paperclip" /></span>
-          <span>&lt;/&gt;</span>
-          <span>{'{ }'}</span>
-          <span><i className="ph-bold ph-chart-bar" /></span>
-          <span><i className="ph-bold ph-clock" /></span>
+          <span><i className="ph-bold ph-paperclip" aria-hidden="true" /></span>
+          <span><i className="ph-bold ph-code" aria-hidden="true" /></span>
+          <span><i className="ph-bold ph-brackets-curly" aria-hidden="true" /></span>
+          <span><i className="ph-bold ph-chart-bar" aria-hidden="true" /></span>
+          <span><i className="ph-bold ph-clock" aria-hidden="true" /></span>
           <em>Enter sends&nbsp;&nbsp; Shift+Enter for new line</em>
         </div>
       </form>
@@ -877,7 +1055,7 @@ const demoToolPanels = {
   docs: ['Shared docs', 'Keep outlines and notes beside the conversation that created them.'],
   whiteboard: ['Whiteboard', 'Sketch the next idea together without losing the room context.'],
   events: ['Events', 'Keep room plans and reminders visible to everyone.'],
-  calendar: ['Calendar', 'See scheduled messages, deadlines, and events in one place.'],
+  calendar: ['Calendar', 'See deadlines and room events in one place.'],
   ai: ['Room AI', 'Summarize, explain, and turn conversation into next steps.'],
   calls: ['Calls', 'Start a room call when text is not enough.'],
 };
@@ -885,7 +1063,14 @@ const demoToolPanels = {
 function DemoToolPanel({ activeTab, tasks, completedTasks, onToggleTask }) {
   if (activeTab === 'tasks') {
     return (
-      <section className="desktop-demo-tool-panel desktop-demo-task-panel" role="tabpanel" aria-label="Tasks">
+      <section
+        className="desktop-demo-tool-panel desktop-demo-task-panel"
+        id="home-demo-panel"
+        role="tabpanel"
+        aria-labelledby="home-demo-tab-tasks"
+        aria-label="Tasks"
+        tabIndex={0}
+      >
         <div className="desktop-demo-tool-heading"><span>TASKS</span><h3>Room tasks</h3><p>Next steps stay attached to the conversation.</p></div>
         <div className="desktop-demo-task-list">
           {tasks.map((task) => (
@@ -901,11 +1086,18 @@ function DemoToolPanel({ activeTab, tasks, completedTasks, onToggleTask }) {
 
   const [title, copy] = demoToolPanels[activeTab] || demoToolPanels.home;
   return (
-    <section className={`desktop-demo-tool-panel is-${activeTab}`} role="tabpanel" aria-label={title}>
+    <section
+      className={`desktop-demo-tool-panel is-${activeTab}`}
+      id="home-demo-panel"
+      role="tabpanel"
+      aria-labelledby={`home-demo-tab-${activeTab}`}
+      aria-label={title}
+      tabIndex={0}
+    >
       <div className="desktop-demo-tool-heading"><span>{activeTab.toUpperCase()}</span><h3>{title}</h3><p>{copy}</p></div>
       <div className="desktop-demo-tool-canvas" aria-hidden="true">
-        <article><i className="ph-bold ph-file-text" /><strong>Study outline</strong><small>Updated today</small></article>
-        <article><i className="ph-bold ph-check-square" /><strong>Tonight at 7</strong><small>Shared with HOME</small></article>
+        <article><i className="ph-bold ph-file-text" aria-hidden="true" /><strong>Study outline</strong><small>Updated today</small></article>
+        <article><i className="ph-bold ph-check-square" aria-hidden="true" /><strong>Tonight at 7</strong><small>Shared with HOME</small></article>
       </div>
     </section>
   );
@@ -914,6 +1106,9 @@ function DemoToolPanel({ activeTab, tasks, completedTasks, onToggleTask }) {
 function LandingDesktopDemo() {
   const nextMessageId = useRef(0);
   const messageViewportRef = useRef(null);
+  const composerInputRef = useRef(null);
+  const taskTriggerRef = useRef(null);
+  const tasksTabRef = useRef(null);
   const [roomKey, setRoomKey] = useState('home');
   const [activeTab, setActiveTab] = useState('chat');
   const [channel, setChannel] = useState('general');
@@ -927,6 +1122,8 @@ function LandingDesktopDemo() {
   ]);
   const [completedTasks, setCompletedTasks] = useState([]);
   const [catchUpCollapsed, setCatchUpCollapsed] = useState(false);
+  const [taskConfirmationOpen, setTaskConfirmationOpen] = useState(false);
+  const [taskDraft, setTaskDraft] = useState('');
   const [status, setStatus] = useState('Live local demo — no account or network required.');
   const messages = messagesByRoom[roomKey];
   const roomName = landingDemoRooms.find((room) => room.key === roomKey)?.name || 'HOME';
@@ -934,6 +1131,8 @@ function LandingDesktopDemo() {
   const changeRoom = (nextRoom) => {
     setRoomKey(nextRoom);
     setActiveTab('chat');
+    setTaskConfirmationOpen(false);
+    setTaskDraft('');
     setStatus(`${landingDemoRooms.find((room) => room.key === nextRoom)?.name || 'Room'} opened.`);
   };
 
@@ -961,18 +1160,40 @@ function LandingDesktopDemo() {
     addLocalMessage(draft);
   };
 
+  const chooseQuickReply = (reply) => {
+    setDraft(reply);
+    setStatus('Quick reply added to the draft. Review it, then send when ready.');
+    window.requestAnimationFrame(() => composerInputRef.current?.focus());
+  };
+
   const handleCatchUpAction = (action) => {
     if (action !== 'task') {
+      setTaskConfirmationOpen(false);
+      setTaskDraft('');
       setCatchUpCollapsed(false);
       setStatus(action);
       return;
     }
     const source = messages.at(-1)?.text || 'Review the latest room update';
-    setTasks((current) => current.some((task) => task.text === source)
-      ? current
-      : [...current, { id: `task-${nextMessageId.current++}`, text: source, owner: 'You' }]);
+    setTaskDraft(source);
+    setTaskConfirmationOpen(true);
+    setCatchUpCollapsed(false);
+    setStatus('Review the task title before adding it to the local demo.');
+  };
+
+  const confirmCatchUpTask = (event) => {
+    event.preventDefault();
+    const clean = taskDraft.trim();
+    if (!clean) return;
+    const alreadyExists = tasks.some((task) => task.text === clean);
+    if (!alreadyExists) {
+      setTasks((current) => [...current, { id: `task-${nextMessageId.current++}`, text: clean, owner: 'You' }]);
+    }
+    setTaskConfirmationOpen(false);
+    setTaskDraft('');
     setActiveTab('tasks');
-    setStatus('The latest message is now a room task.');
+    setStatus(alreadyExists ? 'That room task already exists.' : 'Task added to the local demo.');
+    window.requestAnimationFrame(() => tasksTabRef.current?.focus());
   };
 
   const toggleTask = (taskId) => {
@@ -993,6 +1214,8 @@ function LandingDesktopDemo() {
     setTasks([{ id: 'task-outline', text: 'Create the deliverables checklist', owner: 'Jordan' }]);
     setCompletedTasks([]);
     setCatchUpCollapsed(false);
+    setTaskConfirmationOpen(false);
+    setTaskDraft('');
     setStatus('Demo reset.');
   };
 
@@ -1003,7 +1226,7 @@ function LandingDesktopDemo() {
         <div className="desktop-demo-window-actions">
           <span aria-hidden="true"><i className="ph-bold ph-magnifying-glass" /></span>
           <span className="desktop-demo-profile" aria-hidden="true">WA</span>
-          <button type="button" onClick={resetDemo} aria-label="Reset demo"><i className="ph-bold ph-arrow-counter-clockwise" /></button>
+          <button type="button" onClick={resetDemo} aria-label="Reset demo"><i className="ph-bold ph-arrow-counter-clockwise" aria-hidden="true" /></button>
         </div>
       </div>
       <div className="desktop-demo-shell">
@@ -1011,23 +1234,35 @@ function LandingDesktopDemo() {
         <DemoRoomRail roomKey={roomKey} onRoomChange={changeRoom} />
         <div className="desktop-demo-workspace">
           <header className="desktop-demo-room-header">
-            <div><strong>{roomName}</strong>{roomKey === 'home' ? <span>PRIVATE</span> : null}<i className="ph-bold ph-caret-down" /></div>
-            <button type="button" onClick={() => setStatus('Search opened for this demo room.')} aria-label="Search demo messages"><i className="ph-bold ph-magnifying-glass" /></button>
+            <div><strong>{roomName}</strong>{roomKey === 'home' ? <span>PRIVATE</span> : null}<i className="ph-bold ph-caret-down" aria-hidden="true" /></div>
+            <button type="button" onClick={() => setStatus('Search opened for this demo room.')} aria-label="Search demo messages"><i className="ph-bold ph-magnifying-glass" aria-hidden="true" /></button>
           </header>
-          <DemoRoomTabs activeTab={activeTab} onTabChange={setActiveTab} />
+          <DemoRoomTabs activeTab={activeTab} onTabChange={setActiveTab} tasksTabRef={tasksTabRef} />
           {activeTab === 'chat' ? (
             <DemoChatPanel
               channel={channel}
               draft={draft}
               messages={messages}
               messageViewportRef={messageViewportRef}
+              composerInputRef={composerInputRef}
               catchUpCollapsed={catchUpCollapsed}
+              taskConfirmationOpen={taskConfirmationOpen}
+              taskDraft={taskDraft}
+              taskTriggerRef={taskTriggerRef}
               onChannelChange={(nextChannel) => { setChannel(nextChannel); setStatus(`# ${nextChannel} selected.`); }}
               onDraftChange={setDraft}
               onSend={sendMessage}
-              onQuickReply={addLocalMessage}
+              onQuickReply={chooseQuickReply}
               onToggleCatchUp={() => setCatchUpCollapsed((collapsed) => !collapsed)}
               onCatchUpAction={handleCatchUpAction}
+              onTaskDraftChange={setTaskDraft}
+              onConfirmTask={confirmCatchUpTask}
+              onCancelTask={() => {
+                setTaskConfirmationOpen(false);
+                setTaskDraft('');
+                setStatus('Task creation canceled.');
+                window.requestAnimationFrame(() => taskTriggerRef.current?.focus());
+              }}
             />
           ) : (
             <DemoToolPanel activeTab={activeTab} tasks={tasks} completedTasks={completedTasks} onToggleTask={toggleTask} />
@@ -1039,26 +1274,129 @@ function LandingDesktopDemo() {
   );
 }
 
+function LandingMobileDemo() {
+  const [activeCard, setActiveCard] = useState(0);
+  const trackRef = useRef(null);
+  const previewLabels = ['Conversation', 'Decision', 'Task'];
+
+  const updateActiveCard = () => {
+    const track = trackRef.current;
+    if (!track) return;
+    const cards = [...track.querySelectorAll('.home-mobile-demo-card')];
+    let nextIndex = 0;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    cards.forEach((card, index) => {
+      const distance = Math.abs(card.offsetLeft - track.scrollLeft);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nextIndex = index;
+      }
+    });
+    setActiveCard((current) => (current === nextIndex ? current : nextIndex));
+  };
+
+  return (
+    <section className="home-mobile-demo" aria-label="Compact mobile product preview">
+      <div className="home-mobile-demo-intro">
+        <strong>Minimalist on mobile</strong>
+        <span>Swipe through conversation, decision, and task.</span>
+      </div>
+      <div className="home-mobile-demo-track" onScroll={updateActiveCard} ref={trackRef} tabIndex={0}>
+        <article className="home-mobile-demo-card" aria-label="Conversation preview">
+          <header>
+            <i className="ph-bold ph-arrow-left" aria-hidden="true" />
+            <span><strong># Product Launch</strong><small>8 members</small></span>
+            <i className="ph-bold ph-dots-three-vertical" aria-hidden="true" />
+          </header>
+          <div className="home-mobile-demo-pin">
+            <i className="ph-bold ph-push-pin" aria-hidden="true" />
+            <span>Launch plan v2 is in the docs.</span>
+          </div>
+          <div className="home-mobile-demo-messages">
+            <div><span className="is-maya">MP</span><p><strong>Maya Patel <small>9:32 AM</small></strong>Here’s the latest plan. Let me know what you think.</p></div>
+            <div><span className="is-jordan">JL</span><p><strong>Jordan Lee <small>9:35 AM</small></strong>Looks good. Shall we lock this in?</p></div>
+            <div><span className="is-maya">MP</span><p><strong>Maya Patel <small>9:36 AM</small></strong>Yes, let’s ship Friday.</p></div>
+          </div>
+          <footer><i className="ph-bold ph-paperclip" aria-hidden="true" /><span>Message # Product Launch</span><i className="ph-bold ph-paper-plane-tilt" aria-hidden="true" /></footer>
+        </article>
+
+        <article className="home-mobile-demo-card is-decision" aria-label="Decision preview">
+          <header>
+            <i className="ph-bold ph-arrow-left" aria-hidden="true" />
+            <span><strong># Product Launch</strong><small>Decision saved</small></span>
+            <i className="ph-bold ph-dots-three-vertical" aria-hidden="true" />
+          </header>
+          <div className="home-mobile-demo-focus-icon"><i className="ph-bold ph-seal-check" aria-hidden="true" /></div>
+          <div className="home-mobile-demo-focus-copy">
+            <small>DECISION</small>
+            <strong>Launch Friday</strong>
+            <p>The agreement stays connected to the conversation that produced it.</p>
+          </div>
+          <div className="home-mobile-demo-context"><i className="ph-bold ph-link" aria-hidden="true" /><span>3 source messages</span><i className="ph-bold ph-caret-right" aria-hidden="true" /></div>
+        </article>
+
+        <article className="home-mobile-demo-card is-task" aria-label="Task preview">
+          <header>
+            <i className="ph-bold ph-arrow-left" aria-hidden="true" />
+            <span><strong># Product Launch</strong><small>Task created</small></span>
+            <i className="ph-bold ph-dots-three-vertical" aria-hidden="true" />
+          </header>
+          <div className="home-mobile-demo-focus-icon"><i className="ph-bold ph-check-square" aria-hidden="true" /></div>
+          <div className="home-mobile-demo-focus-copy">
+            <small>NEXT STEP</small>
+            <strong>Publish the launch page</strong>
+            <p>Assigned to Jordan with the decision and source messages still attached.</p>
+          </div>
+          <div className="home-mobile-demo-context"><i className="ph-bold ph-calendar-blank" aria-hidden="true" /><span>Due today</span><i className="ph-bold ph-user-circle" aria-hidden="true" /></div>
+        </article>
+      </div>
+      <div className="home-mobile-demo-dots" aria-label={`Showing ${previewLabels[activeCard]} preview`} role="status">
+        {previewLabels.map((label, index) => (
+          <span
+            aria-current={index === activeCard ? 'step' : undefined}
+            aria-label={`${label} preview`}
+            className={index === activeCard ? 'is-active' : ''}
+            key={label}
+            role="img"
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function LandingWorkflowSection() {
   const [activeState, setActiveState] = useState('chat');
   const state = landingWorkflowStates[activeState];
+  const workflowEntries = Object.entries(landingWorkflowStates);
 
   return (
-    <section className="landing-v3-section landing-workflow" id="landing-workflow">
-      <div className="landing-section-heading">
-        <h2>Conversation that leaves a trail.</h2>
-        <p>A message becomes context, a decision, or a next step — without leaving the room.</p>
+    <section className="landing-v3-section landing-workflow mv5-section" id="landing-workflow" data-marketing-reveal>
+      <div className="landing-section-heading mv5-section-heading">
+        <div><span>01</span><h2>{homePageContent.workflow.title}</h2></div>
+        <p>{homePageContent.workflow.copy}</p>
       </div>
       <div className="landing-workflow-rail" role="tablist" aria-label="Conversation workflow">
-        {Object.entries(landingWorkflowStates).map(([key, item]) => (
-          <button type="button" role="tab" aria-selected={activeState === key} className={activeState === key ? 'is-active' : ''} onClick={() => setActiveState(key)} key={key}>
-            <span><i className={`ph-bold ${item.icon}`} /></span>
+        {workflowEntries.map(([key, item], index) => (
+          <button
+            type="button"
+            id={`home-workflow-tab-${key}`}
+            role="tab"
+            tabIndex={activeState === key ? 0 : -1}
+            aria-selected={activeState === key}
+            aria-controls="home-workflow-panel"
+            className={activeState === key ? 'is-active' : ''}
+            onClick={() => setActiveState(key)}
+            onKeyDown={(event) => handleTabListKeyDown(event, index, workflowEntries.length, (nextIndex) => setActiveState(workflowEntries[nextIndex][0]))}
+            key={key}
+          >
+            <span><i className={`ph-bold ${item.icon}`} aria-hidden="true" /></span>
             <strong>{item.label}</strong>
             <small>{item.caption}</small>
           </button>
         ))}
       </div>
-      <div className={`landing-workflow-state is-${activeState}`} role="tabpanel" aria-live="polite">
+      <div className={`landing-workflow-state is-${activeState}`} id="home-workflow-panel" role="tabpanel" aria-labelledby={`home-workflow-tab-${activeState}`} aria-live="polite">
         <div className="landing-workflow-state-copy"><h3>{state.title}</h3><p>{state.copy}</p></div>
         <div className="landing-workflow-mini-app" aria-hidden="true">
           <div className="landing-workflow-mini-rail"><span>HOME</span><span># general</span><span># study</span></div>
@@ -1066,7 +1404,7 @@ function LandingWorkflowSection() {
             <div className="landing-workflow-chat"><p>I added the notes to the pinboard.</p><p>Meeting at 7? I can share the outline.</p><span>Message HOME...</span></div>
           ) : null}
           {activeState === 'catchup' ? (
-            <div className="landing-workflow-catchup"><strong>3 key updates</strong>{landingCatchUpItems.map((item) => <p key={item}><i className="ph-bold ph-check" /> {item}</p>)}</div>
+            <div className="landing-workflow-catchup"><strong>3 key updates</strong>{landingCatchUpItems.map((item) => <p key={item}><i className="ph-bold ph-check" aria-hidden="true" /> {item}</p>)}</div>
           ) : null}
           {activeState === 'tasks' ? (
             <div className="landing-workflow-tasks"><strong>Room tasks</strong><label><input type="checkbox" readOnly /> Create the deliverables checklist</label><label><input type="checkbox" defaultChecked readOnly /> Share the study outline</label></div>
@@ -1082,22 +1420,23 @@ function LandingSignalSection() {
   const [mode, setMode] = useState('focus');
 
   return (
-    <section className="landing-v3-section landing-signal">
+    <section className="landing-v3-section landing-signal mv5-section" data-marketing-reveal>
       <div className="landing-signal-copy">
-        <h2>More signal.<br />Less scroll.</h2>
-        <p>Choose a quieter room when you need focus. Bring structure back when the group needs it.</p>
+        <span className="mv5-section-number">02</span>
+        <h2>{homePageContent.signal.title}</h2>
+        <p>{homePageContent.signal.copy}</p>
         <div className="landing-signal-modes" aria-label="Preview room mode">
-          <button type="button" className={mode === 'focus' ? 'is-active' : ''} aria-pressed={mode === 'focus'} onClick={() => setMode('focus')}><i className="ph-bold ph-moon-stars" /> Focus mode</button>
-          <button type="button" className={mode === 'organize' ? 'is-active' : ''} aria-pressed={mode === 'organize'} onClick={() => setMode('organize')}><i className="ph-bold ph-list-checks" /> Organize mode</button>
+          <button type="button" className={mode === 'focus' ? 'is-active' : ''} aria-pressed={mode === 'focus'} onClick={() => setMode('focus')}><i className="ph-bold ph-moon-stars" aria-hidden="true" /> Quiet view</button>
+          <button type="button" className={mode === 'organize' ? 'is-active' : ''} aria-pressed={mode === 'organize'} onClick={() => setMode('organize')}><i className="ph-bold ph-list-checks" aria-hidden="true" /> Catch-up view</button>
         </div>
-        <ul>{landingSignalFeatures.map(([label, icon]) => <li key={label}><i className={`ph-bold ${icon}`} /> {label}</li>)}</ul>
+        <ul>{landingSignalFeatures.map(([label, icon]) => <li key={label}><i className={`ph-bold ${icon}`} aria-hidden="true" /> {label}</li>)}</ul>
       </div>
       <div className={`landing-signal-preview is-${mode}`} aria-live="polite">
-        <div className="landing-signal-preview-top"><strong>HOME</strong><span>{mode === 'focus' ? 'Focus mode' : 'Organize mode'}</span></div>
+        <div className="landing-signal-preview-top"><strong>HOME</strong><span>{mode === 'focus' ? 'Quiet view' : 'Catch-up view'}</span></div>
         {mode === 'focus' ? (
           <div className="landing-signal-focus"><article><strong>AI Agent</strong><p>Here are the three updates that matter today.</p></article><article><strong>wane</strong><p>The outline and checklist are ready for tonight.</p></article></div>
         ) : (
-          <div className="landing-signal-organize"><strong>Room catch-up</strong>{landingCatchUpItems.map((item) => <p key={item}><i className="ph-bold ph-check-square" /> {item}</p>)}<button type="button" onClick={() => setMode('focus')}>Return to chat</button></div>
+          <div className="landing-signal-organize"><strong>Room catch-up</strong>{landingCatchUpItems.map((item) => <p key={item}><i className="ph-bold ph-check-square" aria-hidden="true" /> {item}</p>)}<button type="button" onClick={() => setMode('focus')}>Return to chat</button></div>
         )}
       </div>
     </section>
@@ -1106,13 +1445,15 @@ function LandingSignalSection() {
 
 function LandingPlansSection() {
   return (
-    <section className="landing-v3-section landing-close">
+    <section className="landing-v3-section landing-close home-v5-close" data-marketing-reveal>
       <div className="landing-close-copy">
-        <h2>A calmer room is one click away.</h2>
-        <Link to="/chat" reloadDocument className="lp-btn lp-btn-primary">Create your first room <CtaArrowIcon /></Link>
+        <h2>{homePageContent.close.title}</h2>
+        <p>{homePageContent.close.copy}</p>
+      </div>
+      <div className="landing-hero-actions">
+        <Link to={homePageContent.close.primaryAction.href} reloadDocument className="lp-btn lp-btn-primary">{homePageContent.close.primaryAction.label} <CtaArrowIcon /></Link>
         <Link to="/pricing" className="landing-text-link">Compare plans <CtaArrowIcon /></Link>
       </div>
-      <PricingPlanRail ariaLabel="Minimalist account plans" featureLimit={3} plans={accountPlans} />
     </section>
   );
 }
@@ -1124,18 +1465,21 @@ export function HomePage() {
 
   return (
     <MarketingShell title={DEFAULT_META_TITLE} description={DEFAULT_META_DESCRIPTION} shape={null}>
-      <main className="landing-v3">
-        <section className="landing-v3-section landing-hero">
+      <main className="landing-v3 marketing-v5 home-v5" data-marketing-home>
+        <section className="landing-v3-section landing-hero mv5-hero" data-marketing-reveal>
           <div className="landing-hero-copy">
-            <h1>Catch up in minutes.<br />Stay focused for hours.</h1>
-            <p>Calm rooms turn conversation into catch-ups, decisions, and next steps.</p>
+            <h1>{homePageContent.hero.title}</h1>
+            <p>{homePageContent.hero.copy}</p>
             <div className="landing-hero-actions">
-              <Link to="/chat" reloadDocument className="lp-btn lp-btn-primary">Open the app <CtaArrowIcon /></Link>
-              <a href="#landing-workflow" className="lp-btn lp-btn-secondary">Explore features</a>
+              <Link to={homePageContent.hero.actions[0].href} reloadDocument className="lp-btn lp-btn-primary">{homePageContent.hero.actions[0].label} <CtaArrowIcon /></Link>
+              <a href={homePageContent.hero.actions[1].href} className="lp-btn lp-btn-secondary">{homePageContent.hero.actions[1].label}</a>
             </div>
           </div>
-          <div className="landing-hero-grid" aria-hidden="true"><span /></div>
+          <LandingOutcomeVisual />
+        </section>
+        <section className="landing-v3-section home-v5-demo" aria-label="Minimalist product preview" data-marketing-reveal>
           <LandingDesktopDemo />
+          <LandingMobileDemo />
         </section>
         <LandingWorkflowSection />
         <LandingSignalSection />
@@ -1147,124 +1491,133 @@ export function HomePage() {
 
 export function PricingPage() {
   return (
-    <MarketingShell title={pricingPageMeta.title} shape={null} description={pricingPageMeta.description}>
-      <main className="marketing-v4">
-        <section className="mkt4-hero">
-          <div className="mkt4-hero-copy">
-            <h1>Plans for your account. Optional plans for a room.</h1>
-            <p>An account plan follows one signed-in user across rooms. A room subscription is a separate monthly choice for one private room and assigns benefits only to selected members.</p>
-            <div className="mkt4-actions">
-              <Link to="/chat" reloadDocument className="mkt4-button is-primary">Start with Base <CtaArrowIcon /></Link>
-              <a href="#account-plans" className="mkt4-button">Compare account plans</a>
-            </div>
-          </div>
-          <aside className="mkt4-readiness-console" aria-label="How Minimalist pricing works">
-            <div className="mkt4-console-top"><span>HOW PRICING WORKS</span><strong>Two separate choices</strong></div>
-            <div className="mkt4-readiness-main">
-              <span className="mkt4-readiness-icon"><i className="ph-bold ph-user-circle" /></span>
-              <div><small>ACCOUNT PLAN</small><strong>Follows one user</strong><p>Your account limits and features travel with you from room to room.</p></div>
-            </div>
-            <div className="mkt4-readiness-lines">
-              <p><span>Account scope</span><strong>One signed-in user</strong></p>
-              <p><span>Room scope</span><strong>One private room</strong></p>
-              <p><span>Benefit rule</span><strong>Higher limit stays</strong></p>
-            </div>
-          </aside>
-        </section>
-
-        <section className="mkt4-section" id="account-plans">
-          <header className="mkt4-section-heading">
-            <div><span>01</span><h2>Account plans.</h2></div>
-            <p>Choose the limits and account features that follow you across Minimalist. Base has no recurring account charge; Advanced and Pro are monthly.</p>
-          </header>
-          <PricingPlanRail ariaLabel="Account plan comparison" plans={accountPlans} showScope />
-        </section>
-
-        <section className="mkt4-section" id="room-subscriptions">
-          <header className="mkt4-section-heading">
-            <div><span>02</span><h2>Optional room subscriptions.</h2></div>
-            <p>A room subscription is separate from account billing. It covers one private room, is managed by that room's creator, and assigns benefits only to selected members within the plan limit.</p>
-          </header>
-          <PricingPlanRail ariaLabel="Room subscription comparison" plans={roomSubscriptionPlans} showScope />
-          <article className="mkt4-principle-row">
-            <span>NOTE</span>
-            <h3>Stronger account benefits stay.</h3>
-            <p>For each selected member, Minimalist uses the higher of that person's account limit and the room benefit. Adding a room subscription never lowers an existing account benefit.</p>
-          </article>
-        </section>
-
-        <MarketingClose title="Start free, then add only what you need." copy="Choose an account plan first. Room subscriptions remain optional and separate." secondaryHref="/faq" secondaryLabel="Read the FAQ" />
-      </main>
-    </MarketingShell>
+    <MarketingPricingContent
+      shellComponent={MarketingShell}
+      ctaArrowIcon={CtaArrowIcon}
+      pricingPlanRail={PricingPlanRail}
+      marketingClose={MarketingClose}
+    />
   );
 }
 
-const simpleFeatureCards = [
-  ['Rooms', 'ph-hash', 'Create a shared place for a group, project, class, club, or community without starting from a noisy blank slate.'],
-  ['Quiet Messages', 'ph-chat-circle-text', 'The core conversation stays readable with focus, zen, and compact modes close at hand.'],
-  ['Catch-Me-Up', 'ph-newspaper-clipping', 'Return to a room and see the decisions, action items, links, and key updates before the raw scroll.'],
-  ['Offline Reading', 'ph-cloud-arrow-down', 'Keep important room context available for unreliable connections, commutes, travel, and low-focus moments.'],
-  ['Search', 'ph-magnifying-glass', 'Find rooms, messages, files, people, decisions, and resources from one obvious place.'],
-];
+const featureGroupIcons = Object.freeze({
+  communicate: 'ph-chat-circle-text',
+  'catch-up': 'ph-newspaper-clipping',
+  create: 'ph-file-text',
+  plan: 'ph-check-square',
+  meet: 'ph-video-camera',
+  search: 'ph-magnifying-glass',
+  moderate: 'ph-shield-check',
+  ai: 'ph-sparkle',
+});
 
-const powerFeatureCards = [
-  ['Decisions', 'ph-seal-check', 'Capture what the group agreed to so the same question does not restart three days later.'],
-  ['Action Items', 'ph-check-square', 'Turn conversations into owned next steps and keep follow-through visible to the room.'],
-  ['Scheduled Messages', 'ph-clock-countdown', 'Write once, send later, and keep announcements or reminders from interrupting the wrong moment.'],
-  ['Room Templates', 'ph-layout', 'Start clubs, classes, projects, creator spaces, and support groups with the right structure already in place.'],
-  ['Role Onboarding', 'ph-identification-card', 'Give members, moderators, officers, students, and leads a guided first path through the room.'],
-  ['Events', 'ph-calendar-dots', 'Plan room events, reminders, calendars, and deadlines without leaving the shared context.'],
-  ['Wiki', 'ph-book-open-text', 'Keep room knowledge, notes, rules, and resources in a living hub.'],
-  ['Moderation', 'ph-shield-check', 'Use reports, permissions, audit logs, keyword controls, and safety tools.'],
-  ['Integrations', 'ph-plugs-connected', 'Connect workflows through webhooks, channels, and external tools.'],
-  ['Room Memory', 'ph-brain', 'Preserve important context so the room remembers what happened and feeds better future digests.'],
-];
+const featureStatusCopy = Object.freeze({
+  available: 'Available now',
+  beta: 'Availability varies',
+  planned: 'Not in the current release',
+});
 
-const powerWorkspaceTools = [
-  'Command palette',
-  'Global search',
-  'Keyboard shortcuts',
-  'Workspace switching',
-  'Multi-room view',
-  'Catch-Me-Up settings',
-  'Focus mode',
-  'Zen mode',
-  'Compact mode',
-  'Scheduled send',
-  'Template library',
-  'Role checklists',
-  'Offline queue',
-];
+const marketingFeatureCatalog = featuresPageContent.overview.map((overview) => {
+  const groupFeatures = overview.featureIds
+    .map((featureId) => featuresPageContent.catalog.find((feature) => feature.id === featureId))
+    .filter(Boolean);
+  const currentFeatures = groupFeatures.filter((feature) => feature.status !== 'planned');
+  return {
+    key: overview.id,
+    group: overview.title,
+    name: overview.benefit,
+    icon: featureGroupIcons[overview.id] || 'ph-squares-four',
+    plan: overview.plan,
+    media: overview.media,
+    mediaAlt: overview.mediaAlt,
+    mediaPosition: overview.mediaPosition,
+    simple: {
+      title: overview.benefit,
+      copy: overview.summary,
+      points: currentFeatures.slice(0, 3).map((feature) => feature.title),
+    },
+    power: {
+      title: overview.benefit,
+      copy: overview.summary,
+      points: groupFeatures.slice(0, 3).map((feature) => `${feature.title} · ${featureStatusCopy[feature.status]}`),
+    },
+  };
+});
 
-function slugifyFeature(label) {
-  return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+const featuredWorkflowKeys = Object.freeze(['catch-up', 'plan', 'create', 'meet']);
+const featuredWorkflowCatalog = featuredWorkflowKeys
+  .map((key) => marketingFeatureCatalog.find((feature) => feature.key === key))
+  .filter(Boolean);
+
+function planBadgeClass(plan) {
+  return `features-plan-badge is-${String(plan || '').toLowerCase().replace(/\s+/g, '-')}`;
 }
 
-function FeatureRoomPreview({ feature, mode }) {
-  const [label, icon] = feature;
-  const previewRows = mode === 'simple'
-    ? ['Readable conversation', 'Room context', 'The next useful step']
-    : ['Decision captured', 'Owner assigned', 'Room memory updated'];
-
+function FeatureRoomPreview({ feature }) {
   return (
-    <div className="mkt4-feature-preview" aria-hidden="true">
-      <div className="mkt4-preview-rail">
-        <span className="mkt4-preview-mark"><i /><i /></span>
-        <span className="is-active"><i className="ph-bold ph-chat-circle-text" /></span>
-        <span><i className="ph-bold ph-users" /></span>
-        <span><i className="ph-bold ph-gear" /></span>
+    <figure className="mkt4-feature-preview">
+      <img
+        src={feature.media}
+        alt={feature.mediaAlt}
+        loading="lazy"
+        decoding="async"
+        style={{ objectPosition: feature.mediaPosition }}
+      />
+      <figcaption><span>Product capture</span><strong>{feature.group}</strong></figcaption>
+    </figure>
+  );
+}
+
+function FeatureOverview({ activeFeatureKey, onSelect }) {
+  return (
+    <section className="features-v5-overview" id="feature-groups" aria-label="Feature overview" data-marketing-reveal>
+      <div className="features-v5-overview-grid">
+        {marketingFeatureCatalog.map((feature) => (
+          <a
+            href="#feature-workbench"
+            className={feature.key === activeFeatureKey ? 'is-active' : ''}
+            aria-current={feature.key === activeFeatureKey ? 'true' : undefined}
+            onClick={() => onSelect(feature.key)}
+            key={feature.key}
+          >
+            <i className={`ph-bold ${feature.icon}`} aria-hidden="true" />
+            <span><strong>{feature.group}</strong><small>{feature.name}</small></span>
+            <em className={planBadgeClass(feature.plan)}>{feature.plan}</em>
+          </a>
+        ))}
       </div>
-      <div className="mkt4-preview-room">
-        <header><strong>HOME</strong><span>{mode === 'simple' ? 'CALM' : 'POWER'}</span></header>
-        <div className="mkt4-preview-feature">
-          <span><i className={`ph-bold ${icon}`} /></span>
-          <div><small>ACTIVE FEATURE</small><strong>{label}</strong></div>
-        </div>
-        <div className="mkt4-preview-rows">
-          {previewRows.map((row, index) => <p className={index === 1 ? 'is-accent' : ''} key={row}><i className="ph-bold ph-check" /> {row}</p>)}
-        </div>
+      <p className="features-v5-plan-note">{featuresPageContent.statusIntro}</p>
+    </section>
+  );
+}
+
+function FeatureWorkflowGallery({ onSelect }) {
+  return (
+    <section className="mkt4-section features-v5-gallery" data-marketing-reveal>
+      <header className="mkt4-section-heading">
+        <div><span>02</span><h2>See the work, not an icon.</h2></div>
+        <p>Real product crops show how Catch-Up, Tasks, Docs, and Events behave before you open the full explorer.</p>
+      </header>
+      <div className="features-v5-gallery-grid">
+        {featuredWorkflowCatalog.map((feature) => (
+          <a
+            href="#feature-workbench"
+            className={`features-v5-gallery-card is-${feature.key}`}
+            onClick={() => onSelect(feature.key)}
+            key={feature.key}
+          >
+            <span className="features-v5-gallery-copy">
+              <small>{feature.group}</small>
+              <strong>{feature.name}</strong>
+              <em className={planBadgeClass(feature.plan)}>{feature.plan}</em>
+            </span>
+            <span className="features-v5-gallery-media">
+              <img src={feature.media} alt={feature.mediaAlt} loading="lazy" decoding="async" style={{ objectPosition: feature.mediaPosition }} />
+            </span>
+          </a>
+        ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -1283,86 +1636,82 @@ function MarketingClose({ title, copy, secondaryHref = '/download', secondaryLab
 export function FeaturesPage() {
   const [mode, setMode] = useMarketingFeatureMode();
   const activeMode = featureModeMeta[mode];
-  const cards = mode === 'simple' ? simpleFeatureCards : powerFeatureCards;
-  const [activeFeatureKey, setActiveFeatureKey] = useState(() => slugifyFeature(simpleFeatureCards[0][0]));
-  const activeFeature = cards.find(([label]) => slugifyFeature(label) === activeFeatureKey) || cards[0];
-
-  const changeMode = (nextMode) => {
-    setMode(nextMode);
-    const nextCards = nextMode === 'simple' ? simpleFeatureCards : powerFeatureCards;
-    setActiveFeatureKey(slugifyFeature(nextCards[0][0]));
-  };
+  const [activeFeatureKey, setActiveFeatureKey] = useState('catch-up');
+  const activeFeature = marketingFeatureCatalog.find((feature) => feature.key === activeFeatureKey) || marketingFeatureCatalog[0];
+  const activeDetail = activeFeature[mode];
 
   return (
-    <MarketingShell title="Minimalist | Features" shape={null} description="Explore Minimalist rooms, Catch-Me-Up, focus tools, decisions, action items, scheduling, templates, offline reading, search, and room memory.">
-      <main className="marketing-v4 features-v4" data-feature-mode={mode}>
-        <section className="mkt4-hero mkt4-features-hero">
+    <MarketingShell title={featuresPageContent.meta.title} shape={null} description={featuresPageContent.meta.description}>
+      <main className="marketing-v4 marketing-v5 features-v5" data-feature-mode={mode}>
+        <section className="mkt4-hero mkt4-features-hero mv5-hero" data-marketing-reveal>
           <div className="mkt4-hero-copy">
-            <h1>Everything your room needs. Nothing in the way.</h1>
-            <p>{activeMode.copy}</p>
+            <h1>{featuresPageContent.hero.title}</h1>
+          </div>
+          <div className="features-v5-hero-side">
+            <p>{featuresPageContent.hero.copy}</p>
+            <FeatureModeSwitch mode={mode} onChange={setMode} className="mkt4-mode-switch" />
             <div className="mkt4-actions">
               <a href="#feature-workbench" className="mkt4-button is-primary">Explore the system <CtaArrowIcon /></a>
               <Link to="/chat" reloadDocument className="mkt4-button">Open the app</Link>
             </div>
           </div>
-          <div className="mkt4-hero-console">
-            <div className="mkt4-console-top"><span>ROOM SYSTEM</span><strong>{activeMode.shortLabel} mode</strong></div>
-            <FeatureModeSwitch mode={mode} onChange={changeMode} className="mkt4-mode-switch" />
-            <FeatureRoomPreview feature={activeFeature} mode={mode} />
-          </div>
         </section>
 
-        <section className="mkt4-section" id="feature-workbench">
+        <FeatureOverview activeFeatureKey={activeFeature.key} onSelect={setActiveFeatureKey} />
+
+        <FeatureWorkflowGallery onSelect={setActiveFeatureKey} />
+
+        <section className="mkt4-section features-v5-workbench" id="feature-workbench" data-marketing-reveal>
           <header className="mkt4-section-heading">
-            <div><span>01</span><h2>Explore the room system.</h2></div>
-            <p>Select a capability to see how it fits into a calmer room. Switch modes when the group needs more structure.</p>
+            <div><span>03</span><h2>Explore each purpose.</h2></div>
+            <p>Select a workflow to see its outcome, plan guide, current availability, and the product surface behind it.</p>
           </header>
           <div className="mkt4-explorer">
-            <div className="mkt4-explorer-tabs" role="tablist" aria-label={`${activeMode.label} features`}>
-              {cards.map(([label, icon], index) => {
-                const key = slugifyFeature(label);
-                const selected = key === slugifyFeature(activeFeature[0]);
+            <div className="mkt4-explorer-tabs" role="tablist" aria-orientation="horizontal" aria-label={`${activeMode.label} features`}>
+              {marketingFeatureCatalog.map((feature, index) => {
+                const selected = feature.key === activeFeature.key;
                 return (
                   <button
                     type="button"
-                    id={`mkt4-feature-tab-${key}`}
+                    id={`mkt4-feature-tab-${feature.key}`}
                     role="tab"
                     tabIndex={selected ? 0 : -1}
                     aria-selected={selected}
                     aria-controls="mkt4-feature-panel"
                     className={selected ? 'is-active' : ''}
-                    onClick={() => setActiveFeatureKey(key)}
-                    onKeyDown={(event) => handleTabListKeyDown(event, index, cards.length, (nextIndex) => setActiveFeatureKey(slugifyFeature(cards[nextIndex][0])))}
-                    key={label}
+                    onClick={() => setActiveFeatureKey(feature.key)}
+                    onKeyDown={(event) => handleTabListKeyDown(event, index, marketingFeatureCatalog.length, (nextIndex) => setActiveFeatureKey(marketingFeatureCatalog[nextIndex].key))}
+                    key={feature.key}
                   >
-                    <span>{String(index + 1).padStart(2, '0')}</span><i className={`ph-bold ${icon}`} /><strong>{label}</strong><CtaArrowIcon />
+                    <i className={`ph-bold ${feature.icon}`} aria-hidden="true" />
+                    <span><small>{feature.group}</small><strong>{feature.name}</strong></span>
                   </button>
                 );
               })}
             </div>
-            <div className="mkt4-explorer-panel" id="mkt4-feature-panel" role="tabpanel" aria-labelledby={`mkt4-feature-tab-${slugifyFeature(activeFeature[0])}`} aria-live="polite">
+            <div className="mkt4-explorer-panel" id="mkt4-feature-panel" role="tabpanel" aria-labelledby={`mkt4-feature-tab-${activeFeature.key}`} aria-live="polite">
               <div className="mkt4-explorer-copy">
-                <span>{activeMode.label}</span>
-                <h3>{activeFeature[0]}</h3>
-                <p>{activeFeature[2]}</p>
+                <span>{activeMode.label} · {activeFeature.group} <em className={planBadgeClass(activeFeature.plan)}>{activeFeature.plan}</em></span>
+                <h3>{activeDetail.title}</h3>
+                <p>{activeDetail.copy}</p>
+                <ul>{activeDetail.points.map((point) => <li key={point}><i className="ph-bold ph-check" aria-hidden="true" /> {point}</li>)}</ul>
               </div>
-              <FeatureRoomPreview feature={activeFeature} mode={mode} />
+              <FeatureRoomPreview feature={activeFeature} />
             </div>
           </div>
         </section>
 
-        <section className="mkt4-section mkt4-room-flow">
+        <section className="mkt4-section mkt4-room-flow" data-marketing-reveal>
           <header className="mkt4-section-heading">
-            <div><span>02</span><h2>{mode === 'simple' ? 'Calm first.' : 'Depth on demand.'}</h2></div>
-            <p>{mode === 'simple' ? 'The essentials stay visible and readable from the first message.' : 'Advanced controls stay organized instead of flooding the conversation.'}</p>
+            <div><span>04</span><h2>{mode === 'simple' ? 'The essentials stay obvious.' : 'The deeper tools stay organized.'}</h2></div>
+            <p>{activeMode.copy}</p>
           </header>
           <div className="mkt4-flow-list">
             {activeMode.list.map((feature, index) => <div key={feature}><span>{String(index + 1).padStart(2, '0')}</span><strong>{feature}</strong></div>)}
           </div>
-          {mode === 'power' ? <div className="mkt4-tool-rail" aria-label="Power-user tools">{powerWorkspaceTools.map((tool) => <span key={tool}>{tool}</span>)}</div> : null}
         </section>
 
-        <MarketingClose title="Start calm. Add power when it earns its place." copy="Create a room, invite your people, and let the structure grow with the conversation." />
+        <MarketingClose title="Start with a room. Add depth when it helps." copy="Create a calm place for your people, then let the useful structure grow with the conversation." />
       </main>
     </MarketingShell>
   );
@@ -1374,66 +1723,67 @@ const downloads = [
     name: 'Web App',
     icon: 'ph-globe',
     status: 'Available now',
-    meta: 'No install required',
+    availability: 'available',
+    meta: 'Works in a modern browser',
     cta: 'Open Minimalist',
     href: '/chat',
-    requirements: ['Works on desktop and mobile browsers', 'Best way to use Minimalist today'],
+    requirements: ['Use the room workspace without a separate installer', 'Install or pin it when your browser offers that option'],
   },
   {
     id: 'windows',
     name: 'Windows',
     icon: 'ph-windows-logo',
-    status: 'Desktop app planned',
-    meta: 'Windows 10+ • 64-bit',
-    cta: 'Notify me',
-    requirements: ['Native notifications', 'Pinned desktop experience'],
+    status: 'Not announced',
+    availability: 'not-announced',
+    meta: 'No public Windows release date',
+    requirements: ['Use the web app on Windows today', 'Any future native release will be listed here'],
   },
   {
     id: 'mac',
     name: 'macOS',
     icon: 'ph-apple-logo',
-    status: 'Desktop app planned',
-    meta: 'Apple Silicon + Intel',
-    cta: 'Notify me',
-    requirements: ['macOS 12 Monterey or later', 'Menu bar and system integrations planned'],
+    status: 'Not announced',
+    availability: 'not-announced',
+    meta: 'No public macOS release date',
+    requirements: ['Use the web app on macOS today', 'Any future native release will be listed here'],
   },
   {
     id: 'android',
     name: 'Android',
     icon: 'ph-android-logo',
-    status: 'Mobile app planned',
-    meta: 'Android 8+',
-    cta: 'Notify me',
-    requirements: ['Push notifications', 'Share sheet and camera import planned'],
+    status: 'Not announced',
+    availability: 'not-announced',
+    meta: 'No public Android release date',
+    requirements: ['Use the mobile web app today', 'No production Android download is currently published'],
   },
   {
     id: 'ios',
     name: 'iPhone & iPad',
     icon: 'ph-device-mobile',
-    status: 'Mobile app planned',
-    meta: 'iOS / iPadOS 15+',
-    cta: 'Notify me',
-    requirements: ['Home Screen app support', 'Native notification polish planned'],
+    status: 'Not announced',
+    availability: 'not-announced',
+    meta: 'No public iOS or iPadOS release date',
+    requirements: ['Use the mobile web app today', 'No production App Store download is currently published'],
   },
 ];
 
 const downloadHighlights = [
-  ['ph-lightning', 'Launch fast', 'Open the web app instantly and keep your rooms one tap away.'],
-  ['ph-cloud-check', 'Same account', 'Your rooms, chats, docs, and settings follow your sign-in.'],
-  ['ph-shield-check', 'Built calmer', 'A cleaner workspace than noisy group chats, with power when you need it.'],
+  ['ph-globe', 'Web app available', 'Open Minimalist on desktop or mobile without waiting for a native release.'],
+  ['ph-cloud-check', 'Account-backed rooms', 'Signed-in room data is available anywhere the supported web app is available.'],
+  ['ph-download-simple', 'Install when offered', 'Supported browsers can add an app-like shortcut for a faster return.'],
 ];
 
 const installSteps = [
   ['Open', 'Use the web app today from any modern browser.'],
-  ['Pin', 'Add it to your desktop, taskbar, dock, or phone Home Screen.'],
+  ['Install or pin', 'Use the browser install control, taskbar, dock, or Home Screen when supported.'],
   ['Sign in', 'Pick up rooms, messages, files, and settings from one account.'],
 ];
 
 const downloadFaqs = [
-  ['Is there a real installer yet?', 'Not yet. The web app is the production path right now, and native apps are planned.'],
+  ['Is there a native installer?', 'No production desktop or mobile store download is currently published. The web app is the available path today.'],
   ['Can I use it on my phone?', 'Yes. Open the web app on mobile, then add it to your Home Screen for an app-like flow.'],
   ['Is it free?', 'Yes. Base is free; Advanced and Pro add higher limits, analytics, video, badges, and power features.'],
-  ['Will native apps sync with the web app?', 'Yes. The goal is one account and the same rooms across web, desktop, and mobile.'],
+  ['What stays on this device?', 'The browser keeps local session, preference, cache, and install data. Signed-in room content is stored through Minimalist services and can be available in another supported browser.'],
 ];
 
 function detectedPlatform() {
@@ -1448,8 +1798,9 @@ function detectedPlatform() {
 export function DownloadPage() {
   const platform = useMemo(() => detectedPlatform(), []);
   const [toast, setToast] = useState('');
+  const toastTimerRef = useRef(null);
   const [installState, setInstallState] = useState(() => window.getMinimalistInstallState?.() || { canInstall: false, installed: false });
-  const [selectedPlatformId, setSelectedPlatformId] = useState(() => platform || 'web');
+  const [selectedPlatformId, setSelectedPlatformId] = useState('web');
   const detectedLabel = downloads.find((item) => item.id === platform)?.name;
   const selectedPlatform = downloads.find((item) => item.id === selectedPlatformId) || downloads[0];
 
@@ -1457,38 +1808,48 @@ export function DownloadPage() {
     const syncInstallState = (event) => setInstallState(event.detail || window.getMinimalistInstallState?.() || { canInstall: false, installed: false });
     syncInstallState({});
     window.addEventListener('minimalist:pwa-install-state', syncInstallState);
-    return () => window.removeEventListener('minimalist:pwa-install-state', syncInstallState);
+    return () => {
+      window.removeEventListener('minimalist:pwa-install-state', syncInstallState);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    };
   }, []);
+
+  const showToast = (message) => {
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    setToast(message);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast('');
+      toastTimerRef.current = null;
+    }, 3500);
+  };
 
   const installApp = async () => {
     const result = await window.promptMinimalistInstall?.();
-    if (result?.outcome === 'accepted') setToast('Minimalist is installing.');
-    else setToast('Install is available from your browser menu anytime.');
-    window.setTimeout(() => setToast(''), 3500);
+    if (result?.outcome === 'accepted') showToast('Minimalist is installing.');
+    else showToast('Use your browser menu to install or pin Minimalist when supported.');
   };
 
   const useWebInstead = () => {
     setSelectedPlatformId('web');
-    setToast(`${selectedPlatform.name} is planned. The web app is ready now.`);
-    window.setTimeout(() => setToast(''), 3500);
+    showToast(`${selectedPlatform.name} has no public native release. The web app is ready now.`);
   };
 
   return (
-    <MarketingShell title="Minimalist | Download" shape={null} description="Use the Minimalist web app today, install it from a supported browser, and check the roadmap status for desktop and mobile apps.">
-      <main className="marketing-v4 download-v4">
-        <section className="mkt4-hero mkt4-download-hero">
+    <MarketingShell title={downloadPageContent.meta.title} shape={null} description={downloadPageContent.meta.description}>
+      <main className="marketing-v4 marketing-v5 download-v5">
+        <section className="mkt4-hero mkt4-download-hero mv5-hero" data-marketing-reveal>
           <div className="mkt4-hero-copy">
-            <h1>Your rooms, ready wherever you open them.</h1>
-            <p>Minimalist is ready in the browser today. Native apps are on the roadmap, while the web app already gives you the complete room workspace without waiting.</p>
+            <h1>{downloadPageContent.hero.title}</h1>
+            <p>{downloadPageContent.hero.copy}</p>
             <div className="mkt4-actions">
               <Link to="/chat" reloadDocument className="mkt4-button is-primary">Open the web app <CtaArrowIcon /></Link>
-              {installState.canInstall ? <button type="button" className="mkt4-button" onClick={installApp}><i className="ph-bold ph-download-simple" /> Install app</button> : <a href="#platforms" className="mkt4-button">Check your device</a>}
+              {installState.canInstall ? <button type="button" className="mkt4-button" onClick={installApp}><i className="ph-bold ph-download-simple" aria-hidden="true" /> Install app</button> : <a href="#platforms" className="mkt4-button">See availability</a>}
             </div>
           </div>
           <aside className="mkt4-readiness-console" aria-label="App readiness">
             <div className="mkt4-console-top"><span>DEVICE CHECK</span><strong>{installState.installed ? 'Installed' : 'Web ready'}</strong></div>
             <div className="mkt4-readiness-main">
-              <span className="mkt4-readiness-icon"><i className="ph-bold ph-globe" /></span>
+              <span className="mkt4-readiness-icon"><i className="ph-bold ph-globe" aria-hidden="true" /></span>
               <div><small>CURRENT BEST OPTION</small><strong>Web App</strong><p>No installer required. Sign in and keep moving.</p></div>
             </div>
             <div className="mkt4-readiness-lines">
@@ -1499,17 +1860,17 @@ export function DownloadPage() {
           </aside>
         </section>
 
-        <section className="mkt4-benefit-rail" aria-label="Download benefits">
-          {downloadHighlights.map(([icon, title, text], index) => <div key={title}><span>{String(index + 1).padStart(2, '0')}</span><i className={`ph-bold ${icon}`} /><strong>{title}</strong><p>{text}</p></div>)}
+        <section className="mkt4-benefit-rail" aria-label="Download benefits" data-marketing-reveal>
+          {downloadHighlights.map(([icon, title, text], index) => <div key={title}><span>{String(index + 1).padStart(2, '0')}</span><i className={`ph-bold ${icon}`} aria-hidden="true" /><strong>{title}</strong><p>{text}</p></div>)}
         </section>
 
-        <section className="mkt4-section" id="platforms">
+        <section className="mkt4-section" id="platforms" data-marketing-reveal>
           <header className="mkt4-section-heading">
-            <div><span>01</span><h2>Choose your platform.</h2></div>
-            <p>See what is usable now and what is still planned. Minimalist keeps the status explicit.</p>
+            <div><span>01</span><h2>Availability, clearly labeled.</h2></div>
+            <p>The web app is available now. Other platforms have no public native release or release date.</p>
           </header>
           <div className="mkt4-platform-workbench">
-            <div className="mkt4-platform-list" role="tablist" aria-label="Minimalist platforms">
+            <div className="mkt4-platform-list" role="tablist" aria-orientation="vertical" aria-label="Minimalist platforms">
               {downloads.map((item, index) => (
                 <button
                   type="button"
@@ -1523,23 +1884,23 @@ export function DownloadPage() {
                   onKeyDown={(event) => handleTabListKeyDown(event, index, downloads.length, (nextIndex) => setSelectedPlatformId(downloads[nextIndex].id))}
                   key={item.id}
                 >
-                  <i className={`ph-bold ${item.icon}`} /><span><strong>{item.name}</strong><small>{item.meta}</small></span><em>{item.status}</em><CtaArrowIcon />
+                  <i className={`ph-bold ${item.icon}`} aria-hidden="true" /><span><strong>{item.name}</strong><small>{item.meta}</small></span><em>{item.status}</em><CtaArrowIcon />
                 </button>
               ))}
             </div>
             <div className="mkt4-platform-detail" id="mkt4-platform-detail" role="tabpanel" aria-labelledby={`mkt4-platform-tab-${selectedPlatform.id}`} aria-live="polite">
-              <div className="mkt4-platform-detail-head"><span><i className={`ph-bold ${selectedPlatform.icon}`} /></span><small>{selectedPlatform.status}</small></div>
+              <div className="mkt4-platform-detail-head"><span><i className={`ph-bold ${selectedPlatform.icon}`} aria-hidden="true" /></span><small>{selectedPlatform.status}</small></div>
               <h3>{selectedPlatform.name}</h3>
               <p>{selectedPlatform.meta}</p>
-              <ul>{selectedPlatform.requirements.map((requirement) => <li key={requirement}><i className="ph-bold ph-check" /> {requirement}</li>)}</ul>
+              <ul>{selectedPlatform.requirements.map((requirement) => <li key={requirement}><i className="ph-bold ph-check" aria-hidden="true" /> {requirement}</li>)}</ul>
               {selectedPlatform.href ? (
                 <div className="mkt4-actions"><Link to={selectedPlatform.href} reloadDocument className="mkt4-button is-primary">Open Minimalist <CtaArrowIcon /></Link>{installState.canInstall ? <button type="button" className="mkt4-button" onClick={installApp}>Install app</button> : null}</div>
-              ) : <button type="button" className="mkt4-button is-primary" onClick={useWebInstead}>Use the web app now <CtaArrowIcon /></button>}
+              ) : <button type="button" className="mkt4-button is-primary" onClick={useWebInstead}>Open the web option <CtaArrowIcon /></button>}
             </div>
           </div>
         </section>
 
-        <section className="mkt4-section">
+        <section className="mkt4-section" data-marketing-reveal>
           <header className="mkt4-section-heading">
             <div><span>02</span><h2>Use it like an app.</h2></div>
             <p>Three quick steps, with the same rooms and settings following your sign-in.</p>
@@ -1549,10 +1910,21 @@ export function DownloadPage() {
           </div>
         </section>
 
-        <section className="mkt4-section mkt4-download-faq">
-          <header className="mkt4-section-heading"><div><span>03</span><h2>Download FAQ.</h2></div></header>
+        <section className="mkt4-section download-v5-storage" data-marketing-reveal>
+          <header className="mkt4-section-heading">
+            <div><span>03</span><h2>What follows you. What stays local.</h2></div>
+            <p>Signed-in room content is service-backed. Your browser also keeps local state to make the installed or pinned experience work.</p>
+          </header>
+          <div className="download-v5-storage-grid">
+            <article><i className="ph-bold ph-cloud-check" aria-hidden="true" /><h3>Available after sign-in</h3><p>Rooms, messages, files, docs, tasks, events, and supported account settings.</p></article>
+            <article><i className="ph-bold ph-device-mobile" aria-hidden="true" /><h3>Kept by this browser</h3><p>Session state, local preferences, app cache, and install or Home Screen state.</p></article>
+          </div>
+        </section>
+
+        <section className="mkt4-section mkt4-download-faq" data-marketing-reveal>
+          <header className="mkt4-section-heading"><div><span>04</span><h2>Download FAQ.</h2></div></header>
           <div className="mkt4-details-list">
-            {downloadFaqs.map(([question, answer], index) => <details open={index === 0} key={question}><summary><span>{question}</span><i className="ph-bold ph-plus" /></summary><p>{answer}</p></details>)}
+            {downloadFaqs.map(([question, answer], index) => <details open={index === 0} key={question}><summary><span>{question}</span><i className="ph-bold ph-plus" aria-hidden="true" /></summary><p>{answer}</p></details>)}
           </div>
         </section>
 
@@ -1565,14 +1937,14 @@ export function DownloadPage() {
 
 const storyPrinciples = [
   ['Calm by default', 'The app should feel like opening a quiet room, not walking into a stadium.'],
-  ['Power stays tucked away', 'Teams can grow into docs, events, analytics, AI, and moderation without the first screen becoming a cockpit.'],
-  ['Memory matters', 'A good room remembers decisions, files, milestones, jokes, rituals, and the people who made it feel alive.'],
+  ['Structure when useful', 'Tasks, docs, events, calls, and moderation should appear because a room needs them—not because a dashboard has space.'],
+  ['Context that serves people', 'Catch-ups, search, files, and shared work should help people move forward without pretending to remember everything for them.'],
 ];
 
 const storyTimeline = [
-  ['01', 'Start with a room', 'Create one shared place for your people.'],
-  ['02', 'Let the room take shape', 'Add files, channels, docs, events, and permissions only when the group needs them.'],
-  ['03', 'Keep the good stuff', 'Use archives, room memory, summaries, and rituals so the room becomes more valuable over time.'],
+  ['01', 'Everything competes', 'Messages, tabs, pings, and tools arrive faster than people can turn them into shared understanding.'],
+  ['02', 'A room creates space', 'One place gathers the right people, conversation, files, and tools. The chatter quiets and the group can focus.'],
+  ['03', 'Context becomes useful', 'Search, catch-ups, tasks, docs, and events help the room carry important context into the next moment.'],
 ];
 
 export function StoryPage() {
@@ -1580,33 +1952,33 @@ export function StoryPage() {
   const activeStage = storyTimeline[activeStageIndex];
 
   return (
-    <MarketingShell title="Minimalist | Story" shape={null} description="Why Minimalist is building calmer rooms where conversation, memory, files, events, and decisions can live together without turning into noise.">
-      <main className="marketing-v4 story-v4">
-        <section className="mkt4-hero mkt4-story-hero">
+    <MarketingShell title={storyPageContent.meta.title} shape={null} description={storyPageContent.meta.description}>
+      <main className="marketing-v4 marketing-v5 story-v5">
+        <section className="mkt4-hero mkt4-story-hero mv5-hero" data-marketing-reveal>
           <div className="mkt4-hero-copy">
-            <h1>Chat should give your group room to breathe.</h1>
-            <p>The modern web is crowded. Minimalist is our answer: a calmer rooms platform where conversation, memory, files, events, and decisions can live together without turning into noise.</p>
+            <h1>{storyPageContent.hero.title}</h1>
+            <p>{storyPageContent.hero.copy}</p>
           </div>
-          <div className="mkt4-story-map" aria-label="From noise to a room with memory">
-            <div><span>01</span><strong>Noise</strong></div><i />
-            <div className="is-active"><span>02</span><strong>Room</strong></div><i />
-            <div><span>03</span><strong>Memory</strong></div>
+          <div className="mkt4-story-map" aria-label="From noise to useful context">
+            <div><span>01</span><strong>Noise</strong></div><i aria-hidden="true" />
+            <div className="is-active"><span>02</span><strong>Room</strong></div><i aria-hidden="true" />
+            <div><span>03</span><strong>Context</strong></div>
           </div>
         </section>
 
-        <section className="mkt4-story-manifesto">
-          <div><h2>Just enough.</h2><span>Our manifesto</span></div>
-          <p><strong>Not more. Not less.</strong> Like framing the perfect shot, we strip away the unnecessary background until the essential focus remains: the connection between people.</p>
-          <p>Whether you are across the street or across the world, your words take center stage here. No algorithms. No clutter. Just rooms that can become places.</p>
+        <section className="mkt4-story-manifesto story-v5-note" data-marketing-reveal>
+          <div><h2>A short note.</h2><span>Why this exists</span></div>
+          <p><strong>We did not set out to build another feed.</strong> Minimalist is organized around rooms and the people inside them—not an engagement-ranked social stream.</p>
+          <p>Tools should get out of the way. Rooms should feel quiet, not empty. Useful context should lighten the load, not track people.</p>
         </section>
 
-        <section className="mkt4-section">
+        <section className="mkt4-section" data-marketing-reveal>
           <header className="mkt4-section-heading">
-            <div><span>01</span><h2>A room grows with its people.</h2></div>
-            <p>Add structure only when the group has earned a reason for it.</p>
+            <div><span>01</span><h2>From noise to room to context.</h2></div>
+            <p>Three steps define the product: protect the conversation, add structure when it helps, and make returning easier.</p>
           </header>
           <div className="mkt4-story-stage">
-            <div className="mkt4-story-stage-tabs" role="tablist" aria-label="How Minimalist grows with a room">
+            <div className="mkt4-story-stage-tabs" role="tablist" aria-orientation="vertical" aria-label="How Minimalist turns noise into useful context">
               {storyTimeline.map(([number, title], index) => (
                 <button
                   type="button"
@@ -1634,149 +2006,47 @@ export function StoryPage() {
           </div>
         </section>
 
-        <section className="mkt4-section mkt4-principles" aria-label="Design principles">
+        <section className="mkt4-section mkt4-principles" aria-label="Design principles" data-marketing-reveal>
           <header className="mkt4-section-heading"><div><span>02</span><h2>Principles over noise.</h2></div></header>
           {storyPrinciples.map(([title, copy], index) => (
             <article className="mkt4-principle-row" key={title}><span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3><p>{copy}</p></article>
           ))}
         </section>
 
-        <MarketingClose title="Make a place your group wants to return to." copy="Start with one calm room and let it become more useful over time." secondaryHref="/features" secondaryLabel="See the system" />
+        <blockquote className="story-v5-quote" data-marketing-reveal>
+          <span aria-hidden="true">“</span>
+          <p>The goal is not to do more in less time. It is to do what matters with a clearer mind.</p>
+          <cite>Minimalist manifesto</cite>
+        </blockquote>
+
+        <MarketingClose title="A calmer way to work starts here." copy="Open one room for your people and let useful structure earn its place." secondaryHref="/features" secondaryLabel="See the system" />
       </main>
     </MarketingShell>
   );
 }
-
-const faqTopics = ['All', 'Basics', 'Features', 'Plans', 'People', 'Privacy'];
 
 export function FaqPage() {
-  const [query, setQuery] = useState('');
-  const [topic, setTopic] = useState('All');
-  const normalizedQuery = query.trim().toLowerCase();
-  const filteredFaqs = useMemo(() => faqItems.filter((item) => {
-    const matchesTopic = topic === 'All' || item.topic === topic;
-    const matchesQuery = !normalizedQuery || `${item.question} ${item.answer}`.toLowerCase().includes(normalizedQuery);
-    return matchesTopic && matchesQuery;
-  }), [normalizedQuery, topic]);
-
-  return (
-    <MarketingShell title="Minimalist | Frequently Asked Questions" shape={null} description="Answers about Minimalist rooms, collaboration tools, plans, contacts, and privacy." structuredData={FAQ_PAGE_STRUCTURED_DATA}>
-      <main className="marketing-v4 faq-v4">
-        <section className="mkt4-hero mkt4-faq-hero">
-          <div className="mkt4-hero-copy"><h1>Answers without the scavenger hunt.</h1><p>Search the details, narrow by topic, and open only what you need.</p></div>
-          <div className="mkt4-faq-search-panel">
-            <label htmlFor="faq-search"><span>SEARCH HELP</span><i className="ph-bold ph-magnifying-glass" /></label>
-            <input id="faq-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search rooms, plans, privacy..." autoComplete="off" />
-            <p aria-live="polite">{filteredFaqs.length} {filteredFaqs.length === 1 ? 'answer' : 'answers'} available</p>
-          </div>
-        </section>
-
-        <section className="mkt4-section mkt4-faq-section">
-          <header className="mkt4-section-heading"><div><span>01</span><h2>Find the right answer.</h2></div><p>Filter the knowledge base without leaving the page.</p></header>
-          <div className="mkt4-topic-rail" aria-label="FAQ topics">
-            {faqTopics.map((item) => <button type="button" aria-pressed={topic === item} className={topic === item ? 'is-active' : ''} onClick={() => setTopic(item)} key={item}>{item}</button>)}
-          </div>
-          <div className="mkt4-faq-list">
-            {filteredFaqs.map((item, index) => (
-              <details className="mkt4-faq-row" open={index === 0 && !normalizedQuery} key={item.question}>
-                <summary><span>{item.topic}</span><strong>{item.question}</strong><i className="ph-bold ph-plus" /></summary>
-                <p>{item.answer}</p>
-              </details>
-            ))}
-            {filteredFaqs.length === 0 ? <div className="mkt4-faq-empty"><i className="ph-bold ph-magnifying-glass" /><h2>No answers matched.</h2><p>Try another phrase or clear the current topic.</p><button type="button" className="mkt4-button" onClick={() => { setQuery(''); setTopic('All'); }}>Clear filters</button></div> : null}
-          </div>
-        </section>
-
-        <section className="mkt4-support-strip"><div><h2>Still need help?</h2><p>Talk to a person or report something that is not working.</p></div><div className="mkt4-actions"><a href="mailto:support@minimalist.com" className="mkt4-button is-primary">Email support <CtaArrowIcon /></a><a href="https://github.com/Hao14/minimalist-chat/issues" target="_blank" rel="noopener noreferrer" className="mkt4-button">Report a bug</a></div></section>
-      </main>
-    </MarketingShell>
-  );
-}
-
-const privacySections = [
-  {
-    id: 'information-we-collect',
-    title: '1. Information We Collect',
-    copy: 'We collect the information needed to provide the service:',
-    items: [
-      <><strong>Account Data:</strong> Email address, display name, profile details, and authentication identifiers.</>,
-      <><strong>Chat Data:</strong> Messages, uploaded files, reactions, room content, and collaboration data.</>,
-      <><strong>Billing Data:</strong> Subscription status and Stripe customer identifiers. We do not store raw payment-card numbers.</>,
-    ],
-  },
-  {
-    id: 'third-party-services',
-    title: '2. Third-Party Services',
-    items: [
-      <><strong>Google Firebase:</strong> Authentication, real-time data, functions, and file storage.</>,
-      <><strong>Stripe:</strong> Secure subscription payment processing.</>,
-    ],
-  },
-  {
-    id: 'right-to-deletion',
-    title: '3. Your Right to Deletion',
-    copy: 'You can permanently delete your account from Settings. This removes your profile and authentication record.',
-  },
-];
-
-const termsSections = [
-  {
-    id: 'acceptance',
-    title: '1. Acceptance of Terms',
-    copy: 'By accessing Minimalist Chat, you agree to these terms. If you do not agree, do not use the service.',
-  },
-  {
-    id: 'user-conduct',
-    title: '2. User Conduct & Content',
-    copy: 'You are responsible for content you transmit and agree not to:',
-    items: [
-      <>Upload or share illegal, harmful, or abusive content.</>,
-      <>Impersonate another person or entity.</>,
-      <>Bypass billing, authentication, or security controls.</>,
-    ],
-  },
-  {
-    id: 'subscriptions',
-    title: '3. Subscriptions & Refunds',
-    copy: 'Paid features are billed through Stripe. Subscriptions renew until cancelled and can be managed through the billing portal.',
-  },
-];
-
-function LegalDocumentPage({ title, description, sections }) {
-  return (
-    <MarketingShell title={`Minimalist | ${title}`} shape={null} description={description}>
-      <main className="marketing-v4 legal-v4" id="top">
-        <section className="mkt4-hero mkt4-legal-hero">
-          <div className="mkt4-hero-copy"><h1>{title}</h1><p>Clear, plain-language details for using Minimalist with confidence.</p></div>
-          <div className="mkt4-legal-meta"><span>LAST UPDATED</span><strong>June 2026</strong><button type="button" className="mkt4-button" onClick={() => window.print()}><i className="ph-bold ph-file-text" /> Print</button></div>
-        </section>
-        <div className="mkt4-legal-layout">
-          <aside className="mkt4-legal-nav" aria-label={`${title} contents`}>
-            <span>ON THIS PAGE</span>
-            {sections.map((section) => <a href={`#${section.id}`} key={section.id}>{section.title.replace(/^\d+\.\s*/, '')}</a>)}
-            <a href="#top">Back to top</a>
-          </aside>
-          <article className="mkt4-legal-document">
-            {sections.map((section) => (
-              <section className="mkt4-legal-section" id={section.id} key={section.id}>
-                <h2>{section.title}</h2>
-                {section.copy ? <p>{section.copy}</p> : null}
-                {section.items ? <ul>{section.items.map((item, index) => <li key={`${section.id}-${index}`}>{item}</li>)}</ul> : null}
-              </section>
-            ))}
-          </article>
-        </div>
-      </main>
-    </MarketingShell>
-  );
+  return <MarketingFaqContent MarketingShell={MarketingShell} CtaArrowIcon={CtaArrowIcon} />;
 }
 
 export function PrivacyPage() {
-  return <LegalDocumentPage title="Privacy Policy" description="Read how Minimalist handles account, chat, billing, Firebase, Stripe, and account-deletion data." sections={privacySections} />;
+  return (
+    <MarketingLegalContent
+      page="privacy"
+      shellComponent={MarketingShell}
+      ctaArrowIcon={CtaArrowIcon}
+    />
+  );
 }
 
 export function TermsPage() {
-  return <LegalDocumentPage title="Terms of Service" description="Read the Minimalist terms covering acceptance, user conduct, content, subscriptions, and refunds." sections={termsSections} />;
+  return (
+    <MarketingLegalContent
+      page="terms"
+      shellComponent={MarketingShell}
+      ctaArrowIcon={CtaArrowIcon}
+    />
+  );
 }
 
 export function NotFoundPage() {

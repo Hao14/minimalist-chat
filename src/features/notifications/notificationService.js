@@ -2,6 +2,13 @@ import { limitToLast, onValue, orderByChild, query, ref, remove, update } from '
 import { createElement, useEffect, useMemo, useState } from 'react';
 import { db } from '../../lib/firebase.js';
 import { getAuthedJsonHeaders } from '../../lib/authToken.js';
+import {
+  APP_SOUND_PREFERENCE_EVENT,
+  getUiSoundBlockReason,
+  playUiSound,
+  setUiSoundsEnabled,
+  uiSoundsEnabled,
+} from '../audio/uiSoundService.js';
 import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import {
   filterActivityNotifications,
@@ -23,7 +30,7 @@ let activityUnreadCount = 0;
 let pmUnreadCount = 0;
 const seenNotificationSignatures = new Set();
 const MAX_SEEN_NOTIFICATION_SIGNATURES = 500;
-const REALTIME_SOUND_TYPES = new Set(['mention', 'message', 'invite', 'friend']);
+const REALTIME_SOUND_TYPES = new Set(['mention', 'reply', 'message', 'invite', 'friend']);
 const NOTIFICATION_MODES = [
   { id: 'all', label: 'All', description: 'Every update' },
   { id: 'mentions', label: 'Mentions', description: 'Direct mentions only' },
@@ -163,6 +170,7 @@ window.clearNotificationGroup = async function clearNotificationGroup(idsCsv) {
 };
 
 function notificationTitle(type) {
+  if (type === 'winston') return ['Winston', 'ph-bold ph-sparkle'];
   if (type === 'message') return ['New message', 'ph-bold ph-chat-circle-text'];
   if (type === 'mention') return ['Mentioned you', 'ph-bold ph-at'];
   if (type === 'reply') return ['New reply', 'ph-bold ph-arrow-bend-up-left'];
@@ -193,7 +201,11 @@ function hasFreshRealtimeAlert(rawNotifications = {}, groups = groupNotification
     const signature = `${id}:${notification?.timestamp || 0}:${notification?.count || 1}:${notification?.text || ''}`;
     const isFresh = (notification?.timestamp || 0) > notificationListenerStartedAt - 3000;
     const isNew = rememberNotificationSignature(signature);
-    if (isNew && isFresh && visibleAlertIds.has(id) && REALTIME_SOUND_TYPES.has(notification?.type)) {
+    const visibleRoomMessage = notification?.type === 'message'
+      && notification?.roomId === activeRoomId()
+      && document.visibilityState === 'visible'
+      && document.hasFocus();
+    if (isNew && isFresh && !visibleRoomMessage && visibleAlertIds.has(id) && REALTIME_SOUND_TYPES.has(notification?.type)) {
       hasFreshAlert = true;
     }
   });
@@ -247,12 +259,14 @@ function readNotificationPrefs() {
   return {
     mode: localStorage.getItem(roomNotifyKey()) || 'all',
     dnd: localStorage.getItem('minimalist:dnd') === 'on',
+    sounds: uiSoundsEnabled(),
     keywords: readJsonList(keywordKey()),
     schedule: readSchedule(),
   };
 }
 
 function notificationDestination(group) {
+  if (group.action === 'open_winston' || group.type === 'winston') return 'Open Winston';
   if (group.pmTargetUid) return `Open PM with ${group.pmTargetName || group.from || 'sender'}`;
   if (group.roomId) {
     const channel = group.channelId && group.channelId !== 'general' ? ` · #${group.channelId}` : '';
@@ -263,6 +277,18 @@ function notificationDestination(group) {
 }
 
 async function openNotification(group) {
+  if (group.action === 'open_winston' || group.type === 'winston') {
+    if (typeof window.openPersonalAgent !== 'function') {
+      window.showToast?.('Winston is still loading. Please try again.', false);
+      return;
+    }
+    if (typeof window.closeUpdatesPanel === 'function') window.closeUpdatesPanel({ restoreFocus: false });
+    else document.getElementById('updates-panel')?.classList.remove('open');
+    await Promise.resolve(window.openPersonalAgent());
+    await window.clearNotificationGroup?.(group.ids.join(','));
+    return;
+  }
+
   if (group.pmTargetUid) {
     if (typeof window.openPrivateChat !== 'function') {
       window.showToast?.('Private messaging is still loading. Please try again.', false);
@@ -397,7 +423,7 @@ function EmptyNotifications({ filtered = false, onPreferences }) {
     h(
       'span',
       { className: 'activity-state-icon', 'aria-hidden': 'true' },
-      h('i', { className: filtered ? 'ph-bold ph-funnel' : 'ph-bold ph-bell-simple' }),
+      h('i', { className: filtered ? 'ph-bold ph-funnel' : 'ph-bold ph-bell' }),
     ),
     h('strong', null, filtered ? 'Nothing in this view' : "You're all caught up"),
     h(
@@ -413,7 +439,18 @@ function EmptyNotifications({ filtered = false, onPreferences }) {
   );
 }
 
-function NotificationControls({ as = 'li', groupCount, onDndToggle, onKeywordAdd, onKeywordRemove, onMode, onScheduleChange, prefs }) {
+function NotificationControls({
+  as = 'li',
+  groupCount,
+  onDndToggle,
+  onKeywordAdd,
+  onKeywordRemove,
+  onMode,
+  onScheduleChange,
+  onSoundPreview,
+  onSoundsToggle,
+  prefs,
+}) {
   const [keywordDraft, setKeywordDraft] = useState('');
   const scheduleEnabled = prefs.schedule.enabled === true;
   const submitKeyword = (event) => {
@@ -456,6 +493,39 @@ function NotificationControls({ as = 'li', groupCount, onDndToggle, onKeywordAdd
     h(
       'div',
       { className: 'notif-preference-group' },
+      h(
+        'div',
+        { className: 'notif-preference-row' },
+        h(
+          'div',
+          { className: 'notif-preference-copy' },
+          h('strong', null, 'App sounds'),
+          h('small', null, 'Subtle cues for sent messages, important alerts, calls, and achievements. Navigation stays quiet.'),
+        ),
+        h(
+          'div',
+          { className: 'notif-sound-actions' },
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'notif-sound-preview',
+              disabled: !prefs.sounds,
+              onClick: onSoundPreview,
+            },
+            h('i', { className: 'ph-bold ph-speaker-high', 'aria-hidden': 'true' }),
+            'Preview',
+          ),
+          h('button', {
+            type: 'button',
+            className: 'notif-switch',
+            role: 'switch',
+            'aria-label': 'App sounds',
+            'aria-checked': prefs.sounds,
+            onClick: onSoundsToggle,
+          }),
+        ),
+      ),
       h(
         'div',
         { className: 'notif-preference-row' },
@@ -603,7 +673,11 @@ function NotificationSettingsPanel({ groups = [] }) {
   useEffect(() => {
     const syncPreferences = () => setPrefs(readNotificationPrefs());
     window.addEventListener('minimalist:notification-preferences', syncPreferences);
-    return () => window.removeEventListener('minimalist:notification-preferences', syncPreferences);
+    window.addEventListener(APP_SOUND_PREFERENCE_EVENT, syncPreferences);
+    return () => {
+      window.removeEventListener('minimalist:notification-preferences', syncPreferences);
+      window.removeEventListener(APP_SOUND_PREFERENCE_EVENT, syncPreferences);
+    };
   }, []);
 
   const refreshActivityFeed = () => window.renderNotificationActivity?.();
@@ -622,6 +696,25 @@ function NotificationSettingsPanel({ groups = [] }) {
     refreshActivityFeed();
     window.syncPrivateMessageDeliveryPreferences?.();
     window.showToast?.(prefs.dnd ? 'Do Not Disturb is off.' : 'Do Not Disturb is on for this device.', false);
+  };
+
+  const toggleSounds = () => {
+    const nextEnabled = !prefs.sounds;
+    if (!setUiSoundsEnabled(nextEnabled)) {
+      window.showToast?.('App sound preference is unavailable in this browser.', false);
+      return;
+    }
+    setPrefs(readNotificationPrefs());
+    window.showToast?.(nextEnabled ? 'App sounds are on.' : 'App sounds are off.', false);
+  };
+
+  const previewSound = async () => {
+    const played = await playUiSound('preview', { bypassCooldown: true });
+    if (played) return;
+    const reason = getUiSoundBlockReason();
+    if (reason === 'dnd') window.showToast?.('Sound preview is paused by Do Not Disturb.', false);
+    else if (reason === 'quiet-hours') window.showToast?.('Sound preview is paused during quiet hours.', false);
+    else if (reason !== 'disabled') window.showToast?.('Sound preview is unavailable in this browser.', false);
   };
 
   const addKeyword = (keyword) => {
@@ -660,6 +753,8 @@ function NotificationSettingsPanel({ groups = [] }) {
       onKeywordRemove: removeKeyword,
       onMode: updateMode,
       onScheduleChange: updateSchedule,
+      onSoundPreview: previewSound,
+      onSoundsToggle: toggleSounds,
       prefs,
     }),
   );
@@ -972,7 +1067,7 @@ window.listenForNotifications = function listenForNotifications() {
 
     latestNotificationGroups = nextGroups;
     notificationConnection = { status: 'ready', error: '', updatedAt: Date.now() };
-    if (freshRealtimeAlert) window.playPing?.();
+    if (freshRealtimeAlert) void playUiSound('notification');
     syncUpdatesUnreadIndicator({ activityCount: notificationCount(nextGroups) });
     syncUpdatesPanelStatus();
     renderNotificationActivity();

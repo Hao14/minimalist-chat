@@ -1,0 +1,44 @@
+# Project-scoped UI discovery and validation tools.
+# Codex loads this file only after the repository has been trusted.
+
+[mcp_servers.shadcn]
+command = "npx"
+args = ["-y", "shadcn@4.14.0", "mcp"]
+startup_timeout_sec = 120
+tool_timeout_sec = 60
+enabled_tools = [
+  "get_project_registries",
+  "list_items_in_registries",
+  "search_items_in_registries",
+  "view_items_in_registries",
+  "get_item_examples_from_registries",
+  "get_add_command_for_items",
+  "get_audit_checklist",
+]
+
+[mcp_servers.magicui]
+command = "npx"
+args = ["-y", "@magicuidesign/mcp@2.0.0"]
+startup_timeout_sec = 120
+tool_timeout_sec = 60
+enabled_tools = [
+  "listRegistryItems",
+  "searchRegistryItems",
+  "getRegistryItem",
+]
+
+[mcp_servers.minimalist_storybook]
+url = "http://127.0.0.1:6006/mcp"
+required = false
+startup_timeout_sec = 3
+tool_timeout_sec = 120
+enabled_tools = [
+  "get-changed-stories",
+  "get-storybook-story-instructions",
+  "get-stories-by-component",
+  "preview-stories",
+  "get-documentation",
+  "get-documentation-for-story",
+  "list-all-documentation",
+  "run-story-tests",
+]

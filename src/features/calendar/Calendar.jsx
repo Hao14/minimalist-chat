@@ -11,6 +11,17 @@ import {
   shouldUseGatewayAi,
 } from '../ai/localAiClient.js';
 import { GoogleCalendarLink } from './GoogleCalendarLink.jsx';
+import { consumeSelectedCalendarImage } from './calendarPhotoSelection.js';
+import {
+  addRoomWeekToGoogleCalendar,
+  buildGoogleCalendarApiEvent,
+  calendarEventTimeZone,
+  formatCalendarEventTime,
+  googleCalendarWeekResultMessage,
+  googleCalendarWeekRoomProperty,
+  roomEventsForCalendarWeek,
+} from './googleCalendarWeek.js';
+import { browserTimeZone, eventForGoogleCalendar } from '../events/eventModel.js';
 import { useRoomTabActivity, useRoomTabDataActivity } from '../shell/roomTabActivity.js';
 import {
   activateGoogleCalendarSession,
@@ -23,6 +34,7 @@ import {
   setGoogleCalendarTokenFor,
   setGoogleCalendarConnectionState,
 } from './googleCalendarConnectionState.js';
+import './calendar.css';
 
 const accents = ['#22d3ee', '#a78bfa', '#34d399', '#fb923c', '#f472b6', '#60a5fa'];
 const dow = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -41,20 +53,6 @@ const keyOf = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad
 const addDays = (date, days) => { const next = new Date(date); next.setDate(next.getDate() + days); return next; };
 const startOfWeek = (date) => { const next = new Date(date); next.setHours(0, 0, 0, 0); next.setDate(next.getDate() - next.getDay()); return next; };
 const makeToday = () => { const today = new Date(); today.setHours(0, 0, 0, 0); return { selectedKey: keyOf(today), weekStart: startOfWeek(today), todayKey: keyOf(today) }; };
-
-function formatTime(time) {
-  if (!time) return '';
-  const [hour, minute] = time.split(':').map(Number);
-  const ampm = hour < 12 ? 'AM' : 'PM';
-  return `${((hour + 11) % 12) + 1}:${pad(minute || 0)} ${ampm}`;
-}
-
-function endTime(time, duration) {
-  if (!time) return '';
-  const [hour, minute] = time.split(':').map(Number);
-  const total = (hour * 60 + (minute || 0) + (parseInt(duration, 10) || 0)) % 1440;
-  return formatTime(`${pad(Math.floor(total / 60))}:${pad(total % 60)}`);
-}
 
 function formatDuration(minutes) {
   const value = parseInt(minutes, 10);
@@ -88,7 +86,28 @@ function bucketEvents(roomEvents, googleEvents) {
 
 function loadScript(src) {
   return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const googleIdentityReady = () => src !== 'https://accounts.google.com/gsi/client' || Boolean(window.google?.accounts?.oauth2);
+    if (googleIdentityReady()) return resolve();
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing) {
+      let settled = false;
+      let timeout;
+      const finish = (callback) => (value) => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        callback(value);
+      };
+      const loaded = finish(resolve);
+      const failed = finish(reject);
+      existing.addEventListener('load', loaded, { once: true });
+      existing.addEventListener('error', () => failed(new Error('Google authorization could not be loaded.')), { once: true });
+      timeout = window.setTimeout(() => {
+        if (googleIdentityReady()) loaded();
+        else failed(new Error('Google authorization did not become ready.'));
+      }, 5000);
+      return;
+    }
     const script = document.createElement('script');
     script.src = src;
     script.onload = resolve;
@@ -111,6 +130,12 @@ function loadImage(file) {
     };
     image.src = url;
   });
+}
+
+function fullDateLabel(dateKey) {
+  const [year, month, day] = String(dateKey || '').split('-').map(Number);
+  if (!year || !month || !day) return '';
+  return new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' }).format(new Date(year, month - 1, day));
 }
 
 function canvasBase64(canvas, quality) {
@@ -176,6 +201,7 @@ function eventFingerprint(event = {}) {
   return [
     String(event.date || '').trim(),
     String(event.time || '').trim(),
+    calendarEventTimeZone(event),
     String(event.title || '').trim().toLowerCase().replace(/\s+/g, ' '),
     String(event.location || '').trim().toLowerCase().replace(/\s+/g, ' '),
   ].join('|');
@@ -185,8 +211,10 @@ function toLocalGoogleEvent(item) {
   const start = item.start || {};
   let date = '';
   let time = '';
+  let startAt = 0;
   if (start.dateTime) {
     const parsed = new Date(start.dateTime);
+    startAt = parsed.getTime();
     date = keyOf(parsed);
     time = `${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
   } else if (start.date) {
@@ -194,13 +222,23 @@ function toLocalGoogleEvent(item) {
   } else return null;
   let duration = 0;
   if (start.dateTime && item.end?.dateTime) duration = Math.max(0, Math.round((new Date(item.end.dateTime) - new Date(start.dateTime)) / 60000));
-  return { id: `google-${item.id}`, title: item.summary || '(no title)', date, time, duration, location: item.location || '', _google: true, _gid: item.id };
+  return {
+    id: `google-${item.id}`,
+    title: item.summary || '(no title)',
+    date,
+    time,
+    timeZone: browserTimeZone(),
+    duration,
+    location: item.location || '',
+    _google: true,
+    _gid: item.id,
+    _startAt: startAt,
+  };
 }
 
 function CalendarEvent({ canEdit, event, index, onDelete }) {
-  const end = event.duration ? endTime(event.time, event.duration) : '';
   const meta = [];
-  if (event.time) meta.push(end ? `${formatTime(event.time)} - ${end}` : formatTime(event.time));
+  if (event.time) meta.push(formatCalendarEventTime(event) || event.time);
   const duration = formatDuration(event.duration);
   if (duration) meta.push(duration);
 
@@ -215,8 +253,8 @@ function CalendarEvent({ canEdit, event, index, onDelete }) {
       </div>
       {!event._google ? (
         <div className="cal-ev-actions">
-          <GoogleCalendarLink event={event} />
-          {canEdit ? <button type="button" className="cal-ev-del" title="Delete" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event)}>&times;</button> : null}
+          <GoogleCalendarLink event={eventForGoogleCalendar(event)} />
+          {canEdit ? <button type="button" className="cal-ev-del" title="Delete" aria-label={`Delete ${event.title}`} onClick={() => onDelete(event)}><i className="ph-bold ph-trash" aria-hidden="true" /></button> : null}
         </div>
       ) : null}
     </article>
@@ -239,8 +277,16 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
   const [addOpen, setAddOpen] = useState(false);
   const [draft, setDraft] = useState({ title: '', time: '', duration: '', location: '' });
   const [photoImport, setPhotoImport] = useState({ active: false, progress: 0, label: '' });
+  const [scanSourceOpen, setScanSourceOpen] = useState(false);
+  const [weekGoogleBusy, setWeekGoogleBusy] = useState(false);
+  const [weekGoogleStatus, setWeekGoogleStatus] = useState('');
   const [eventsStatus, setEventsStatus] = useState({ roomId: null, loading: true, error: '' });
   const photoInput = useRef(null);
+  const cameraInput = useRef(null);
+  const scanActions = useRef(null);
+  const scanButton = useRef(null);
+  const firstScanSource = useRef(null);
+  const weekGoogleToken = useRef({ token: '', uid: connectionUid });
   const aiConfig = useMemo(() => getLocalAiConfig(localAiConfig), [localAiConfig]);
   const visionConfig = useMemo(() => getLocalVisionAiConfig(aiConfig), [aiConfig]);
   const useCalendarGateway = useMemo(() => shouldUseGatewayAi(aiConfig) && Boolean(aiConfig.calendarEndpoint), [aiConfig]);
@@ -258,6 +304,33 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     if (!tabActive) return;
     if (activateGoogleCalendarSession(connectionUid)) gcalSilentTried = false;
   }, [connectionUid, tabActive]);
+
+  useEffect(() => {
+    if (weekGoogleToken.current.uid !== connectionUid) {
+      weekGoogleToken.current = { token: '', uid: connectionUid };
+    }
+  }, [connectionUid]);
+
+  useEffect(() => {
+    if (!scanSourceOpen) return undefined;
+
+    const closeOnOutsidePress = (event) => {
+      if (!scanActions.current?.contains(event.target)) setScanSourceOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setScanSourceOpen(false);
+      window.requestAnimationFrame(() => scanButton.current?.focus());
+    };
+
+    document.addEventListener('pointerdown', closeOnOutsidePress);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsidePress);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [scanSourceOpen]);
 
   useEffect(() => {
     const syncConnectionState = (event) => {
@@ -306,7 +379,10 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
   const linkedGoogleIds = useMemo(() => new Set(roomEvents.map((event) => event.gId).filter(Boolean)), [roomEvents]);
   const buckets = useMemo(() => bucketEvents(roomEvents, googleEvents), [googleEvents, roomEvents]);
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
+  const weekRoomEvents = useMemo(() => roomEventsForCalendarWeek(roomEvents, weekStart), [roomEvents, weekStart]);
   const agenda = useMemo(() => [...(buckets[selectedKey] || [])].sort((a, b) => (a.time || '').localeCompare(b.time || '')), [buckets, selectedKey]);
+  const selectedDayLabel = fullDateLabel(selectedKey);
+  const totalEventCount = roomEvents.length + googleEvents.length;
 
   const setWeek = (date) => setPosition((current) => ({ ...current, weekStart: startOfWeek(date), selectedKey: keyOf(startOfWeek(date)) }));
   const selectToday = () => setPosition(makeToday());
@@ -334,7 +410,11 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       }
       const data = await response.json();
       if (!isGoogleCalendarSessionActive(connectionUid) || googleCalendarTokenFor(connectionUid) !== token) return;
-      const imported = (data.items || []).map(toLocalGoogleEvent).filter(Boolean).filter((event) => !linkedGoogleIds.has(event._gid));
+      const imported = (data.items || [])
+        .filter((item) => item.extendedProperties?.private?.[googleCalendarWeekRoomProperty] !== roomId)
+        .map(toLocalGoogleEvent)
+        .filter(Boolean)
+        .filter((event) => !linkedGoogleIds.has(event._gid));
       setGoogleEvents(imported);
       window.showToast?.(`Imported ${imported.length} Google event(s).`, false);
     } catch (error) {
@@ -409,22 +489,100 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     setDisconnecting(false);
   };
 
+  const requestWeekGoogleToken = async () => {
+    if (!gcalClientId) throw new Error("Google Calendar isn't set up yet.");
+    if (!connectionUid) throw new Error('Sign in before adding this week to Google Calendar.');
+    await loadScript('https://accounts.google.com/gsi/client');
+    if (!window.google?.accounts?.oauth2) throw new Error('Google authorization did not become ready.');
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (callback) => (value) => {
+        if (settled) return;
+        settled = true;
+        callback(value);
+      };
+      const resolveOnce = finish(resolve);
+      const rejectOnce = finish(reject);
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: gcalClientId,
+        scope: gcalScope,
+        callback: (response) => {
+          const accessToken = String(response?.access_token || '').trim();
+          if (response?.error || !accessToken) {
+            rejectOnce(new Error(response?.error_description || 'Google authorization was not completed.'));
+            return;
+          }
+          resolveOnce(accessToken);
+        },
+        error_callback: (error) => {
+          const message = error?.type === 'popup_closed'
+            ? 'Google authorization was closed before it finished.'
+            : 'Google authorization could not open. Allow pop-ups and try again.';
+          rejectOnce(new Error(message));
+        },
+      });
+      tokenClient.requestAccessToken({});
+    });
+  };
+
+  const addThisWeekToGoogle = async () => {
+    if (weekGoogleBusy) return;
+    const frozenEvents = weekRoomEvents.map((event) => ({ ...event }));
+    if (!frozenEvents.length) {
+      const message = 'No room events to add from this week.';
+      setWeekGoogleStatus(message);
+      window.showToast?.(message);
+      return;
+    }
+
+    const actionUid = connectionUid;
+    const actionRoomId = roomId;
+    setWeekGoogleBusy(true);
+    setWeekGoogleStatus(`Adding ${frozenEvents.length} event${frozenEvents.length === 1 ? '' : 's'} to Google Calendar…`);
+
+    try {
+      let accessToken = googleCalendarTokenFor(actionUid)
+        || (weekGoogleToken.current.uid === actionUid ? weekGoogleToken.current.token : '');
+      if (!accessToken) {
+        accessToken = await requestWeekGoogleToken();
+        weekGoogleToken.current = { token: accessToken, uid: actionUid };
+      }
+
+      let result;
+      try {
+        result = await addRoomWeekToGoogleCalendar({ accessToken, events: frozenEvents, roomId: actionRoomId });
+      } catch (error) {
+        if (error?.status !== 401) throw error;
+        if (googleCalendarTokenFor(actionUid) === accessToken) {
+          setGoogleCalendarTokenFor(actionUid, null);
+          setGoogleCalendarConnectionState(actionUid, false);
+          setConnected(false);
+          setGoogleEvents([]);
+        }
+        if (weekGoogleToken.current.token === accessToken) weekGoogleToken.current = { token: '', uid: actionUid };
+        accessToken = await requestWeekGoogleToken();
+        weekGoogleToken.current = { token: accessToken, uid: actionUid };
+        result = await addRoomWeekToGoogleCalendar({ accessToken, events: frozenEvents, roomId: actionRoomId });
+      }
+
+      const message = googleCalendarWeekResultMessage(result);
+      setWeekGoogleStatus(message);
+      window.showToast?.(message, result.failed === 0 ? false : undefined);
+    } catch (error) {
+      const message = `Could not add this week to Google Calendar: ${error.message}`;
+      setWeekGoogleStatus(message);
+      window.showToast?.(message);
+    } finally {
+      setWeekGoogleBusy(false);
+    }
+  };
+
   const pushEventToGoogle = async (event) => {
     const accessToken = googleCalendarTokenFor(connectionUid);
     if (!accessToken) return null;
-    const resource = { summary: event.title, location: event.location || '' };
-    if (event.time) {
-      const start = new Date(`${event.date}T${event.time}:00`);
-      const durationMs = (parseInt(event.duration, 10) || 60) * 60000;
-      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      resource.start = { dateTime: start.toISOString(), timeZone };
-      resource.end = { dateTime: new Date(start.getTime() + durationMs).toISOString(), timeZone };
-    } else {
-      const nextDay = new Date(`${event.date}T00:00:00`);
-      nextDay.setDate(nextDay.getDate() + 1);
-      resource.start = { date: event.date };
-      resource.end = { date: keyOf(nextDay) };
-    }
+    const resource = buildGoogleCalendarApiEvent(event, { roomId });
+    if (!resource) return null;
     try {
       const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
         method: 'POST',
@@ -450,7 +608,7 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     };
     await set(eventRef, eventPayload);
     if (googleCalendarTokenFor(connectionUid)) {
-      const googleId = await pushEventToGoogle(eventPayload);
+      const googleId = await pushEventToGoogle({ ...eventPayload, id: eventRef.key });
       if (googleId) await set(ref(db, `rooms_meta/${roomId}/events/${eventRef.key}/gId`), googleId);
       return Boolean(googleId);
     }
@@ -463,7 +621,15 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     const title = draft.title.trim();
     if (!title) return window.showToast?.('Event needs a title.');
     try {
-      await saveAndSync({ title, date: selectedKey, time: draft.time, duration: parseInt(draft.duration, 10) || 0, location: draft.location.trim(), by: user.uid });
+      await saveAndSync({
+        title,
+        date: selectedKey,
+        time: draft.time,
+        timeZone: browserTimeZone(),
+        duration: parseInt(draft.duration, 10) || 0,
+        location: draft.location.trim(),
+        by: user.uid,
+      });
       setDraft({ title: '', time: '', duration: '', location: '' });
       setAddOpen(false);
     } catch (error) {
@@ -513,7 +679,15 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       for (const event of data.events) {
         if (!event.title || !event.date) continue;
         const duration = event.time && event.endTime ? minutesBetween(event.time, event.endTime) : (parseInt(event.duration, 10) || 0);
-        const nextEvent = { title: event.title, date: event.date, time: event.time || '', duration, location: event.location || '', by: user.uid };
+        const nextEvent = {
+          title: event.title,
+          date: event.date,
+          time: event.time || '',
+          timeZone: calendarEventTimeZone(event),
+          duration,
+          location: event.location || '',
+          by: user.uid,
+        };
         const fingerprint = eventFingerprint(nextEvent);
         if (seen.has(fingerprint)) {
           skipped += 1;
@@ -539,15 +713,75 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
     }
   };
 
+  const handleSchedulePhotoChange = (event) => {
+    const file = consumeSelectedCalendarImage(event.currentTarget);
+    setScanSourceOpen(false);
+    if (file) void importFromPhoto(file);
+  };
+
+  const toggleScanSources = (event) => {
+    const opening = !scanSourceOpen;
+    setScanSourceOpen(opening);
+    if (opening && event.detail === 0) {
+      window.requestAnimationFrame(() => firstScanSource.current?.focus());
+    }
+  };
+
   return (
-    <div className="cal-wrap">
+    <div className="cal-wrap calendar-redesign">
+      <header className="cal-workspace-head">
+        <div className="cal-workspace-title">
+          <span className="cal-eyebrow"><i className="ph-bold ph-calendar-blank" aria-hidden="true" /> Room schedule</span>
+          <div className="cal-title-line">
+            <h2>Calendar</h2>
+            <span>{totalEventCount} {totalEventCount === 1 ? 'event' : 'events'}</span>
+          </div>
+          <p>Scan the week, focus a day, and plan time together.</p>
+        </div>
+        {canEdit ? (
+          <div ref={scanActions} className="cal-head-actions" id="cal-add-row">
+            <button ref={scanButton} type="button" id="cal-photo-btn" className="cal-photo-btn" title="Scan a schedule from a picture (AI)" aria-label="Scan a schedule from a picture" aria-busy={photoImport.active} aria-expanded={scanSourceOpen} aria-controls="cal-scan-sources" disabled={photoImport.active} onClick={toggleScanSources}><i className="ph-bold ph-camera" aria-hidden="true" /><span>Scan schedule</span><i className={`ph-bold ${scanSourceOpen ? 'ph-caret-up' : 'ph-caret-down'} cal-scan-caret`} aria-hidden="true" /></button>
+            <button type="button" id="cal-add-btn" className="cal-add-btn cal-primary-action" aria-expanded={addOpen} aria-controls="cal-add-form" onClick={() => { setScanSourceOpen(false); setAddOpen((open) => !open); }}><i className={`ph-bold ${addOpen ? 'ph-x' : 'ph-plus'}`} aria-hidden="true" /><span>{addOpen ? 'Close form' : 'New event'}</span></button>
+            {scanSourceOpen ? (
+              <div id="cal-scan-sources" className="cal-scan-sources" role="group" aria-labelledby="cal-scan-sources-label">
+                <strong id="cal-scan-sources-label" className="cal-scan-sources-label">Choose a picture source</strong>
+                <button ref={firstScanSource} type="button" id="cal-take-photo-btn" className="cal-scan-source" disabled={photoImport.active} onClick={() => cameraInput.current?.click()}>
+                  <span className="cal-scan-source-icon"><i className="ph-bold ph-camera" aria-hidden="true" /></span>
+                  <span className="cal-scan-source-copy"><strong>Take photo</strong><small>Use the rear camera when available</small></span>
+                </button>
+                <button type="button" id="cal-import-picture-btn" className="cal-scan-source" disabled={photoImport.active} onClick={() => photoInput.current?.click()}>
+                  <span className="cal-scan-source-icon"><i className="ph-bold ph-image" aria-hidden="true" /></span>
+                  <span className="cal-scan-source-copy"><strong>Import picture</strong><small>Choose a saved image from this device</small></span>
+                </button>
+                <span className="cal-scan-sources-hint">JPG, PNG, or a screenshot works best.</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </header>
+
       <div className="cal-nav">
         <button type="button" className="cal-nav-btn" title="Previous month" aria-label="Previous month" onClick={() => { const date = new Date(weekStart); date.setDate(1); date.setMonth(date.getMonth() - 1); setWeek(date); }}><i className="ph-bold ph-caret-double-left" /></button>
         <button type="button" className="cal-nav-btn" title="Previous week" aria-label="Previous week" onClick={() => setWeek(addDays(weekStart, -7))}><i className="ph-bold ph-caret-left" /></button>
         <div className="cal-nav-label" id="cal-nav-label">{weekLabel(weekStart)}</div>
         <button type="button" className="cal-nav-btn" title="Next week" aria-label="Next week" onClick={() => setWeek(addDays(weekStart, 7))}><i className="ph-bold ph-caret-right" /></button>
         <button type="button" className="cal-nav-btn" title="Next month" aria-label="Next month" onClick={() => { const date = new Date(weekStart); date.setDate(1); date.setMonth(date.getMonth() + 1); setWeek(date); }}><i className="ph-bold ph-caret-double-right" /></button>
-        <button type="button" className="cal-nav-btn cal-today-btn" title="Jump to today" onClick={selectToday}>Today</button>
+        <div className="cal-nav-actions">
+          <button type="button" className="cal-nav-btn cal-today-btn" title="Jump to today" onClick={selectToday}>Today</button>
+          <button
+            type="button"
+            id="cal-add-week-google-btn"
+            className="cal-nav-btn cal-week-google-btn"
+            title={weekRoomEvents.length ? `Add ${weekRoomEvents.length} room event${weekRoomEvents.length === 1 ? '' : 's'} from this week to Google Calendar` : 'No room events to add from this week'}
+            aria-busy={weekGoogleBusy}
+            disabled={eventsLoading || weekGoogleBusy || weekRoomEvents.length === 0}
+            onClick={addThisWeekToGoogle}
+          >
+            <i className={`ph-bold ${weekGoogleBusy ? 'ph-circle-notch cal-week-google-spinner' : 'ph-google-logo'}`} aria-hidden="true" />
+            <span>{weekGoogleBusy ? 'Adding week…' : 'Add this week to Google'}</span>
+          </button>
+          <span className="cal-week-google-status" role="status" aria-live="polite">{weekGoogleStatus}</span>
+        </div>
       </div>
       <div className="cal-top">
         <div className="cal-daystrip" id="cal-daystrip">
@@ -564,7 +798,6 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
             );
           })}
         </div>
-        {canEdit ? <button type="button" id="cal-photo-btn" className="cal-photo-btn" title="Import events from a photo (AI)" aria-label="Import events from a photo" aria-busy={photoImport.active} disabled={photoImport.active} onClick={() => photoInput.current?.click()}><i className="ph-bold ph-camera" /></button> : null}
       </div>
 
       {photoImport.active ? (
@@ -583,7 +816,10 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
       {gcalClientId && connected ? (
         <div className="cal-connect-banner" id="cal-connect-banner" role="status" aria-live="polite">
           <div className="cal-connect-left"><i className="ph-bold ph-google-logo" /><span>Google Calendar is connected for this Minimalist account.</span></div>
-          <button type="button" id="cal-gcal-disconnect-btn" className="cal-connect-link" disabled={disconnecting} aria-busy={disconnecting} onClick={disconnectGoogleCalendar}>{disconnecting ? 'Disconnecting…' : 'Disconnect'}</button>
+          <div className="cal-connect-actions">
+            <button type="button" id="cal-import-btn" className="cal-connect-link cal-connect-primary" onClick={() => (googleCalendarTokenFor(connectionUid) ? fetchGoogleEvents() : runGoogleAuth(false, true))}><i className="ph-bold ph-arrows-clockwise" aria-hidden="true" /> Import events</button>
+            <button type="button" id="cal-gcal-disconnect-btn" className="cal-connect-link" disabled={disconnecting} aria-busy={disconnecting} onClick={disconnectGoogleCalendar}>{disconnecting ? 'Disconnecting…' : 'Disconnect'}</button>
+          </div>
         </div>
       ) : canEdit && gcalClientId ? (
         <div className="cal-connect-banner" id="cal-connect-banner">
@@ -592,34 +828,67 @@ export function Calendar({ adminUid, gcalClientId, localAiConfig, roomId, user }
         </div>
       ) : null}
 
-      <div className="cal-agenda" id="cal-agenda">
-        {eventsLoading || eventsError ? (
-          <div className={`cal-empty ${eventsError ? 'error' : ''}`} role={eventsLoading ? 'status' : 'alert'}>{eventsLoading ? 'Loading events...' : eventsError}</div>
-        ) : agenda.length ? agenda.map((event, index) => <CalendarEvent key={event.id} event={event} index={index} canEdit={canEdit} onDelete={deleteEvent} />) : <div className="cal-empty">No events for this day.</div>}
-      </div>
-
-      {canEdit && addOpen ? (
-        <form className="cal-add-form" id="cal-add-form" onSubmit={saveEvent}>
-          <input id="cal-f-title" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Event title..." aria-label="Event title" required />
-          <div className="cal-form-row">
-            <input type="time" id="cal-f-time" value={draft.time} onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))} aria-label="Event time" />
-            <input type="number" id="cal-f-dur" min="0" step="5" value={draft.duration} onChange={(event) => setDraft((current) => ({ ...current, duration: event.target.value }))} placeholder="Duration (min)" aria-label="Duration in minutes" />
+      <section className="cal-agenda-panel" aria-labelledby="cal-agenda-title">
+        <header className="cal-agenda-head">
+          <div>
+            <span>Selected day</span>
+            <strong id="cal-agenda-title">{selectedDayLabel}</strong>
           </div>
-          <input id="cal-f-loc" value={draft.location} onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))} placeholder="Location (optional)" aria-label="Event location" />
-          <div className="cal-form-actions">
-            <button type="submit" className="rh-save-btn" id="cal-f-save">Add Event</button>
-            <button type="button" className="rh-add-btn" id="cal-f-cancel" onClick={() => setAddOpen(false)}>Cancel</button>
-          </div>
-        </form>
-      ) : null}
+          <span className="cal-agenda-count">{agenda.length} scheduled</span>
+        </header>
 
-      {canEdit ? (
-        <div className="cal-add-row" id="cal-add-row">
-          <button type="button" id="cal-add-btn" className="cal-add-btn" onClick={() => setAddOpen((open) => !open)}><i className="ph-bold ph-plus" /> Add New Event</button>
-          {gcalClientId && connected ? <button type="button" id="cal-import-btn" className="cal-add-btn" onClick={() => (googleCalendarTokenFor(connectionUid) ? fetchGoogleEvents() : runGoogleAuth(false, true))}><i className="ph-bold ph-arrows-clockwise" /> Import from Google</button> : null}
+        {canEdit && addOpen ? (
+          <form className="cal-add-form" id="cal-add-form" onSubmit={saveEvent}>
+            <div className="cal-form-heading">
+              <div>
+                <strong>New event</strong>
+                <span>Add it to {selectedDayLabel}.</span>
+              </div>
+              <i className="ph-bold ph-calendar-plus" aria-hidden="true" />
+            </div>
+            <label className="cal-field cal-field-wide" htmlFor="cal-f-title">
+              <span>Event name</span>
+              <input id="cal-f-title" value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="What is happening?" required autoFocus />
+            </label>
+            <div className="cal-form-row">
+              <label className="cal-field" htmlFor="cal-f-time">
+                <span>Start time</span>
+                <input type="time" id="cal-f-time" value={draft.time} onChange={(event) => setDraft((current) => ({ ...current, time: event.target.value }))} />
+              </label>
+              <label className="cal-field" htmlFor="cal-f-dur">
+                <span>Duration</span>
+                <input type="number" id="cal-f-dur" min="0" step="5" value={draft.duration} onChange={(event) => setDraft((current) => ({ ...current, duration: event.target.value }))} placeholder="Minutes" />
+              </label>
+            </div>
+            <label className="cal-field cal-field-wide" htmlFor="cal-f-loc">
+              <span>Location</span>
+              <input id="cal-f-loc" value={draft.location} onChange={(event) => setDraft((current) => ({ ...current, location: event.target.value }))} placeholder="Optional" />
+            </label>
+            <div className="cal-form-actions">
+              <button type="submit" className="rh-save-btn cal-form-save" id="cal-f-save"><i className="ph-bold ph-plus" aria-hidden="true" /> Add event</button>
+              <button type="button" className="rh-add-btn cal-form-cancel" id="cal-f-cancel" onClick={() => setAddOpen(false)}>Cancel</button>
+            </div>
+          </form>
+        ) : null}
+
+        <div className="cal-agenda" id="cal-agenda">
+          {eventsLoading || eventsError ? (
+            <div className={`cal-empty ${eventsError ? 'error' : ''}`} role={eventsLoading ? 'status' : 'alert'}>
+              <span className="cal-empty-icon"><i className={`ph-bold ${eventsError ? 'ph-warning' : 'ph-circle-notch'}`} aria-hidden="true" /></span>
+              <strong>{eventsLoading ? 'Loading calendar' : 'Calendar unavailable'}</strong>
+              <span>{eventsLoading ? 'Getting this room’s latest schedule.' : eventsError}</span>
+            </div>
+          ) : agenda.length ? agenda.map((event, index) => <CalendarEvent key={event.id} event={event} index={index} canEdit={canEdit} onDelete={deleteEvent} />) : (
+            <div className="cal-empty">
+              <span className="cal-empty-icon"><i className="ph-bold ph-calendar-blank" aria-hidden="true" /></span>
+              <strong>No events this day</strong>
+              <span>{canEdit ? 'Choose another date or add something new.' : 'Choose another date to keep looking.'}</span>
+            </div>
+          )}
         </div>
-      ) : null}
-      <input ref={photoInput} type="file" id="cal-photo-input" accept="image/*" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) importFromPhoto(file); event.target.value = ''; }} />
+      </section>
+      <input ref={cameraInput} type="file" id="cal-camera-input" accept="image/*" capture="environment" className="hidden" onChange={handleSchedulePhotoChange} />
+      <input ref={photoInput} type="file" id="cal-photo-input" accept="image/*" className="hidden" onChange={handleSchedulePhotoChange} />
     </div>
   );
 }

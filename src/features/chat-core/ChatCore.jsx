@@ -1,4 +1,4 @@
-import { Fragment, createElement, memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, Suspense, createElement, lazy, memo, useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import {
   endBefore,
@@ -14,25 +14,112 @@ import {
   query,
   ref,
   remove,
-  runTransaction,
   serverTimestamp,
   set,
   update,
 } from 'firebase/database';
 import { auth, db } from '../../lib/firebase.js';
-import { getStorageUploadTools } from '../../lib/firebaseStorage.js';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
+import {
+  DEFAULT_LOCALE,
+  getLocale,
+  subscribeLocale,
+  translate,
+} from '../../lib/i18n.js';
 import { renderMessageText } from '../../lib/text.js';
 import { getAuthedJsonHeaders } from '../../lib/authToken.js';
+import { playUiSound } from '../audio/uiSoundService.js';
 import { PLATFORM_BOT_SLASH_COMMANDS } from '../bots/botCatalog.js';
 import {
   detectAutoModeration,
   extractStockSymbols,
   normalizeRoomBotConfig,
 } from '../bots/botRuntime.js';
-import { roomUploadLimits, useRoomEntitlement } from '../billing/roomEntitlements.js';
+import { useRoomEntitlement } from '../billing/roomEntitlements.js';
+import {
+  ROOM_CATCHUP_PREFERENCE_EVENT,
+  ROOM_CATCHUP_REVIEW_EVENT,
+  loadRoomCatchUpEnabled,
+  loadRoomCatchUpReviewedId,
+  roomCatchUpReviewedStorageKey,
+  roomCatchUpStorageKey,
+  saveRoomCatchUpReviewedId,
+} from './catchUpPreference.js';
 import { buildQuickSwitchModel } from './quickSwitcherModel.js';
+import { buildRoomCatchUp } from './roomCatchUpModel.js';
+import { canPostToChannel, normalizeChannel } from './channelModel.js';
+import {
+  extractFirstPreviewUrl,
+  messageTextWithoutPreviewUrl,
+  normalizeLinkPreview,
+} from './linkPreview.js';
+import {
+  ROOM_MESSAGE_KIND,
+  isCurrentUserAuthoredMessage,
+  roomMessageKind,
+} from './messagePresentation.js';
+import { loadOutboxAttempts, removeOutboxAttempt, saveOutboxAttempt } from './outboxStore.js';
+import {
+  aggregatePollResults,
+  createPollPayload,
+  isPollClosed,
+  nextPollVoteValue,
+} from './pollModel.js';
+import {
+  nextMarkedUnreadState,
+  nextReadState,
+  readStatePath,
+  unreadSummary,
+} from './readState.js';
+import { sanitizeScheduledMessage } from './scheduledMessageModel.js';
+import { threadRootIdForMessage } from './threadModel.js';
 import './chatCore.performance.css';
 import './quickSwitcher.css';
+import './roomCatchUp.css';
+
+const LazyQuickReplies = lazy(() => import('./QuickReplies.jsx').catch(() => ({ default: () => null })));
+const LazyRoomHeaderContext = lazy(() => import('./RoomHeaderContext.jsx'));
+const LazyMessageTimeline = lazy(() => import('./MessageTimeline.jsx'));
+const LazyThreadDrawer = lazy(() => import('./ChatEnhancements.jsx').then((module) => ({ default: module.ThreadDrawer })));
+const LazyScheduleMessageDialog = lazy(() => import('./ChatEnhancements.jsx').then((module) => ({ default: module.ScheduleMessageDialog })));
+const LazyScheduledMessageList = lazy(() => import('./ChatEnhancements.jsx').then((module) => ({ default: module.ScheduledMessageList })));
+const LazyAttachmentPreview = lazy(() => import('./ChatEnhancements.jsx').then((module) => ({ default: module.AttachmentPreview })));
+const LazyComposerMoreMenu = lazy(() => import('./ComposerMoreMenu.jsx')
+  .catch(() => ({ default: ComposerMoreMenuUnavailable })));
+
+function ComposerMoreMenuState({ anchorRef, error = false, onClose }) {
+  if (typeof document === 'undefined') return null;
+
+  const close = () => {
+    onClose?.();
+    requestAnimationFrame(() => anchorRef?.current?.focus());
+  };
+
+  return createPortal(
+    <div
+      aria-live="polite"
+      className={`composer-more-state${error ? ' is-error' : ''}`}
+      id="composer-more-menu"
+      role={error ? 'alert' : 'status'}
+    >
+      <i
+        aria-hidden="true"
+        className={`ph-bold ${error ? 'ph-warning-circle' : 'ph-spinner-gap message-delivery-spinner'}`}
+      />
+      <span>{error ? 'Message tools could not be loaded.' : 'Loading message tools…'}</span>
+      {error ? (
+        <button aria-label="Close message tools" onClick={close} type="button">
+          <i aria-hidden="true" className="ph-bold ph-x" />
+        </button>
+      ) : null}
+    </div>,
+    document.body,
+  );
+}
+
+function ComposerMoreMenuUnavailable(props) {
+  return <ComposerMoreMenuState {...props} error />;
+}
 
 const GLOBAL_ROOM = {
   id: 'global',
@@ -54,6 +141,11 @@ const roomIndexRepairMemory = new Map();
 let pendingRoomChangedTimer = null;
 const MY_ROOMS_ENDPOINT = () => window.MY_ROOMS_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/listMyRooms';
 const ISSUE_DRAFT_ENDPOINT = () => window.ISSUE_DRAFT_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/submitIssueDraft';
+const LINK_PREVIEW_ENDPOINT = () => window.LINK_PREVIEW_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/linkPreview';
+const ROOM_MODERATION_ENDPOINT = () => window.ROOM_MODERATION_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/roomModeration';
+const ROOM_SCHEDULING_ENDPOINT = () => window.ROOM_SCHEDULING_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/roomScheduling';
+const TRANSLATE_MESSAGE_ENDPOINT = () => window.TRANSLATE_MESSAGE_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/translateRoomMessage';
+const CREATE_NOTIFICATION_ENDPOINT = () => window.CREATE_NOTIFICATION_ENDPOINT || 'https://us-central1-chat-app-356c1.cloudfunctions.net/createNotification';
 
 function scheduleRoomChanged() {
   if (pendingRoomChangedTimer !== null) return;
@@ -83,6 +175,15 @@ function normalizeRoomForList(roomId, room = {}, fallback = {}) {
     shortId: cleanRoomText(room.shortId || fallback.shortId, roomId, 40),
     lastMessage: cleanRoomText(room.lastMessage || fallback.lastMessage, '', 180),
   };
+}
+
+function shallowEqualRoomRecord(left, right) {
+  if (left === right) return true;
+  if (!left || !right) return false;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length
+    && leftKeys.every((key) => Object.prototype.hasOwnProperty.call(right, key) && left[key] === right[key]);
 }
 
 function roomSidebarMetadata(roomId, room = {}, fallback = {}) {
@@ -157,23 +258,21 @@ async function submitIssueDraft(issue) {
   return data;
 }
 
-const uploadLimits = {
-  free: {
-    label: 'Base',
-    perFile: 10 * 1024 * 1024,
-    daily: 500 * 1024 * 1024,
-  },
-  advanced: {
-    label: 'Advanced',
-    perFile: 700 * 1024 * 1024,
-    daily: 1.5 * 1024 * 1024 * 1024,
-  },
-  pro: {
-    label: 'Pro',
-    perFile: 3 * 1024 * 1024 * 1024,
-    daily: 9 * 1024 * 1024 * 1024,
-  },
-};
+async function postAuthedJson(endpoint, body, authMessage = 'Please sign in to continue.') {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: await getAuthedJsonHeaders(authMessage),
+    body: JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = new Error(data.error || data.message || `Request failed (${response.status}).`);
+    error.code = data.code || 'request_failed';
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
 
 const SLASH_COMMAND_GROUPS = [
   {
@@ -195,14 +294,15 @@ const SLASH_COMMAND_GROUPS = [
       ['/msg edit', 'Edit a message', 'messageMenu'],
       ['/msg delete', 'Delete a message', 'messageMenu'],
       ['/msg forward', 'Forward a message', 'messageMenu'],
-      ['/msg schedule', 'Schedule a message', 'comingSoon'],
+      ['/msg schedule', 'Schedule a message', 'schedule'],
       ['/msg ephemeral', 'Send disappearing message', 'comingSoon'],
       ['/msg unread', 'Jump to first unread', 'unread'],
       ['/msg bookmark', 'Bookmark a message', 'bookmarks'],
       ['/msg collect', 'Add message to a collection', 'bookmarks'],
       ['/msg flag', 'Mark message as important', 'messageMenu'],
       ['/msg impact', 'View message impact', 'messageMenu'],
-      ['/thread create', 'Start a threaded conversation', 'comingSoon'],
+      ['/thread create', 'Open threads and start a focused reply', 'threads'],
+      ['/translate', 'Translate a message from its action bar', 'translateHelp'],
       ['/quote', 'Quote reply to a message', 'quote'],
       ['/react', 'Add a reaction', 'messageMenu'],
       ['/gif', 'Search and send a GIF', 'comingSoon'],
@@ -210,7 +310,7 @@ const SLASH_COMMAND_GROUPS = [
       ['/transcribe', 'Transcribe voice message', 'comingSoon'],
       ['/upload', 'Upload a file', 'attach'],
       ['/attach', 'Attach file to message', 'attach'],
-      ['/preview', 'Generate link preview', 'comingSoon'],
+      ['/preview', 'Generate a safe link preview', 'linkPreview'],
       ['/room favorite', 'Favorite a room', 'roomFavorite'],
       ['/room unfavorite', 'Remove favorite', 'roomUnfavorite'],
     ],
@@ -350,10 +450,6 @@ function toDateTimeLocalValue(value = Date.now() + 60 * 60 * 1000) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function roomMessagesRef(roomId, channelId = 'general') {
   if (roomId === 'global') return ref(db, 'messages');
   if (!channelId || channelId === 'general') return ref(db, `rooms_data/${roomId}/messages`);
@@ -411,6 +507,11 @@ function clearComposerDraftStorage(roomId, channelId = 'general') {
   }
 }
 
+function clearComposerDraftStorageIfMatches(roomId, channelId, expectedValue) {
+  if (readComposerDraft(roomId, channelId) !== String(expectedValue || '')) return;
+  clearComposerDraftStorage(roomId, channelId);
+}
+
 function roomTypingRef(roomId, channelId = 'general') {
   return ref(db, `typing/${roomId}/${normalizedChannelId(channelId)}`);
 }
@@ -463,13 +564,6 @@ function collectMessageReactions(reactions = {}, currentUid = '') {
   });
 
   return Object.entries(counts);
-}
-
-// Non-sensitive label for the destination of a write, used for diagnostics only.
-function describeMessagePath(roomId, channelId = 'general') {
-  if (roomId === 'global') return 'global-messages';
-  if (!channelId || channelId === 'general') return 'room-messages';
-  return 'room-channel-messages';
 }
 
 function isPermissionDeniedError(error) {
@@ -578,6 +672,19 @@ async function fetchStockQuote(symbol) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Stock quote failed');
   return data;
+}
+
+async function fetchLinkPreview(url) {
+  const response = await fetch(LINK_PREVIEW_ENDPOINT(), {
+    method: 'POST',
+    headers: await getAuthedJsonHeaders('Please sign in before previewing a link.'),
+    body: JSON.stringify({ url }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'That link could not be previewed safely.');
+  const preview = normalizeLinkPreview(data);
+  if (!preview) throw new Error('That page did not provide a usable preview.');
+  return preview;
 }
 
 function formatStockQuote(quote) {
@@ -735,6 +842,9 @@ function messageSearchText(message) {
     message.poll?.question,
     ...(message.poll?.options || []).map((option) => option.text),
     message.reminder?.text,
+    message.linkPreview?.domain,
+    message.linkPreview?.title,
+    message.linkPreview?.description,
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
@@ -884,7 +994,7 @@ function sameStringArray(left = [], right = []) {
 }
 
 function safeImageSource(value) {
-  const source = String(value || '').trim();
+  const source = normalizeStoredAvatarUrl(value);
   if (!source) return '';
   return /^(?:https?:\/\/|data:image\/|blob:)/i.test(source) ? source : '';
 }
@@ -959,6 +1069,8 @@ function captureMessageViewportAnchor(list) {
   return {
     messageId: element.id.slice(4),
     offsetTop: element.getBoundingClientRect().top - listTop,
+    scrollHeight: list.scrollHeight,
+    scrollTop: list.scrollTop,
   };
 }
 
@@ -1116,7 +1228,11 @@ const RoomListItem = memo(function RoomListItem({
         <span className="room-copy">
           <span className="room-name">
             {room.name}
-            {isFavorite ? <span className="room-favorite-mark" aria-label="Favorite room">★</span> : null}
+            {isFavorite ? (
+              <span className="room-favorite-mark" aria-label="Favorite room">
+                <i className="ph-bold ph-star" aria-hidden="true" />
+              </span>
+            ) : null}
           </span>
           <span className="room-preview">{hidden ? 'Hidden room' : (room.lastMessage || 'No messages yet...')}</span>
         </span>
@@ -1232,7 +1348,14 @@ const RoomList = memo(function RoomList({ rooms, roomPrefs, activeRoomId, onSwit
   );
 });
 
-function ChannelBar({ activeRoomId, channels, activeChannelId, onSwitchChannel, onAddChannel }) {
+function ChannelBar({
+  activeRoomId,
+  channels,
+  activeChannelId,
+  onSwitchChannel,
+  onAddChannel,
+  onConfigureChannel,
+}) {
   if (activeRoomId === 'global') return null;
   return (
     <>
@@ -1240,13 +1363,32 @@ function ChannelBar({ activeRoomId, channels, activeChannelId, onSwitchChannel, 
         <button
           key={channel.id}
           type="button"
-          className={`channel-chip ${channel.id === activeChannelId ? 'active' : ''}`}
+          className={`channel-chip channel-mode-${channel.mode || 'chat'} ${channel.id === activeChannelId ? 'active' : ''}`}
           onClick={() => onSwitchChannel(channel.id)}
+          title={`${channel.name} · ${channel.mode === 'announcements' ? 'Announcements' : channel.mode === 'help' ? 'Help queue' : 'Chat'}`}
         >
-          # {channel.name}
+          <i
+            className={`ph-bold ${channel.mode === 'announcements' ? 'ph-megaphone' : channel.mode === 'help' ? 'ph-lifebuoy' : 'ph-hash'}`}
+            aria-hidden="true"
+          />
+          {channel.name}
         </button>
       ))}
-      <button type="button" className="channel-chip channel-add" onClick={onAddChannel}>+ Channel</button>
+      {activeChannelId !== 'general' ? (
+        <button
+          type="button"
+          className="channel-chip channel-configure"
+          onClick={() => onConfigureChannel(channels.find((channel) => channel.id === activeChannelId))}
+          title="Configure channel mode and posting role"
+          aria-label="Configure active channel"
+        >
+          <i className="ph-bold ph-sliders-horizontal" aria-hidden="true" />
+        </button>
+      ) : null}
+      <button type="button" className="channel-chip channel-add" onClick={onAddChannel}>
+        <i className="ph-bold ph-plus" aria-hidden="true" />
+        Channel
+      </button>
     </>
   );
 }
@@ -1295,22 +1437,36 @@ function TextFilePreview({ file }) {
   );
 }
 
+function LinkPreviewCard({ preview }) {
+  const safePreview = normalizeLinkPreview(preview);
+  if (!safePreview) return null;
+  return (
+    <a
+      className="msg-link-preview"
+      href={safePreview.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Open ${safePreview.title} on ${safePreview.domain}`}
+    >
+      <span className="msg-link-preview-domain">
+        <i className="ph-bold ph-link-simple" aria-hidden="true" />
+        {safePreview.domain}
+      </span>
+      <strong>{safePreview.title}</strong>
+      {safePreview.description ? <span className="msg-link-preview-description">{safePreview.description}</span> : null}
+    </a>
+  );
+}
+
 function PollCard({ message, onVotePoll, onClosePoll }) {
   const poll = message.poll;
   if (!poll?.question) return null;
 
-  const votes = poll.votes || {};
-  const options = poll.options || [];
-  const total = Object.keys(votes).length;
-  const myVote = votes[window.currentUser?.uid];
-  const closed = poll.closed === true;
+  const results = aggregatePollResults(poll, { viewerUid: window.currentUser?.uid });
+  const total = results.participantCount;
+  const selectedOptions = new Set(results.viewerOptionIds);
+  const closed = results.closed;
   const isAuthor = message.uid === window.currentUser?.uid;
-  const results = options.map((option) => {
-    const count = Object.values(votes).filter((value) => value === option.id).length;
-    const pct = total ? Math.round((count / total) * 100) : 0;
-    return { ...option, count, pct };
-  });
-  const highScore = Math.max(0, ...results.map((option) => option.count));
 
   return (
     <div className={`poll-card ${closed ? 'poll-closed' : ''}`}>
@@ -1318,23 +1474,28 @@ function PollCard({ message, onVotePoll, onClosePoll }) {
         <span><i className="ph-bold ph-chart-bar" /> {poll.question}</span>
         {closed ? <em className="poll-status">Closed</em> : null}
       </div>
-      {results.map((option) => {
-        const winner = closed && total > 0 && option.count === highScore;
+      {results.options.map((option) => {
+        const winner = closed && option.winner;
         return (
           <button
-            className={`poll-option ${myVote === option.id ? 'mine' : ''} ${winner ? 'winner' : ''}`}
+            className={`poll-option ${selectedOptions.has(option.id) ? 'mine' : ''} ${winner ? 'winner' : ''}`}
             disabled={closed}
             key={option.id}
             type="button"
             onClick={() => onVotePoll(message.id, option.id)}
           >
-            <span className="poll-bar" style={{ width: `${option.pct}%` }} />
-            <span>{option.text} · {option.count} vote{option.count === 1 ? '' : 's'} {total ? `(${option.pct}%)` : ''}{winner ? ' · winner' : ''}</span>
+            <span className="poll-bar" style={{ width: `${option.percentage}%` }} />
+            <span>{option.text} · {option.count} vote{option.count === 1 ? '' : 's'} {total ? `(${option.percentage}%)` : ''}{winner ? ' · winner' : ''}</span>
           </button>
         );
       })}
       <div className="poll-meta">
-        <span>{total} total vote{total === 1 ? '' : 's'}</span>
+        <span>
+          {total} participant{total === 1 ? '' : 's'}
+          {results.multipleChoice ? ' · Choose multiple' : ''}
+          {results.anonymous ? ' · Anonymous results' : ''}
+          {!closed && poll.closesAt ? ` · Closes ${formatDueDate(poll.closesAt)}` : ''}
+        </span>
         {isAuthor && !closed ? (
           <button type="button" className="poll-close-btn" onClick={() => onClosePoll(message.id)}>
             Close poll
@@ -1348,15 +1509,13 @@ function PollCard({ message, onVotePoll, onClosePoll }) {
 function pollResultsText(message) {
   const poll = message?.poll;
   if (!poll?.question) return '';
-  const votes = poll.votes || {};
-  const options = poll.options || [];
-  const total = Object.keys(votes).length;
-  const lines = options.map((option) => {
-    const count = Object.values(votes).filter((value) => value === option.id).length;
-    const pct = total ? Math.round((count / total) * 100) : 0;
-    return `${option.text}: ${count} (${pct}%)`;
-  });
-  return [`${poll.closed === true ? 'Closed poll' : 'Poll'}: ${poll.question}`, ...lines, `${total} total vote${total === 1 ? '' : 's'}`].join('\n');
+  const results = aggregatePollResults(poll, { viewerUid: window.currentUser?.uid });
+  const lines = results.options.map((option) => `${option.text}: ${option.count} (${option.percentage}%)`);
+  return [
+    `${results.closed ? 'Closed poll' : 'Poll'}: ${poll.question}`,
+    ...lines,
+    `${results.participantCount} participant${results.participantCount === 1 ? '' : 's'}`,
+  ].join('\n');
 }
 
 function ReminderCard({ message, onSaveReminder }) {
@@ -1366,132 +1525,6 @@ function ReminderCard({ message, onSaveReminder }) {
       <div className="reminder-title"><i className="ph-bold ph-alarm" /> {message.reminder.text}</div>
       <div className="reminder-meta">Due {formatDueDate(message.reminder.dueAt)} · by {message.reminder.byName || message.name || 'Someone'}</div>
       <button type="button" onClick={() => onSaveReminder(message.reminder)}>Remind me</button>
-    </div>
-  );
-}
-
-function addSmartReply(list, ...suggestions) {
-  suggestions.forEach((suggestion) => {
-    const clean = String(suggestion || '').trim();
-    if (!clean) return;
-    if (!list.some((existing) => existing.toLowerCase() === clean.toLowerCase())) list.push(clean);
-  });
-  return list;
-}
-
-function messageMentionsMe(text) {
-  const myName = String(window.userProfileName || '').trim().toLowerCase();
-  const myShortId = String(window.userShortId || '').trim().toLowerCase();
-  const lower = String(text || '').toLowerCase();
-  return Boolean(
-    (myName && lower.includes(`@${myName}`))
-    || (myName && lower.includes(myName))
-    || (myShortId && lower.includes(myShortId))
-  );
-}
-
-function buildSmartReplies(messages) {
-  const relevantMessages = [...messages]
-    .filter((message) => message.uid !== window.currentUser?.uid && (message.text || message.attachedImage || message.attachedFile || message.poll || message.reminder))
-    .slice(-8);
-  const last = [...relevantMessages].reverse()[0];
-  if (!last) return [];
-
-  const suggestions = [];
-  const text = String(last.text || '').trim();
-  const lower = text.toLowerCase();
-  const recentText = relevantMessages.map((message) => String(message.text || '')).join(' ').toLowerCase();
-  const isQuestion = /[?？]\s*$/.test(text) || /^(can|could|would|will|do|does|did|is|are|should|what|when|where|who|why|how)\b/i.test(text);
-  const directMention = messageMentionsMe(text);
-
-  if (last.aiAgent || last.bot) {
-    addSmartReply(suggestions, 'Thanks, glad to be here.', 'Can you summarize the room?', 'Show me the next steps.');
-  }
-
-  if (directMention) {
-    addSmartReply(suggestions, 'I’m on it.', 'I’ll check now.', 'Can you send one more detail?');
-  }
-
-  if (last.attachedFile || last.attachedImage) {
-    addSmartReply(suggestions, 'I’ll review this now.', 'Thanks, got the file.', 'I’ll check and reply soon.');
-  }
-
-  if (last.poll) {
-    addSmartReply(suggestions, 'I voted.', 'I like the top option.', 'Let’s decide after a few votes.');
-  }
-
-  if (last.reminder) {
-    addSmartReply(suggestions, 'Thanks for the reminder.', 'I’ll be there.', 'I added it to my list.');
-  }
-
-  if (/\b(hi|hello|hey|yo|gm|good morning|good afternoon|good evening)\b/.test(lower)) {
-    addSmartReply(suggestions, 'Hey! What’s up?', 'Hi, good to see you.', 'Hey — how can I help?');
-  }
-
-  if (/\b(thanks|thank you|ty|appreciate)\b/.test(lower)) {
-    addSmartReply(suggestions, 'Anytime!', 'No problem.', 'Glad it helped.');
-  }
-
-  if (/\b(sorry|my bad|apologies)\b/.test(lower)) {
-    addSmartReply(suggestions, 'No worries.', 'You’re good.', 'All good, thanks for the update.');
-  }
-
-  if (/\b(error|bug|broken|issue|not working|failed|crash|stuck|can'?t|unable)\b/.test(lower)) {
-    addSmartReply(suggestions, 'I’m looking into it now.', 'Can you send the exact error?', 'I’ll test a fix.');
-  }
-
-  if (/\b(code|react|vite|firebase|stripe|deploy|css|api|function|server|node|npm|build|lint|commit|pr)\b/.test(lower) || /```|`/.test(text)) {
-    addSmartReply(suggestions, 'I’ll test the change.', 'Can you paste the error?', 'That looks like a code-path issue.');
-  }
-
-  if (/\b(meet|meeting|call|voice|video|schedule|calendar|today|tomorrow|tonight|deadline|due|time)\b/.test(lower)) {
-    addSmartReply(suggestions, 'That time works for me.', 'Can we confirm the time?', 'I’ll add a reminder.');
-  }
-
-  if (/\b(file|pdf|image|photo|screenshot|upload|attach|link|doc|document)\b/.test(lower)) {
-    addSmartReply(suggestions, 'Send it here and I’ll check.', 'I’ll review the attachment.', 'Can you resend the link?');
-  }
-
-  if (/\b(choose|which|option|vote|decide|pick|prefer|better)\b/.test(lower)) {
-    addSmartReply(suggestions, 'I’d go with the simpler option.', 'Let’s compare both quickly.', 'I’m good with that choice.');
-  }
-
-  if (/\b(done|finished|complete|fixed|works|working|looks good|sounds good|ship)\b/.test(lower)) {
-    addSmartReply(suggestions, 'Nice, works for me.', 'Let’s ship it.', 'Good call.');
-  }
-
-  if (isQuestion) {
-    if (/^(when|what time)\b/i.test(text)) addSmartReply(suggestions, 'Today works for me.', 'What time are you thinking?', 'Can we do tomorrow?');
-    else if (/^(where)\b/i.test(text)) addSmartReply(suggestions, 'Can you send the location?', 'I can meet there.', 'Drop the link here.');
-    else if (/^(who)\b/i.test(text)) addSmartReply(suggestions, 'I can take this.', 'Who should we loop in?', 'Let’s ask the room.');
-    else if (/^(how|why)\b/i.test(text)) addSmartReply(suggestions, 'I can walk through it.', 'Let me check and explain.', 'Can you show an example?');
-    else addSmartReply(suggestions, 'Yes, that works.', 'I’ll check and get back to you.', 'Can you clarify one detail?');
-  }
-
-  if (recentText.includes('reminder') || recentText.includes('deadline')) addSmartReply(suggestions, 'I’ll set a reminder.');
-  if (recentText.includes('poll') || recentText.includes('vote')) addSmartReply(suggestions, 'I’ll vote now.');
-  if (recentText.includes('upload') || recentText.includes('file')) addSmartReply(suggestions, 'I’ll check the file.');
-
-  addSmartReply(suggestions, 'Sounds good.', 'I agree.', 'I’ll take a look.');
-  return suggestions.slice(0, 3);
-}
-
-function SmartReplies({ suggestions, onPick }) {
-  if (!suggestions.length) return null;
-  return (
-    <div className="smart-replies" role="group" aria-label="Quick reply suggestions">
-      <span className="smart-replies-label">Quick replies</span>
-      {suggestions.map((suggestion) => (
-        <button
-          className="smart-reply-chip"
-          key={suggestion}
-          type="button"
-          onClick={() => onPick(suggestion)}
-          title={`Use quick reply: ${suggestion}`}
-        >
-          {suggestion}
-        </button>
-      ))}
     </div>
   );
 }
@@ -1564,61 +1597,6 @@ function MessageListEmptyState({ kind = 'empty', readOnly = false, roomName = 't
   );
 }
 
-function compactMessageText(message) {
-  return String(message?.text || message?.reminder?.text || message?.poll?.question || '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function buildRoomCatchUp(messages) {
-  const recent = messages.slice(-18).filter((message) => (
-    message?.text
-    || message?.attachedImage
-    || message?.attachedFile
-    || message?.poll
-    || message?.reminder
-  ));
-
-  if (recent.length < 3) return null;
-
-  const participants = new Set();
-  let questions = 0;
-  let files = 0;
-  let mentions = 0;
-  let important = 0;
-  let actionMessage = null;
-
-  recent.forEach((message) => {
-    if (message.name) participants.add(message.name);
-    const text = compactMessageText(message);
-    if (/[?？]\s*$/.test(text)) questions += 1;
-    if (message.attachedFile || message.attachedImage) files += 1;
-    if (message.important) important += 1;
-    if (messageMentionsMe(text)) mentions += 1;
-    if (!actionMessage && /\b(need|please|todo|task|fix|review|follow up|remind|deadline|due|ship|decide|confirm|can you|could you|should)\b/i.test(text)) {
-      actionMessage = message;
-    }
-  });
-
-  const latest = recent[recent.length - 1];
-  const actionText = compactMessageText(actionMessage || latest).slice(0, 140);
-  const metrics = [
-    `${recent.length} recent messages`,
-    `${participants.size || 1} ${participants.size === 1 ? 'person' : 'people'}`,
-    questions ? `${questions} question${questions === 1 ? '' : 's'}` : '',
-    files ? `${files} file${files === 1 ? '' : 's'}` : '',
-    mentions ? `${mentions} mention${mentions === 1 ? '' : 's'}` : '',
-    important ? `${important} important` : '',
-  ].filter(Boolean);
-
-  return {
-    actionText,
-    latestId: latest?.id || '',
-    metrics,
-    title: mentions ? 'Mentions need a look' : questions ? 'Questions are open' : 'Room catch-up',
-  };
-}
-
 const CATCHUP_COLLAPSE_KEY = 'minimalist:catchup-collapsed';
 
 function readCatchUpCollapsed() {
@@ -1629,9 +1607,33 @@ function readCatchUpCollapsed() {
   }
 }
 
-function RoomCatchUpStrip({ insight, onCreateTask, onFocusSearch, onJumpLatest, onOpenSummary }) {
-  // Hooks must run before the early return so render order stays stable.
+function RoomCatchUpStrip({
+  hidden = false,
+  messages,
+  onCreateTask,
+  onOpenRoomAi,
+  onReviewMessage,
+  scopeKey,
+  userId,
+  viewerName,
+  viewerShortId,
+}) {
   const [collapsed, setCollapsed] = useState(readCatchUpCollapsed);
+  const [reviewedMessageId, setReviewedMessageId] = useState(() => (
+    loadRoomCatchUpReviewedId(userId, scopeKey)
+  ));
+  const [reviewIndex, setReviewIndex] = useState(null);
+  const [reviewNotice, setReviewNotice] = useState(null);
+  const reviewNoticeTimerRef = useRef(null);
+  const panelId = `room-catchup-panel-${String(scopeKey || 'default').replace(/[^A-Za-z0-9_-]/g, '-')}`;
+  const titleId = `${panelId}-title`;
+  const storageKey = roomCatchUpReviewedStorageKey(userId, scopeKey);
+  const insight = useMemo(() => buildRoomCatchUp(messages, {
+    reviewedMessageId,
+    viewerName,
+    viewerShortId,
+    viewerUid: userId,
+  }), [messages, reviewedMessageId, userId, viewerName, viewerShortId]);
 
   const setCollapsedPref = useCallback((next) => {
     setCollapsed(next);
@@ -1643,65 +1645,178 @@ function RoomCatchUpStrip({ insight, onCreateTask, onFocusSearch, onJumpLatest, 
     }
   }, []);
 
-  if (!insight) return null;
+  useEffect(() => {
+    const syncReviewState = (event) => {
+      if (event?.detail?.storageKey !== storageKey) return;
+      setReviewedMessageId(String(event.detail.reviewedMessageId || ''));
+    };
+    const syncStorageState = (event) => {
+      if (event.key !== storageKey) return;
+      setReviewedMessageId(String(event.newValue || ''));
+    };
 
-  if (collapsed) {
+    window.addEventListener(ROOM_CATCHUP_REVIEW_EVENT, syncReviewState);
+    window.addEventListener('storage', syncStorageState);
+    return () => {
+      window.removeEventListener(ROOM_CATCHUP_REVIEW_EVENT, syncReviewState);
+      window.removeEventListener('storage', syncStorageState);
+    };
+  }, [storageKey]);
+
+  useEffect(() => () => {
+    if (reviewNoticeTimerRef.current) window.clearTimeout(reviewNoticeTimerRef.current);
+  }, []);
+
+  const jumpToReviewIndex = useCallback((nextIndex) => {
+    const ids = insight?.reviewMessageIds || [];
+    if (!ids.length) return;
+    const clampedIndex = Math.max(0, Math.min(nextIndex, ids.length - 1));
+    setReviewIndex(clampedIndex);
+    onReviewMessage(ids[clampedIndex]);
+  }, [insight?.reviewMessageIds, onReviewMessage]);
+
+  const startReview = useCallback(() => {
+    jumpToReviewIndex(0);
+  }, [jumpToReviewIndex]);
+
+  const reviewHighlight = useCallback(() => {
+    const ids = insight?.reviewMessageIds || [];
+    const highlightIndex = Math.max(0, ids.indexOf(insight?.highlight?.id));
+    jumpToReviewIndex(highlightIndex);
+  }, [insight?.highlight?.id, insight?.reviewMessageIds, jumpToReviewIndex]);
+
+  const markReviewed = useCallback(() => {
+    const latestId = insight?.latestId || '';
+    if (!latestId) return;
+    const previousId = reviewedMessageId;
+    setReviewedMessageId(latestId);
+    saveRoomCatchUpReviewedId(userId, scopeKey, latestId);
+    setReviewIndex(null);
+    setReviewNotice({ latestId, previousId });
+    if (reviewNoticeTimerRef.current) window.clearTimeout(reviewNoticeTimerRef.current);
+    reviewNoticeTimerRef.current = window.setTimeout(() => {
+      reviewNoticeTimerRef.current = null;
+      setReviewNotice(null);
+    }, 6000);
+  }, [insight?.latestId, reviewedMessageId, scopeKey, userId]);
+
+  const undoReviewed = useCallback(() => {
+    const previousId = reviewNotice?.previousId || '';
+    if (reviewNoticeTimerRef.current) window.clearTimeout(reviewNoticeTimerRef.current);
+    reviewNoticeTimerRef.current = null;
+    saveRoomCatchUpReviewedId(userId, scopeKey, previousId);
+    setReviewedMessageId(previousId);
+    setReviewNotice(null);
+  }, [reviewNotice?.previousId, scopeKey, userId]);
+
+  if (hidden) return null;
+
+  if (!insight) {
+    if (!reviewNotice || reviewNotice.latestId !== reviewedMessageId) return null;
     return (
-      <section className="room-catchup-strip is-collapsed" aria-label="Room catch-up">
-        <button
-          type="button"
-          className="room-catchup-expand"
-          onClick={() => setCollapsedPref(false)}
-          aria-expanded="false"
-          title="Show room catch-up"
-        >
-          <span className="room-catchup-kicker">Catch-up</span>
-          <strong>{insight.title}</strong>
-          <i className="ph-bold ph-caret-down" aria-hidden="true" />
-        </button>
+      <section className="room-catchup-v2 is-reviewed" aria-label="Room catch-up" role="status">
+        <span className="room-catchup-v2__icon" aria-hidden="true">
+          <i className="ph-bold ph-check" />
+        </span>
+        <span className="room-catchup-v2__reviewed-copy">
+          <strong>All caught up for now</strong>
+          <small>New activity will appear here.</small>
+        </span>
+        <button type="button" className="room-catchup-v2__undo" onClick={undoReviewed}>Undo</button>
       </section>
     );
   }
 
+  const reviewIds = insight.reviewMessageIds;
+  const reviewActive = Number.isInteger(reviewIndex) && reviewIds.length > 0;
+  const activeReviewIndex = reviewActive ? Math.min(reviewIndex, reviewIds.length - 1) : 0;
+
   return (
-    <section className="room-catchup-strip" aria-label="Room catch-up">
-      <div className="room-catchup-main">
-        <span className="room-catchup-kicker">Catch-up</span>
-        <strong>{insight.title}</strong>
-        <span>{insight.metrics.join(' · ')}</span>
-        {insight.actionText ? <p>{insight.actionText}</p> : null}
+    <section
+      className={`room-catchup-v2 ${collapsed ? 'is-collapsed' : ''} ${reviewActive ? 'is-reviewing' : ''}`}
+      aria-labelledby={titleId}
+    >
+      <div className="room-catchup-v2__summary">
+        <span className="room-catchup-v2__icon" aria-hidden="true">
+          <i className="ph-bold ph-lightning" />
+        </span>
+        <div className="room-catchup-v2__heading">
+          <h2 id={titleId}>{insight.title}</h2>
+        </div>
+        <div className="room-catchup-v2__signals" aria-label={insight.signals.join(', ')}>
+          {insight.signals.map((signal) => <span key={signal}>{signal}</span>)}
+        </div>
+        <div className="room-catchup-v2__primary-actions">
+          {reviewActive ? (
+            <div className="room-catchup-v2__review-nav" aria-label="Review navigation">
+              <button
+                type="button"
+                onClick={() => jumpToReviewIndex(activeReviewIndex - 1)}
+                disabled={activeReviewIndex === 0}
+                aria-label="Previous update"
+                title="Previous update"
+              >
+                <i className="ph-bold ph-arrow-left" aria-hidden="true" />
+              </button>
+              <span aria-live="polite">{activeReviewIndex + 1} of {reviewIds.length}</span>
+              <button
+                type="button"
+                onClick={() => jumpToReviewIndex(activeReviewIndex + 1)}
+                disabled={activeReviewIndex === reviewIds.length - 1}
+                aria-label="Next update"
+                title="Next update"
+              >
+                <i className="ph-bold ph-arrow-right" aria-hidden="true" />
+              </button>
+              <button type="button" className="room-catchup-v2__done" onClick={markReviewed}>Done</button>
+            </div>
+          ) : (
+            <button type="button" className="room-catchup-v2__review" onClick={startReview}>
+              Review
+              <i className="ph-bold ph-arrow-right" aria-hidden="true" />
+            </button>
+          )}
+          <button
+            type="button"
+            className="room-catchup-v2__toggle"
+            onClick={() => setCollapsedPref(!collapsed)}
+            aria-controls={panelId}
+            aria-expanded={!collapsed}
+            aria-label={collapsed ? 'Expand room catch-up' : 'Collapse room catch-up'}
+            title={collapsed ? 'Expand room catch-up' : 'Collapse room catch-up'}
+          >
+            <svg className="room-catchup-v2__toggle-icon" viewBox="0 0 20 20" aria-hidden="true">
+              <path d={collapsed ? 'm5 8 5 5 5-5' : 'm5 12 5-5 5 5'} />
+            </svg>
+          </button>
+        </div>
       </div>
-      <div className="room-catchup-actions" aria-label="Catch-up actions">
-        <button type="button" onClick={onOpenSummary}>
-          <i className="ph-bold ph-sparkle" aria-hidden="true" />
-          Summarize
-        </button>
-        <button type="button" onClick={() => onCreateTask(insight.actionText)}>
-          <i className="ph-bold ph-check-square" aria-hidden="true" />
-          Task
-        </button>
-        <button type="button" onClick={onFocusSearch}>
-          <i className="ph-bold ph-magnifying-glass" aria-hidden="true" />
-          Search
-        </button>
-        <button type="button" onClick={onJumpLatest}>
-          <svg className="room-catchup-inline-icon" viewBox="0 0 20 20" aria-hidden="true">
-            <path d="M10 3v12m-4-4 4 4 4-4" />
-          </svg>
-          Latest
-        </button>
-        <button
-          type="button"
-          className="room-catchup-collapse"
-          onClick={() => setCollapsedPref(true)}
-          aria-label="Collapse catch-up"
-          title="Collapse catch-up"
-        >
-          <svg className="room-catchup-inline-icon" viewBox="0 0 20 20" aria-hidden="true">
-            <path d="m5 12 5-5 5 5" />
-          </svg>
-        </button>
-      </div>
+      {!collapsed ? (
+        <div className="room-catchup-v2__details" id={panelId}>
+          <button type="button" className="room-catchup-v2__highlight" onClick={reviewHighlight}>
+            <span className="room-catchup-v2__highlight-label">{insight.highlight.label}</span>
+            <strong>{insight.highlight.name}</strong>
+            <span>{insight.highlight.text}</span>
+            <i className="ph-bold ph-arrow-up-right" aria-hidden="true" />
+          </button>
+          <div className="room-catchup-v2__secondary-actions" aria-label="Catch-up actions">
+            <button type="button" onClick={onOpenRoomAi}>
+              <i className="ph-bold ph-sparkle" aria-hidden="true" />
+              Open Room AI
+            </button>
+            {insight.taskText ? (
+              <button type="button" onClick={() => onCreateTask(insight.taskText)}>
+                <i className="ph-bold ph-check-square" aria-hidden="true" />
+                Save task
+              </button>
+            ) : null}
+            <button type="button" onClick={markReviewed}>
+              <i className="ph-bold ph-check-circle" aria-hidden="true" />
+              Mark reviewed
+            </button>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -2032,7 +2147,7 @@ function QuickSwitcher({ rooms, roomPrefs, channels, activeRoomId, activeChannel
                       <span className="quick-switch-row-end">
                         {result.current ? <span className="quick-switch-badge current">Current</span> : null}
                         {result.favorite ? (
-                          <span className="quick-switch-badge favorite"><i className="ph-fill ph-star" aria-hidden="true" /> Favorite</span>
+                          <span className="quick-switch-badge favorite"><i className="ph-bold ph-star" aria-hidden="true" /> Favorite</span>
                         ) : null}
                         {isActive ? <i className="ph-bold ph-arrow-elbow-down-left quick-switch-enter" aria-hidden="true" /> : null}
                       </span>
@@ -2064,6 +2179,9 @@ function QuickSwitcher({ rooms, roomPrefs, channels, activeRoomId, activeChannel
 function ComposerActionDialog({ mode, onClose, onSubmit, submitting }) {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState('Yes, No, Maybe');
+  const [pollMultipleChoice, setPollMultipleChoice] = useState(false);
+  const [pollAnonymous, setPollAnonymous] = useState(false);
+  const [pollClosesAt, setPollClosesAt] = useState('');
   const [reminderText, setReminderText] = useState('');
   const [reminderDueAt, setReminderDueAt] = useState(() => toDateTimeLocalValue());
   const [minReminderDueAt] = useState(() => toDateTimeLocalValue(Date.now() + 60 * 1000));
@@ -2080,7 +2198,13 @@ function ComposerActionDialog({ mode, onClose, onSubmit, submitting }) {
     event.preventDefault();
     if (submitting) return;
     onSubmit(isPoll
-      ? { question: pollQuestion, optionsText: pollOptions }
+      ? {
+        question: pollQuestion,
+        optionsText: pollOptions,
+        multipleChoice: pollMultipleChoice,
+        anonymous: pollAnonymous,
+        closesAt: pollClosesAt,
+      }
       : { text: reminderText, dueAtValue: reminderDueAt });
   };
 
@@ -2118,6 +2242,31 @@ function ComposerActionDialog({ mode, onClose, onSubmit, submitting }) {
                 rows={4}
                 value={pollOptions}
               />
+            </label>
+            <label>
+              <span>Close automatically (optional)</span>
+              <input
+                min={minReminderDueAt}
+                onChange={(event) => setPollClosesAt(event.target.value)}
+                type="datetime-local"
+                value={pollClosesAt}
+              />
+            </label>
+            <label className="composer-dialog-check">
+              <input
+                checked={pollMultipleChoice}
+                onChange={(event) => setPollMultipleChoice(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Allow multiple choices</span>
+            </label>
+            <label className="composer-dialog-check">
+              <input
+                checked={pollAnonymous}
+                onChange={(event) => setPollAnonymous(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Hide voter identities in results</span>
             </label>
           </div>
         ) : (
@@ -2315,6 +2464,8 @@ function closeEmojiPicker({ restoreFocus = false } = {}) {
 
 const MessageItem = memo(function MessageItem({
   animationIndex = 0,
+  deliveryStateElement,
+  locale,
   message,
   searchQuery,
   editingId,
@@ -2322,17 +2473,27 @@ const MessageItem = memo(function MessageItem({
   onEditingText,
   onCancelEdit,
   onSaveEdit,
+  onMarkUnread,
+  onOpenThread,
   onPrepareReply,
   onJumpToMessage,
   onReact,
+  onReport,
   onSaveReminder,
   onClosePoll,
+  onTranslate,
   onVotePoll,
+  translatedText,
 }) {
-  const isMine = message.uid === window.currentUser?.uid;
+  const messageKind = roomMessageKind(message);
+  const isPerson = messageKind === ROOM_MESSAGE_KIND.PERSON;
+  const isMine = isCurrentUserAuthoredMessage(message, window.currentUser?.uid);
+  const visibleMessageText = messageTextWithoutPreviewUrl(message.text, message.linkPreview);
   const fallbackAvatar = window.getAvatarUrl?.(message.name, '') || '';
   const avatar = safeImageSource(message.photoUrl) || fallbackAvatar;
   const isEditing = editingId === message.id;
+  const deliveryState = isMine ? message.deliveryState : '';
+  const deliveryPending = deliveryState === 'sending' || deliveryState === 'failed';
   const isVisible = !searchQuery || messageSearchText(message).includes(searchQuery);
   const replyTarget = message.replyTo?.id ? {
     messageId: message.replyTo.id,
@@ -2353,13 +2514,13 @@ const MessageItem = memo(function MessageItem({
 
   return (
     <li
-      className={`chat-message ${isMine ? 'my-message' : ''} ${message.important ? 'msg-important' : ''}`}
+      className={`chat-message message-${messageKind} ${isMine ? 'my-message' : ''} ${message.important ? 'msg-important' : ''}`}
       id={`msg-${message.id}`}
       tabIndex={0}
-      aria-label={`Message from ${message.name || 'someone'}`}
+      aria-label={`${messageKind === ROOM_MESSAGE_KIND.AI ? 'AI message' : messageKind === ROOM_MESSAGE_KIND.AUTOMATION ? 'Automation message' : 'Message'} from ${message.name || 'someone'}${deliveryState ? `, ${deliveryState}` : ''}`}
       style={{ display: isVisible ? 'flex' : 'none', '--message-index': animationIndex % 10 }}
     >
-      <div
+      {!deliveryPending ? <div
         className="msg-actions"
         role="toolbar"
         aria-label={`Actions for message from ${message.name || 'someone'}`}
@@ -2386,12 +2547,62 @@ const MessageItem = memo(function MessageItem({
             className="action-icon reply-icon"
             type="button"
             tabIndex={-1}
-            onClick={() => onPrepareReply(message.id, message.name, message.text || 'Image')}
+            onClick={() => onPrepareReply(
+              message.id,
+              message.name,
+              message.text || 'Image',
+              message.uid,
+              threadRootIdForMessage(message),
+            )}
             title="Reply"
             aria-label="Reply to message"
           >
             <i className="ph-bold ph-arrow-bend-up-left" aria-hidden="true" />
           </button>
+          <button
+            className="action-icon"
+            type="button"
+            tabIndex={-1}
+            onClick={() => onOpenThread(message)}
+            title={translate('chat.thread.title', {}, locale)}
+            aria-label={translate('chat.thread.title', {}, locale)}
+          >
+            <i className="ph-bold ph-chat-centered-dots" aria-hidden="true" />
+          </button>
+          {message.text ? (
+            <button
+              className="action-icon"
+              type="button"
+              tabIndex={-1}
+              onClick={() => onTranslate(message)}
+              title={translate('chat.translate.action', {}, locale)}
+              aria-label={translate('chat.translate.action', {}, locale)}
+            >
+              <i className="ph-bold ph-translate" aria-hidden="true" />
+            </button>
+          ) : null}
+          <button
+            className="action-icon"
+            type="button"
+            tabIndex={-1}
+            onClick={() => onMarkUnread(message)}
+            title={translate('chat.unread.markUnread', {}, locale)}
+            aria-label={translate('chat.unread.markUnread', {}, locale)}
+          >
+            <i className="ph-bold ph-envelope-simple" aria-hidden="true" />
+          </button>
+          {!isMine ? (
+            <button
+              className="action-icon"
+              type="button"
+              tabIndex={-1}
+              onClick={() => onReport(message)}
+              title={translate('chat.report.action', {}, locale)}
+              aria-label={translate('chat.report.action', {}, locale)}
+            >
+              <i className="ph-bold ph-flag" aria-hidden="true" />
+            </button>
+          ) : null}
           <button
             className="action-icon msg-menu-icon"
             type="button"
@@ -2406,22 +2617,23 @@ const MessageItem = memo(function MessageItem({
             <i className="ph-bold ph-dots-three" aria-hidden="true" />
           </button>
         </span>
-      </div>
+      </div> : null}
 
       <div
         className="msg-header"
         onContextMenu={(event) => {
+          if (!isPerson) return;
           event.preventDefault();
           window.showContextMenu?.(event.pageX, event.pageY, message.uid, message.name);
         }}
-        style={{ cursor: 'context-menu' }}
+        style={{ cursor: isPerson ? 'context-menu' : 'default' }}
       >
         <img
           alt="Avatar"
           className="msg-avatar"
           decoding="async"
           loading="eager"
-          onClick={() => window.viewUserProfile?.(message.uid)}
+          onClick={isPerson ? () => window.viewUserProfile?.(message.uid) : undefined}
           onError={(event) => {
             if (fallbackAvatar && event.currentTarget.src !== fallbackAvatar) {
               event.currentTarget.src = fallbackAvatar;
@@ -2430,13 +2642,13 @@ const MessageItem = memo(function MessageItem({
           src={avatar}
         />
         <div className="header-text">
-          <span className="msg-name" onClick={() => window.viewUserProfile?.(message.uid)} style={{ cursor: 'pointer' }}>
+          <span className="msg-name" onClick={isPerson ? () => window.viewUserProfile?.(message.uid) : undefined} style={{ cursor: isPerson ? 'pointer' : 'default' }}>
             {message.name}
           </span>
           {message.aiAgent ? <span className="tier-badge ai">AI</span> : null}
           {!message.aiAgent && (message.automation || message.bot) ? (
             <span
-              className="tier-badge ai"
+              className="tier-badge automation"
               title={automationAttributionTitle(message)}
             >
               AUTOMATION
@@ -2451,8 +2663,9 @@ const MessageItem = memo(function MessageItem({
             id={`flag-${message.id}`}
             style={{ display: message.important ? '' : 'none' }}
             title="Important"
+            aria-label="Important message"
           >
-            ⚑
+            <i className="ph-bold ph-flag" aria-hidden="true" />
           </span>
         </div>
       </div>
@@ -2479,21 +2692,28 @@ const MessageItem = memo(function MessageItem({
 
       {message.attachedFile && !message.attachedImage ? (
         <div className="msg-file-card">
-          <a className="msg-file-main" href={message.attachedFile.url} target="_blank" rel="noreferrer">
+          {message.attachedFile.url ? <a className="msg-file-main" href={message.attachedFile.url} target="_blank" rel="noreferrer">
             <span className="msg-file-icon"><i className="ph-bold ph-file-arrow-down" /></span>
             <span className="msg-file-info">
               <strong>{message.attachedFile.name || 'Attachment'}</strong>
               <small>{message.attachedFile.type || 'File'} · {formatBytes(Number(message.attachedFile.size || 0))}</small>
             </span>
-          </a>
-          <TextFilePreview file={message.attachedFile} />
+          </a> : <span className="msg-file-main" aria-label="Attachment waiting to send">
+            <span className="msg-file-icon"><i className="ph-bold ph-file" /></span>
+            <span className="msg-file-info">
+              <strong>{message.attachedFile.name || 'Attachment'}</strong>
+              <small>{message.attachedFile.type || 'File'} · {formatBytes(Number(message.attachedFile.size || 0))}</small>
+            </span>
+          </span>}
+          {message.attachedFile.url ? <TextFilePreview file={message.attachedFile} /> : null}
         </div>
       ) : null}
 
       <PollCard message={message} onClosePoll={onClosePoll} onVotePoll={onVotePoll} />
       <ReminderCard message={message} onSaveReminder={onSaveReminder} />
+      <LinkPreviewCard preview={message.linkPreview} />
 
-      <div className="msg-text" id={`mt-${message.id}`}>
+      <div className={`msg-text ${!isEditing && !visibleMessageText ? 'hidden' : ''}`} id={`mt-${message.id}`}>
         {isEditing ? (
           <>
             <textarea
@@ -2508,11 +2728,20 @@ const MessageItem = memo(function MessageItem({
             </div>
           </>
         ) : (
-          <MessageText text={message.text} />
+          <MessageText text={visibleMessageText} />
         )}
       </div>
+      {translatedText ? (
+        <div className="message-translation">
+          <small>{translate('chat.translate.translatedTo', {
+            language: translatedText.targetLanguage || locale,
+          }, locale)}</small>
+          <MessageText text={translatedText.text} />
+        </div>
+      ) : null}
 
       <ReactionPills message={message} onReact={onReact} />
+      {deliveryStateElement}
     </li>
   );
 }, areMessageItemsEqual);
@@ -2520,7 +2749,10 @@ const MessageItem = memo(function MessageItem({
 function areMessageItemsEqual(prev, next) {
   if (prev.message !== next.message) return false;
   if (prev.searchQuery !== next.searchQuery) return false;
+  if (prev.locale !== next.locale) return false;
   if (prev.onJumpToMessage !== next.onJumpToMessage) return false;
+  if (prev.onTranslate !== next.onTranslate) return false;
+  if (prev.translatedText !== next.translatedText) return false;
 
   const wasEditing = prev.editingId === prev.message.id;
   const isEditing = next.editingId === next.message.id;
@@ -2535,28 +2767,49 @@ const MessageList = memo(function MessageList({
   composerDisabled,
   initialLoading,
   loadFailed,
+  locale,
+  messageDeliveries,
+  messageScope,
   messages,
+  pinnedMessageId,
+  firstUnreadMessageId,
   editingId,
   editingText,
   onCancelEdit,
+  onCancelDelivery,
   onEditingText,
   onJumpToMessage,
+  onMarkUnread,
+  onOpenThread,
   onPrepareReply,
   onReact,
   onClosePoll,
+  onReport,
+  onRetryDelivery,
   onSaveEdit,
   onSaveReminder,
   onScroll,
   onScrollIntent,
+  onTranslate,
   onVotePoll,
   searchQuery,
+  translatedMessages,
   listRef,
 }) {
-  const hasMessages = messages.length > 0;
-  const hasSearchResults = !searchQuery || messages.some((message) => messageSearchText(message).includes(searchQuery));
+  const scopedDeliveryMessages = useMemo(
+    () => messageDeliveries.filter((delivery) => delivery.scopeKey === messageScope && delivery.message).map((delivery) => delivery.message),
+    [messageDeliveries, messageScope],
+  );
+  const hasMessages = messages.length > 0 || scopedDeliveryMessages.length > 0;
+  const matchesMessage = useCallback(
+    (message) => !searchQuery || messageSearchText(message).includes(searchQuery),
+    [searchQuery],
+  );
+  const hasSearchResults = !searchQuery || [...messages, ...scopedDeliveryMessages].some(matchesMessage);
 
   return (
     <ul
+      aria-label={`${activeRoomName} conversation messages`}
       id="messages"
       onKeyDown={onScrollIntent}
       onPointerCancel={onScrollIntent}
@@ -2568,6 +2821,7 @@ const MessageList = memo(function MessageList({
       onTouchStart={onScrollIntent}
       onWheel={onScrollIntent}
       ref={listRef}
+      tabIndex={0}
     >
       {!hasMessages ? (
         <MessageListEmptyState
@@ -2579,37 +2833,59 @@ const MessageList = memo(function MessageList({
       {hasMessages && !hasSearchResults ? (
         <MessageListEmptyState kind="search" roomName={activeRoomName} />
       ) : null}
-      {messages.map((message, index) => (
-        <MessageItem
-          animationIndex={index}
-          editingId={editingId}
-          editingText={editingText}
-          key={message.id}
-          message={message}
-          onCancelEdit={onCancelEdit}
-          onEditingText={onEditingText}
-          onJumpToMessage={onJumpToMessage}
-          onPrepareReply={onPrepareReply}
-          onReact={onReact}
-          onClosePoll={onClosePoll}
-          onSaveReminder={onSaveReminder}
-          onSaveEdit={onSaveEdit}
-          onVotePoll={onVotePoll}
-          searchQuery={searchQuery}
+      <Suspense fallback={null}>
+        <LazyMessageTimeline
+          deliveries={messageDeliveries}
+          firstUnreadMessageId={firstUnreadMessageId}
+          key={messageScope}
+          matchesMessage={matchesMessage}
+          messages={messages}
+          onCancelDelivery={onCancelDelivery}
+          onRetryDelivery={onRetryDelivery}
+          pinnedMessageId={pinnedMessageId}
+          scopeKey={messageScope}
+          renderMessage={(message, index, deliveryStateElement) => (
+          <MessageItem
+            animationIndex={index}
+            deliveryStateElement={deliveryStateElement}
+            editingId={editingId}
+            editingText={editingText}
+            key={message.id}
+            locale={locale}
+            message={message}
+            onCancelEdit={onCancelEdit}
+            onEditingText={onEditingText}
+            onJumpToMessage={onJumpToMessage}
+            onMarkUnread={onMarkUnread}
+            onOpenThread={onOpenThread}
+            onPrepareReply={onPrepareReply}
+            onReact={onReact}
+            onClosePoll={onClosePoll}
+            onReport={onReport}
+            onSaveReminder={onSaveReminder}
+            onSaveEdit={onSaveEdit}
+            onTranslate={onTranslate}
+            onVotePoll={onVotePoll}
+            searchQuery=""
+            translatedText={translatedMessages[message.id]}
+          />
+          )}
         />
-      ))}
+      </Suspense>
     </ul>
   );
 });
 
 export function ChatCore({ user, registerApi }) {
   const userId = user?.uid || '';
+  const locale = useSyncExternalStore(subscribeLocale, getLocale, () => DEFAULT_LOCALE);
   const [initialRoomPreference] = useState(() => readLastRoomPreference(userId));
   const lastRoomHydratedUidRef = useRef(userId);
   const initialRoom = roomFromPreference(initialRoomPreference);
   const initialChannelId = initialRoom.id === 'global' ? 'general' : (initialRoomPreference?.channelId || 'general');
   const [roomListHost, setRoomListHost] = useState(null);
   const [channelHost, setChannelHost] = useState(null);
+  const [roomHeaderHost, setRoomHeaderHost] = useState(null);
   const [rooms, setRooms] = useState([GLOBAL_ROOM]);
   const [roomPrefs, setRoomPrefs] = useState({});
   const [activeRoom, setActiveRoom] = useState(initialRoom);
@@ -2617,12 +2893,14 @@ export function ChatCore({ user, registerApi }) {
   const [channels, setChannels] = useState([{ id: 'general', name: 'general' }]);
   const [activeChannelId, setActiveChannelId] = useState(initialChannelId);
   const [messages, setMessages] = useState([]);
+  const [messageDeliveries, setMessageDeliveries] = useState([]);
   const [draft, setDraft] = useState(() => readComposerDraft(initialRoom.id, initialChannelId));
   const [reply, setReply] = useState(null);
   const [typingNames, setTypingNames] = useState([]);
   const [composerDisabled, setComposerDisabled] = useState(false);
   const [placeholder, setPlaceholder] = useState(`Message ${initialRoom.name}...`);
   const [fileSelected, setFileSelected] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [initialMessagesLoading, setInitialMessagesLoading] = useState(true);
   const [messagesLoadFailed, setMessagesLoadFailed] = useState(false);
@@ -2633,6 +2911,7 @@ export function ChatCore({ user, registerApi }) {
   const [slashSelectedIndex, setSlashSelectedIndex] = useState(0);
   const [commandListOpen, setCommandListOpen] = useState(false);
   const [composerDialogMode, setComposerDialogMode] = useState(null);
+  const [composerMoreOpen, setComposerMoreOpen] = useState(false);
   const [simpleDialog, setSimpleDialog] = useState(null);
   const [mentionCandidates, setMentionCandidates] = useState([]);
   const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
@@ -2640,7 +2919,21 @@ export function ChatCore({ user, registerApi }) {
   const [dismissedMentionKey, setDismissedMentionKey] = useState('');
   const [jumpContext, setJumpContext] = useState(null);
   const [quickSwitcherOpen, setQuickSwitcherOpen] = useState(false);
+  const [quickReplyStatus, setQuickReplyStatus] = useState('');
+  const [roomCatchUpEnabled, setRoomCatchUpEnabled] = useState(() => loadRoomCatchUpEnabled(userId));
+  const [readState, setReadState] = useState({});
+  const [threadDrawerOpen, setThreadDrawerOpen] = useState(false);
+  const [activeThreadRootId, setActiveThreadRootId] = useState('');
+  const [threadFollows, setThreadFollows] = useState({});
+  const [threadReadAtByRoot, setThreadReadAtByRoot] = useState({});
+  const [translatedMessages, setTranslatedMessages] = useState({});
+  const [translationPendingIds, setTranslationPendingIds] = useState(() => new Set());
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
+  const [scheduledMessages, setScheduledMessages] = useState([]);
   const quickSwitchReturnFocusRef = useRef(null);
+  const composerMoreTriggerRef = useRef(null);
+  const createPollHandlerRef = useRef(null);
 
   const roomsRef = useRef([GLOBAL_ROOM]);
   const roomPrefsRef = useRef({});
@@ -2684,6 +2977,9 @@ export function ChatCore({ user, registerApi }) {
   const muteTimerRef = useRef(null);
   const isSendingRef = useRef(false);
   const pendingReactionOpsRef = useRef(new Map());
+  const deliveryAttemptsRef = useRef(new Map());
+  const outboxHydratedUidRef = useRef('');
+  const lastReadWriteKeyRef = useRef('');
   const reminderTimersRef = useRef([]);
   const simpleDialogResolverRef = useRef(null);
 
@@ -2704,7 +3000,10 @@ export function ChatCore({ user, registerApi }) {
   const jumpNoticeTimerRef = useRef(null);
   const didBootRoomRef = useRef(false);
   const deferredSearchQuery = useDeferredValue(searchQuery);
-
+  const activeUnread = useMemo(
+    () => unreadSummary(messages, readState, userId),
+    [messages, readState, userId],
+  );
   const clearPendingMessageOps = useCallback(() => {
     pendingMessageOpsRef.current = [];
     if (messageFlushFrameRef.current) {
@@ -2736,10 +3035,12 @@ export function ChatCore({ user, registerApi }) {
         const anchor = shouldSoftTrim ? null : captureMessageViewportAnchor(list);
         next = merged.slice(-targetSize);
         if (anchor && next.some((message) => message.id === anchor.messageId)) {
-          pendingMessageWindowScrollRestoreRef.current = {
+          const restore = {
             ...anchor,
             scopeKey: activeMessageScopeRef.current,
           };
+          pendingMessageWindowScrollRestoreRef.current = restore;
+          window.pendingMessageWindowScrollRestore = restore;
         }
         oldestMessageKeyRef.current = next[0]?.id || null;
         historyExhaustedRef.current = false;
@@ -2826,6 +3127,7 @@ export function ChatCore({ user, registerApi }) {
     clearScrollSettleTimers();
     pendingHistoryScrollRestoreRef.current = null;
     pendingMessageWindowScrollRestoreRef.current = null;
+    delete window.pendingMessageWindowScrollRestore;
     oldestMessageKeyRef.current = cached?.oldestMessageKey ?? null;
     historyExhaustedRef.current = cached?.historyExhausted === true;
     isFetchingHistoryRef.current = false;
@@ -2869,6 +3171,7 @@ export function ChatCore({ user, registerApi }) {
     setEditingId(null);
     setEditingText('');
     setDraft(readComposerDraft(activeRoom.id, activeChannelId));
+    setQuickReplyStatus('');
     setPlaceholder(`Message ${activeRoom.name}...`);
   }, [
     activeChannelId,
@@ -2895,12 +3198,88 @@ export function ChatCore({ user, registerApi }) {
     };
   }, [scrollMessagesToLatest]);
 
+  useEffect(() => {
+    const list = listRef.current;
+    if (!list || typeof ResizeObserver === 'undefined') return undefined;
+
+    let previousHeight = list.clientHeight;
+    let resizeFrame = null;
+    const hasPendingScrollRestore = () => Boolean(
+      pendingHistoryScrollRestoreRef.current
+      || pendingMessageWindowScrollRestoreRef.current
+      || pendingMessageScrollRestoreRef.current
+    );
+    const observer = new ResizeObserver((entries) => {
+      const nextHeight = Math.round(entries[0]?.contentRect?.height ?? list.clientHeight);
+      if (!nextHeight || Math.abs(nextHeight - previousHeight) < 1) return;
+      previousHeight = nextHeight;
+      if (
+        isFetchingHistoryRef.current
+        || window.isFetchingHistory
+        || hasPendingScrollRestore()
+        || (!shouldStickToBottomRef.current && !forceScrollToLatestRef.current)
+      ) return;
+
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        resizeFrame = null;
+        if (
+          listRef.current !== list
+          || !list.clientHeight
+          || isFetchingHistoryRef.current
+          || window.isFetchingHistory
+          || hasPendingScrollRestore()
+          || (!shouldStickToBottomRef.current && !forceScrollToLatestRef.current)
+        ) return;
+        list.scrollTop = list.scrollHeight;
+      });
+    });
+
+    observer.observe(list);
+    return () => {
+      observer.disconnect();
+      if (resizeFrame) cancelAnimationFrame(resizeFrame);
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncPreference = (enabled = loadRoomCatchUpEnabled(userId)) => {
+      setRoomCatchUpEnabled((current) => (current === enabled ? current : enabled));
+    };
+    const accountScope = String(userId || '').trim() || 'signed-out';
+    const storageKey = roomCatchUpStorageKey(userId);
+    const handlePreference = (event) => {
+      if (event.detail?.uid && event.detail.uid !== accountScope) return;
+      syncPreference(event.detail?.enabled ?? loadRoomCatchUpEnabled(userId));
+    };
+    const handleStorage = (event) => {
+      if (event.key !== storageKey) return;
+      syncPreference(loadRoomCatchUpEnabled(userId));
+    };
+
+    syncPreference();
+    window.addEventListener(ROOM_CATCHUP_PREFERENCE_EVENT, handlePreference);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener(ROOM_CATCHUP_PREFERENCE_EVENT, handlePreference);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, [userId]);
+
   /* eslint-disable react-hooks/set-state-in-effect -- Portal hosts are owned by the surrounding shell and become available after mount. */
   useEffect(() => {
     setRoomListHost(document.getElementById('room-list'));
     setChannelHost(document.getElementById('room-channel-list'));
+    setRoomHeaderHost(document.getElementById('room-header-meta'));
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => () => {
+    deliveryAttemptsRef.current.forEach((attempt) => {
+      if (attempt.localImageUrl) URL.revokeObjectURL(attempt.localImageUrl);
+    });
+    deliveryAttemptsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     activeChannelRef.current = activeChannelId;
@@ -3034,33 +3413,117 @@ export function ChatCore({ user, registerApi }) {
     writeLastRoomPreference(activeRoom, activeChannelId, user?.uid);
   }, [activeChannelId, activeRoom, user?.uid]);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- Room changes intentionally reset channel state before the realtime listener attaches. */
   useEffect(() => {
-    const bar = document.getElementById('room-channel-bar');
-    if (window.syncRoomChannelBar) {
-      window.syncRoomChannelBar();
-    } else {
-      const activeTab = document.querySelector('.room-tab.active')?.getAttribute('data-target');
-      bar?.classList.toggle('hidden', activeRoom.id === 'global' || activeTab !== 'chat');
-    }
-
-    if (activeRoom.id === 'global') {
-      setChannels([{ id: 'general', name: 'general' }]);
-      setActiveChannelId('general');
-      return undefined;
-    }
-
-    return onValue(ref(db, `rooms_meta/${activeRoom.id}/channels`), (snapshot) => {
-      const value = snapshot.val() || {};
-      const nextChannels = [
-        { id: 'general', name: 'general' },
-        ...Object.entries(value).map(([id, channel]) => ({ id, name: channel.name || id })),
-      ];
-      setChannels(nextChannels);
-      if (!nextChannels.some((channel) => channel.id === activeChannelRef.current)) setActiveChannelId('general');
+    const path = readStatePath(user?.uid, activeRoom.id, activeChannelId);
+    if (!path) return undefined;
+    return onValue(ref(db, path), (snapshot) => {
+      setReadState(snapshot.val() || {});
     });
-  }, [activeRoom.id]);
-  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [activeChannelId, activeRoom.id, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid || !activeRoom.id) return undefined;
+    const scopePath = `${user.uid}/${activeRoom.id}/${activeChannelId || 'general'}`;
+    const unsubscribeFollows = onValue(ref(db, `thread_follows/${scopePath}`), (snapshot) => {
+      setThreadFollows(snapshot.val() || {});
+    });
+    const unsubscribeReads = onValue(ref(db, `thread_reads/${scopePath}`), (snapshot) => {
+      setThreadReadAtByRoot(snapshot.val() || {});
+    });
+    return () => {
+      unsubscribeFollows();
+      unsubscribeReads();
+    };
+  }, [activeChannelId, activeRoom.id, user?.uid]);
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    return onValue(ref(db, `user_scheduled_messages/${user.uid}`), (snapshot) => {
+      const next = [];
+      snapshot.forEach((child) => {
+        const value = child.val() || {};
+        if (
+          value.roomId === activeRoom.id
+          && (value.channelId || 'general') === (activeChannelId || 'general')
+          && value.status !== 'cancelled'
+        ) {
+          next.push({ id: child.key, ...value });
+        }
+      });
+      next.sort((left, right) => Number(left.deliverAt || 0) - Number(right.deliverAt || 0));
+      setScheduledMessages(next);
+    });
+  }, [activeChannelId, activeRoom.id, user?.uid]);
+
+  const markLatestMessageRead = useCallback(async () => {
+    const latest = messagesRef.current.at(-1);
+    const path = readStatePath(user?.uid, activeRoomRef.current.id, activeChannelRef.current);
+    if (!latest?.id || !path) return;
+    const writeKey = `${path}:${latest.id}`;
+    if (lastReadWriteKeyRef.current === writeKey && !readState.markedUnreadMessageId) return;
+    lastReadWriteKeyRef.current = writeKey;
+    await set(ref(db, path), nextReadState(latest)).catch((error) => {
+      lastReadWriteKeyRef.current = '';
+      console.warn('[chat] read cursor update failed', {
+        roomId: activeRoomRef.current.id,
+        errorCode: error?.code || 'unknown',
+      });
+    });
+  }, [readState.markedUnreadMessageId, user?.uid]);
+
+  const markMessageUnread = useCallback(async (message) => {
+    const path = readStatePath(user?.uid, activeRoomRef.current.id, activeChannelRef.current);
+    if (!path || !message?.id) return;
+    lastReadWriteKeyRef.current = '';
+    await set(ref(db, path), nextMarkedUnreadState(message, readState));
+    window.showToast?.('Marked unread from this message.', false);
+  }, [readState, user?.uid]);
+
+  const jumpToFirstUnread = useCallback(() => {
+    if (!activeUnread.firstMessageId) {
+      window.showToast?.('You are caught up.', false);
+      return;
+    }
+    const target = document.getElementById(`msg-${activeUnread.firstMessageId}`);
+    if (target) {
+      shouldStickToBottomRef.current = false;
+      forceScrollToLatestRef.current = false;
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      target.focus({ preventScroll: true });
+      return;
+    }
+    if (listRef.current) listRef.current.scrollTop = 0;
+    window.showToast?.('Loading older messages to reach the first unread item.', false);
+  }, [activeUnread.firstMessageId]);
+
+  const markThreadRead = useCallback(async (rootId) => {
+    if (!userId || !rootId) return;
+    const path = `thread_reads/${userId}/${activeRoomRef.current.id}/${activeChannelRef.current}/${rootId}`;
+    await set(ref(db, path), Date.now());
+  }, [userId]);
+
+  const toggleThreadFollow = useCallback(async (
+    rootId,
+    followed,
+    roomId = activeRoomRef.current.id,
+    channelId = activeChannelRef.current,
+  ) => {
+    if (!userId || !rootId) return;
+    const path = `thread_follows/${userId}/${roomId}/${channelId || 'general'}/${rootId}`;
+    if (followed) {
+      await set(ref(db, path), { followed: true, followedAt: Date.now() });
+    } else {
+      await remove(ref(db, path));
+    }
+  }, [userId]);
+
+  const openMessageThread = useCallback((message) => {
+    const rootId = threadRootIdForMessage(message);
+    if (!rootId) return;
+    setActiveThreadRootId(rootId);
+    setThreadDrawerOpen(true);
+    void markThreadRead(rootId);
+  }, [markThreadRead]);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -3085,17 +3548,27 @@ export function ChatCore({ user, registerApi }) {
     if (windowRestore) {
       if (windowRestore.scopeKey !== activeMessageScopeRef.current) {
         pendingMessageWindowScrollRestoreRef.current = null;
+        delete window.pendingMessageWindowScrollRestore;
       } else {
         const list = listRef.current;
         const anchor = document.getElementById(`msg-${windowRestore.messageId}`);
         if (list && anchor) {
           pendingMessageWindowScrollRestoreRef.current = null;
+          delete window.pendingMessageWindowScrollRestore;
           const nextOffset = anchor.getBoundingClientRect().top - list.getBoundingClientRect().top;
           list.scrollTop += nextOffset - windowRestore.offsetTop;
           shouldStickToBottomRef.current = false;
           return;
         }
+        if (list) {
+          list.scrollTop = Math.max(
+            0,
+            windowRestore.scrollTop + (list.scrollHeight - windowRestore.scrollHeight),
+          );
+          shouldStickToBottomRef.current = false;
+        }
         pendingMessageWindowScrollRestoreRef.current = null;
+        delete window.pendingMessageWindowScrollRestore;
       }
     }
 
@@ -3185,7 +3658,13 @@ export function ChatCore({ user, registerApi }) {
     const hideBtn = document.getElementById('room-drop-hide');
 
     if (favoriteBtn) {
-      favoriteBtn.textContent = prefs.favorite ? '★ Unfavorite Room' : '☆ Favorite Room';
+      const favoriteIcon = favoriteBtn.querySelector('i') || document.createElement('i');
+      favoriteIcon.className = 'ph-bold ph-star';
+      favoriteIcon.setAttribute('aria-hidden', 'true');
+      favoriteBtn.replaceChildren(
+        favoriteIcon,
+        prefs.favorite ? ' Unfavorite Room' : ' Favorite Room',
+      );
       favoriteBtn.classList.toggle('active', prefs.favorite === true);
     }
 
@@ -3272,6 +3751,9 @@ export function ChatCore({ user, registerApi }) {
     setActiveRoom(nextRoom);
     setActiveChannelId(nextChannelId);
     restoreMessageStateForScope(nextScopeKey);
+    setComposerMoreOpen(false);
+    setThreadDrawerOpen(false);
+    setActiveThreadRootId('');
     setReply(null);
     setEditingId(null);
     setDraft(readComposerDraft(nextRoom.id, nextChannelId));
@@ -3345,8 +3827,14 @@ export function ChatCore({ user, registerApi }) {
     }
   }, [activeRoom.id, roomPrefs, switchRoom]);
 
-  const prepareReply = useCallback((id, name, text) => {
-    const nextReply = { id, name, text };
+  const prepareReply = useCallback((id, name, text, uid = '', threadRootId = '') => {
+    const nextReply = {
+      id,
+      name,
+      text,
+      uid,
+      threadRootId: threadRootId || id,
+    };
     window.activeReplyData = nextReply;
     setReply(nextReply);
     setTimeout(() => textareaRef.current?.focus(), 0);
@@ -3357,6 +3845,16 @@ export function ChatCore({ user, registerApi }) {
     setReply(null);
   }, []);
 
+  const replyInThread = useCallback((rootId) => {
+    const root = messagesRef.current.find((message) => message.id === rootId);
+    if (!root) {
+      window.showToast?.('Load the thread root before replying.');
+      return;
+    }
+    prepareReply(root.id, root.name, root.text || 'Attachment', root.uid, rootId);
+    setThreadDrawerOpen(false);
+  }, [prepareReply]);
+
   const switchChannel = useCallback((channelId) => {
     const nextChannelId = channelId || 'general';
     const nextScopeKey = messageScopeKey(activeRoomRef.current.id, nextChannelId);
@@ -3366,6 +3864,9 @@ export function ChatCore({ user, registerApi }) {
     saveCurrentMessageState();
     activeMessageScopeRef.current = nextScopeKey;
     clearRoomSearch();
+    setComposerMoreOpen(false);
+    setThreadDrawerOpen(false);
+    setActiveThreadRootId('');
     setActiveChannelId(nextChannelId);
     activeChannelRef.current = nextChannelId;
     window.activeChannelId = nextChannelId;
@@ -3377,6 +3878,36 @@ export function ChatCore({ user, registerApi }) {
     setReply(null);
     setDraft(readComposerDraft(activeRoomRef.current.id, nextChannelId));
   }, [restoreMessageStateForScope, saveCurrentMessageState, setTyping, user?.uid]);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Room changes intentionally reset channel state before the realtime listener attaches. */
+  useEffect(() => {
+    const bar = document.getElementById('room-channel-bar');
+    if (window.syncRoomChannelBar) {
+      window.syncRoomChannelBar();
+    } else {
+      const activeTab = document.querySelector('.room-tab.active')?.getAttribute('data-target');
+      bar?.classList.toggle('hidden', activeRoom.id === 'global' || activeTab !== 'chat');
+    }
+
+    if (activeRoom.id === 'global') {
+      setChannels([normalizeChannel('general', { name: 'general' })]);
+      switchChannel('general');
+      return undefined;
+    }
+
+    return onValue(ref(db, `rooms_meta/${activeRoom.id}/channels`), (snapshot) => {
+      const value = snapshot.val() || {};
+      const nextChannels = [
+        normalizeChannel('general', { name: 'general' }),
+        ...Object.entries(value).map(([id, channel]) => normalizeChannel(id, channel)),
+      ];
+      setChannels(nextChannels);
+      if (!nextChannels.some((channel) => channel.id === activeChannelRef.current)) {
+        switchChannel('general');
+      }
+    });
+  }, [activeRoom.id, switchChannel]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const openQuickSwitcher = useCallback(() => {
     setQuickSwitcherOpen((current) => {
@@ -3485,14 +4016,74 @@ export function ChatCore({ user, registerApi }) {
     });
     const id = slugChannel(name);
     if (!id) return;
+    const selectedMode = await requestTextDialog({
+      kicker: 'Channel mode',
+      title: `Choose how #${id} works`,
+      description: 'Chat is open conversation. Announcements restrict posting. Help queue keeps support discussions focused.',
+      label: 'Mode',
+      placeholder: 'chat',
+      defaultValue: 'chat',
+      suggestions: ['chat', 'announcements', 'help'],
+      confirmText: 'Create Channel',
+      maxLength: 24,
+    });
+    if (!selectedMode) return;
+    const mode = ['chat', 'announcements', 'help'].includes(selectedMode.toLowerCase())
+      ? selectedMode.toLowerCase()
+      : 'chat';
     await set(ref(db, `rooms_meta/${activeRoomRef.current.id}/channels/${id}`), {
       name: id,
+      mode,
+      postRole: mode === 'announcements' ? 'moderator' : '',
       createdAt: Date.now(),
       by: window.currentUser?.uid || '',
     });
     switchChannel(id);
     window.showToast?.(`#${id} created.`, false);
   }, [requestTextDialog, switchChannel]);
+
+  const configureChannel = useCallback(async (channel) => {
+    if (!channel?.id || channel.id === 'general' || activeRoomRef.current.id === 'global') return;
+    if (!(await canUseRoomPermission(activeRoomRef.current.id, 'createChannels', 'Channel settings are restricted in this room.'))) return;
+    const selectedMode = await requestTextDialog({
+      kicker: 'Channel settings',
+      title: `Configure #${channel.name}`,
+      description: 'Choose chat, announcements, or help. Announcement posting is limited to the selected role.',
+      label: 'Mode',
+      defaultValue: channel.mode || 'chat',
+      suggestions: ['chat', 'announcements', 'help'],
+      confirmText: 'Continue',
+      maxLength: 24,
+    });
+    if (!selectedMode) return;
+    const mode = ['chat', 'announcements', 'help'].includes(selectedMode.toLowerCase())
+      ? selectedMode.toLowerCase()
+      : 'chat';
+    let postRole = '';
+    if (mode === 'announcements') {
+      postRole = await requestTextDialog({
+        kicker: 'Posting role',
+        title: 'Who can announce?',
+        description: 'Owners, admins, and moderators always qualify. Choose the minimum named role.',
+        label: 'Role',
+        defaultValue: channel.postRole || 'moderator',
+        suggestions: ['moderator', 'admin', 'owner'],
+        confirmText: 'Save Channel',
+        maxLength: 24,
+      });
+      if (!postRole) return;
+      postRole = ['moderator', 'admin', 'owner'].includes(postRole.toLowerCase())
+        ? postRole.toLowerCase()
+        : 'moderator';
+    }
+    await update(ref(db, `rooms_meta/${activeRoomRef.current.id}/channels/${channel.id}`), {
+      mode,
+      postRole,
+      updatedAt: Date.now(),
+      updatedBy: window.currentUser?.uid || '',
+    });
+    window.showToast?.(`#${channel.name} is now ${mode}.`, false);
+  }, [requestTextDialog]);
 
   const displayMessage = useCallback((messageId, message, prepend = false) => {
     queueMessageMutation(messageId, message, prepend);
@@ -3564,9 +4155,27 @@ export function ChatCore({ user, registerApi }) {
     const channelId = activeChannelRef.current;
     const scopeKey = messageScopeKey(roomId, channelId);
     try {
-      await update(roomMessageRef(roomId, messageId, channelId), { text: newText, edited: true });
+      let editedAt = Date.now();
+      if (roomId === 'global') {
+        await update(roomMessageRef(roomId, messageId, channelId), { text: newText, edited: true, editedAt });
+      } else {
+        const result = await postAuthedJson(ROOM_MODERATION_ENDPOINT(), {
+          action: 'message-edit',
+          roomId,
+          channelId: channelId || 'general',
+          messageId,
+          idempotencyKey: globalThis.crypto?.randomUUID?.() || `${messageId}_${editedAt}`,
+          text: newText,
+        }, 'Please sign in before editing a message.');
+        editedAt = Number(result.message?.editedAt || editedAt);
+      }
       const applyEdit = (list = []) => list.map((message) => (
-        message.id === messageId ? { ...message, text: newText, edited: true } : message
+        message.id === messageId ? {
+          ...message,
+          text: newText,
+          edited: true,
+          editedAt,
+        } : message
       ));
       const cached = messageStateByScopeRef.current.get(scopeKey);
       if (cached) {
@@ -3836,6 +4445,7 @@ export function ChatCore({ user, registerApi }) {
     let refreshScheduleTimer = null;
     const indexById = new Map();
     const metaById = new Map();
+    const publishedRoomById = new Map([[GLOBAL_ROOM.id, GLOBAL_ROOM]]);
     const roomLoadState = new Map();
     const roomUnsubscribes = new Map();
 
@@ -3862,11 +4472,27 @@ export function ChatCore({ user, registerApi }) {
           const meta = metaById.get(roomId);
           const state = roomLoadState.get(roomId) || 'indexed';
           if (!meta && state === 'stale') return;
-          nextRooms.push(normalizeRoomForList(roomId, meta || fallback, fallback));
+          const normalizedRoom = normalizeRoomForList(roomId, meta || fallback, fallback);
+          const previousRoom = publishedRoomById.get(roomId);
+          const stableRoom = shallowEqualRoomRecord(previousRoom, normalizedRoom)
+            ? previousRoom
+            : normalizedRoom;
+          publishedRoomById.set(roomId, stableRoom);
+          nextRooms.push(stableRoom);
         });
 
-      roomsRef.current = nextRooms;
-      setRooms(nextRooms);
+      const liveRoomIds = new Set(nextRooms.map((room) => room.id));
+      publishedRoomById.forEach((_, roomId) => {
+        if (!liveRoomIds.has(roomId)) publishedRoomById.delete(roomId);
+      });
+
+      const previousRooms = roomsRef.current;
+      const roomsChanged = previousRooms.length !== nextRooms.length
+        || nextRooms.some((room, index) => room !== previousRooms[index]);
+      if (roomsChanged) {
+        roomsRef.current = nextRooms;
+        setRooms(nextRooms);
+      }
 
       const currentRoom = nextRooms.find((room) => room.id === activeRoomRef.current.id);
       if (!currentRoom && roomIndexResolved) {
@@ -3930,10 +4556,12 @@ export function ChatCore({ user, registerApi }) {
       const commitField = (field, value) => {
         if (stopped) return;
         const fallback = indexById.get(roomId) || {};
-        const current = metaById.get(roomId) || roomSidebarMetadata(roomId, {}, fallback);
-        metaById.set(roomId, roomSidebarMetadata(roomId, { ...current, [field]: value }, fallback));
+        const previous = metaById.get(roomId);
+        const current = previous || roomSidebarMetadata(roomId, {}, fallback);
+        const next = roomSidebarMetadata(roomId, { ...current, [field]: value }, fallback);
+        metaById.set(roomId, next);
         roomLoadState.set(roomId, 'ready');
-        scheduleRoomPublish();
+        if (!shallowEqualRoomRecord(previous, next)) scheduleRoomPublish();
       };
 
       const attachDetailListeners = () => {
@@ -4135,7 +4763,7 @@ export function ChatCore({ user, registerApi }) {
             uid,
             name,
             shortId: profile.shortId || '',
-            photoUrl: profile.photoUrl || profile.photoURL || window.getAvatarUrl?.(name, '') || '',
+            photoUrl: normalizeStoredAvatarUrl(profile.photoUrl || profile.photoURL),
           };
         })
         .filter((candidate) => candidateMentionHandle(candidate).length >= 2)
@@ -4226,6 +4854,7 @@ export function ChatCore({ user, registerApi }) {
     clearScrollSettleTimers();
     pendingHistoryScrollRestoreRef.current = null;
     pendingMessageWindowScrollRestoreRef.current = null;
+    delete window.pendingMessageWindowScrollRestore;
     shouldStickToBottomRef.current = cached ? cached.wasAtBottom !== false : true;
     forceScrollToLatestRef.current = cached ? cached.wasAtBottom !== false : true;
     oldestMessageKeyRef.current = cached?.oldestMessageKey ?? null;
@@ -4344,6 +4973,14 @@ export function ChatCore({ user, registerApi }) {
     scrollMessagesToLatest(shouldForceLatest ? 2 : 1, { settle: shouldForceLatest && messages.length > 0 });
   }, [loadingHistory, messages.length, scrollMessagesToLatest]);
 
+  useEffect(() => {
+    if (!messages.length || !shouldStickToBottomRef.current || document.hidden) return undefined;
+    const frameId = requestAnimationFrame(() => {
+      if (isMessageListAtBottom(listRef.current)) void markLatestMessageRead();
+    });
+    return () => cancelAnimationFrame(frameId);
+  }, [markLatestMessageRead, messages.length]);
+
   /* eslint-disable react-hooks/set-state-in-effect -- Jump feedback mirrors an imperative DOM lookup performed after message renders. */
   useEffect(() => {
     const jump = window.pendingMessageJump;
@@ -4371,7 +5008,7 @@ export function ChatCore({ user, registerApi }) {
       jumpNoticeTimerRef.current = null;
       setJumpContext(null);
     }, 1400);
-  }, [activeChannelId, activeRoom.id, messages]);
+  }, [activeChannelId, activeRoom.id, jumpContext, messages]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleLoadHistory = useCallback(async (force = false) => {
@@ -4530,6 +5167,7 @@ export function ChatCore({ user, registerApi }) {
         || Date.now() - lastMessageScrollIntentAtRef.current < 1200;
       if (messageScrollGestureActiveRef.current) lastMessageScrollIntentAtRef.current = Date.now();
       shouldStickToBottomRef.current = distanceFromBottom < 120;
+      if (shouldStickToBottomRef.current) void markLatestMessageRead();
       if (hasRecentUserIntent && !shouldStickToBottomRef.current) {
         forceScrollToLatestRef.current = false;
         clearScrollSettleTimers();
@@ -4543,7 +5181,7 @@ export function ChatCore({ user, registerApi }) {
         handleLoadHistory();
       }
     });
-  }, [clearScrollSettleTimers, handleLoadHistory]);
+  }, [clearScrollSettleTimers, handleLoadHistory, markLatestMessageRead]);
 
   const handleMessagesScrollIntent = useCallback((event) => {
     if (
@@ -4595,6 +5233,7 @@ export function ChatCore({ user, registerApi }) {
     const value = event.target.value;
     setCursorIndex(event.target.selectionStart ?? value.length);
     setDismissedMentionKey('');
+    setQuickReplyStatus('');
     setDraft(value);
     writeComposerDraft(activeRoomRef.current.id, activeChannelRef.current, value);
     setTyping(value.trim().length > 0);
@@ -4632,6 +5271,7 @@ export function ChatCore({ user, registerApi }) {
 
   const clearComposerDraft = useCallback(() => {
     setDraft('');
+    setQuickReplyStatus('');
     clearComposerDraftStorage(activeRoomRef.current.id, activeChannelRef.current);
     setTyping(false);
   }, [setTyping]);
@@ -4652,16 +5292,24 @@ export function ChatCore({ user, registerApi }) {
     input.focus();
   }, []);
 
-  const openRoomSummary = useCallback(() => {
+  const openRoomAiFromCatchUp = useCallback(() => {
     if (!openRoomTab('ai')) window.openPersonalAgent?.();
-    window.showToast?.('AI opened. Choose Summarize to create a room recap.', false);
+    window.showToast?.('Room AI opened. Ask for a summary when you are ready.', false);
   }, []);
 
-  const jumpToLatestMessage = useCallback(() => {
-    shouldStickToBottomRef.current = true;
-    forceScrollToLatestRef.current = true;
-    scrollMessagesToLatest(3, { settle: true, delays: [40, 140, 320, 700] });
-  }, [scrollMessagesToLatest]);
+  const reviewCatchUpMessage = useCallback((messageId) => {
+    requestMessageJump({
+      channelId: activeChannelRef.current,
+      messageId,
+      roomId: activeRoomRef.current.id,
+      source: 'room-catchup',
+    });
+  }, [requestMessageJump]);
+
+  const postRoomActivitySeparator = useCallback(async (roomId, channelId, activityEvent) => {
+    const { postRoomActivityMessage } = await import('./roomActivityMessageRuntime.js');
+    await postRoomActivityMessage(roomId, channelId, getProfileSnapshot(), activityEvent);
+  }, []);
 
   const createTaskFromText = useCallback(async (text) => {
     const clean = String(text || '').trim();
@@ -4677,8 +5325,10 @@ export function ChatCore({ user, registerApi }) {
       return;
     }
 
+    const taskRoomId = activeRoomRef.current.id;
+    const taskChannelId = activeChannelRef.current;
     try {
-      await push(ref(db, `room_tasks/${activeRoomRef.current.id}`), {
+      await push(ref(db, `room_tasks/${taskRoomId}`), {
         text: clean.slice(0, 240),
         status: 'todo',
         done: false,
@@ -4689,12 +5339,39 @@ export function ChatCore({ user, registerApi }) {
         assigneeName: window.userProfileName || 'Anonymous',
         createdAt: serverTimestamp(),
       });
+      await postRoomActivitySeparator(taskRoomId, taskChannelId, {
+        type: 'task_created',
+        label: 'Task created',
+        detail: clean,
+      }).catch((error) => console.warn('[chat] task activity separator failed', {
+        roomId: taskRoomId,
+        errorCode: error?.code || 'unknown',
+      }));
       window.showToast?.('Task created.', false);
     } catch (error) {
       console.error('Task creation failed', error);
       window.showToast?.(`Task failed: ${error.message || 'Permission denied'}`);
     }
-  }, []);
+  }, [postRoomActivitySeparator]);
+
+  const createTaskFromCatchUp = useCallback(async (text) => {
+    const taskScope = messageScopeKey(activeRoomRef.current.id, activeChannelRef.current);
+    const taskText = await requestTextDialog({
+      kicker: 'Room catch-up',
+      title: 'Save as a task',
+      description: 'Review or edit this suggested action before it is added to the room.',
+      label: 'Task',
+      defaultValue: String(text || '').slice(0, 240),
+      confirmText: 'Create task',
+      maxLength: 240,
+    });
+    if (!taskText) return;
+    if (messageScopeKey(activeRoomRef.current.id, activeChannelRef.current) !== taskScope) {
+      window.showToast?.('Task canceled because the active room changed.');
+      return;
+    }
+    await createTaskFromText(taskText);
+  }, [createTaskFromText, requestTextDialog]);
 
   const postStockQuote = useCallback(async (rawSymbol) => {
     const requestContext = {
@@ -4817,6 +5494,81 @@ export function ChatCore({ user, registerApi }) {
     }
   }, [requestTextDialog]);
 
+  const canPostToCurrentRoom = useCallback(async (
+    roomId = activeRoomRef.current.id,
+    requestedChannelId = activeChannelRef.current,
+  ) => {
+    const activeId = roomId;
+    const signedInUser = currentChatUser();
+    if (!signedInUser?.uid) {
+      window.showToast?.('Your sign-in is still loading. Please refresh or sign in again.');
+      return false;
+    }
+
+    const [globalBanSnap, globalMuteSnap] = await Promise.all([
+      get(ref(db, `users/${signedInUser.uid}/isBanned`)),
+      get(ref(db, `users/${signedInUser.uid}/isMuted`)),
+    ]);
+    if (globalBanSnap.exists() && globalBanSnap.val() === true) {
+      window.showToast?.('Your account is banned from posting. Contact support if you think this is a mistake.');
+      return false;
+    }
+    if (globalMuteSnap.exists() && globalMuteSnap.val() === true) {
+      window.showToast?.('You have been globally muted by an Admin.');
+      return false;
+    }
+
+    if (activeId !== 'global') {
+      const roomMuteRef = ref(db, `rooms_meta/${activeId}/muted/${signedInUser.uid}`);
+      const roomMuteSnap = await get(roomMuteRef);
+      if (roomMuteSnap.exists()) {
+        const muteValue = roomMuteSnap.val();
+        if (muteValue === true) {
+          window.showToast?.('You are permanently muted in this room.');
+          return false;
+        }
+
+        const timeLeft = Number(muteValue) - Date.now();
+        if (timeLeft > 0) {
+          window.showToast?.(`You are muted for ${Math.ceil(timeLeft / 60000)} more minutes.`);
+          return false;
+        }
+
+        await remove(roomMuteRef);
+      }
+
+      if (!(await canUseRoomPermission(activeId, 'chat', 'Chat messages are disabled in this room.'))) return false;
+
+      const channelId = requestedChannelId || 'general';
+      if (channelId !== 'general') {
+        const [channelSnapshot, creatorSnapshot, roleSnapshot, permissionSnapshot] = await Promise.all([
+          get(ref(db, `rooms_meta/${activeId}/channels/${channelId}`)),
+          get(ref(db, `rooms_meta/${activeId}/creatorId`)),
+          get(ref(db, `rooms_meta/${activeId}/memberRoles/${signedInUser.uid}`)),
+          get(ref(db, `rooms_meta/${activeId}/memberPermissions/${signedInUser.uid}`)),
+        ]);
+        const channel = normalizeChannel(channelId, channelSnapshot.val() || {});
+        const memberPermissions = permissionSnapshot.val() || {};
+        const assignedRole = String(roleSnapshot.val() || '');
+        const effectiveRole = assignedRole || (
+          memberPermissions.moderate === true || memberPermissions.manageChannels === true
+            ? 'moderator'
+            : ''
+        );
+        if (!canPostToChannel(channel, {
+          uid: signedInUser.uid,
+          creatorId: String(creatorSnapshot.val() || ''),
+          role: effectiveRole,
+        })) {
+          window.showToast?.(`#${channel.name} only accepts posts from ${channel.postRole || 'room moderators'}.`);
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }, []);
+
   const findPollMessage = useCallback((queryText = '') => {
     const clean = String(queryText || '').trim().replace(/^#?msg-?/i, '');
     const candidates = [...messagesRef.current].reverse().filter((message) => message.poll?.question);
@@ -4836,19 +5588,30 @@ export function ChatCore({ user, registerApi }) {
       window.showToast?.('Only the poll author can close this poll.');
       return;
     }
-    if (pollMessage.poll?.closed === true) {
+    if (isPollClosed(pollMessage.poll)) {
       window.showToast?.('This poll is already closed.', false);
       return;
     }
 
+    const pollRoomId = activeRoomRef.current.id;
+    const pollChannelId = activeChannelRef.current;
     try {
-      await set(roomMessageChildRef(activeRoomRef.current.id, pollMessage.id, 'poll/closed', activeChannelRef.current), true);
-      await set(roomMessageChildRef(activeRoomRef.current.id, pollMessage.id, 'poll/closedAt', activeChannelRef.current), Date.now());
+      await set(roomMessageChildRef(pollRoomId, pollMessage.id, 'poll/closed', pollChannelId), true);
+      await set(roomMessageChildRef(pollRoomId, pollMessage.id, 'poll/closedAt', pollChannelId), Date.now());
+      await postRoomActivitySeparator(pollRoomId, pollChannelId, {
+        type: 'poll_closed',
+        label: 'Poll closed',
+        detail: pollMessage.poll?.question || '',
+      }).catch((error) => console.warn('[chat] poll activity separator failed', {
+        roomId: pollRoomId,
+        messageId: pollMessage.id,
+        errorCode: error?.code || 'unknown',
+      }));
       window.showToast?.('Poll closed.', false);
     } catch (error) {
       window.showToast?.(`Could not close poll: ${error.message || error}`);
     }
-  }, [findPollMessage]);
+  }, [findPollMessage, postRoomActivitySeparator]);
 
   const showPollResults = useCallback((messageId = '') => {
     const pollMessage = findPollMessage(messageId);
@@ -4858,6 +5621,107 @@ export function ChatCore({ user, registerApi }) {
     }
     window.showToast?.(pollResultsText(pollMessage), false);
   }, [findPollMessage]);
+
+  const reportMessage = useCallback(async (message) => {
+    if (!message?.id) return;
+    const categoryInput = await requestTextDialog({
+      kicker: 'Safety',
+      title: 'Report message',
+      description: 'Reports are private and preserve the message evidence for room moderators.',
+      label: 'Category',
+      defaultValue: 'other',
+      suggestions: ['spam', 'harassment', 'threats', 'hate', 'privacy', 'impersonation', 'other'],
+      confirmText: 'Continue',
+      maxLength: 32,
+    });
+    if (!categoryInput) return;
+    const reason = await requestTextDialog({
+      kicker: 'Report details',
+      title: 'What should moderators know?',
+      description: 'Describe the issue without adding sensitive information.',
+      label: 'Reason',
+      multiline: true,
+      rows: 5,
+      placeholder: 'Why this message should be reviewed…',
+      confirmText: 'Submit Report',
+      maxLength: 800,
+    });
+    if (!reason) return;
+
+    try {
+      const roomId = activeRoomRef.current.id;
+      if (roomId === 'global') {
+        await submitIssueDraft({
+          title: `Global message report: ${message.id}`,
+          summary: `${String(categoryInput).trim().toLowerCase()}: ${reason}`,
+          steps: `Review Global Chat message ${message.id}.`,
+          expected: 'Global Chat follows the platform safety rules.',
+          actual: 'A signed-in member requested a private safety review.',
+          roomId,
+          url: window.location.href,
+          clientMeta: `channel:${activeChannelRef.current || 'general'} | message:${message.id}`,
+          userName: window.userProfileName || currentChatUser()?.displayName || '',
+        });
+        window.showToast?.('Report sent privately for platform review.', false);
+        return;
+      }
+      const idempotencyKey = globalThis.crypto?.randomUUID?.()
+        || `${currentChatUser()?.uid || 'user'}_${message.id}_${Date.now()}`;
+      await postAuthedJson(ROOM_MODERATION_ENDPOINT(), {
+        action: 'report-create',
+        roomId,
+        idempotencyKey,
+        category: String(categoryInput).trim().toLowerCase(),
+        reason,
+        subject: {
+          type: 'message',
+          messageId: message.id,
+          channelId: activeChannelRef.current || 'general',
+        },
+      }, 'Please sign in before reporting a message.');
+      window.showToast?.('Report sent privately to room moderators.', false);
+    } catch (error) {
+      window.showToast?.(`Report failed: ${error.message || error}`);
+    }
+  }, [requestTextDialog]);
+
+  const translateMessage = useCallback(async (message) => {
+    if (!message?.id || !message.text) return;
+    if (translatedMessages[message.id]) {
+      setTranslatedMessages((current) => {
+        const next = { ...current };
+        delete next[message.id];
+        return next;
+      });
+      return;
+    }
+    if (translationPendingIds.has(message.id)) return;
+    setTranslationPendingIds((current) => new Set(current).add(message.id));
+    try {
+      const data = await postAuthedJson(TRANSLATE_MESSAGE_ENDPOINT(), {
+        roomId: activeRoomRef.current.id,
+        channelId: activeChannelRef.current || 'general',
+        messageId: message.id,
+        targetLanguage: getLocale(),
+      }, 'Please sign in before translating a message.');
+      setTranslatedMessages((current) => ({
+        ...current,
+        [message.id]: {
+          text: String(data.translation?.text || data.text || ''),
+          sourceLanguage: data.translation?.sourceLanguage || data.sourceLanguage || '',
+          targetLanguage: data.translation?.targetLanguage || data.targetLanguage || getLocale(),
+        },
+      }));
+    } catch (error) {
+      window.showToast?.(`Translation failed: ${error.message || error}`);
+    } finally {
+      setTranslationPendingIds((current) => {
+        const next = new Set(current);
+        next.delete(message.id);
+        return next;
+      });
+    }
+  }, [translatedMessages, translationPendingIds]);
 
   const runSlashCommand = useCallback(async (commandInput, argsOverride = '') => {
     const resolved = typeof commandInput === 'string'
@@ -4879,6 +5743,43 @@ export function ChatCore({ user, registerApi }) {
 
     try {
       switch (resolved.action) {
+        case 'linkPreview': {
+          const input = args || await requestTextDialog({
+            kicker: 'Safe link preview',
+            title: 'Preview a link',
+            description: 'Paste an HTTPS link. Minimalist fetches only public web pages through its protected preview service.',
+            label: 'Link',
+            placeholder: 'https://example.com/article',
+            confirmText: 'Preview',
+            maxLength: 2048,
+          });
+          const url = extractFirstPreviewUrl(input);
+          if (!url) {
+            window.showToast?.('Enter a valid HTTPS link.');
+            break;
+          }
+          if (!(await canPostToCurrentRoom())) break;
+          const profile = getProfileSnapshot();
+          if (!profile.uid) throw new Error('Please sign in before previewing a link.');
+          const preview = await fetchLinkPreview(url);
+          const roomId = activeRoomRef.current.id;
+          const channelId = activeChannelRef.current;
+          await setWithAuthRetry(push(roomMessagesRef(roomId, channelId)), {
+            uid: profile.uid,
+            name: profile.name,
+            photoUrl: profile.photoUrl,
+            text: url,
+            linkPreview: preview,
+            timestamp: serverTimestamp(),
+            tier: profile.tier,
+          });
+          if (roomId !== 'global') {
+            const summary = `${profile.name}: ${preview.title}`;
+            await set(ref(db, `rooms_meta/${roomId}/lastMessage`), summary.length > 30 ? `${summary.slice(0, 30)}...` : summary);
+          }
+          void playUiSound('message-sent');
+          break;
+        }
         case 'commands':
         case 'quick':
           setCommandListOpen(true);
@@ -4908,7 +5809,7 @@ export function ChatCore({ user, registerApi }) {
           fileInputRef.current?.click();
           break;
         case 'poll':
-          document.getElementById('poll-btn')?.click();
+          await createPollHandlerRef.current?.();
           break;
         case 'pollClose':
           await closePoll(args);
@@ -4990,8 +5891,16 @@ export function ChatCore({ user, registerApi }) {
           window.showToast?.('Tip: hover a message and use its action buttons for edit, delete, quote, react, forward, bookmark, flag, and impact.', false);
           break;
         case 'unread':
-          listRef.current?.scrollTo(0, listRef.current.scrollHeight);
-          window.showToast?.('Jumped to the latest message.', false);
+          jumpToFirstUnread();
+          break;
+        case 'schedule':
+          setScheduleDialogOpen(true);
+          break;
+        case 'threads':
+          setThreadDrawerOpen(true);
+          break;
+        case 'translateHelp':
+          window.showToast?.('Hover a message and choose Translate in its action bar.', false);
           break;
         case 'notifyAll':
           localStorage.setItem(notifyKey, 'all');
@@ -5070,7 +5979,11 @@ export function ChatCore({ user, registerApi }) {
           window.showToast?.('Open a user profile or context menu to moderate a specific member.', false);
           break;
         case 'report':
-          window.showToast?.('Report noted locally. A full moderation queue can be wired next.', false);
+          {
+            const latestReportable = [...messagesRef.current].reverse().find((message) => message.uid !== currentChatUser()?.uid);
+            if (latestReportable) await reportMessage(latestReportable);
+            else window.showToast?.('No reportable message is loaded.');
+          }
           break;
         case 'comingSoon':
         default:
@@ -5081,7 +5994,7 @@ export function ChatCore({ user, registerApi }) {
     }
 
     return true;
-  }, [clearComposerDraft, closePoll, createTaskFromText, focusSearch, openActivityPanel, openFeedbackReport, postStockQuote, requestTextDialog, setAutoModerationEnabled, setRoomFavorite, showPollResults]);
+  }, [canPostToCurrentRoom, clearComposerDraft, closePoll, createTaskFromText, focusSearch, jumpToFirstUnread, openActivityPanel, openFeedbackReport, postStockQuote, reportMessage, requestTextDialog, setAutoModerationEnabled, setRoomFavorite, showPollResults]);
 
   const insertMention = useCallback((candidate) => {
     const textarea = textareaRef.current;
@@ -5222,57 +6135,15 @@ export function ChatCore({ user, registerApi }) {
   }, [composerDisabled, draft, setTyping]);
 
   const handleFileChange = useCallback(() => {
-    setFileSelected(!!fileInputRef.current?.files?.length);
+    const file = fileInputRef.current?.files?.[0] || null;
+    setFileSelected(Boolean(file));
+    setSelectedFile(file);
   }, []);
 
-  const canPostToCurrentRoom = useCallback(async () => {
-    const activeId = activeRoomRef.current.id;
-    const signedInUser = currentChatUser();
-    if (!signedInUser?.uid) {
-      window.showToast?.('Your sign-in is still loading. Please refresh or sign in again.');
-      return false;
-    }
-
-    // Read both moderation flags in parallel so the pre-check stays fast. The
-    // root `messages` rule blocks both banned and muted users, so checking only
-    // `isMuted` previously let banned users fall through to a cryptic
-    // PERMISSION_DENIED on send.
-    const [globalBanSnap, globalMuteSnap] = await Promise.all([
-      get(ref(db, `users/${signedInUser.uid}/isBanned`)),
-      get(ref(db, `users/${signedInUser.uid}/isMuted`)),
-    ]);
-    if (globalBanSnap.exists() && globalBanSnap.val() === true) {
-      window.showToast?.('Your account is banned from posting. Contact support if you think this is a mistake.');
-      return false;
-    }
-    if (globalMuteSnap.exists() && globalMuteSnap.val() === true) {
-      window.showToast?.('You have been globally muted by an Admin.');
-      return false;
-    }
-
-    if (activeId !== 'global') {
-      const roomMuteRef = ref(db, `rooms_meta/${activeId}/muted/${signedInUser.uid}`);
-      const roomMuteSnap = await get(roomMuteRef);
-      if (roomMuteSnap.exists()) {
-        const muteValue = roomMuteSnap.val();
-        if (muteValue === true) {
-          window.showToast?.('You are permanently muted in this room.');
-          return false;
-        }
-
-        const timeLeft = Number(muteValue) - Date.now();
-        if (timeLeft > 0) {
-          window.showToast?.(`You are muted for ${Math.ceil(timeLeft / 60000)} more minutes.`);
-          return false;
-        }
-
-        await remove(roomMuteRef);
-      }
-
-      if (!(await canUseRoomPermission(activeId, 'chat', 'Chat messages are disabled in this room.'))) return false;
-    }
-
-    return true;
+  const clearSelectedFile = useCallback(() => {
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setFileSelected(false);
+    setSelectedFile(null);
   }, []);
 
   useEffect(() => {
@@ -5313,6 +6184,7 @@ export function ChatCore({ user, registerApi }) {
         transfer.items.add(file);
         fileInputRef.current.files = transfer.files;
         setFileSelected(true);
+        setSelectedFile(file);
       }
 
       window.showToast?.(`${file.name} attached — press send.`, false);
@@ -5332,145 +6204,103 @@ export function ChatCore({ user, registerApi }) {
     };
   }, []);
 
-  const handleSubmit = useCallback(async (event) => {
-    event.preventDefault();
-    const signedInUser = currentChatUser();
-    if (!signedInUser?.uid) {
-      window.showToast?.('Your sign-in is still loading. Please refresh or sign in again.');
+  const updateMessageDelivery = useCallback((deliveryId, patch) => {
+    setMessageDeliveries((current) => {
+      const existing = current.find((delivery) => delivery.id === deliveryId);
+      if (!existing) return current;
+      const next = current.map((delivery) => (
+        delivery.id === deliveryId ? { ...delivery, ...patch } : delivery
+      ));
+      return next.slice(-40);
+    });
+  }, []);
+
+  const executeMessageDelivery = useCallback(async (deliveryId) => {
+    const attempt = deliveryAttemptsRef.current.get(deliveryId);
+    if (!attempt) {
+      updateMessageDelivery(deliveryId, {
+        state: 'failed',
+        error: 'Retry data is no longer available. Copy the message and send it again.',
+      });
       return;
     }
-    if (isSendingRef.current) return;
-
-    const activeId = activeRoomRef.current.id;
-    const submitChannelId = activeChannelRef.current;
-    const requesterUid = signedInUser.uid;
-    const text = draft.trim();
-    const file = fileInputRef.current?.files?.[0] || null;
-    if (!text && !file) return;
-    if (text.startsWith('/') && !file) {
-      const slashCommand = findSlashCommand(text);
-      if (slashCommand) {
-        await runSlashCommand(slashCommand, slashCommand.args);
-        return;
-      }
-      window.showToast?.('Unknown command. Try /help.');
-      clearComposerDraft();
+    if (isSendingRef.current) {
+      window.showToast?.('Another message is still sending. Retry in a moment.', false);
       return;
     }
 
+    const {
+      roomId: activeId,
+      channelId: submitChannelId,
+      scopeKey: submitScopeKey,
+      requesterUid,
+      text,
+      previewUrl,
+      file,
+      profile,
+    } = attempt;
     isSendingRef.current = true;
     setIsSending(true);
+    updateMessageDelivery(deliveryId, { state: 'sending', error: '', progress: 0 });
 
+    let deliveryRuntime;
     try {
-      const [canPost, botConfig] = await Promise.all([
-        canPostToCurrentRoom(),
-        waitForRoomBotConfig(activeId, requesterUid),
-      ]);
-      if (!canPost) return;
-      if (currentChatUser()?.uid !== requesterUid) {
-        window.showToast?.('Message not sent because the active account changed.');
-        return;
-      }
-      if (!botConfig) {
-        window.showToast?.('Room app settings are still loading. Your draft was kept; please try again.');
-        return;
-      }
+      deliveryRuntime = await import('./messageDeliveryRuntime.js');
+      const botConfig = await deliveryRuntime.preflightMessageDelivery({
+        canPost: () => canPostToCurrentRoom(activeId, submitChannelId),
+        getCurrentUid: () => currentChatUser()?.uid,
+        requesterUid,
+        waitForBotConfig: () => waitForRoomBotConfig(activeId, requesterUid),
+      });
 
       const autoModReason = activeId !== 'global' ? detectAutoModeration(text, botConfig.autoModeration) : null;
       if (autoModReason) {
-        window.showToast?.(`The client-side basic filter blocked this message: ${autoModReason}`);
-        await postBotMessage(activeId, submitChannelId, 'Basic Message Filter', `${window.userProfileName || 'Someone'} had a message blocked in this app: ${autoModReason}.`, {
+        await postBotMessage(activeId, submitChannelId, 'Basic Message Filter', `${profile.name || 'Someone'} had a message blocked in this app: ${autoModReason}.`, {
           automationId: 'autoModeration',
           moderationEvent: true,
         }, { requesterUid });
-        return;
+        const moderationError = new Error(`Basic filter: ${autoModReason}`);
+        moderationError.code = 'moderation_blocked';
+        throw moderationError;
       }
 
-      let uploadedImageUrl = null;
-      let uploadedFile = null;
-      const profile = getProfileSnapshot();
-      let reservedUploadRef = null;
-      let reservedUploadBytes = 0;
-
-      if (file) {
-        if (activeId !== 'global') {
-          if (!(await canUseRoomPermission(activeId, 'files', 'File uploads are disabled in this room.'))) return;
-        }
-
-        const accountLimits = uploadLimits[profile.tier] || uploadLimits.free;
-        const limits = activeId === 'global'
-          ? accountLimits
-          : roomUploadLimits(accountLimits, roomEntitlement, userId);
-        if (file.size > limits.perFile) {
-          window.showToast?.(`${limits.label} allows up to ${formatBytes(limits.perFile)} per file.`);
-          return;
-        }
-
-        reservedUploadRef = ref(db, `upload_usage/${window.currentUser.uid}/${todayKey()}`);
-        reservedUploadBytes = file.size;
-        const reservation = await runTransaction(reservedUploadRef, (current) => {
-          const used = Number(current || 0);
-          if (used + file.size > limits.daily) return;
-          return used + file.size;
-        });
-
-        if (!reservation.committed) {
-          window.showToast?.(`${limits.label} daily upload limit reached. Daily max is ${formatBytes(limits.daily)}.`);
-          return;
-        }
-
-        const safeName = file.name.replace(/[^\w.\-()[\] ]+/g, '_');
-        const { getDownloadURL, storage, storageRef, uploadBytesResumable } = await getStorageUploadTools();
-        const target = storageRef(storage, `chat_files/${activeId}/${Date.now()}_${safeName}`);
-        try {
-          await uploadBytesResumable(target, file);
-          const fileUrl = await getDownloadURL(target);
-          if (file.type.startsWith('image/')) uploadedImageUrl = fileUrl;
-          const textPreview = await readTextPreview(file);
-          uploadedFile = {
-            url: fileUrl,
-            name: file.name,
-            type: file.type || 'File',
-            size: file.size,
-            ...(textPreview || {}),
-          };
-          window.awardXP?.(window.currentUser.uid, 'creativity', 3);
-        } catch (error) {
-          if (reservedUploadRef && reservedUploadBytes) {
-            await runTransaction(reservedUploadRef, (current) => Math.max(0, Number(current || 0) - reservedUploadBytes));
-          }
-          throw error;
-        }
-      }
-
-      const payload = {
-        uid: profile.uid,
-        name: profile.name,
-        photoUrl: profile.photoUrl,
-        text,
-        attachedImage: uploadedImageUrl,
-        attachedFile: uploadedFile,
-        timestamp: serverTimestamp(),
-        tier: profile.tier,
+      const newMessageRef = roomMessageRef(activeId, deliveryId, submitChannelId);
+      attempt.onUploadProgress = ({ progress }) => {
+        updateMessageDelivery(deliveryId, { progress });
       };
+      await deliveryRuntime.deliverMessageAttempt(attempt, {
+        ensureFilePermission: () => canUseRoomPermission(activeId, 'files', 'File uploads are disabled in this room.'),
+        writeMessage: async (payload) => {
+          if (activeId === 'global') {
+            await setWithAuthRetry(newMessageRef, payload);
+            return;
+          }
+          await postAuthedJson(ROOM_MODERATION_ENDPOINT(), {
+            action: 'message-send',
+            roomId: activeId,
+            channelId: submitChannelId || 'general',
+            messageId: deliveryId,
+            message: payload,
+          }, 'Please sign in before sending a room message.');
+        },
+      });
+      updateMessageDelivery(deliveryId, { state: 'sent', error: '', progress: 100 });
+      clearComposerDraftStorageIfMatches(activeId, submitChannelId, text);
+      void playUiSound('message-sent');
 
-      if (reply) {
-        payload.replyTo = {
-          ...reply,
-          roomId: activeId,
-          channelId: submitChannelId,
-        };
+      if (attempt.localImageUrl) URL.revokeObjectURL(attempt.localImageUrl);
+      deliveryAttemptsRef.current.delete(deliveryId);
+      void removeOutboxAttempt(deliveryId).catch(() => {});
+
+      if (previewUrl) {
+        void fetchLinkPreview(previewUrl)
+          .then((linkPreview) => set(roomMessageChildRef(activeId, deliveryId, 'linkPreview', submitChannelId), linkPreview))
+          .catch((error) => console.warn('[chat] safe link preview unavailable', {
+            roomId: activeId,
+            channelId: submitChannelId || 'general',
+            errorCode: error?.code || 'preview_failed',
+          }));
       }
-
-      const newMessageRef = push(roomMessagesRef(activeId, submitChannelId));
-      await setWithAuthRetry(newMessageRef, payload);
-
-      setDraft('');
-      clearComposerDraftStorage(activeId, submitChannelId);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      setFileSelected(false);
-      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
-      setTyping(false);
 
       const trackedStockSymbols = activeId !== 'global' && botConfig.stockTracker.enabled
         ? extractStockSymbols(text, botConfig.stockTracker)
@@ -5497,18 +6327,39 @@ export function ChatCore({ user, registerApi }) {
           window.notifyMentions?.(text, activeId, {
             groupId: activeId,
             roomId: activeId,
-            roomName: activeRoomRef.current.name,
-            shortId: activeRoomRef.current.shortId,
+            roomName: attempt.roomName,
+            shortId: attempt.roomShortId,
             channelId: submitChannelId,
-            messageId: newMessageRef.key,
+            messageId: deliveryId,
           });
         } catch (error) {
           console.warn('[chat] mention notification failed after send', error);
         }
       }
+      if (attempt.reply?.uid && attempt.reply.uid !== requesterUid) {
+        void postAuthedJson(CREATE_NOTIFICATION_ENDPOINT(), {
+          targetUid: attempt.reply.uid,
+          type: 'reply',
+          text: `${profile.name || 'Someone'} replied to your message`,
+          from: profile.name,
+          action: 'open-message',
+          roomId: activeId,
+          roomName: attempt.roomName,
+          shortId: attempt.roomShortId,
+          channelId: submitChannelId,
+          messageId: deliveryId,
+          groupId: `${activeId}:${attempt.reply.threadRootId || attempt.reply.id}`,
+        }).catch((error) => console.warn('[chat] reply notification failed after send', {
+          roomId: activeId,
+          errorCode: error?.code || 'unknown',
+        }));
+      }
+      if (attempt.reply?.threadRootId) {
+        void toggleThreadFollow(attempt.reply.threadRootId, true, activeId, submitChannelId).catch(() => {});
+      }
       try {
-        window.bumpMessageCount?.(window.currentUser.uid);
-        window.awardXP?.(window.currentUser.uid, 'technical', 2);
+        window.bumpMessageCount?.(requesterUid);
+        window.awardXP?.(requesterUid, 'technical', 2);
         window.trackQuest?.('message');
       } catch (error) {
         console.warn('[chat] gamification update failed after send', error);
@@ -5523,30 +6374,209 @@ export function ChatCore({ user, registerApi }) {
           }));
       }
 
-      cancelReply();
-      shouldStickToBottomRef.current = true;
+      if (activeMessageScopeRef.current === submitScopeKey) scrollMessagesToLatest(2, { settle: true });
     } catch (error) {
-      const permissionDenied = isPermissionDeniedError(error);
-      // Diagnostics only — never log message text, tokens, or PII.
-      console.warn('[chat] message send failed', {
-        roomId: activeId,
-        channelId: submitChannelId || 'general',
-        pathCategory: describeMessagePath(activeId, submitChannelId),
-        hasAuthUid: Boolean(currentChatUser()?.uid),
-        errorCode: error?.code || (permissionDenied ? 'PERMISSION_DENIED' : 'unknown'),
+      void playUiSound('error');
+      const errorMessage = deliveryRuntime?.deliveryErrorMessage(error, activeId) || error.message;
+      updateMessageDelivery(deliveryId, {
+        state: 'failed',
+        error: errorMessage,
+        progress: 0,
       });
-      if (permissionDenied) {
-        window.showToast?.(activeId === 'global'
-          ? 'Could not post to Global Chat. If you were just muted or banned this is expected — otherwise refresh and try again.'
-          : 'You do not have permission to post here right now. Try refreshing or rejoining the room.');
-      } else {
-        window.showToast?.(`Failed to send message: ${error.message}`);
-      }
+      // Diagnostics only — never log message text, tokens, or PII.
+      console.warn('[chat] message delivery failed', {
+        roomId: activeId,
+        errorCode: error?.code || 'unknown',
+      });
+      window.showToast?.(`${errorMessage} Use Retry on the message.`);
     } finally {
       isSendingRef.current = false;
       setIsSending(false);
     }
-  }, [canPostToCurrentRoom, cancelReply, clearComposerDraft, draft, reply, roomEntitlement, runSlashCommand, setTyping, userId, waitForRoomBotConfig]);
+  }, [canPostToCurrentRoom, scrollMessagesToLatest, toggleThreadFollow, updateMessageDelivery, waitForRoomBotConfig]);
+
+  const retryMessageDelivery = useCallback((deliveryId) => {
+    void executeMessageDelivery(deliveryId);
+  }, [executeMessageDelivery]);
+
+  const cancelMessageDelivery = useCallback((deliveryId) => {
+    const attempt = deliveryAttemptsRef.current.get(deliveryId);
+    if (typeof attempt?.cancelUpload === 'function') {
+      attempt.cancelUpload();
+      return;
+    }
+    updateMessageDelivery(deliveryId, {
+      state: 'failed',
+      error: 'Upload cancelled. Retry when ready.',
+      progress: 0,
+    });
+  }, [updateMessageDelivery]);
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    const shouldHydrate = outboxHydratedUidRef.current !== user.uid;
+    if (shouldHydrate) outboxHydratedUidRef.current = user.uid;
+    let disposed = false;
+
+    const retryStoredAttempts = async () => {
+      const attemptIds = [...deliveryAttemptsRef.current.values()]
+        .filter((attempt) => attempt.requesterUid === user.uid)
+        .sort((left, right) => Number(left.createdAt || 0) - Number(right.createdAt || 0))
+        .map((attempt) => attempt.id);
+      for (const deliveryId of attemptIds) {
+        if (disposed || navigator.onLine === false) break;
+        await executeMessageDelivery(deliveryId);
+      }
+    };
+
+    if (shouldHydrate) {
+      loadOutboxAttempts(user.uid).then((records) => {
+        if (disposed || !records.length) return;
+        const deliveries = records.map((record) => {
+          const localImageUrl = record.file?.type?.startsWith('image/')
+            ? URL.createObjectURL(record.file)
+            : '';
+          const optimisticMessage = {
+            ...(record.optimisticMessage || {}),
+            id: record.id,
+            attachedImage: localImageUrl || record.optimisticMessage?.attachedImage || null,
+          };
+          const attempt = {
+            ...record,
+            localImageUrl,
+            optimisticMessage,
+            readTextPreview,
+          };
+          deliveryAttemptsRef.current.set(record.id, attempt);
+          return {
+            id: record.id,
+            scopeKey: record.scopeKey,
+            state: 'failed',
+            error: 'Saved in your outbox. Reconnect or choose Retry.',
+            progress: 0,
+            message: optimisticMessage,
+          };
+        });
+        setMessageDeliveries((current) => {
+          const restoredIds = new Set(deliveries.map((delivery) => delivery.id));
+          return [...current.filter((delivery) => !restoredIds.has(delivery.id)), ...deliveries].slice(-40);
+        });
+        if (navigator.onLine !== false) void retryStoredAttempts();
+      }).catch((error) => console.warn('[chat] could not restore local outbox', {
+        errorCode: error?.name || 'indexeddb_unavailable',
+      }));
+    }
+
+    const handleOnline = () => {
+      void retryStoredAttempts();
+    };
+    window.addEventListener('online', handleOnline);
+    return () => {
+      disposed = true;
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [executeMessageDelivery, user?.uid]);
+
+  const handleSubmit = useCallback(async (event) => {
+    event.preventDefault();
+    const signedInUser = currentChatUser();
+    if (!signedInUser?.uid) {
+      window.showToast?.('Your sign-in is still loading. Please refresh or sign in again.');
+      return;
+    }
+    if (isSendingRef.current) return;
+
+    const activeId = activeRoomRef.current.id;
+    const submitChannelId = activeChannelRef.current;
+    const submitScopeKey = messageScopeKey(activeId, submitChannelId);
+    const text = draft.trim();
+    const file = fileInputRef.current?.files?.[0] || null;
+    if (!text && !file) return;
+    if (text.startsWith('/') && !file) {
+      const slashCommand = findSlashCommand(text);
+      if (slashCommand) {
+        await runSlashCommand(slashCommand, slashCommand.args);
+        return;
+      }
+      window.showToast?.('Unknown command. Try /help.');
+      clearComposerDraft();
+      return;
+    }
+
+    const profile = getProfileSnapshot();
+    const deliveryRef = push(roomMessagesRef(activeId, submitChannelId));
+    const deliveryId = deliveryRef.key;
+    if (!deliveryId) {
+      window.showToast?.('Could not prepare this message. Please try again.');
+      return;
+    }
+
+    const createdAt = Date.now();
+    const localImageUrl = file?.type?.startsWith('image/') ? URL.createObjectURL(file) : '';
+    const optimisticMessage = {
+      id: deliveryId,
+      uid: profile.uid,
+      name: profile.name,
+      photoUrl: profile.photoUrl,
+      text,
+      attachedImage: localImageUrl || null,
+      attachedFile: file && !localImageUrl ? {
+        url: '',
+        name: file.name,
+        type: file.type || 'File',
+        size: file.size,
+      } : null,
+      timestamp: createdAt,
+      tier: profile.tier,
+      ...(reply ? { replyTo: { ...reply, roomId: activeId, channelId: submitChannelId } } : {}),
+    };
+    const attempt = {
+      id: deliveryId,
+      roomId: activeId,
+      roomName: activeRoomRef.current.name,
+      roomShortId: activeRoomRef.current.shortId,
+      channelId: submitChannelId,
+      scopeKey: submitScopeKey,
+      requesterUid: signedInUser.uid,
+      text,
+      previewUrl: extractFirstPreviewUrl(text),
+      file,
+      reply,
+      profile,
+      roomEntitlement,
+      readTextPreview,
+      createdAt,
+      localImageUrl,
+      optimisticMessage,
+    };
+    deliveryAttemptsRef.current.set(deliveryId, attempt);
+    await saveOutboxAttempt(attempt).catch((error) => {
+      console.warn('[chat] local outbox persistence unavailable', {
+        errorCode: error?.name || 'indexeddb_unavailable',
+      });
+    });
+    setMessageDeliveries((current) => [...current.filter((delivery) => delivery.id !== deliveryId), {
+      id: deliveryId,
+      scopeKey: submitScopeKey,
+      state: 'sending',
+      error: '',
+      message: optimisticMessage,
+    }].slice(-40));
+
+    shouldStickToBottomRef.current = true;
+    forceScrollToLatestRef.current = true;
+    setDraft('');
+    setQuickReplyStatus('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setFileSelected(false);
+    setSelectedFile(null);
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    setTyping(false);
+    cancelReply();
+    scrollMessagesToLatest(3, { settle: true, delays: [40, 120, 260, 520, 900] });
+
+    await executeMessageDelivery(deliveryId);
+  }, [cancelReply, clearComposerDraft, draft, executeMessageDelivery, reply, roomEntitlement, runSlashCommand, scrollMessagesToLatest, setTyping]);
 
   const sendSpecialMessage = useCallback(async (extraPayload, previewText) => {
     const signedInUser = currentChatUser();
@@ -5570,6 +6600,7 @@ export function ChatCore({ user, registerApi }) {
         tier: profile.tier,
         ...extraPayload,
       });
+      void playUiSound('message-sent');
 
       if (activeId !== 'global') {
         const preview = `${profile.name}: ${previewText}`;
@@ -5579,6 +6610,7 @@ export function ChatCore({ user, registerApi }) {
       window.bumpMessageCount?.(window.currentUser.uid);
       window.awardXP?.(window.currentUser.uid, 'leadership', 4);
     } catch (error) {
+      void playUiSound('error');
       window.showToast?.(isPermissionDeniedError(error)
         ? 'You do not have permission to post here right now. Try refreshing or rejoining the room.'
         : `Could not send: ${error.message}`);
@@ -5588,33 +6620,69 @@ export function ChatCore({ user, registerApi }) {
     }
   }, [canPostToCurrentRoom]);
 
+  const scheduleMessage = useCallback(async ({ text, deliverAt }) => {
+    const signedInUser = currentChatUser();
+    if (!signedInUser?.uid) return;
+    setScheduleSubmitting(true);
+    try {
+      const roomId = activeRoomRef.current.id;
+      const channelId = activeChannelRef.current || 'general';
+      if (!(await canPostToCurrentRoom(roomId, channelId))) return;
+      const scheduled = sanitizeScheduledMessage({
+        text,
+        deliverAt,
+        roomId,
+        channelId,
+      });
+      await postAuthedJson(ROOM_SCHEDULING_ENDPOINT(), {
+        action: 'create',
+        idempotencyKey: globalThis.crypto?.randomUUID?.() || `${signedInUser.uid}_${Date.now()}`,
+        message: scheduled,
+      }, 'Please sign in before scheduling a message.');
+      if (draft.trim() === scheduled.text) clearComposerDraft();
+      setScheduleDialogOpen(false);
+      window.showToast?.(`Message scheduled for ${new Date(scheduled.deliverAt).toLocaleString()}.`, false);
+    } catch (error) {
+      window.showToast?.(`Could not schedule message: ${error.message || error}`);
+    } finally {
+      setScheduleSubmitting(false);
+    }
+  }, [canPostToCurrentRoom, clearComposerDraft, draft]);
+
+  const cancelScheduledMessage = useCallback(async (messageId) => {
+    const uid = currentChatUser()?.uid;
+    if (!uid || !messageId) return;
+    try {
+      await postAuthedJson(ROOM_SCHEDULING_ENDPOINT(), {
+        action: 'cancel',
+        scheduleId: messageId,
+      }, 'Please sign in before cancelling a scheduled message.');
+      window.showToast?.('Scheduled message cancelled.', false);
+    } catch (error) {
+      window.showToast?.(`Could not cancel scheduled message: ${error.message || error}`);
+    }
+  }, []);
+
   const createPoll = useCallback(async () => {
     if (!(await canUseRoomPermission(activeRoomRef.current.id, 'polls', 'Polls are disabled in this room.'))) return;
     setComposerDialogMode('poll');
   }, []);
+  useEffect(() => {
+    createPollHandlerRef.current = createPoll;
+    return () => {
+      createPollHandlerRef.current = null;
+    };
+  }, [createPoll]);
 
-  const submitPollDialog = useCallback(async ({ question, optionsText }) => {
-    const cleanQuestion = String(question || '').trim();
-    if (!cleanQuestion) {
-      window.showToast?.('Add a poll question first.');
-      return;
+  const submitPollDialog = useCallback(async (draftPoll) => {
+    try {
+      const poll = createPollPayload(draftPoll);
+      await sendSpecialMessage({ poll }, `Poll: ${poll.question}`);
+      setComposerDialogMode(null);
+      window.showToast?.('Poll posted.', false);
+    } catch (error) {
+      window.showToast?.(error.message || 'Check the poll details.');
     }
-
-    const options = [...new Set(String(optionsText || '').split(/[\n,]/).map((option) => option.trim()).filter(Boolean))].slice(0, 6);
-    if (options.length < 2) {
-      window.showToast?.('A poll needs at least two options.');
-      return;
-    }
-
-    await sendSpecialMessage({
-      poll: {
-        question: cleanQuestion.slice(0, 180),
-        options: options.map((option, index) => ({ id: `o${index}`, text: option.slice(0, 80) })),
-        createdAt: Date.now(),
-      },
-    }, `Poll: ${cleanQuestion}`);
-    setComposerDialogMode(null);
-    window.showToast?.('Poll posted.', false);
   }, [sendSpecialMessage]);
 
   const saveReminder = useCallback(async (reminder) => {
@@ -5662,22 +6730,48 @@ export function ChatCore({ user, registerApi }) {
   const votePoll = useCallback(async (messageId, optionId) => {
     if (!window.currentUser?.uid) return;
     const pollMessage = messagesRef.current.find((message) => message.id === messageId);
-    if (pollMessage?.poll?.closed === true) {
+    if (!pollMessage?.poll || isPollClosed(pollMessage.poll)) {
       window.showToast?.('This poll is closed.', false);
       return;
     }
     try {
-      await set(roomMessageChildRef(activeRoomRef.current.id, messageId, `poll/votes/${window.currentUser.uid}`, activeChannelRef.current), optionId);
+      const votePath = roomMessageChildRef(
+        activeRoomRef.current.id,
+        messageId,
+        `poll/votes/${window.currentUser.uid}`,
+        activeChannelRef.current,
+      );
+      const currentVote = pollMessage.poll.votes?.[window.currentUser.uid] || null;
+      const nextVote = nextPollVoteValue(pollMessage.poll, currentVote, optionId);
+      if (nextVote) await set(votePath, nextVote);
+      else await remove(votePath);
     } catch (error) {
       window.showToast?.(`Vote failed: ${error.message}`);
     }
   }, []);
 
-  const pickSmartReply = useCallback((suggestion) => {
-    setDraft(suggestion);
-    writeComposerDraft(activeRoomRef.current.id, activeChannelRef.current, suggestion);
-    requestAnimationFrame(() => textareaRef.current?.focus());
-  }, []);
+  const pickQuickReply = useCallback((suggestion) => {
+    const text = String(suggestion || '').trim();
+    if (!text || isSendingRef.current) return;
+
+    setDraft(text);
+    setCursorIndex(text.length);
+    setDismissedMentionKey('');
+    setQuickReplyStatus('Reply idea added — review before sending');
+    writeComposerDraft(activeRoomRef.current.id, activeChannelRef.current, text);
+    setTyping(true);
+
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => setTyping(false), 3000);
+
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus();
+      if (textareaRef.current) {
+        textareaRef.current.selectionStart = text.length;
+        textareaRef.current.selectionEnd = text.length;
+      }
+    });
+  }, [setTyping]);
 
   const typingText = useMemo(() => {
     if (typingNames.length === 1) return `${typingNames[0]} is typing...`;
@@ -5685,17 +6779,19 @@ export function ChatCore({ user, registerApi }) {
     return `${typingNames.length} people are typing...`;
   }, [typingNames]);
 
-  const smartReplies = useMemo(() => (draft.trim() || composerDisabled ? [] : buildSmartReplies(messages)), [composerDisabled, draft, messages]);
-  const roomCatchUp = useMemo(() => (draft.trim() ? null : buildRoomCatchUp(messages)), [draft, messages]);
+  const quickReplyViewerName = window.userProfileName || user?.displayName || '';
+  const quickReplyViewerShortId = window.userShortId || '';
+  const showQuickReplies = !draft.trim() && !composerDisabled && !isSending;
   const composerStatusText = useMemo(() => {
     if (composerDisabled) return 'Read-only in this room';
     if (isSending) return 'Sending message';
+    if (quickReplyStatus) return quickReplyStatus;
     if (reply) return `Replying to ${reply.name || 'message'}`;
     if (fileSelected) return 'Attachment ready';
     if (slashMenuOpen) return 'Choose a command';
     if (mentionMenuOpen) return 'Choose a mention';
     return 'Enter sends';
-  }, [composerDisabled, fileSelected, isSending, mentionMenuOpen, reply, slashMenuOpen]);
+  }, [composerDisabled, fileSelected, isSending, mentionMenuOpen, quickReplyStatus, reply, slashMenuOpen]);
 
   useEffect(() => {
     if (!user?.uid) return undefined;
@@ -5757,10 +6853,18 @@ export function ChatCore({ user, registerApi }) {
             activeRoomId={activeRoom.id}
             channels={channels}
             onAddChannel={addChannel}
+            onConfigureChannel={configureChannel}
             onSwitchChannel={switchChannel}
           />,
           channelHost,
         )
+      ) : null}
+
+      {roomHeaderHost ? createPortal(
+        <Suspense fallback={null}>
+          <LazyRoomHeaderContext activeRoom={activeRoom} />
+        </Suspense>,
+        roomHeaderHost,
       ) : null}
 
       <MessageJumpContext
@@ -5777,20 +6881,63 @@ export function ChatCore({ user, registerApi }) {
         initialLoading={initialMessagesLoading}
         loadFailed={messagesLoadFailed}
         listRef={listRef}
+        locale={locale}
+        messageDeliveries={messageDeliveries}
+        messageScope={messageScopeKey(activeRoom.id, activeChannelId)}
         messages={messages}
+        pinnedMessageId={(
+          window.pendingMessageWindowScrollRestore?.scopeKey
+            === messageScopeKey(activeRoom.id, activeChannelId)
+        )
+          ? window.pendingMessageWindowScrollRestore.messageId
+          : ''}
         onCancelEdit={cancelEditMessage}
+        onCancelDelivery={cancelMessageDelivery}
         onEditingText={setEditingText}
         onJumpToMessage={requestMessageJump}
+        onMarkUnread={markMessageUnread}
+        onOpenThread={openMessageThread}
         onPrepareReply={prepareReply}
         onReact={reactToMessage}
         onClosePoll={closePoll}
+        onReport={reportMessage}
+        onRetryDelivery={retryMessageDelivery}
         onSaveEdit={saveEditedMessage}
         onSaveReminder={saveReminder}
         onScroll={handleMessagesScroll}
         onScrollIntent={handleMessagesScrollIntent}
+        onTranslate={translateMessage}
         onVotePoll={votePoll}
+        firstUnreadMessageId={activeUnread.firstMessageId}
         searchQuery={deferredSearchQuery}
+        translatedMessages={translatedMessages}
       />
+
+      {threadDrawerOpen ? (
+        <Suspense fallback={null}>
+          <LazyThreadDrawer
+            key={`${messageScopeKey(activeRoom.id, activeChannelId)}:${activeThreadRootId || 'inbox'}`}
+            activeRootId={activeThreadRootId}
+            follows={threadFollows}
+            messages={messages}
+            onClose={() => setThreadDrawerOpen(false)}
+            onFollow={toggleThreadFollow}
+            onJump={(message) => requestMessageJump({
+              messageId: message.id,
+              roomId: activeRoom.id,
+              channelId: activeChannelId,
+              source: 'thread',
+              messageText: message.text || '',
+            })}
+            onMarkRead={markThreadRead}
+            onReply={replyInThread}
+            onSelectThread={setActiveThreadRootId}
+            open={threadDrawerOpen}
+            readAtByRoot={threadReadAtByRoot}
+            viewerUid={userId}
+          />
+        </Suspense>
+      ) : null}
 
       <div id="typing-status-container" className={typingNames.length ? '' : 'hidden'}>
         <div className="typing-dots"><div className="dot" /><div className="dot" /><div className="dot" /></div>
@@ -5803,7 +6950,10 @@ export function ChatCore({ user, registerApi }) {
             <i className="ph-bold ph-arrow-bend-up-left" aria-hidden="true" />
             <span id="replying-to-name">{reply?.name || ''}</span>
           </strong>
-          <span id="replying-to-text">{reply?.text?.length > 40 ? `${reply.text.substring(0, 40)}...` : reply?.text || ''}</span>
+          <span id="replying-to-text">
+            {reply?.threadRootId ? 'Thread · ' : ''}
+            {reply?.text?.length > 40 ? `${reply.text.substring(0, 40)}...` : reply?.text || ''}
+          </span>
         </div>
         <button className="cancel-reply" id="cancel-reply-btn" onClick={cancelReply} type="button" aria-label="Cancel reply">
           <i className="ph-bold ph-x" aria-hidden="true" />
@@ -5811,13 +6961,30 @@ export function ChatCore({ user, registerApi }) {
       </div>
 
       <RoomCatchUpStrip
-        insight={roomCatchUp}
-        onCreateTask={createTaskFromText}
-        onFocusSearch={focusSearch}
-        onJumpLatest={jumpToLatestMessage}
-        onOpenSummary={openRoomSummary}
+        hidden={!roomCatchUpEnabled || Boolean(draft.trim())}
+        key={`room-catchup:${userId}:${messageScopeKey(activeRoom.id, activeChannelId)}`}
+        messages={messages}
+        onCreateTask={createTaskFromCatchUp}
+        onOpenRoomAi={openRoomAiFromCatchUp}
+        onReviewMessage={reviewCatchUpMessage}
+        scopeKey={messageScopeKey(activeRoom.id, activeChannelId)}
+        userId={userId}
+        viewerName={window.userProfileName || user?.displayName || ''}
+        viewerShortId={window.userShortId || ''}
       />
-      <SmartReplies suggestions={smartReplies} onPick={pickSmartReply} />
+      {showQuickReplies ? (
+        <Suspense fallback={null}>
+          <LazyQuickReplies
+            messages={messages}
+            onPick={pickQuickReply}
+            replyTarget={reply}
+            scopeKey={messageScopeKey(activeRoom.id, activeChannelId)}
+            viewerId={userId}
+            viewerName={quickReplyViewerName}
+            viewerShortId={quickReplyViewerShortId}
+          />
+        </Suspense>
+      ) : null}
       {slashMenuOpen ? (
         <SlashCommandMenu
           commands={slashCommands}
@@ -5867,6 +7034,19 @@ export function ChatCore({ user, registerApi }) {
         onSubmit={resolveSimpleDialog}
       />
 
+      {scheduleDialogOpen ? (
+        <Suspense fallback={null}>
+          <LazyScheduleMessageDialog
+            defaultText={draft}
+            key={`schedule:${scheduleDialogOpen ? 'open' : 'closed'}`}
+            onClose={() => setScheduleDialogOpen(false)}
+            onSubmit={scheduleMessage}
+            open={scheduleDialogOpen}
+            submitting={scheduleSubmitting}
+          />
+        </Suspense>
+      ) : null}
+
       <form action="" id="chat-form" onSubmit={handleSubmit}>
         <input
           className="hidden"
@@ -5875,6 +7055,16 @@ export function ChatCore({ user, registerApi }) {
           ref={fileInputRef}
           type="file"
         />
+        {scheduledMessages.length ? (
+          <Suspense fallback={null}>
+            <LazyScheduledMessageList messages={scheduledMessages} onCancel={cancelScheduledMessage} />
+          </Suspense>
+        ) : null}
+        {selectedFile ? (
+          <Suspense fallback={null}>
+            <LazyAttachmentPreview file={selectedFile} onRemove={clearSelectedFile} />
+          </Suspense>
+        ) : null}
         <div className="composer-input-row">
           <textarea
             disabled={composerDisabled || isSending}
@@ -5884,80 +7074,87 @@ export function ChatCore({ user, registerApi }) {
             onKeyDown={handleTextareaKeyDown}
             onKeyUp={(event) => setCursorIndex(event.currentTarget.selectionStart ?? draft.length)}
             onSelect={(event) => setCursorIndex(event.currentTarget.selectionStart ?? draft.length)}
-            placeholder={isSending ? 'Sending…' : placeholder}
+            placeholder={
+              isSending
+                ? translate('chat.send.sending', {}, locale)
+                : composerDisabled
+                  ? placeholder
+                  : translate('chat.composer.placeholder', { channel: activeChannelId }, locale)
+            }
             ref={textareaRef}
             rows={1}
+            aria-label={translate('chat.composer.placeholder', { channel: activeChannelId }, locale)}
             aria-describedby="composer-helper-text"
             value={draft}
           />
           <button
+            aria-busy={isSending || undefined}
             className="composer-send-btn"
             disabled={isSending || composerDisabled}
             id="mobile-send-btn"
-            title="Send message"
-            aria-label="Send message"
+            title={translate('chat.send', {}, locale)}
+            aria-label={translate('chat.send', {}, locale)}
             type="submit"
           >
-            <i className="ph-bold ph-paper-plane-tilt" />
+            <i
+              className={`ph-bold ${isSending ? 'ph-spinner-gap message-delivery-spinner' : 'ph-paper-plane-tilt'}`}
+              aria-hidden="true"
+            />
           </button>
         </div>
         <div className="composer-toolbar">
           <div className="composer-tool-group" aria-label="Message tools">
             <button
+              aria-pressed={fileSelected}
               className={`composer-icon-btn ${fileSelected ? 'active' : ''}`}
               disabled={isSending || composerDisabled}
               id="attach-btn"
               onClick={() => fileInputRef.current?.click()}
-              title="Attach file"
-              aria-label="Attach file"
+              title={translate('chat.attachment.add', {}, locale)}
+              aria-label={translate('chat.attachment.add', {}, locale)}
               type="button"
             >
-              <i className="ph-bold ph-paperclip" />
+              <i className="ph-bold ph-paperclip" aria-hidden="true" />
             </button>
             <button
-              className="composer-icon-btn"
+              aria-controls="composer-more-menu"
+              aria-expanded={composerMoreOpen}
+              aria-haspopup="menu"
+              aria-label="More message tools"
+              className={`composer-icon-btn ${composerMoreOpen ? 'active' : ''}`}
               disabled={isSending || composerDisabled}
-              id="inline-code-btn"
-              onClick={() => insertCodeSnippet('inline')}
-              title="Inline code"
-              aria-label="Inline code"
+              id="composer-more-trigger"
+              onClick={() => setComposerMoreOpen((current) => !current)}
+              ref={composerMoreTriggerRef}
+              title="More message tools"
               type="button"
             >
-              <i className="ph-bold ph-code" />
+              <i className="ph-bold ph-dots-three-outline-vertical" aria-hidden="true" />
             </button>
-            <button
-              className="composer-icon-btn"
-              disabled={isSending || composerDisabled}
-              id="code-block-btn"
-              onClick={() => insertCodeSnippet('block')}
-              title="Code block"
-              aria-label="Code block"
-              type="button"
-            >
-              <i className="ph-bold ph-brackets-curly" />
-            </button>
-            <button
-              className="composer-icon-btn"
-              disabled={isSending || composerDisabled}
-              id="poll-btn"
-              onClick={createPoll}
-              title="Create poll"
-              aria-label="Create poll"
-              type="button"
-            >
-              <i className="ph-bold ph-chart-bar" />
-            </button>
-            <button
-              className="composer-icon-btn"
-              disabled={isSending || composerDisabled}
-              id="reminder-btn"
-              onClick={createReminder}
-              title="Create reminder"
-              aria-label="Create reminder"
-              type="button"
-            >
-              <i className="ph-bold ph-alarm" />
-            </button>
+            {composerMoreOpen ? (
+              <Suspense
+                fallback={(
+                  <ComposerMoreMenuState
+                    anchorRef={composerMoreTriggerRef}
+                    onClose={() => setComposerMoreOpen(false)}
+                  />
+                )}
+              >
+                <LazyComposerMoreMenu
+                  anchorRef={composerMoreTriggerRef}
+                  onClose={() => setComposerMoreOpen(false)}
+                  onCodeBlock={() => insertCodeSnippet('block')}
+                  onCreatePoll={createPoll}
+                  onCreateReminder={createReminder}
+                  onInlineCode={() => insertCodeSnippet('inline')}
+                  onJumpToUnread={jumpToFirstUnread}
+                  onSchedule={() => setScheduleDialogOpen(true)}
+                  onToggleThreads={() => setThreadDrawerOpen((current) => !current)}
+                  threadsOpen={threadDrawerOpen}
+                  unreadCount={activeUnread.count}
+                />
+              </Suspense>
+            ) : null}
           </div>
           <span className="composer-helper" id="composer-helper-text" aria-live="polite">
             <span className="composer-status">{composerStatusText}</span>

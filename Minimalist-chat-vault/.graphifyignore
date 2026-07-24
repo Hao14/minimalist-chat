@@ -1,5 +1,6 @@
 # Keep the project knowledge graph focused on vault notes.
 .obsidian/
 .codex/
+.gbrain/
 skills/
 graphify-out/

@@ -16,6 +16,9 @@ tags:
 > [!info] Additive import
 > Source: `docs/remote-analysis-agent.md` · SHA-256: `f62ff23ba670…`
 
+> [!summary] Remote boundary
+> Away from home, the owner can view read-only Minimalist Analysis metadata through Cloudflare Access. A remote page cannot control the Windows desktop, administrator workspaces, protected AI bridge, Ollama, moderation tools, or arbitrary local processes.
+
 # Remote Minimalist Analysis Agent
 
 The remote Analysis path uses a small, read-only Windows agent behind a separate Cloudflare Access application. It does not expose the desktop app, its administrator workspaces, the protected Ollama bridge, or either Ollama port.

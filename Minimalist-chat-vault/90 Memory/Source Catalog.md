@@ -1,6 +1,7 @@
 ---
 title: Source Catalog
 imported_on: 2026-07-14
+updated_on: 2026-07-22
 status: active
 tags:
   - minimalist-chat
@@ -23,6 +24,7 @@ This catalog records the canonical project documents copied or converted into th
 | [[50 Skills/Prompt Library/Feature Research to Implementation Prompt|Feature Research to Implementation Prompt]] | `reports/claude-opus-4-6-feature-research-request.md` | markdown | reusable | `7decb9e8e200…` |
 | [[50 Skills/Prompt Library/Performance Error and Bug Audit|Performance, Error, and Bug Audit Prompt]] | `reports/opus-4-6-max-effort-audit-to-gpt-prompt.md` | markdown | reusable | `406d5d6e19f1…` |
 | [[10 Product/Current/Current Product Overview|Current Product Overview]] | `index.html` | html | current | `e560a58947ce…` |
+| [[11 Product/Legacy/Legacy Visual History - 2026-06-28 to 2026-07-04|Legacy Visual History — June 28 to July 4, 2026]] | `11 Product/Legacy/assets/previous-version-2026-06-28-to-2026-07-04/provenance.json` | sanitized screenshot provenance + eight JPEGs | archived reference | `5494b2778c0f…` |
 | [[11 Product/Legacy/Legacy - Download|Legacy — Download]] | `legacy/download.html` | html | archived | `00ed05abbd0d…` |
 | [[11 Product/Legacy/Legacy - FAQ|Legacy — FAQ]] | `legacy/faq.html` | html | archived | `e9967a4e4d66…` |
 | [[11 Product/Legacy/Legacy - Features|Legacy — Features]] | `legacy/features.html` | html | archived | `0a606da95402…` |
@@ -35,4 +37,4 @@ This catalog records the canonical project documents copied or converted into th
 
 Included: human-authored Markdown, current product copy, selected legacy product/legal pages, and a synthesized Lighthouse history.
 
-Excluded: generated report renderings, duplicate worktrees, dependencies, build outputs, logs, source/config files, and transient attachments.
+Excluded: generated report renderings, duplicate worktrees, dependencies, build outputs, logs, source/config files, and unpromoted transient attachments. The June–July 2026 visual-history collection is an explicit user-promoted exception: its retained JPEGs are hash-verified, its context is archived, and its raw transcript/session paths were removed from the sanitized provenance record.

@@ -1,0 +1,1242 @@
+/* Rank + Kudos ------------------------------------------------------------ */
+#updates-panel.updates-center :is(#leaderboard-list, #recognition-list) {
+  container-type: inline-size;
+  align-content: start;
+}
+
+.updates-visually-hidden {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+}
+
+#updates-panel.updates-center :is(.community-panel-state, .rank-v2-state, .kudos-v2-state) {
+  min-height: 260px;
+  padding: 32px 24px !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--updates-muted) !important;
+  text-align: center;
+  background: var(--updates-faint) !important;
+  border: 1px solid var(--updates-soft-line) !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+}
+
+#updates-panel.updates-center :is(.community-panel-state, .rank-v2-state, .kudos-v2-state) > span:first-child {
+  width: 52px;
+  height: 52px;
+  margin-bottom: 4px;
+  display: grid;
+  place-items: center;
+  color: var(--updates-ink);
+  background: var(--updates-bg);
+  border: 1px solid var(--updates-line);
+  border-radius: 17px;
+  font-size: 1.35rem;
+}
+
+#updates-panel.updates-center :is(.rank-v2-state, .kudos-v2-state):not(.is-error) .rank-v2-state-icon i,
+#updates-panel.updates-center :is(.rank-v2-state, .kudos-v2-state):not(.is-error) .kudos-v2-state-icon i {
+  animation: updates-community-spin 900ms linear infinite;
+}
+
+#updates-panel.updates-center :is(.community-panel-state, .rank-v2-state, .kudos-v2-state) strong {
+  color: var(--updates-ink);
+  font-size: 0.96rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+#updates-panel.updates-center :is(.community-panel-state, .rank-v2-state, .kudos-v2-state) p {
+  max-width: 300px;
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+#updates-panel.updates-center :is(.rank-v2-retry, .kudos-v2-retry) {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  margin: 8px 0 0 !important;
+  padding: 0 !important;
+  display: grid !important;
+  place-items: center;
+  color: var(--updates-ink) !important;
+  background: var(--updates-bg) !important;
+  border: 1px solid var(--updates-line) !important;
+  border-radius: 13px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+@keyframes updates-community-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Rank */
+#updates-panel.updates-center .rank-v2-metric-rail {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: 0 0 2px;
+  background: var(--updates-bg);
+}
+
+#updates-panel.updates-center .rank-v2-metric-scroll {
+  padding: 4px;
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: none;
+  background: var(--updates-faint);
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 15px;
+}
+
+#updates-panel.updates-center .rank-v2-metric-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+#updates-panel.updates-center .rank-v2-metric {
+  width: auto !important;
+  min-width: max-content !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 0 7px !important;
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--updates-muted) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 11px !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: 0.67rem !important;
+  font-weight: 790 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  transform: none !important;
+}
+
+#updates-panel.updates-center .rank-v2-metric i {
+  color: var(--rank-tone, var(--updates-accent));
+  font-size: 0.95rem;
+}
+
+#updates-panel.updates-center .rank-v2-metric:hover:not(:disabled) {
+  color: var(--updates-ink) !important;
+  background: color-mix(in srgb, var(--updates-ink) 5%, var(--updates-bg)) !important;
+}
+
+#updates-panel.updates-center .rank-v2-metric[aria-pressed="true"] {
+  color: var(--updates-ink) !important;
+  background: color-mix(in srgb, var(--rank-tone, var(--updates-accent)) 16%, var(--updates-bg)) !important;
+  border-color: color-mix(in srgb, var(--rank-tone, var(--updates-accent)) 54%, var(--updates-line)) !important;
+}
+
+#updates-panel.updates-center .rank-v2-overview {
+  padding: 18px !important;
+  color: var(--updates-ink);
+  background: var(--updates-wash) !important;
+  border: 1px solid color-mix(in srgb, var(--updates-accent) 34%, var(--updates-line)) !important;
+  border-radius: 19px !important;
+  box-shadow: none !important;
+}
+
+#updates-panel.updates-center .rank-v2-heading {
+  min-width: 0;
+}
+
+#updates-panel.updates-center :is(.rank-v2-eyebrow, .kudos-v2-eyebrow) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--updates-muted);
+  font-size: 0.64rem;
+  font-weight: 850;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#updates-panel.updates-center :is(.rank-v2-eyebrow, .kudos-v2-eyebrow) i {
+  color: color-mix(in srgb, var(--updates-accent) 70%, #7d6400);
+  font-size: 0.9rem;
+}
+
+#updates-panel.updates-center .rank-v2-heading h3 {
+  margin: 7px 0 4px !important;
+  color: var(--updates-ink) !important;
+  font-size: clamp(1.2rem, 5cqi, 1.55rem) !important;
+  font-weight: 880 !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.04em !important;
+}
+
+#updates-panel.updates-center .rank-v2-heading p {
+  max-width: 340px;
+  margin: 0 !important;
+  color: var(--updates-muted) !important;
+  font-size: 0.73rem !important;
+  font-weight: 650 !important;
+  line-height: 1.45 !important;
+}
+
+#updates-panel.updates-center .rank-v2-person {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 60px !important;
+  margin: 16px 0 14px !important;
+  padding: 8px 10px !important;
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 10px;
+  color: var(--updates-ink) !important;
+  text-align: left !important;
+  background: var(--updates-bg) !important;
+  border: 1px solid var(--updates-soft-line) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+#updates-panel.updates-center .rank-v2-person:hover {
+  border-color: var(--updates-line) !important;
+}
+
+#updates-panel.updates-center .rank-v2-person > img {
+  width: 42px !important;
+  height: 42px !important;
+  object-fit: cover;
+  border: 1px solid var(--updates-line);
+  border-radius: 13px !important;
+}
+
+#updates-panel.updates-center .rank-v2-person-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#updates-panel.updates-center .rank-v2-person-copy :is(strong, small) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .rank-v2-person-copy strong {
+  font-size: 0.85rem;
+  font-weight: 850;
+}
+
+#updates-panel.updates-center .rank-v2-person-copy small {
+  color: var(--updates-muted);
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+#updates-panel.updates-center .rank-v2-person > i {
+  color: var(--updates-muted);
+}
+
+#updates-panel.updates-center .rank-v2-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: hidden;
+  background: color-mix(in srgb, var(--updates-bg) 78%, transparent);
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 14px;
+}
+
+#updates-panel.updates-center .rank-v2-stats > span {
+  min-width: 0;
+  min-height: 84px;
+  padding: 11px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+#updates-panel.updates-center .rank-v2-stats > span + span {
+  border-left: 1px solid var(--updates-soft-line);
+}
+
+#updates-panel.updates-center .rank-v2-stats small {
+  color: var(--updates-muted);
+  font-size: 0.6rem;
+  font-weight: 780;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#updates-panel.updates-center .rank-v2-stats strong {
+  overflow: hidden;
+  color: var(--updates-ink);
+  font-size: 1.2rem;
+  font-weight: 900;
+  line-height: 1.05;
+  text-overflow: ellipsis;
+}
+
+#updates-panel.updates-center .rank-v2-stats em {
+  overflow: hidden;
+  color: var(--updates-muted);
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .rank-v2-progress-copy {
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--updates-muted);
+  font-size: 0.64rem;
+  font-weight: 740;
+}
+
+#updates-panel.updates-center .rank-v2-progress-copy strong {
+  color: var(--updates-ink);
+}
+
+#updates-panel.updates-center :is(.rank-v2-progress, .kudos-v2-progress) {
+  height: 8px;
+  margin-top: 7px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--updates-ink) 10%, var(--updates-bg));
+  border-radius: 999px;
+}
+
+#updates-panel.updates-center .rank-v2-progress > span {
+  width: var(--rank-progress, 0%);
+  height: 100%;
+  display: block;
+  background: var(--updates-accent);
+  border-radius: inherit;
+  transition: width 240ms ease;
+}
+
+#updates-panel.updates-center :is(.rank-v2-guide, .rank-v2-community) {
+  padding: 16px !important;
+  color: var(--updates-ink);
+  background: var(--updates-bg) !important;
+  border: 1px solid var(--updates-line) !important;
+  border-radius: 17px !important;
+  box-shadow: none !important;
+}
+
+#updates-panel.updates-center :is(.rank-v2-guide, .rank-v2-community) > header {
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--updates-ink);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+#updates-panel.updates-center :is(.rank-v2-guide, .rank-v2-community) > header > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+#updates-panel.updates-center :is(.rank-v2-guide, .rank-v2-community) > header > em {
+  color: var(--updates-muted);
+  font-size: 0.63rem;
+  font-style: normal;
+  font-weight: 720;
+}
+
+#updates-panel.updates-center .rank-v2-formula {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#updates-panel.updates-center .rank-v2-formula > span {
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 7px;
+  background: var(--updates-faint);
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 12px;
+}
+
+#updates-panel.updates-center .rank-v2-formula i {
+  grid-row: span 2;
+  color: color-mix(in srgb, var(--updates-accent) 68%, #766000);
+  font-size: 1rem;
+}
+
+#updates-panel.updates-center .rank-v2-formula small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--updates-muted);
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .rank-v2-formula strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--updates-ink);
+  font-size: 0.75rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .rank-v2-guide-skill {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+#updates-panel.updates-center .rank-v2-guide-icon {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  color: var(--rank-tone, var(--updates-accent));
+  background: color-mix(in srgb, var(--rank-tone, var(--updates-accent)) 15%, var(--updates-bg));
+  border: 1px solid color-mix(in srgb, var(--rank-tone, var(--updates-accent)) 34%, var(--updates-line));
+  border-radius: 14px;
+  font-size: 1.15rem;
+}
+
+#updates-panel.updates-center .rank-v2-guide-skill strong {
+  display: block;
+  color: var(--updates-ink);
+  font-size: 0.8rem;
+  font-weight: 850;
+}
+
+#updates-panel.updates-center .rank-v2-guide-skill p {
+  margin: 4px 0 0;
+  color: var(--updates-muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+#updates-panel.updates-center .rank-v2-trust-note {
+  padding: 14px !important;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  background: var(--updates-faint) !important;
+  border: 1px solid var(--updates-soft-line) !important;
+  border-radius: 15px !important;
+}
+
+#updates-panel.updates-center .rank-v2-trust-note > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #0f8a5f;
+  background: color-mix(in srgb, #10b981 14%, var(--updates-bg));
+  border-radius: 12px;
+  font-size: 1.05rem;
+}
+
+#updates-panel.updates-center .rank-v2-trust-note strong {
+  color: var(--updates-ink);
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+#updates-panel.updates-center .rank-v2-trust-note p {
+  margin: 4px 0 0;
+  color: var(--updates-muted);
+  font-size: 0.68rem;
+  font-weight: 630;
+  line-height: 1.45;
+}
+
+#updates-panel.updates-center :is(.rank-v2-leaders, .rank-v2-remaining) {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+#updates-panel.updates-center .rank-v2-leaders {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button,
+#updates-panel.updates-center .rank-v2-remaining button {
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  color: var(--updates-ink) !important;
+  background: var(--updates-faint) !important;
+  border: 1px solid var(--updates-soft-line) !important;
+  border-radius: 13px !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  transform: none !important;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button {
+  min-height: 142px !important;
+  padding: 10px 8px !important;
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button > b {
+  color: color-mix(in srgb, var(--updates-accent) 65%, #735d00);
+  font-size: 0.68rem;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button img {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 13px;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button > span {
+  min-width: 0;
+  display: grid;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button :is(strong, small, em) {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button strong {
+  font-size: 0.68rem;
+}
+
+#updates-panel.updates-center .rank-v2-leaders button small,
+#updates-panel.updates-center .rank-v2-leaders button em {
+  color: var(--updates-muted);
+  font-size: 0.58rem;
+  font-style: normal;
+}
+
+#updates-panel.updates-center .rank-v2-remaining {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+#updates-panel.updates-center .rank-v2-remaining button {
+  min-height: 56px !important;
+  padding: 7px 9px !important;
+  display: grid !important;
+  grid-template-columns: 26px 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+
+#updates-panel.updates-center .rank-v2-remaining img {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 11px;
+}
+
+#updates-panel.updates-center .rank-v2-remaining button > span {
+  min-width: 0;
+  display: grid;
+}
+
+#updates-panel.updates-center .rank-v2-remaining button :is(strong, small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .rank-v2-remaining button small,
+#updates-panel.updates-center .rank-v2-remaining button em {
+  color: var(--updates-muted);
+  font-size: 0.62rem;
+  font-style: normal;
+}
+
+/* Kudos */
+#updates-panel.updates-center .kudos-v2-hero {
+  padding: 18px !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 126px;
+  align-items: start;
+  gap: 15px;
+  color: var(--updates-ink);
+  background: var(--updates-wash) !important;
+  border: 1px solid color-mix(in srgb, var(--updates-accent) 34%, var(--updates-line)) !important;
+  border-radius: 19px !important;
+  box-shadow: none !important;
+}
+
+#updates-panel.updates-center .kudos-v2-hero-copy {
+  min-width: 0;
+}
+
+#updates-panel.updates-center .kudos-v2-hero h3 {
+  margin: 7px 0 5px !important;
+  color: var(--updates-ink) !important;
+  font-size: clamp(1.25rem, 5.5cqi, 1.62rem) !important;
+  font-weight: 900 !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.045em !important;
+}
+
+#updates-panel.updates-center .kudos-v2-hero-copy > p {
+  max-width: 250px;
+  margin: 0 !important;
+  color: var(--updates-muted) !important;
+  font-size: 0.72rem !important;
+  font-weight: 650 !important;
+  line-height: 1.5 !important;
+}
+
+#updates-panel.updates-center .kudos-v2-received {
+  min-width: 0;
+  min-height: 108px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 9px;
+  background: var(--updates-bg);
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 15px;
+}
+
+#updates-panel.updates-center .kudos-v2-received-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #9a7600;
+  background: color-mix(in srgb, var(--updates-accent) 24%, var(--updates-bg));
+  border-radius: 11px;
+  font-size: 1rem;
+}
+
+#updates-panel.updates-center .kudos-v2-received > span:last-child {
+  min-width: 0;
+  display: grid;
+}
+
+#updates-panel.updates-center .kudos-v2-received strong {
+  color: var(--updates-ink);
+  font-size: 1.45rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#updates-panel.updates-center .kudos-v2-received small {
+  margin-top: 3px;
+  color: var(--updates-muted);
+  font-size: 0.58rem;
+  font-weight: 760;
+}
+
+#updates-panel.updates-center .kudos-v2-milestone {
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--updates-accent) 28%, var(--updates-line));
+}
+
+#updates-panel.updates-center .kudos-v2-milestone > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--updates-muted);
+  font-size: 0.64rem;
+  font-weight: 760;
+}
+
+#updates-panel.updates-center .kudos-v2-milestone > div:first-child strong {
+  color: var(--updates-ink);
+  font-size: 0.66rem;
+  font-weight: 850;
+}
+
+#updates-panel.updates-center .kudos-v2-progress > span {
+  width: var(--kudos-progress, 0%);
+  height: 100%;
+  display: block;
+  background: var(--updates-accent);
+  border-radius: inherit;
+  transition: width 240ms ease;
+}
+
+#updates-panel.updates-center .kudos-v2-milestone > p {
+  margin: 7px 0 0;
+  color: var(--updates-muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+#updates-panel.updates-center :is(.kudos-v2-picker, .kudos-v2-moments) {
+  padding: 16px !important;
+  color: var(--updates-ink);
+  background: var(--updates-bg) !important;
+  border: 1px solid var(--updates-line) !important;
+  border-radius: 17px !important;
+  box-shadow: none !important;
+}
+
+#updates-panel.updates-center .kudos-v2-section-heading {
+  min-width: 0;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#updates-panel.updates-center .kudos-v2-section-heading > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#updates-panel.updates-center .kudos-v2-section-heading strong {
+  color: var(--updates-ink);
+  font-size: 0.86rem;
+  font-weight: 870;
+  line-height: 1.2;
+}
+
+#updates-panel.updates-center .kudos-v2-section-heading small {
+  color: var(--updates-muted);
+  font-size: 0.65rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+#updates-panel.updates-center .kudos-v2-section-heading > em {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  color: var(--updates-muted);
+  background: var(--updates-faint);
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 760;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .kudos-v2-search {
+  position: relative;
+  min-width: 0;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--updates-muted);
+}
+
+#updates-panel.updates-center .kudos-v2-search > i {
+  position: absolute;
+  left: 13px;
+  z-index: 1;
+  font-size: 0.95rem;
+  pointer-events: none;
+}
+
+#updates-panel.updates-center .kudos-v2-search input {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 44px !important;
+  margin: 0 !important;
+  padding: 0 13px 0 39px !important;
+  color: var(--updates-ink) !important;
+  background: var(--updates-faint) !important;
+  border: 1px solid var(--updates-soft-line) !important;
+  border-radius: 13px !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: 0.74rem !important;
+  font-weight: 680 !important;
+  outline: none;
+}
+
+#updates-panel.updates-center .kudos-v2-search input:focus {
+  border-color: color-mix(in srgb, var(--updates-accent) 72%, var(--updates-ink)) !important;
+}
+
+#updates-panel.updates-center .kudos-v2-search input::placeholder {
+  color: var(--updates-muted);
+  opacity: 0.82;
+}
+
+#updates-panel.updates-center .kudos-v2-member-list {
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  list-style: none;
+}
+
+#updates-panel.updates-center .kudos-v2-member-list > li {
+  min-width: 0;
+  padding: 8px 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--updates-soft-line);
+}
+
+#updates-panel.updates-center .kudos-v2-member-list > li:first-child {
+  padding-top: 0;
+}
+
+#updates-panel.updates-center .kudos-v2-member-list > li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 48px !important;
+  margin: 0 !important;
+  padding: 3px !important;
+  display: grid !important;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  color: var(--updates-ink) !important;
+  text-align: left !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  transform: none !important;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main:hover {
+  background: var(--updates-faint) !important;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main img {
+  width: 42px !important;
+  height: 42px !important;
+  object-fit: cover;
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 13px !important;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main :is(strong, small) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main strong {
+  color: var(--updates-ink);
+  font-size: 0.76rem;
+  font-weight: 830;
+}
+
+#updates-panel.updates-center .kudos-v2-member-main small {
+  color: var(--updates-muted);
+  font-size: 0.62rem;
+  font-weight: 650;
+}
+
+#updates-panel.updates-center .kudos-v2-give {
+  min-width: 108px !important;
+  min-height: 42px !important;
+  margin: 0 !important;
+  padding: 0 10px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--updates-ink) !important;
+  background: var(--updates-accent) !important;
+  border: 1px solid color-mix(in srgb, var(--updates-accent) 55%, var(--updates-ink)) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: 0.64rem !important;
+  font-weight: 840 !important;
+  line-height: 1 !important;
+  text-transform: none !important;
+  transform: none !important;
+}
+
+#updates-panel.updates-center .kudos-v2-give:hover:not(:disabled) {
+  filter: brightness(0.97);
+}
+
+#updates-panel.updates-center .kudos-v2-give:is(.is-sent, .is-already) {
+  color: #0b694a !important;
+  background: color-mix(in srgb, #10b981 15%, var(--updates-bg)) !important;
+  border-color: color-mix(in srgb, #10b981 40%, var(--updates-line)) !important;
+}
+
+#updates-panel.updates-center .kudos-v2-give.is-error {
+  color: var(--updates-danger) !important;
+  background: color-mix(in srgb, var(--updates-danger) 9%, var(--updates-bg)) !important;
+  border-color: color-mix(in srgb, var(--updates-danger) 34%, var(--updates-line)) !important;
+}
+
+#updates-panel.updates-center .kudos-v2-give.is-sending i {
+  animation: updates-community-spin 900ms linear infinite;
+}
+
+#updates-panel.updates-center .kudos-v2-give:disabled {
+  cursor: default;
+  opacity: 1 !important;
+}
+
+#updates-panel.updates-center .kudos-v2-no-results {
+  min-height: 148px;
+  margin-top: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--updates-muted);
+  text-align: center;
+  background: var(--updates-faint);
+  border: 1px dashed var(--updates-line);
+  border-radius: 14px;
+}
+
+#updates-panel.updates-center .kudos-v2-no-results > i {
+  margin-bottom: 4px;
+  font-size: 1.35rem;
+}
+
+#updates-panel.updates-center .kudos-v2-no-results strong {
+  color: var(--updates-ink);
+  font-size: 0.76rem;
+  font-weight: 840;
+}
+
+#updates-panel.updates-center .kudos-v2-no-results p,
+#updates-panel.updates-center .kudos-v2-picker-hint {
+  margin: 0;
+  color: var(--updates-muted);
+  font-size: 0.64rem;
+  font-weight: 650;
+  line-height: 1.4;
+}
+
+#updates-panel.updates-center .kudos-v2-picker-hint {
+  margin-top: 11px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+#updates-panel.updates-center .kudos-v2-guide {
+  padding: 12px !important;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  background: var(--updates-faint) !important;
+  border: 1px solid var(--updates-soft-line) !important;
+  border-radius: 15px !important;
+}
+
+#updates-panel.updates-center .kudos-v2-guide > span {
+  min-width: 0;
+  min-height: 74px;
+  padding: 9px 7px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  background: var(--updates-bg);
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 12px;
+}
+
+#updates-panel.updates-center .kudos-v2-guide i {
+  color: var(--guide-tone);
+  font-size: 1rem;
+}
+
+#updates-panel.updates-center .kudos-v2-guide small {
+  color: var(--updates-ink);
+  font-size: 0.58rem;
+  font-weight: 730;
+  line-height: 1.35;
+}
+
+#updates-panel.updates-center .kudos-v2-moment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment {
+  min-width: 0;
+  padding: 12px;
+  background: var(--updates-faint);
+  border: 1px solid var(--updates-soft-line);
+  border-radius: 14px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment > header {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  color: var(--moment-tone);
+  background: color-mix(in srgb, var(--moment-tone) 13%, var(--updates-bg));
+  border-radius: 11px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment header > span:last-child {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment header :is(strong, small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .kudos-v2-moment header strong {
+  color: var(--updates-ink);
+  font-size: 0.69rem;
+  font-weight: 830;
+}
+
+#updates-panel.updates-center .kudos-v2-moment header small {
+  color: var(--updates-muted);
+  font-size: 0.56rem;
+  font-weight: 650;
+}
+
+#updates-panel.updates-center .kudos-v2-moment > ul {
+  margin: 10px 0 0;
+  padding: 9px 0 0;
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  border-top: 1px solid var(--updates-soft-line);
+}
+
+#updates-panel.updates-center .kudos-v2-moment > ul li {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment li img {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 9px;
+}
+
+#updates-panel.updates-center .kudos-v2-moment li > span {
+  min-width: 0;
+  display: grid;
+}
+
+#updates-panel.updates-center .kudos-v2-moment li :is(strong, small) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#updates-panel.updates-center .kudos-v2-moment li strong {
+  color: var(--updates-ink);
+  font-size: 0.63rem;
+  font-weight: 800;
+}
+
+#updates-panel.updates-center .kudos-v2-moment li small,
+#updates-panel.updates-center .kudos-v2-moment > p {
+  color: var(--updates-muted);
+  font-size: 0.56rem;
+  font-weight: 650;
+}
+
+#updates-panel.updates-center .kudos-v2-moment > p {
+  margin: 11px 0 0;
+  line-height: 1.4;
+}
+
+#updates-panel.updates-center :is(
+  .rank-v2-metric,
+  .rank-v2-person,
+  .rank-v2-retry,
+  .rank-v2-leaders button,
+  .rank-v2-remaining button,
+  .kudos-v2-retry,
+  .kudos-v2-member-main,
+  .kudos-v2-give
+):focus-visible,
+#updates-panel.updates-center .kudos-v2-search input:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--updates-accent) 72%, #0a84ff) !important;
+  outline-offset: 2px !important;
+}
+
+@container (max-width: 380px) {
+  #updates-panel.updates-center .rank-v2-overview,
+  #updates-panel.updates-center .kudos-v2-hero {
+    padding: 15px !important;
+  }
+
+  #updates-panel.updates-center .rank-v2-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  #updates-panel.updates-center .rank-v2-stats > span:nth-child(3) {
+    grid-column: 1 / -1;
+    min-height: 68px;
+    border-top: 1px solid var(--updates-soft-line);
+    border-left: 0;
+  }
+
+  #updates-panel.updates-center .rank-v2-leaders {
+    grid-template-columns: 1fr;
+  }
+
+  #updates-panel.updates-center .rank-v2-leaders button {
+    min-height: 62px !important;
+    display: grid !important;
+    grid-template-columns: 24px 40px minmax(0, 1fr) auto;
+    text-align: left;
+  }
+
+  #updates-panel.updates-center .rank-v2-leaders button img {
+    width: 40px;
+    height: 40px;
+  }
+
+  #updates-panel.updates-center .kudos-v2-hero {
+    grid-template-columns: 1fr;
+  }
+
+  #updates-panel.updates-center .kudos-v2-received {
+    min-height: 70px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  #updates-panel.updates-center .kudos-v2-milestone {
+    grid-column: auto;
+  }
+
+  #updates-panel.updates-center .kudos-v2-moment-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container (max-width: 340px) {
+  #updates-panel.updates-center .rank-v2-formula {
+    grid-template-columns: 1fr;
+  }
+
+  #updates-panel.updates-center .rank-v2-trust-note {
+    grid-template-columns: 36px minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  #updates-panel.updates-center .rank-v2-trust-note > span {
+    width: 36px;
+    height: 36px;
+  }
+
+  #updates-panel.updates-center :is(.kudos-v2-picker, .kudos-v2-moments) {
+    padding: 13px !important;
+  }
+
+  #updates-panel.updates-center .kudos-v2-give {
+    min-width: 100px !important;
+    padding-inline: 8px !important;
+  }
+
+  #updates-panel.updates-center .kudos-v2-guide {
+    grid-template-columns: 1fr;
+  }
+
+  #updates-panel.updates-center .kudos-v2-guide > span {
+    min-height: 48px;
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+@media (max-width: 600px) {
+  #updates-panel.updates-center .rank-v2-metric {
+    min-height: 44px !important;
+  }
+
+  #updates-panel.updates-center .kudos-v2-give {
+    min-height: 44px !important;
+  }
+}

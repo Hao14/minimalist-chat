@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
 import {
   FONT_OPTIONS,
   contentToEditorHtml,
@@ -74,7 +75,7 @@ function AvatarStack({ collaborators, currentUser }) {
           style={{ '--avatar-index': index }}
           title={entry.me ? 'You' : entry.name || 'Room member'}
         >
-          {entry.photoUrl ? <img src={entry.photoUrl} alt="" referrerPolicy="no-referrer" /> : (entry.name || 'R').slice(0, 1).toUpperCase()}
+          {normalizeStoredAvatarUrl(entry.photoUrl) ? <img src={normalizeStoredAvatarUrl(entry.photoUrl)} alt="" referrerPolicy="no-referrer" /> : (entry.name || 'R').slice(0, 1).toUpperCase()}
         </span>
       ))}
       {overflow ? <span className="docs-avatar docs-avatar-more">+{overflow}</span> : null}
@@ -547,7 +548,7 @@ export function RichTextEditor({
             <input id="doc-title-input" value={editor.title} maxLength={180} onChange={(event) => onChange('title', event.target.value)} placeholder="Untitled document" aria-label="Document title" readOnly={!canEdit} />
             <div className="docs-meta-line">
               <span className={`doc-save-status is-${saveStatus.toLowerCase().replace(/[^a-z]+/g, '-')}`} role="status" aria-live="polite" aria-atomic="true">{saveStatus}</span>
-              <span className="docs-presence-label"><i className="ph-fill ph-circle" aria-hidden="true" /> {otherPresenceCount ? `${otherPresenceCount} other ${otherPresenceCount === 1 ? 'person' : 'people'} present` : 'No one else present'}</span>
+              <span className="docs-presence-label"><i className="ph-bold ph-circle" aria-hidden="true" /> {otherPresenceCount ? `${otherPresenceCount} other ${otherPresenceCount === 1 ? 'person' : 'people'} present` : 'No one else present'}</span>
             </div>
           </div>
         </div>

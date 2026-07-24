@@ -22,6 +22,7 @@
   position: absolute !important;
   inset: 0 0 auto auto !important;
   z-index: 12 !important;
+  box-sizing: border-box !important;
   width: 62px !important;
   min-width: 62px !important;
   height: 68px !important;
@@ -1181,4 +1182,2924 @@
     animation: none !important;
     transition: none !important;
   }
+}
+
+@media (max-width: 560px) {
+  #personal-ai-agent-panel .pa-context-picker-trigger,
+  #personal-ai-agent-panel .pa-plan-mode-toggle,
+  #personal-ai-agent-panel .ai-attachment-buttons button {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    border-radius: 10px;
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface {
+    gap: 2px;
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface > input {
+    padding-inline: 4px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Winston productivity surfaces: conversations, search, proactive help, and response tools. */
+#personal-ai-agent-panel .pa-agent-workspace {
+  position: relative;
+}
+
+#personal-ai-agent-panel .pa-conversation-drawer,
+#personal-ai-agent-panel .pa-workspace-search {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 16px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-conversation-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#personal-ai-agent-panel .pa-conversation-toolbar {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-enhancement-head {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#personal-ai-agent-panel .pa-enhancement-head > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#personal-ai-agent-panel .pa-enhancement-head strong {
+  color: var(--pa-ink);
+  font-size: 1.06rem;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+#personal-ai-agent-panel .pa-enhancement-head small {
+  color: var(--pa-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-enhancement-head > button {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pa-soft-canvas-strong);
+  color: var(--pa-ink);
+  box-shadow: none;
+  text-transform: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-conversation-new {
+  width: auto;
+  min-height: 44px;
+  margin: 0;
+  padding: 4px 11px 4px 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 11px;
+  background: var(--pa-soft-canvas);
+  color: var(--pa-ink);
+  box-shadow: none;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: none;
+  transform: none;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-conversation-new-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--pa-winston-yellow);
+  color: #171717;
+  font-size: 0.9rem;
+}
+
+#personal-ai-agent-panel .pa-conversation-new:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 66%, var(--pa-ink));
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-enhancement-search {
+  min-width: 0;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 11px;
+  background: var(--pa-bg);
+  color: var(--pa-muted);
+}
+
+#personal-ai-agent-panel .pa-enhancement-search:focus-within {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 72%, var(--pa-ink));
+  box-shadow: 0 0 0 3px var(--pa-focus-ring);
+}
+
+#personal-ai-agent-panel .pa-enhancement-search input {
+  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--pa-ink) !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+#personal-ai-agent-panel .pa-conversation-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 7px;
+}
+
+#personal-ai-agent-panel .pa-conversation-list article {
+  min-width: 0;
+  padding: 5px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--pa-line);
+  border-radius: 12px;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-conversation-list article.is-active {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 70%, var(--pa-line-strong));
+  background: color-mix(in srgb, var(--pa-winston-yellow) 7%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-conversation-select {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  margin: 0;
+  padding: 7px 8px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 3px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pa-ink);
+  box-shadow: none;
+  text-transform: none;
+  transform: none;
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-conversation-select strong,
+#personal-ai-agent-panel .pa-conversation-select small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-conversation-select strong {
+  font-size: 0.78rem;
+  font-weight: 780;
+}
+
+#personal-ai-agent-panel .pa-conversation-select small {
+  color: var(--pa-muted);
+  font-size: 0.66rem;
+}
+
+#personal-ai-agent-panel .pa-conversation-actions {
+  display: flex;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-conversation-actions button,
+#personal-ai-agent-panel .pa-conversation-list form button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--pa-muted);
+  box-shadow: none;
+  text-transform: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-conversation-actions button:hover:not(:disabled) {
+  background: var(--pa-soft-canvas-strong);
+  color: var(--pa-ink);
+  box-shadow: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-conversation-list form {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-conversation-list form input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  margin: 0;
+  padding: 0 9px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+#personal-ai-agent-panel .pa-workspace-search {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+}
+
+#personal-ai-agent-panel .pa-workspace-search > form {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0;
+  padding: 3px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 13px;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-workspace-search > form:focus-within {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 72%, var(--pa-ink));
+  box-shadow: 0 0 0 3px var(--pa-focus-ring);
+}
+
+#personal-ai-agent-panel .pa-workspace-search > form .pa-enhancement-search {
+  min-height: 42px;
+  padding-inline: 9px 7px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+}
+
+#personal-ai-agent-panel .pa-workspace-search > form .pa-enhancement-search:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-workspace-search > form > button {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--pa-ink);
+  border-radius: 10px;
+  background: var(--pa-ink);
+  color: var(--pa-bg);
+  box-shadow: none;
+  font-size: 1rem;
+  text-transform: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-workspace-search > form > button:hover:not(:disabled) {
+  border-color: var(--pa-ink);
+  background: var(--pa-winston-yellow);
+  color: #171717;
+  box-shadow: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-workspace-query-submit .ph-spinner-gap {
+  animation: paStatusPulse 1s ease-in-out infinite;
+}
+
+#personal-ai-agent-panel .pa-workspace-results {
+  display: grid;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-workspace-results > button {
+  min-width: 0;
+  margin: 0;
+  padding: 12px;
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+  border: 1px solid var(--pa-line);
+  border-radius: 12px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: none;
+  text-transform: none;
+  transform: none;
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-workspace-results > button:hover {
+  border-color: var(--pa-line-strong);
+  background: var(--pa-soft-canvas);
+  transform: none;
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-result-type {
+  color: var(--pa-muted);
+  font-size: 0.6rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#personal-ai-agent-panel .pa-workspace-results strong {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+#personal-ai-agent-panel .pa-workspace-results small {
+  color: var(--pa-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+#personal-ai-agent-panel .pa-result-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--pa-winston-navy);
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-enhancement-state,
+#personal-ai-agent-panel .pa-enhancement-empty,
+#personal-ai-agent-panel .pa-proactive-disclosure {
+  margin: 0;
+  color: var(--pa-muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+#personal-ai-agent-panel .pa-enhancement-state.is-error {
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-proactive-settings {
+  min-width: 0;
+  margin-top: 0;
+  padding: 13px;
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--pa-line);
+  border-radius: 13px;
+  background: var(--pa-soft-canvas);
+}
+
+#personal-ai-agent-panel .pa-proactive-opt-in {
+  min-width: 0;
+  display: grid !important;
+  grid-template-columns: 19px minmax(0, 1fr);
+  align-items: start;
+  gap: 9px !important;
+}
+
+#personal-ai-agent-panel .pa-proactive-opt-in input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 1px 0 0;
+  padding: 0;
+  accent-color: var(--pa-winston-yellow);
+}
+
+#personal-ai-agent-panel .pa-proactive-opt-in > span {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#personal-ai-agent-panel .pa-proactive-opt-in strong {
+  font-size: 0.78rem;
+}
+
+#personal-ai-agent-panel .pa-proactive-opt-in small {
+  color: var(--pa-muted);
+  font-size: 0.67rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-proactive-fields {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-proactive-settings fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 9px;
+  border: 1px solid var(--pa-line);
+  border-radius: 10px;
+}
+
+#personal-ai-agent-panel .pa-proactive-settings legend {
+  padding: 0 5px;
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-proactive-rooms {
+  max-height: 164px;
+  display: grid;
+  gap: 3px;
+  overflow-y: auto;
+}
+
+#personal-ai-agent-panel .pa-proactive-rooms label {
+  min-height: 36px;
+  display: flex;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 7px;
+}
+
+#personal-ai-agent-panel .pa-proactive-rooms input {
+  width: 17px;
+  height: 17px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--pa-winston-yellow);
+}
+
+#personal-ai-agent-panel .pa-proactive-disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion {
+  width: 100%;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 11px;
+  box-sizing: border-box;
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--pa-winston-yellow) 68%, var(--pa-line-strong));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pa-winston-yellow) 8%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-pending-memories {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-pending-memories .pa-memory-suggestion {
+  margin-top: 0;
+}
+
+#personal-ai-agent-panel .pa-saved-responses,
+#personal-ai-agent-panel .pa-saved-response-list {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-saved-response-list > article {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--pa-line);
+  border-radius: 10px;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-saved-response-list p {
+  max-height: 7.5em;
+  margin: 0;
+  overflow: auto;
+  color: var(--pa-ink);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+#personal-ai-agent-panel .pa-saved-response-list article > div {
+  margin-top: 7px;
+  display: flex;
+  gap: 5px;
+}
+
+#personal-ai-agent-panel .pa-saved-response-list button {
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--pa-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pa-muted);
+  box-shadow: none;
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion-kicker {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pa-ink);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion > input,
+#personal-ai-agent-panel .pa-memory-suggestion select {
+  width: 100%;
+  min-height: 40px;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font: inherit;
+  font-size: 0.73rem;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion > input {
+  padding: 7px 9px;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion-options label {
+  display: grid;
+  gap: 3px;
+  color: var(--pa-muted);
+  font-size: 0.62rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion-actions,
+#personal-ai-agent-panel .pa-response-toolbar-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion-actions button,
+#personal-ai-agent-panel .pa-response-toolbar button {
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--pa-muted);
+  box-shadow: none;
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-memory-suggestion-actions button:first-child {
+  background: var(--pa-ink);
+  color: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-response-toolbar {
+  min-width: 0;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--pa-line);
+}
+
+#personal-ai-agent-panel .pa-response-toolbar button:hover:not(:disabled),
+#personal-ai-agent-panel .pa-response-toolbar button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--pa-winston-yellow) 16%, var(--pa-bg));
+  color: var(--pa-ink);
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-response-feedback-buttons {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border-left: 1px solid var(--pa-line);
+  padding-left: 4px;
+}
+
+#personal-ai-agent-panel .pa-response-feedback-form {
+  min-width: 0;
+  margin-top: 6px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px;
+}
+
+#personal-ai-agent-panel .pa-response-feedback-form input,
+#personal-ai-agent-panel .pa-response-feedback-form select {
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 9px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+#personal-ai-agent-panel .pa-response-feedback-form button {
+  min-height: 38px;
+  background: var(--pa-ink);
+  color: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-response-feedback-form small,
+#personal-ai-agent-panel .pa-response-feedback-thanks,
+#personal-ai-agent-panel .pa-memory-suggestion > small {
+  grid-column: 1 / -1;
+  color: var(--pa-muted);
+  font-size: 0.64rem;
+}
+
+@media (max-width: 430px) {
+  #personal-ai-agent-panel .pa-agent-actions .pa-icon-btn:nth-child(3) {
+    display: none;
+  }
+
+  #personal-ai-agent-panel .pa-conversation-drawer,
+  #personal-ai-agent-panel .pa-workspace-search {
+    padding: 14px 12px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #personal-ai-agent-panel .pa-enhancement-head > button,
+  #personal-ai-agent-panel .pa-conversation-actions button,
+  #personal-ai-agent-panel .pa-conversation-list form button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .pa-workspace-search > form > button,
+  #personal-ai-agent-panel .pa-workspace-results > button,
+  #personal-ai-agent-panel .pa-memory-suggestion-actions button,
+  #personal-ai-agent-panel .pa-saved-response-list button,
+  #personal-ai-agent-panel .pa-response-toolbar button {
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .pa-response-toolbar button {
+    width: 44px !important;
+    min-width: 44px !important;
+    padding-inline: 0;
+  }
+
+  #personal-ai-agent-panel .pa-proactive-fields,
+  #personal-ai-agent-panel .pa-memory-suggestion-options {
+    grid-template-columns: 1fr;
+  }
+
+  #personal-ai-agent-panel .pa-proactive-opt-in,
+  #personal-ai-agent-panel .pa-proactive-rooms label {
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .pa-proactive-fields input,
+  #personal-ai-agent-panel .pa-memory-suggestion > input,
+  #personal-ai-agent-panel .pa-memory-suggestion select,
+  #personal-ai-agent-panel .pa-response-feedback-form input,
+  #personal-ai-agent-panel .pa-response-feedback-form select {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  #personal-ai-agent-panel .pa-response-toolbar button > span:not(.pa-sr-only) {
+    display: none;
+  }
+
+  #personal-ai-agent-panel .pa-response-feedback-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #personal-ai-agent-panel .pa-response-feedback-form button {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  #personal-ai-agent-panel .pa-conversation-new > span:last-child {
+    display: none;
+  }
+
+  #personal-ai-agent-panel .pa-conversation-new {
+    width: 44px;
+    min-width: 44px;
+    padding: 4px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-identity .pa-agent-status {
+    display: none;
+  }
+
+  #personal-ai-agent-panel .pa-agent-header {
+    grid-template-columns: 36px minmax(44px, 1fr) auto;
+  }
+}
+
+/* Winston 2026: conversation-first assistant workspace. */
+#personal-ai-agent-panel {
+  --pa-winston-yellow: #f5d94e;
+  --pa-winston-navy: #102349;
+  --pa-soft-canvas: color-mix(in srgb, var(--pa-bg) 96%, var(--pa-ink));
+  --pa-soft-canvas-strong: color-mix(in srgb, var(--pa-bg) 92%, var(--pa-ink));
+  --pa-focus-ring: color-mix(in srgb, var(--pa-winston-yellow) 34%, transparent);
+}
+
+#personal-ai-agent-panel > .contacts-header {
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 72px !important;
+  padding: 16px 10px 12px 6px !important;
+}
+
+#personal-ai-agent-panel #close-personal-agent-btn {
+  width: 36px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-shell-redesign {
+  border: 0 !important;
+  background: var(--pa-bg) !important;
+  box-shadow: none !important;
+}
+
+#personal-ai-agent-panel .pa-agent-header {
+  min-height: 72px;
+  padding: 12px 54px 12px 16px;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 12px;
+  border-bottom: 1px solid var(--pa-line);
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-agent-header .pa-agent-avatar {
+  width: 44px;
+  height: 44px;
+  border: 1px solid color-mix(in srgb, var(--pa-winston-navy) 54%, var(--pa-line));
+  box-shadow: 0 6px 16px -13px var(--pa-winston-navy);
+}
+
+#personal-ai-agent-panel .pa-agent-identity {
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-agent-identity strong {
+  font-size: 1.05rem;
+  font-weight: 850;
+  letter-spacing: -0.018em;
+  line-height: 1;
+}
+
+#personal-ai-agent-panel .pa-agent-identity .pa-agent-status {
+  gap: 6px;
+  color: var(--pa-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+#personal-ai-agent-panel .pa-agent-status-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--pa-muted);
+}
+
+#personal-ai-agent-panel .pa-agent-status.is-ready .pa-agent-status-dot {
+  background: var(--pa-green);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pa-green) 12%, transparent);
+}
+
+#personal-ai-agent-panel .pa-agent-status.is-warming .pa-agent-status-dot {
+  background: var(--pa-winston-yellow);
+  animation: paStatusPulse 1.3s ease-in-out infinite;
+}
+
+#personal-ai-agent-panel .pa-agent-status.is-unavailable .pa-agent-status-dot,
+#personal-ai-agent-panel .pa-agent-status.is-missing-model .pa-agent-status-dot {
+  background: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-agent-actions {
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-agent-actions .pa-icon-btn {
+  width: 34px !important;
+  min-width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50% !important;
+  background: transparent;
+  box-shadow: none;
+  color: var(--pa-winston-navy);
+  font-size: 1.05rem;
+}
+
+#personal-ai-agent-panel .pa-agent-actions .pa-icon-btn:hover:not(:disabled),
+#personal-ai-agent-panel .pa-agent-actions .pa-icon-btn.active {
+  border-color: transparent;
+  background: var(--pa-soft-canvas-strong);
+}
+
+#personal-ai-agent-panel .pa-agent-overview {
+  padding: 0;
+  display: block;
+}
+
+#personal-ai-agent-panel .pa-agent-workspace.is-settings-open .pa-agent-overview {
+  padding-bottom: 0;
+}
+
+#personal-ai-agent-panel .pa-agent-workspace.is-settings-open + .pa-composer {
+  display: none !important;
+}
+
+#personal-ai-agent-panel .pa-context-rail {
+  min-height: 52px;
+  padding: 7px 14px 7px 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--pa-line);
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-context-copy {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--pa-ink);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+#personal-ai-agent-panel .pa-context-copy > i {
+  flex: 0 0 auto;
+  color: var(--pa-winston-navy);
+  font-size: 1.12rem;
+}
+
+#personal-ai-agent-panel .pa-context-copy > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+#personal-ai-agent-panel .pa-context-copy strong {
+  overflow: hidden;
+  color: inherit;
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-context-copy small {
+  display: none;
+}
+
+#personal-ai-agent-panel .pa-context-copy.is-error {
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-context-actions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-context-briefing {
+  width: 34px !important;
+  min-width: 34px;
+  height: 34px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pa-winston-navy);
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-context-briefing:hover:not(:disabled) {
+  background: var(--pa-soft-canvas-strong);
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-compact-model-picker {
+  min-width: 0;
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--pa-winston-navy);
+  cursor: pointer;
+}
+
+#personal-ai-agent-panel .pa-compact-model-picker > i:first-of-type {
+  font-size: 0.95rem;
+}
+
+#personal-ai-agent-panel .pa-compact-model-picker > i:last-of-type {
+  margin-left: -4px;
+  color: var(--pa-muted);
+  font-size: 0.72rem;
+  pointer-events: none;
+}
+
+#personal-ai-agent-panel .pa-compact-model-picker select {
+  width: auto;
+  min-width: 58px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 12px 0 2px;
+  appearance: none;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--pa-ink) !important;
+  box-shadow: none !important;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#personal-ai-agent-panel .pa-lifecycle {
+  margin: 12px 14px 0;
+  padding: 12px;
+  gap: 10px;
+  border-width: 1px;
+  border-radius: 12px;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-main {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-icon {
+  width: 36px;
+  height: 36px;
+  color: var(--pa-winston-navy);
+}
+
+#personal-ai-agent-panel .pa-lifecycle-copy h3 {
+  font-size: 0.86rem;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-copy p {
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps {
+  padding: 9px 0 0;
+  border: 0;
+  border-top: 1px solid var(--pa-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps strong {
+  font-size: 0.66rem;
+}
+
+#personal-ai-agent-panel .pa-lifecycle-steps small {
+  font-size: 0.61rem;
+}
+
+#personal-ai-agent-panel .pa-profile-sync,
+#personal-ai-agent-panel .pa-request-notice {
+  margin: 10px 14px 0;
+  padding: 10px 11px;
+  border-radius: 10px;
+  font-size: 0.73rem;
+}
+
+#personal-ai-agent-panel .ai-briefing-panel {
+  margin: 12px 14px 0;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-settings {
+  max-height: none;
+  margin: 0;
+  padding: 20px 18px calc(24px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  gap: 16px;
+  overflow: visible;
+  border: 0 !important;
+  border-radius: 0;
+  background: var(--pa-bg) !important;
+  box-shadow: none !important;
+}
+
+#personal-ai-agent-panel .pa-settings-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#personal-ai-agent-panel .pa-settings-heading > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-settings-heading strong {
+  color: var(--pa-ink);
+  font-size: 1.25rem;
+  font-weight: 850;
+  letter-spacing: -0.025em;
+}
+
+#personal-ai-agent-panel .pa-settings-heading small {
+  color: var(--pa-muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+#personal-ai-agent-panel .pa-settings-heading button {
+  width: 36px !important;
+  min-width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: var(--pa-soft-canvas-strong);
+  color: var(--pa-ink);
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-settings-meta {
+  padding: 11px 12px;
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--pa-line);
+  border-radius: 10px;
+  background: var(--pa-soft-canvas);
+}
+
+#personal-ai-agent-panel .pa-settings-meta > span:last-child {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--pa-muted);
+  font-size: 0.69rem;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-settings label {
+  display: grid;
+  gap: 7px;
+  color: var(--pa-ink);
+  font-size: 0.76rem;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+#personal-ai-agent-panel .pa-settings input,
+#personal-ai-agent-panel .pa-settings textarea {
+  min-height: 44px;
+  padding: 10px 11px;
+  border-color: var(--pa-line) !important;
+  border-radius: 10px !important;
+  background: var(--pa-bg) !important;
+  font-size: 0.86rem;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+#personal-ai-agent-panel .pa-settings input:focus,
+#personal-ai-agent-panel .pa-settings textarea:focus {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 70%, var(--pa-ink)) !important;
+  box-shadow: 0 0 0 3px var(--pa-focus-ring) !important;
+  outline: 0;
+}
+
+#personal-ai-agent-panel .pa-settings .ai-memory-options select {
+  min-height: 44px;
+}
+
+#personal-ai-agent-panel .pa-agent-thread {
+  margin-top: 0;
+  padding: 16px 16px 20px;
+  background: var(--pa-bg) !important;
+  scrollbar-gutter: stable;
+}
+
+#personal-ai-agent-panel .pa-agent-workspace.is-empty .pa-agent-thread {
+  padding-top: clamp(28px, 5vh, 54px);
+}
+
+#personal-ai-agent-panel .pa-empty-thread {
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 24px;
+}
+
+#personal-ai-agent-panel .pa-empty-intro {
+  max-width: 352px;
+  display: grid;
+  gap: 12px;
+}
+
+#personal-ai-agent-panel .pa-empty-intro h1 {
+  max-width: 330px;
+  margin: 0;
+  color: var(--pa-ink);
+  font-size: clamp(1.7rem, 5.5vw, 2rem);
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+#personal-ai-agent-panel .pa-empty-intro p {
+  max-width: 340px;
+  margin: 0;
+  color: var(--pa-muted);
+  font-size: 0.91rem;
+  font-weight: 500;
+  line-height: 1.52;
+  text-wrap: pretty;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch {
+  width: 100%;
+  min-height: 64px;
+  margin: 0;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--pa-line);
+  border-radius: 13px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: none;
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch > i:first-child {
+  color: var(--pa-winston-navy);
+  font-size: 1.45rem;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch > i:last-child {
+  color: var(--pa-winston-navy);
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch span {
+  gap: 3px;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch strong {
+  font-size: 0.82rem;
+  font-weight: 780;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch small {
+  color: var(--pa-muted);
+  font-size: 0.69rem;
+  font-weight: 550;
+}
+
+#personal-ai-agent-panel .pa-briefing-launch:hover:not(:disabled) {
+  border-color: var(--pa-line-strong);
+  background: var(--pa-soft-canvas);
+  box-shadow: none;
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-suggest-block {
+  display: grid;
+  gap: 12px;
+}
+
+#personal-ai-agent-panel .pa-suggest-heading {
+  color: var(--pa-ink);
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-suggest-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+#personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card {
+  min-width: 0;
+  min-height: 112px;
+  padding: 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--pa-line) !important;
+  border-radius: 13px;
+  background: var(--pa-bg) !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+
+#personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 70%, var(--pa-line-strong)) !important;
+  background: color-mix(in srgb, var(--pa-winston-yellow) 6%, var(--pa-bg)) !important;
+  transform: translateY(-1px);
+}
+
+#personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card > i {
+  color: var(--pa-winston-navy);
+  font-size: 1.42rem;
+}
+
+#personal-ai-agent-panel .pa-suggest-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .pa-suggest-copy strong {
+  overflow: hidden;
+  color: var(--pa-ink);
+  font-size: 0.82rem;
+  font-weight: 780;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-suggest-copy small {
+  overflow: hidden;
+  color: var(--pa-muted);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-msg {
+  gap: 8px;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 96px;
+}
+
+#personal-ai-agent-panel .pa-msg-assistant {
+  align-items: flex-start;
+}
+
+#personal-ai-agent-panel .pa-msg + .pa-msg {
+  margin-top: 16px;
+}
+
+#personal-ai-agent-panel .pa-msg-avatar {
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--pa-winston-navy) 52%, var(--pa-line));
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-bubble {
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+#personal-ai-agent-panel .pa-msg-user .pa-bubble {
+  max-width: 82%;
+  border: 1px solid color-mix(in srgb, var(--pa-winston-yellow) 60%, var(--pa-line)) !important;
+  border-radius: 16px 16px 5px 16px;
+  background: color-mix(in srgb, var(--pa-winston-yellow) 55%, var(--pa-bg)) !important;
+  color: #171717 !important;
+}
+
+#personal-ai-agent-panel .pa-msg-assistant .pa-bubble {
+  width: calc(100% - 38px);
+  max-width: calc(100% - 38px);
+  border: 1px solid var(--pa-line) !important;
+  border-radius: 5px 16px 16px 16px;
+  background: var(--pa-soft-canvas) !important;
+  color: var(--pa-ink) !important;
+}
+
+#personal-ai-agent-panel .pa-provider-disclosure {
+  margin-top: 9px;
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+#personal-ai-agent-panel .ai-message-controls {
+  align-items: center;
+  gap: 4px;
+}
+
+#personal-ai-agent-panel .ai-message-controls button {
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+}
+
+#personal-ai-agent-panel .pa-msg-assistant :is(.ai-evidence, .ai-action-cards, .ai-clarification-card) {
+  margin-top: 12px;
+}
+
+#personal-ai-agent-panel .ai-action-card,
+#personal-ai-agent-panel .ai-clarification-card {
+  border-color: var(--pa-line);
+  border-radius: 12px;
+  background: var(--pa-bg);
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .ai-action-card {
+  padding: 12px;
+  gap: 10px;
+}
+
+#personal-ai-agent-panel .ai-action-icon {
+  width: 34px;
+  height: 34px;
+  background: color-mix(in srgb, var(--pa-winston-yellow) 45%, var(--pa-bg));
+  color: #171717;
+}
+
+#personal-ai-agent-panel .ai-action-kicker,
+#personal-ai-agent-panel .ai-evidence-heading {
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+}
+
+#personal-ai-agent-panel .ai-action-copy > strong {
+  font-size: 0.82rem;
+}
+
+#personal-ai-agent-panel .ai-action-copy > p,
+#personal-ai-agent-panel .ai-action-state {
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+#personal-ai-agent-panel .ai-action-buttons button {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+}
+
+#personal-ai-agent-panel .ai-evidence-card {
+  border-color: var(--pa-line);
+  border-radius: 10px;
+  background: var(--pa-bg);
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-composer {
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  display: block !important;
+  border-top: 1px solid var(--pa-line);
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-composer-surface {
+  min-width: 0;
+  min-height: 60px;
+  padding: 6px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 18px;
+  background: var(--pa-bg);
+  box-shadow: 0 14px 32px -25px color-mix(in srgb, var(--pa-ink) 72%, transparent);
+}
+
+#personal-ai-agent-panel .pa-composer-surface:focus-within {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow) 72%, var(--pa-ink));
+  box-shadow: 0 0 0 3px var(--pa-focus-ring), 0 14px 32px -25px color-mix(in srgb, var(--pa-ink) 72%, transparent);
+}
+
+#personal-ai-agent-panel .pa-composer-surface > .ai-composer-enhancements {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-composer-mode-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-plan-mode-toggle {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--pa-winston-navy, var(--pa-ink));
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-plan-mode-toggle:hover:not(:disabled),
+#personal-ai-agent-panel .pa-plan-mode-toggle.is-active {
+  background: var(--pa-soft-canvas-strong, var(--pa-surface-strong));
+  color: var(--pa-ink);
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-plan-mode-toggle.is-active {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pa-winston-yellow) 68%, var(--pa-line));
+}
+
+#personal-ai-agent-panel .pa-plan-mode-toggle > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .ai-image-tools {
+  min-width: 0;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .ai-image-buttons {
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .ai-image-buttons button {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--pa-winston-navy);
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .ai-image-buttons button:hover:not(:disabled) {
+  background: var(--pa-soft-canvas-strong);
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .ai-image-buttons button span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-composer-surface > input {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 46px;
+  margin: 0;
+  padding: 0 7px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: var(--pa-ink) !important;
+  box-shadow: none !important;
+  font-size: 0.86rem;
+  font-weight: 520;
+}
+
+#personal-ai-agent-panel .pa-composer-surface > input::placeholder {
+  color: var(--pa-muted);
+  opacity: 0.8;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .pa-send {
+  width: 48px;
+  min-width: 48px;
+  height: 48px;
+  min-height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50% !important;
+  background: var(--pa-winston-yellow);
+  color: #171717;
+  box-shadow: none;
+  font-size: 1.08rem;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .pa-send:not(:disabled):hover {
+  background: color-mix(in srgb, var(--pa-winston-yellow) 88%, #fff);
+  transform: translateY(-1px);
+}
+
+#personal-ai-agent-panel .pa-composer-surface .pa-send:disabled {
+  background: color-mix(in srgb, var(--pa-winston-yellow) 42%, var(--pa-bg));
+  cursor: default;
+  opacity: 1;
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment {
+  flex-wrap: wrap;
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment > .ai-composer-enhancements {
+  flex: 1 0 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .pa-composer-mode-row {
+  justify-content: flex-start;
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .ai-image-tools {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .ai-image-preview,
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .ai-image-error {
+  grid-column: 1 / -1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#personal-ai-agent-panel .pa-composer-surface .ai-image-preview {
+  margin: 0;
+  border-color: var(--pa-line);
+  background: var(--pa-soft-canvas);
+}
+
+#personal-ai-agent-panel .pa-composer-note {
+  margin: 8px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: var(--pa-muted);
+  font-size: 0.66rem;
+  font-weight: 550;
+  line-height: 1.3;
+  text-align: center;
+}
+
+/* Winston explicit context selection */
+#personal-ai-agent-panel .pa-composer {
+  position: relative;
+}
+
+#personal-ai-agent-panel .pa-context-picker {
+  position: static;
+  display: inline-flex;
+}
+
+#personal-ai-agent-panel .pa-context-picker-trigger,
+#personal-ai-agent-panel .ai-attachment-buttons button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--pa-winston-navy, var(--pa-ink));
+  box-shadow: none;
+  font-size: 1rem;
+}
+
+#personal-ai-agent-panel .pa-context-picker-trigger:hover:not(:disabled),
+#personal-ai-agent-panel .pa-context-picker.is-open .pa-context-picker-trigger,
+#personal-ai-agent-panel .ai-attachment-buttons button:hover:not(:disabled) {
+  background: var(--pa-soft-canvas-strong, var(--pa-surface-strong));
+  transform: none;
+}
+
+#personal-ai-agent-panel .pa-context-picker-trigger > span:not(.pa-context-picker-count),
+#personal-ai-agent-panel .ai-attachment-buttons button > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-context-picker-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-bg);
+  border-radius: 999px;
+  background: var(--pa-winston-yellow, var(--pa-accent));
+  color: #171717;
+  font-size: 0.56rem;
+  font-weight: 850;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel {
+  position: absolute;
+  z-index: 18;
+  right: 14px;
+  bottom: calc(100% + 8px);
+  left: 14px;
+  max-height: min(620px, calc(100dvh - 150px));
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 18px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  box-shadow: 0 22px 54px -28px color-mix(in srgb, var(--pa-ink) 62%, transparent);
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > header,
+#personal-ai-agent-panel .pa-context-picker-panel > footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > header {
+  border-bottom: 1px solid var(--pa-line);
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > header > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > header strong {
+  font-size: 0.9rem;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > header small,
+#personal-ai-agent-panel .pa-context-picker-toggles small,
+#personal-ai-agent-panel .pa-context-option-list small {
+  color: var(--pa-muted);
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > header button {
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  min-height: 40px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--pa-surface);
+  color: var(--pa-ink);
+}
+
+#personal-ai-agent-panel .pa-context-picker-toggles {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 14px 4px;
+}
+
+#personal-ai-agent-panel .pa-context-picker-toggles label,
+#personal-ai-agent-panel .pa-context-option-list label {
+  min-width: 0;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-line);
+  border-radius: 12px;
+  background: var(--pa-surface);
+  color: var(--pa-ink);
+  cursor: pointer;
+}
+
+#personal-ai-agent-panel .pa-context-picker-toggles label {
+  padding: 9px 10px;
+}
+
+#personal-ai-agent-panel .pa-context-picker-toggles label > span,
+#personal-ai-agent-panel .pa-context-option-list label > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-context-picker-toggles input,
+#personal-ai-agent-panel .pa-context-option-list input {
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  accent-color: var(--pa-winston-yellow, var(--pa-accent));
+}
+
+#personal-ai-agent-panel .pa-context-picker-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px 14px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+#personal-ai-agent-panel .pa-context-index-status {
+  flex: 0 0 auto;
+  margin: 8px 14px 2px;
+  padding: 9px 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--pa-winston-yellow, var(--pa-accent)) 40%, var(--pa-line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--pa-winston-yellow, var(--pa-accent)) 7%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-context-index-status > span {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-context-index-status > span > span {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .pa-context-index-status strong {
+  font-size: 0.7rem;
+}
+
+#personal-ai-agent-panel .pa-context-index-status small {
+  color: var(--pa-muted);
+  font-size: 0.61rem;
+  line-height: 1.35;
+}
+
+#personal-ai-agent-panel .pa-context-index-status > button {
+  min-height: 38px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-size: 0.64rem;
+  font-weight: 800;
+}
+
+#personal-ai-agent-panel .pa-context-index-status > small {
+  grid-column: 1 / -1;
+}
+
+#personal-ai-agent-panel .pa-context-index-status > small.is-error {
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-context-picker-section {
+  min-width: 0;
+  margin: 0;
+  padding: 8px 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--pa-line);
+}
+
+#personal-ai-agent-panel .pa-context-picker-section > legend {
+  width: 100%;
+  padding: 0 0 7px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pa-muted);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#personal-ai-agent-panel .pa-context-picker-section > legend > span {
+  margin-left: auto;
+}
+
+#personal-ai-agent-panel .pa-context-option-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+#personal-ai-agent-panel .pa-context-option-list label {
+  padding: 8px 9px;
+}
+
+#personal-ai-agent-panel .pa-context-option-list strong {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-context-picker-empty {
+  margin: 2px 0;
+  color: var(--pa-muted);
+  font-size: 0.7rem;
+}
+
+#personal-ai-agent-panel .pa-context-date-range > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-context-date-range label {
+  display: grid;
+  gap: 5px;
+  color: var(--pa-muted);
+  font-size: 0.66rem;
+  font-weight: 750;
+}
+
+#personal-ai-agent-panel .pa-context-date-range input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 10px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font: inherit;
+}
+
+#personal-ai-agent-panel .pa-context-picker-preview {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  display: grid;
+  gap: 7px;
+  border-top: 1px solid var(--pa-line);
+  background: color-mix(in srgb, var(--pa-winston-yellow, var(--pa-accent)) 7%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-context-picker-preview > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--pa-muted);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+#personal-ai-agent-panel .pa-context-picker-preview > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+#personal-ai-agent-panel .pa-context-picker-preview > div > span {
+  max-width: 100%;
+  padding: 4px 7px;
+  overflow: hidden;
+  border: 1px solid var(--pa-line);
+  border-radius: 999px;
+  background: var(--pa-bg);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > footer {
+  padding-top: 10px;
+  border-top: 1px solid var(--pa-line);
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > footer button {
+  min-height: 42px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 11px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+#personal-ai-agent-panel .pa-context-picker-panel > footer button.is-primary {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow, var(--pa-accent)) 72%, var(--pa-ink));
+  background: var(--pa-winston-yellow, var(--pa-accent));
+  color: #171717;
+}
+
+/* Multi-file intelligence */
+#personal-ai-agent-panel .ai-attachment-tools {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+#personal-ai-agent-panel .ai-attachment-buttons {
+  display: flex;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .ai-attachment-list {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .ai-attachment-preview {
+  min-width: 0;
+  min-height: 54px;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: 7px;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-line);
+  border-radius: 12px;
+  background: var(--pa-soft-canvas, var(--pa-surface));
+}
+
+#personal-ai-agent-panel .ai-attachment-thumbnail {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-winston-navy, var(--pa-ink));
+  font-size: 1.05rem;
+}
+
+#personal-ai-agent-panel .ai-attachment-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+#personal-ai-agent-panel .ai-attachment-preview > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+#personal-ai-agent-panel .ai-attachment-preview strong {
+  overflow: hidden;
+  color: var(--pa-ink);
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .ai-attachment-preview small {
+  overflow: hidden;
+  color: var(--pa-muted);
+  font-size: 0.58rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .ai-attachment-preview > button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-muted);
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .ai-attachment-tools {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .ai-attachment-list,
+#personal-ai-agent-panel .pa-composer-surface.has-attachment .ai-image-error {
+  grid-column: 1 / -1;
+}
+
+/* Durable multi-step plans */
+#personal-ai-agent-panel .pa-plan-card {
+  width: 100%;
+  margin-top: 12px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 14px;
+  background: var(--pa-bg);
+}
+
+#personal-ai-agent-panel .pa-plan-card > header {
+  padding: 12px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  background: color-mix(in srgb, var(--pa-winston-yellow, var(--pa-accent)) 8%, var(--pa-bg));
+}
+
+#personal-ai-agent-panel .pa-plan-icon,
+#personal-ai-agent-panel .pa-plan-step-index {
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--pa-winston-yellow, var(--pa-accent));
+  color: #171717;
+  font-weight: 850;
+}
+
+#personal-ai-agent-panel .pa-plan-icon {
+  width: 34px;
+  height: 34px;
+}
+
+#personal-ai-agent-panel .pa-plan-card > header > span:nth-child(2) {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+#personal-ai-agent-panel .pa-plan-card > header small {
+  color: var(--pa-muted);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+#personal-ai-agent-panel .pa-plan-card > header strong {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+#personal-ai-agent-panel .pa-plan-card > header p {
+  margin: 2px 0 0;
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-plan-status {
+  padding: 4px 7px;
+  border: 1px solid var(--pa-line);
+  border-radius: 999px;
+  background: var(--pa-bg);
+  color: var(--pa-muted);
+  font-size: 0.57rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-plan-progress {
+  height: 3px;
+  background: var(--pa-surface-strong);
+}
+
+#personal-ai-agent-panel .pa-plan-progress > span {
+  height: 100%;
+  display: block;
+  background: var(--pa-green);
+  transition: width 180ms ease;
+}
+
+#personal-ai-agent-panel .pa-plan-steps {
+  margin: 0;
+  padding: 6px 12px;
+  list-style: none;
+}
+
+#personal-ai-agent-panel .pa-plan-steps > li {
+  padding: 10px 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 9px;
+  border-bottom: 1px solid var(--pa-line);
+}
+
+#personal-ai-agent-panel .pa-plan-steps > li:last-child {
+  border-bottom: 0;
+}
+
+#personal-ai-agent-panel .pa-plan-step-index {
+  width: 28px;
+  height: 28px;
+  background: var(--pa-surface-strong);
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+}
+
+#personal-ai-agent-panel .pa-plan-steps > li.is-completed .pa-plan-step-index {
+  background: var(--pa-green);
+  color: #fff;
+}
+
+#personal-ai-agent-panel .pa-plan-steps > li.is-failed .pa-plan-step-index {
+  background: color-mix(in srgb, var(--pa-red) 14%, var(--pa-bg));
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-plan-step-copy {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+#personal-ai-agent-panel .pa-plan-step-copy > span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .pa-plan-step-copy strong {
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+#personal-ai-agent-panel .pa-plan-step-copy > span > small {
+  color: var(--pa-muted);
+  font-size: 0.56rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+#personal-ai-agent-panel .pa-plan-step-copy p {
+  margin: 0;
+  color: var(--pa-muted);
+  font-size: 0.65rem;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-plan-step-copy .pa-plan-step-error,
+#personal-ai-agent-panel .pa-plan-error {
+  color: var(--pa-red);
+}
+
+#personal-ai-agent-panel .pa-plan-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+#personal-ai-agent-panel .pa-plan-step-actions button {
+  min-height: 36px;
+  margin: 0;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--pa-line-strong);
+  border-radius: 9px;
+  background: var(--pa-bg);
+  color: var(--pa-ink);
+  font-size: 0.61rem;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+#personal-ai-agent-panel .pa-plan-step-actions button.is-primary {
+  border-color: color-mix(in srgb, var(--pa-winston-yellow, var(--pa-accent)) 68%, var(--pa-ink));
+  background: var(--pa-winston-yellow, var(--pa-accent));
+  color: #171717;
+}
+
+#personal-ai-agent-panel .pa-plan-card > footer {
+  padding: 9px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  border-top: 1px solid var(--pa-line);
+  color: var(--pa-muted);
+  font-size: 0.58rem;
+  line-height: 1.4;
+}
+
+#personal-ai-agent-panel .pa-plan-error {
+  margin: 0;
+  padding: 0 12px 10px;
+  font-size: 0.65rem;
+}
+
+#personal-ai-agent-panel .pa-resumable-plans {
+  display: grid;
+  gap: 8px;
+}
+
+#personal-ai-agent-panel .ai-evidence-locator {
+  margin-left: auto;
+  color: var(--pa-muted);
+  font-size: 0.58rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+@media (max-width: 430px) {
+  #personal-ai-agent-panel .pa-shell-redesign {
+    position: relative;
+  }
+
+  #personal-ai-agent-panel .pa-composer {
+    position: static;
+  }
+
+  #personal-ai-agent-panel .pa-context-picker-panel {
+    top: 8px;
+    right: 8px;
+    bottom: 154px;
+    left: 8px;
+    max-height: none;
+    border-radius: 16px;
+  }
+
+  #personal-ai-agent-panel .pa-context-picker-toggles,
+  #personal-ai-agent-panel .pa-context-option-list,
+  #personal-ai-agent-panel .ai-attachment-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  #personal-ai-agent-panel .pa-context-index-status {
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+
+  #personal-ai-agent-panel .pa-context-picker-panel > header,
+  #personal-ai-agent-panel .pa-context-picker-panel > footer {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  #personal-ai-agent-panel .pa-plan-card > header {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  #personal-ai-agent-panel .pa-plan-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  #personal-ai-agent-panel .pa-plan-step-actions button {
+    min-height: 44px;
+  }
+}
+
+@keyframes paStatusPulse {
+  50% { opacity: 0.42; transform: scale(0.84); }
+}
+
+@media (max-width: 430px) {
+  #personal-ai-agent-panel > .contacts-header {
+    width: 52px !important;
+    min-width: 52px !important;
+    height: 64px !important;
+    padding: 10px 8px 10px 0 !important;
+  }
+
+  #personal-ai-agent-panel #close-personal-agent-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  #personal-ai-agent-panel .pa-agent-header {
+    min-height: 64px;
+    padding: 10px 52px 10px 12px;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    gap: 9px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-header .pa-agent-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-identity strong {
+    font-size: 1rem;
+  }
+
+  #personal-ai-agent-panel .pa-agent-identity .pa-agent-status {
+    font-size: 0.7rem;
+  }
+
+  #personal-ai-agent-panel .pa-agent-actions {
+    gap: 2px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-actions .pa-icon-btn,
+  #personal-ai-agent-panel .pa-context-briefing {
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .pa-context-rail {
+    min-height: 52px;
+    padding: 4px 10px 4px 12px;
+    gap: 8px;
+  }
+
+  #personal-ai-agent-panel .pa-context-copy {
+    gap: 7px;
+    font-size: 0.76rem;
+  }
+
+  #personal-ai-agent-panel .pa-compact-model-picker {
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .pa-compact-model-picker select {
+    min-height: 44px;
+    font-size: 0.76rem;
+  }
+
+  #personal-ai-agent-panel .pa-agent-thread {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-workspace.is-empty .pa-agent-thread {
+    padding-top: clamp(24px, 4.5vh, 40px);
+  }
+
+  #personal-ai-agent-panel .pa-empty-thread {
+    gap: 20px;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro {
+    gap: 10px;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro h1 {
+    max-width: 310px;
+    font-size: clamp(1.55rem, 7.2vw, 1.8rem);
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro p {
+    font-size: 0.86rem;
+  }
+
+  #personal-ai-agent-panel .pa-briefing-launch {
+    min-height: 60px;
+    grid-template-columns: 30px minmax(0, 1fr) 18px;
+    padding: 9px 12px;
+    gap: 10px;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card {
+    min-height: 104px;
+    padding: 12px;
+    gap: 11px;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-copy strong {
+    font-size: 0.78rem;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-copy small {
+    font-size: 0.67rem;
+  }
+
+  #personal-ai-agent-panel .pa-bubble {
+    font-size: 0.84rem;
+  }
+
+  #personal-ai-agent-panel .ai-action-buttons button,
+  #personal-ai-agent-panel .ai-clarification-options button,
+  #personal-ai-agent-panel .ai-clarification-free-text {
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .ai-message-controls {
+    min-height: 44px;
+    align-items: center;
+    gap: 4px;
+  }
+
+  #personal-ai-agent-panel .ai-message-controls button {
+    width: auto !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 10px;
+  }
+
+  #personal-ai-agent-panel .pa-composer {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface {
+    min-height: 60px;
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface .ai-image-buttons button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface > input {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  #personal-ai-agent-panel .pa-composer-note {
+    font-size: 0.64rem;
+  }
+
+  #personal-ai-agent-panel .pa-settings {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  #personal-ai-agent-panel .pa-settings-heading button {
+    width: 44px !important;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 360px) {
+  #personal-ai-agent-panel .pa-agent-header {
+    padding-left: 10px;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-header .pa-agent-avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-identity .pa-agent-status {
+    max-width: 128px;
+  }
+
+  #personal-ai-agent-panel .pa-context-copy > i {
+    display: none;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro h1 {
+    font-size: 1.58rem;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro p {
+    font-size: 0.82rem;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card {
+    min-height: 94px;
+    padding: 11px;
+    gap: 8px;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card > i {
+    font-size: 1.24rem;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-copy strong {
+    font-size: 0.74rem;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-copy small {
+    font-size: 0.63rem;
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface .ai-image-buttons {
+    gap: 0;
+  }
+
+  #personal-ai-agent-panel .pa-composer-surface .ai-image-buttons button {
+    width: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-height: 640px) {
+  #personal-ai-agent-panel .pa-agent-workspace.is-empty .pa-agent-thread {
+    padding-top: 20px;
+  }
+
+  #personal-ai-agent-panel .pa-empty-thread {
+    gap: 16px;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro {
+    gap: 7px;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro h1 {
+    font-size: 1.55rem;
+  }
+
+  #personal-ai-agent-panel .pa-empty-intro p {
+    font-size: 0.8rem;
+  }
+
+  #personal-ai-agent-panel .pa-briefing-launch {
+    min-height: 54px;
+  }
+
+  #personal-ai-agent-panel .pa-suggest-compact .pa-suggest-card {
+    min-height: 88px;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  body:not(.marketing):not(.auth-screen):has(#personal-ai-agent-panel.open) {
+    --tablet-drawer-width: clamp(360px, 42vw, 430px);
+  }
+
+  #personal-ai-agent-panel {
+    width: var(--tablet-drawer-width, clamp(360px, 42vw, 430px)) !important;
+    max-width: calc(100vw - var(--tablet-rail-width, 72px) - var(--tablet-room-sidebar-compact, 64px)) !important;
+  }
+
+  #personal-ai-agent-panel #close-personal-agent-btn,
+  #personal-ai-agent-panel .pa-agent-actions .pa-icon-btn,
+  #personal-ai-agent-panel .pa-context-briefing,
+  #personal-ai-agent-panel .pa-composer-surface .ai-image-buttons button,
+  #personal-ai-agent-panel .pa-settings-heading button {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  #personal-ai-agent-panel .pa-compact-model-picker,
+  #personal-ai-agent-panel .pa-compact-model-picker select,
+  #personal-ai-agent-panel .ai-action-buttons button,
+  #personal-ai-agent-panel .ai-clarification-options button,
+  #personal-ai-agent-panel .ai-clarification-free-text,
+  #personal-ai-agent-panel .ai-message-controls button {
+    min-height: 44px !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 960px) {
+  #personal-ai-agent-panel .pa-agent-header {
+    grid-template-columns: 44px minmax(72px, 1fr) auto;
+    gap: 10px;
+  }
+
+  #personal-ai-agent-panel .pa-agent-actions .pa-icon-btn:nth-child(3) {
+    display: none;
+  }
+}
+
+@media (min-width: 431px) and (max-width: 768px) {
+  #personal-ai-agent-panel #close-personal-agent-btn,
+  #personal-ai-agent-panel .pa-compact-model-picker,
+  #personal-ai-agent-panel .pa-compact-model-picker select {
+    min-height: 44px !important;
+  }
+
+  #personal-ai-agent-panel #close-personal-agent-btn {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  html body:not(.marketing):not(.auth-screen) #personal-ai-agent-panel > .contacts-header {
+    padding: 10px 4px 10px 0 !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  #personal-ai-agent-panel .ai-message-controls {
+    min-height: 44px;
+    align-items: center;
+    gap: 4px;
+  }
+
+  #personal-ai-agent-panel .ai-message-controls button {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    margin: 0 !important;
+    padding: 0 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #personal-ai-agent-panel .pa-agent-status.is-warming .pa-agent-status-dot,
+  #personal-ai-agent-panel .pa-suggest-card,
+  #personal-ai-agent-panel .pa-composer-surface .pa-send {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Winston polish: a restrained, one-time spotlight around the agent identity. */
+#personal-ai-agent-panel .pa-agent-header {
+  position: relative;
+  isolation: isolate;
+}
+
+#personal-ai-agent-panel .pa-agent-header::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  top: 10px;
+  left: 14px;
+  width: 42px;
+  height: 42px;
+  border: 1px solid color-mix(in srgb, var(--pa-accent) 72%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  animation: pa-winston-spotlight 2.6s cubic-bezier(0.22, 1, 0.36, 1) 240ms 1 both;
+}
+
+#personal-ai-agent-panel .pa-agent-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes pa-winston-spotlight {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--pa-accent) 34%, transparent);
+  }
+
+  28% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.72);
+    box-shadow: 0 0 0 12px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #personal-ai-agent-panel .pa-agent-header::before {
+    animation: none;
+  }
+}
+
+/* Magic UI-inspired shine border, adapted to the existing CSS runtime.
+   It runs once on Winston's first proposed action and becomes a quiet static
+   accent, so no animation library or always-running pointer listener is added. */
+#personal-ai-agent-panel .pa-msg-assistant .ai-action-card.is-proposed:first-child {
+  position: relative;
+  isolation: isolate;
+}
+
+#personal-ai-agent-panel .pa-msg-assistant .ai-action-card.is-proposed:first-child::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(
+      circle at center,
+      transparent 28%,
+      color-mix(in srgb, var(--pa-winston-yellow) 92%, #fff) 46%,
+      transparent 68%
+    );
+  background-position: 0 0;
+  background-size: 300% 300%;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  pointer-events: none;
+  animation: pa-winston-action-shine 5.2s cubic-bezier(0.22, 1, 0.36, 1) 320ms 1 both;
+}
+
+#personal-ai-agent-panel .pa-msg-assistant .ai-action-card.is-proposed:first-child > * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes pa-winston-action-shine {
+  0% {
+    opacity: 0;
+    background-position: 0% 0%;
+  }
+
+  18% {
+    opacity: 0.82;
+  }
+
+  72% {
+    opacity: 0.42;
+    background-position: 100% 100%;
+  }
+
+  100% {
+    opacity: 0.18;
+    background-position: 0% 0%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #personal-ai-agent-panel .pa-msg-assistant .ai-action-card.is-proposed:first-child::before {
+    animation: none;
+    opacity: 0.22;
+  }
+}
+
+html.performance-low #personal-ai-agent-panel .pa-msg-assistant .ai-action-card.is-proposed:first-child::before,
+html.prefers-reduced-motion #personal-ai-agent-panel .pa-msg-assistant .ai-action-card.is-proposed:first-child::before {
+  animation: none;
+  opacity: 0.22;
 }

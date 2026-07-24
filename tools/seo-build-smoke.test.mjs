@@ -3,6 +3,16 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { faqItems, termsPageMeta, termsSections } from '../src/content/marketingContent.js';
+import {
+  downloadPageContent,
+  featureStatusLabels,
+  featuresPageContent,
+  homePageContent,
+  privacyPageContent,
+  publicMarketingPages,
+  storyPageContent,
+} from '../src/content/publicMarketingContent.js';
 
 const ROOT_DIR = fileURLToPath(new URL('../', import.meta.url));
 const DIST_DIR = join(ROOT_DIR, 'dist');
@@ -21,31 +31,17 @@ const INDEXABLE_ROUTES = [
 
 const GENERATED_ROUTES = [...INDEXABLE_ROUTES, '/login', '/chat'];
 
-const FAQ_EXPECTATIONS = [
-  {
-    question: 'What is Minimalist Chat?',
-    answerFragment: 'Minimalist Chat is a real-time messaging app built around rooms.',
-  },
-  {
-    question: 'How do I create or join a room?',
-    answerFragment: 'use Create to start a room, or Join to enter with an invite link or code.',
-  },
-  {
-    question: 'What are Docs and the Whiteboard?',
-    answerFragment: 'Collaborative Docs update live for everyone',
-  },
-  {
-    question: 'What do the Advanced and Pro tiers include?',
-    answerFragment: 'Optional room subscriptions are separate from these account plans.',
-  },
-  {
-    question: 'How do I add friends and send private messages?',
-    answerFragment: 'Open Contacts to search people, send requests, and start private conversations.',
-  },
-  {
-    question: 'Is my data private?',
-    answerFragment: 'You can delete your account from Settings.',
-  },
+const FAQ_EXPECTATIONS = faqItems.map(({ question, answer }) => ({
+  question,
+  answerFragment: answer,
+}));
+
+const SHARED_PAGE_DOCUMENTS = [
+  ['index.html', homePageContent],
+  ['features/index.html', featuresPageContent],
+  ['download/index.html', downloadPageContent],
+  ['story/index.html', storyPageContent],
+  ['privacy/index.html', privacyPageContent],
 ];
 
 function productionUrl(route) {
@@ -127,6 +123,31 @@ function crawlerVisibleText(html) {
       .replace(/<svg(?=[\s>])[^>]*>[^]*?<\/svg\s*>/gi, ' ')
       .replace(/<[^>]+>/g, ' '),
   );
+}
+
+function assertVisibleTextIncludes(visibleText, value, label) {
+  assert.ok(
+    visibleText.includes(normalizeText(value)),
+    `${label}: crawler-visible HTML is missing ${JSON.stringify(normalizeText(value))}.`,
+  );
+}
+
+function documentTitle(html, label) {
+  const matches = [...html.matchAll(/<title>([^]*?)<\/title\s*>/gi)];
+  assert.equal(matches.length, 1, `${label}: expected exactly one <title> element.`);
+  return normalizeText(matches[0][1]);
+}
+
+function metaContent(html, label, attributeName, attributeValue) {
+  const tags = findTags(html, 'meta').filter(
+    (tag) => getAttribute(tag, attributeName)?.toLowerCase() === attributeValue.toLowerCase(),
+  );
+  assert.equal(
+    tags.length,
+    1,
+    `${label}: expected exactly one meta tag with ${attributeName}="${attributeValue}".`,
+  );
+  return normalizeText(getAttribute(tags[0], 'content') ?? '');
 }
 
 function assertSinglePageShell(html, label) {
@@ -228,6 +249,193 @@ for (const route of GENERATED_ROUTES) {
   }
 }
 
+for (const route of GENERATED_ROUTES.filter((value) => value !== '/')) {
+  for (const relativePath of routeDocuments(route)) {
+    test(`${relativePath} keeps navigation available when hydration fails`, () => {
+      const html = readDist(relativePath);
+      assert.equal(findTags(html, 'header').length, 1);
+      assert.ok(findTags(html, 'nav').length >= 2);
+      assert.equal(findTags(html, 'footer').length, 1);
+      for (const href of ['/', '/features', '/pricing', '/login', '/privacy', '/terms']) {
+        assert.match(
+          html,
+          new RegExp(`<a(?=[^>]*\\bhref=["']${href === '/' ? '\\/' : href}["'])`, 'i'),
+          `${relativePath}: hydration fallback is missing ${href}.`,
+        );
+      }
+    });
+  }
+}
+
+test('shared public marketing content remains plain serializable data', () => {
+  const roundTripped = JSON.parse(JSON.stringify(publicMarketingPages));
+  assert.deepEqual(roundTripped, publicMarketingPages);
+});
+
+for (const [relativePath, page] of SHARED_PAGE_DOCUMENTS) {
+  test(`${relativePath} metadata matches the shared page content`, () => {
+    const html = readDist(relativePath);
+    assert.equal(documentTitle(html, relativePath), page.meta.title);
+    assert.equal(
+      metaContent(html, relativePath, 'name', 'description'),
+      page.meta.description,
+      `${relativePath}: meta description drifted from shared content.`,
+    );
+    assert.equal(
+      metaContent(html, relativePath, 'property', 'og:title'),
+      page.meta.title,
+      `${relativePath}: Open Graph title drifted from shared content.`,
+    );
+    assert.equal(
+      metaContent(html, relativePath, 'property', 'og:description'),
+      page.meta.description,
+      `${relativePath}: Open Graph description drifted from shared content.`,
+    );
+  });
+}
+
+test('home page exposes the shared current product story without JavaScript', () => {
+  const relativePath = 'index.html';
+  const visibleText = crawlerVisibleText(readDist(relativePath));
+
+  for (const value of [
+    homePageContent.hero.title,
+    homePageContent.hero.copy,
+    homePageContent.workflow.title,
+    homePageContent.workflow.copy,
+    homePageContent.signal.title,
+    homePageContent.signal.copy,
+    homePageContent.plans.title,
+    homePageContent.plans.copy,
+    homePageContent.close.title,
+    homePageContent.close.copy,
+  ]) assertVisibleTextIncludes(visibleText, value, relativePath);
+
+  for (const step of homePageContent.workflow.steps) {
+    assertVisibleTextIncludes(visibleText, step.title, relativePath);
+    assertVisibleTextIncludes(visibleText, step.copy, relativePath);
+  }
+
+  for (const featureId of homePageContent.signal.featureIds) {
+    const feature = featuresPageContent.catalog.find((item) => item.id === featureId);
+    assert.ok(feature, `${relativePath}: unknown shared feature id ${featureId}.`);
+    assertVisibleTextIncludes(visibleText, feature.title, relativePath);
+    assertVisibleTextIncludes(visibleText, feature.summary, relativePath);
+  }
+});
+
+test('features page exposes every shared capability and honest status without JavaScript', () => {
+  const relativePath = 'features/index.html';
+  const visibleText = crawlerVisibleText(readDist(relativePath));
+
+  for (const value of [
+    featuresPageContent.hero.title,
+    featuresPageContent.hero.copy,
+    featuresPageContent.statusIntro,
+    featuresPageContent.workflow.title,
+    featuresPageContent.close.title,
+    featuresPageContent.close.copy,
+  ]) assertVisibleTextIncludes(visibleText, value, relativePath);
+
+  for (const group of featuresPageContent.groups) {
+    assertVisibleTextIncludes(visibleText, group.title, relativePath);
+    assertVisibleTextIncludes(visibleText, group.summary, relativePath);
+  }
+
+  for (const feature of featuresPageContent.catalog) {
+    assertVisibleTextIncludes(visibleText, feature.title, relativePath);
+    assertVisibleTextIncludes(visibleText, feature.summary, relativePath);
+    assertVisibleTextIncludes(visibleText, featureStatusLabels[feature.status], relativePath);
+  }
+
+  for (const step of featuresPageContent.workflow.steps) {
+    assertVisibleTextIncludes(visibleText, step.title, relativePath);
+    assertVisibleTextIncludes(visibleText, step.copy, relativePath);
+  }
+});
+
+test('download page exposes verified platform status and install limits without JavaScript', () => {
+  const relativePath = 'download/index.html';
+  const visibleText = crawlerVisibleText(readDist(relativePath));
+
+  for (const value of [
+    downloadPageContent.hero.title,
+    downloadPageContent.hero.copy,
+    downloadPageContent.close.title,
+    downloadPageContent.close.copy,
+    ...downloadPageContent.syncFacts,
+  ]) assertVisibleTextIncludes(visibleText, value, relativePath);
+
+  for (const platform of downloadPageContent.platforms) {
+    assertVisibleTextIncludes(visibleText, platform.title, relativePath);
+    assertVisibleTextIncludes(visibleText, platform.status, relativePath);
+    assertVisibleTextIncludes(visibleText, platform.summary, relativePath);
+  }
+
+  for (const step of downloadPageContent.installSteps) {
+    assertVisibleTextIncludes(visibleText, step.title, relativePath);
+    assertVisibleTextIncludes(visibleText, step.copy, relativePath);
+  }
+
+  for (const item of downloadPageContent.faqs) {
+    assertVisibleTextIncludes(visibleText, item.question, relativePath);
+    assertVisibleTextIncludes(visibleText, item.answer, relativePath);
+  }
+});
+
+test('story page exposes the complete shared philosophy without stale absolutes', () => {
+  const relativePath = 'story/index.html';
+  const visibleText = crawlerVisibleText(readDist(relativePath));
+
+  for (const value of [
+    storyPageContent.hero.title,
+    storyPageContent.hero.copy,
+    storyPageContent.manifesto.title,
+    storyPageContent.manifesto.copy,
+    storyPageContent.position.title,
+    storyPageContent.position.copy,
+    storyPageContent.quote,
+    storyPageContent.close.title,
+    storyPageContent.close.copy,
+  ]) assertVisibleTextIncludes(visibleText, value, relativePath);
+
+  for (const principle of storyPageContent.principles) {
+    assertVisibleTextIncludes(visibleText, principle.title, relativePath);
+    assertVisibleTextIncludes(visibleText, principle.copy, relativePath);
+  }
+
+  for (const stage of storyPageContent.timeline) {
+    assertVisibleTextIncludes(visibleText, stage.title, relativePath);
+    assertVisibleTextIncludes(visibleText, stage.copy, relativePath);
+  }
+
+  assert.ok(!visibleText.includes('No algorithms.'), `${relativePath}: stale algorithm absolute returned.`);
+});
+
+test('privacy page exposes the complete current data map without JavaScript', () => {
+  const relativePath = 'privacy/index.html';
+  const visibleText = crawlerVisibleText(readDist(relativePath));
+
+  for (const value of [
+    privacyPageContent.meta.lastUpdated,
+    privacyPageContent.hero.title,
+    privacyPageContent.hero.copy,
+    ...privacyPageContent.summary,
+  ]) assertVisibleTextIncludes(visibleText, value, relativePath);
+
+  for (const provider of privacyPageContent.providers) {
+    assertVisibleTextIncludes(visibleText, provider.name, relativePath);
+    assertVisibleTextIncludes(visibleText, provider.purpose, relativePath);
+    assertVisibleTextIncludes(visibleText, provider.data, relativePath);
+  }
+
+  for (const section of privacyPageContent.sections) {
+    assertVisibleTextIncludes(visibleText, section.title, relativePath);
+    assertVisibleTextIncludes(visibleText, section.copy, relativePath);
+    for (const item of section.items) assertVisibleTextIncludes(visibleText, item, relativePath);
+  }
+});
+
 test('sitemap lists exactly the public indexable routes', () => {
   const relativePath = 'sitemap.xml';
   const sitemap = readDist(relativePath);
@@ -328,6 +536,33 @@ test('faq page exposes every answer without JavaScript', () => {
       visibleText.includes(normalizeText(answerFragment)),
       `${relativePath}: crawler-visible HTML is missing the answer for "${question}".`,
     );
+  }
+});
+
+test('terms page exposes the complete current document without JavaScript', () => {
+  const relativePath = 'terms/index.html';
+  const visibleText = crawlerVisibleText(readDist(relativePath));
+
+  assert.ok(
+    visibleText.includes(normalizeText(termsPageMeta.lastUpdated)),
+    `${relativePath}: crawler-visible HTML is missing the current Terms date.`,
+  );
+
+  for (const section of termsSections) {
+    assert.ok(
+      visibleText.includes(normalizeText(section.title)),
+      `${relativePath}: crawler-visible HTML is missing Terms section "${section.title}".`,
+    );
+    assert.ok(
+      visibleText.includes(normalizeText(section.copy)),
+      `${relativePath}: crawler-visible HTML is missing the copy for "${section.title}".`,
+    );
+    for (const item of section.items ?? []) {
+      assert.ok(
+        visibleText.includes(normalizeText(item)),
+        `${relativePath}: crawler-visible HTML is missing a list item from "${section.title}".`,
+      );
+    }
   }
 });
 

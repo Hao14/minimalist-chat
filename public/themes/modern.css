@@ -254,7 +254,6 @@ body.modern-mode #pm-messages li.my-pm {
 }
 
 body.modern-mode #chat-form,
-body.modern-mode .smart-replies,
 body.modern-mode #active-reply-box {
     background: rgba(255, 255, 255, 0.82) !important;
     color: var(--modern-ink) !important;
@@ -720,7 +719,6 @@ body.modern-mode #pm-messages li.my-pm {
 
 body.modern-mode #chat-form,
 body.modern-mode .composer-input-row,
-body.modern-mode .smart-replies,
 body.modern-mode #active-reply-box {
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 248, 255, 0.88)) !important;
@@ -1078,7 +1076,7 @@ body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #chat-form te
     opacity: 1 !important;
 }
 
-body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.composer-toolbar, .composer-hint, .smart-replies-label) {
+body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat :is(.composer-toolbar, .composer-hint) {
     color: #667085 !important;
 }
 
@@ -1086,7 +1084,6 @@ body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .composer-ico
     color: #515b70 !important;
 }
 
-body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat .smart-replies,
 body.modern-mode:not(.marketing):not(.auth-screen) #room-view-chat #active-reply-box {
     background: rgba(255, 255, 255, 0.92) !important;
     color: #151827 !important;
@@ -2079,7 +2076,6 @@ body.modern-mode:not(.marketing):not(.auth-screen) #updates-panel .update-card-m
 /* Modern low-performance/reduced-motion override: keep the theme, drop costly compositing. */
 html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) :is(
     #chat-form,
-    .smart-replies,
     #active-reply-box,
     #search-modal,
     #search-modal .search-box,
@@ -2113,7 +2109,6 @@ html.performance-low body.modern-mode:not(.marketing):not(.auth-screen) :is(
 ),
 html.prefers-reduced-motion body.modern-mode:not(.marketing):not(.auth-screen) :is(
     #chat-form,
-    .smart-replies,
     #active-reply-box,
     #search-modal,
     #search-modal .search-box,
@@ -2186,7 +2181,6 @@ html.prefers-reduced-motion body.modern-mode.modern-motion-ready :is(#nav-logo .
 @media (prefers-reduced-motion: reduce) {
     body.modern-mode:not(.marketing):not(.auth-screen) :is(
         #chat-form,
-        .smart-replies,
         #active-reply-box,
         #search-modal,
         #search-modal .search-box,
@@ -2245,4 +2239,141 @@ html.prefers-reduced-motion body.modern-mode.modern-motion-ready :is(#nav-logo .
     body.modern-mode.modern-motion-ready :is(#nav-logo .mascot-blip, .composer-send-btn, #mobile-send-btn) {
         animation: none !important;
     }
+}
+
+/* Compact hierarchy: canvas -> main panel -> open sections.
+   Feature styles can still opt into a card, but routine chrome stays flat. */
+body.modern-mode:not(.marketing):not(.auth-screen) {
+    --modern-radius: var(--ui-radius-lg, 16px);
+    --modern-shadow-soft: none;
+    --modern-shadow-card: none;
+    --modern-panel-shadow: none;
+    background: #f7f7f4 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    nav,
+    #desktop-room-sidebar,
+    #active-room-header,
+    #room-sub-nav,
+    #main-chat-area,
+    .react-page.chat-react-page,
+    .room-view,
+    #room-view-chat,
+    #chat-form,
+    #active-reply-box,
+    #messages li,
+    #pm-messages li,
+    .room-item,
+    .room-tab,
+    .settings-card,
+    .update-card,
+    .vault-card,
+    .vault-library,
+    .vault-hero,
+    .vault-item,
+    .doc-card,
+    .ai-card,
+    .task-item,
+    .rh-panel,
+    .rh-resource,
+    .rh-event,
+    .rh-stat,
+    .cal-ev-card,
+    .call-card,
+    .call-person
+) {
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) nav,
+body.modern-mode:not(.marketing):not(.auth-screen) #desktop-room-sidebar {
+    background-color: #121722 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #active-room-header {
+    background-color: #171d29 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) #room-sub-nav {
+    background-color: #1b2230 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    #main-chat-area,
+    .react-page.chat-react-page,
+    .room-view,
+    #room-view-chat
+) {
+    background-color: #f7f7f4 !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) :is(#chat-form, #active-reply-box) {
+    background-color: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    .room-item,
+    .settings-card,
+    .update-card,
+    .vault-card,
+    .vault-library,
+    .vault-hero,
+    .vault-item,
+    .doc-card,
+    .ai-card,
+    .task-item,
+    .rh-panel,
+    .rh-resource,
+    .rh-event,
+    .rh-stat,
+    .cal-ev-card,
+    .call-card,
+    .call-person
+) {
+    border-radius: var(--ui-radius-md, 12px) !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    #nav-logo .mascot-blip,
+    #desktop-room-sidebar .room-item.active,
+    #desktop-room-sidebar .room-action-btn.btn-dark,
+    #room-sub-nav .room-tab.active,
+    .composer-send-btn,
+    #mobile-send-btn,
+    .ai-btn,
+    #messages li.my-message,
+    #pm-messages li.my-pm
+) {
+    background-image: none !important;
+    box-shadow: none !important;
+}
+
+body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    #desktop-room-sidebar .room-action-btn.btn-dark,
+    #room-sub-nav .room-tab.active,
+    .composer-send-btn,
+    #mobile-send-btn,
+    .ai-btn
+) {
+    background-color: var(--accent-color) !important;
+}
+
+/* Elevation is reserved for content that floats over the canvas. */
+body.modern-mode:not(.marketing):not(.auth-screen) :is(
+    #settings-modal.brutalist-settings,
+    #room-settings-card,
+    #user-profile-popup,
+    #pm-popup,
+    .brutalist-dropdown,
+    #brutalist-toast,
+    .msg-menu,
+    .mt-box,
+    .mt-side-panel,
+    .search-box
+) {
+    box-shadow: 0 20px 54px -30px rgba(15, 23, 42, 0.42) !important;
 }

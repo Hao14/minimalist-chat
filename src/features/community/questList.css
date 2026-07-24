@@ -6,7 +6,7 @@
   background: var(--updates-bg) !important;
 }
 
-#updates-panel.updates-center #quests-list > li,
+#updates-panel.updates-center #quests-list > li:not(.quest-summary),
 #updates-panel.updates-center #quests-list ul,
 #updates-panel.updates-center #quests-list dl,
 #updates-panel.updates-center #quests-list h3,

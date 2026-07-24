@@ -1,3 +1,5 @@
+import { normalizeStoredAvatarUrl } from './avatar.js';
+
 const SAVED_ACCOUNTS_KEY = 'minimalist.saved-accounts.v1';
 const SAVED_ACCOUNTS_EVENT = 'minimalist:saved-accounts';
 const MAX_SAVED_ACCOUNTS = 8;
@@ -32,7 +34,7 @@ function normalizeAccount(account = {}) {
     uid,
     displayName: String(account.displayName || account.email || 'Minimalist user').slice(0, 120),
     email: String(account.email || '').slice(0, 180),
-    photoUrl: String(account.photoUrl || '').slice(0, 2048),
+    photoUrl: normalizeStoredAvatarUrl(account.photoUrl).slice(0, 2048),
     provider: account.provider === 'google' ? 'google' : 'password',
     lastUsedAt: Number(account.lastUsedAt || 0),
   };

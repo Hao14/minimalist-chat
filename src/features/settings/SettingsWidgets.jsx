@@ -1,4 +1,6 @@
-import { memo, useMemo } from 'react';
+import { memo, useMemo, useState } from 'react';
+import { SettingsRow } from '../../components/ui/SettingsRow.jsx';
+import { UiButton, UiIconButton } from '../../components/ui/UiButton.jsx';
 import { safeUrl } from '../../lib/text.js';
 
 export function ProfileCompleteness({ percent, done, total, missing }) {
@@ -10,7 +12,14 @@ export function ProfileCompleteness({ percent, done, total, missing }) {
         <span>Profile {percent}% complete</span>
         <span className="pc-count">{done}/{total}</span>
       </div>
-      <div className="pc-bar" aria-label={`Profile ${percent}% complete`}>
+      <div
+        className="pc-bar"
+        role="progressbar"
+        aria-label="Profile completeness"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent}
+      >
         <div className="pc-fill" style={{ width: `${percent}%` }} />
       </div>
       {isComplete ? (
@@ -19,6 +28,154 @@ export function ProfileCompleteness({ percent, done, total, missing }) {
         <div className="pc-missing">Add: {missing.join(', ')}</div>
       )}
     </>
+  );
+}
+
+const SETTINGS_PREVIEW_TABS = [
+  ['Account', 'ph-user-circle'],
+  ['Billing', 'ph-currency-circle-dollar'],
+  ['Appearance', 'ph-palette'],
+  ['Performance', 'ph-gauge'],
+  ['Notifications', 'ph-bell'],
+  ['Help', 'ph-question'],
+];
+
+const SETTINGS_PREVIEW_GROUPS = [
+  {
+    label: 'Preferences',
+    rows: [
+      { icon: 'ph-moon-stars', label: 'Theme', value: 'System' },
+      { icon: 'ph-text-aa', label: 'Text size', value: 'Comfortable' },
+      { icon: 'ph-sparkle', label: 'Room AI', value: 'Shown', toggle: true },
+    ],
+  },
+  {
+    label: 'Workspace',
+    rows: [
+      { icon: 'ph-sidebar-simple', label: 'Layout', value: 'Balanced' },
+      { icon: 'ph-bell', label: 'Notifications', value: 'Mentions only' },
+    ],
+  },
+];
+
+export function SettingsShellPreview({
+  initialTab = 'Appearance',
+  mobile = false,
+  plan = 'Free',
+  reducedMotion = false,
+  state = 'ready',
+  theme = 'light',
+}) {
+  const [activeTab, setActiveTab] = useState(initialTab);
+  const [roomAiVisible, setRoomAiVisible] = useState(true);
+  const shellClassName = [
+    'settings-shell-v3',
+    'brutalist-settings',
+    'settings-story-shell',
+    mobile ? 'is-mobile' : '',
+    theme === 'dark' ? 'is-dark' : '',
+    reducedMotion ? 'is-reduced-motion' : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <section id="settings-modal" className={shellClassName} aria-label="Settings preview">
+      <UiIconButton id="close-settings-btn" className="brutalist-close" label="Close settings" variant="inherit">
+        <i className="ph-bold ph-x" aria-hidden="true" />
+      </UiIconButton>
+      <div className="settings-sidebar">
+        <div className="settings-sidebar-head">
+          <strong>Settings</strong>
+        </div>
+        <div className="settings-tablist" role="tablist" aria-label="Settings sections">
+          {SETTINGS_PREVIEW_TABS.map(([label, icon]) => (
+            <button
+              key={label}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === label}
+              className={`settings-tab${activeTab === label ? ' active' : ''}`}
+              onClick={() => setActiveTab(label)}
+            >
+              <i className={`ph-bold ${icon}`} aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="settings-content">
+        <div className="settings-pane active">
+          <header className="settings-pane-header">
+            <h2>{activeTab}</h2>
+            <p>Manage the preferences that shape your Minimalist workspace.</p>
+            {plan === 'Pro' ? <span className="settings-story-plan"><i className="ph-bold ph-sparkle" aria-hidden="true" /> Pro</span> : null}
+          </header>
+
+          {state === 'loading' ? (
+            <div className="settings-story-state" role="status">
+              <i className="ph-bold ph-spinner-gap" aria-hidden="true" />
+              <strong>Loading settings</strong>
+              <span>Your preferences are being prepared.</span>
+            </div>
+          ) : null}
+
+          {state === 'error' ? (
+            <div className="settings-story-state is-error" role="alert">
+              <i className="ph-bold ph-warning-circle" aria-hidden="true" />
+              <strong>Settings could not be loaded</strong>
+              <span>Check your connection and try again.</span>
+              <UiButton variant="danger">Try again</UiButton>
+            </div>
+          ) : null}
+
+          {state === 'empty' ? (
+            <div className="settings-story-state">
+              <i className="ph-bold ph-sliders-horizontal" aria-hidden="true" />
+              <strong>No custom preferences yet</strong>
+              <span>Defaults are active for this device.</span>
+            </div>
+          ) : null}
+
+          {state === 'ready' ? (
+            <>
+              {SETTINGS_PREVIEW_GROUPS.map((group) => (
+                <section className="settings-story-group" aria-labelledby={`settings-story-${group.label}`} key={group.label}>
+                  <h3 id={`settings-story-${group.label}`}>{group.label}</h3>
+                  <div className="settings-story-row-group">
+                    {group.rows.map((row) => (
+                      <SettingsRow
+                        as="button"
+                        className="settings-story-row"
+                        description={row.toggle ? (roomAiVisible ? 'Shown on this device' : 'Hidden on this device') : row.value}
+                        key={row.label}
+                        leading={<i className={`ph-bold ${row.icon}`} aria-hidden="true" />}
+                        title={row.label}
+                        trailing={row.toggle ? (
+                          <span className="settings-story-switch" aria-hidden="true"><i /></span>
+                        ) : (
+                          <i className="ph-bold ph-caret-right" aria-hidden="true" />
+                        )}
+                        {...(row.toggle ? {
+                          role: 'switch',
+                          'aria-checked': roomAiVisible,
+                          onClick: () => setRoomAiVisible((visible) => !visible),
+                        } : {})}
+                      />
+                    ))}
+                  </div>
+                </section>
+              ))}
+              <section className="settings-story-danger" aria-labelledby="settings-story-danger-title">
+                <div>
+                  <i className="ph-bold ph-trash" aria-hidden="true" />
+                  <span><strong id="settings-story-danger-title">Delete account</strong><small>This action is permanent.</small></span>
+                </div>
+                <UiButton variant="danger">Delete</UiButton>
+              </section>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </section>
   );
 }
 

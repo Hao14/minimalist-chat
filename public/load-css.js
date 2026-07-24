@@ -7,22 +7,20 @@
   } catch {
     // The hint only prevents signed-in navigation flicker; Firebase remains authoritative.
   }
-  var cssLinks = Array.prototype.slice.call(document.querySelectorAll('link[data-load-css]'));
+  // base.css is linked as a normal render-blocking stylesheet in index.html.
+  // This deferred helper only resolves route, theme, device, and feature CSS.
+  var cssLinks = Array.prototype.slice.call(document.querySelectorAll('[data-load-css]'));
   var path = window.location.pathname || '/';
   var routeName = (path.split('/').filter(Boolean)[0] || 'home').toLowerCase();
   var isAppRoute = /^\/(?:chat|join|login)(?:\/|$)/.test(path);
   var isVaultShareRoute = /^\/vault\/share(?:\/|$)/.test(path);
-  var isChatRoute = /^\/(?:chat|join)(?:\/|$)/.test(path);
-  var hasAuthPresenceHint = document.documentElement.classList.contains('auth-session-hint');
-  var isAuthenticatedChatRoute = isChatRoute && hasAuthPresenceHint;
+  var schedulesAppStartupStyles = isAppRoute || isVaultShareRoute;
   var isHomeRoute = path === '/' || path === '';
+  var supportsModules = 'noModule' in document.createElement('script');
   var connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   var saveData = Boolean(connection && connection.saveData);
   var effectiveType = String((connection && connection.effectiveType) || '');
   var constrainedConnection = saveData || /(?:slow-)?2g/.test(effectiveType);
-  var coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  var compactViewport = window.matchMedia && window.matchMedia('(max-width: 1024px)').matches;
-  var mobileOrTablet = coarsePointer || compactViewport;
   var mobileStylesQuery = window.matchMedia ? window.matchMedia('(max-width: 768px)') : null;
   var mobileStylesViewport = Boolean(mobileStylesQuery && mobileStylesQuery.matches);
   var loaded = {};
@@ -30,6 +28,82 @@
   var deferredCssReadyResolve = null;
   var featureCssReadyResolve = null;
   var featureCssReadySettled = false;
+  var brandFontsScheduled = false;
+  var bootReady = false;
+  var bootFailureShown = false;
+  var bootFailureTimer = 0;
+
+  function createReloadButton() {
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Reload Minimalist';
+    button.addEventListener('click', function reloadMinimalist() {
+      window.location.reload();
+    });
+    return button;
+  }
+
+  function showBootFailure() {
+    if (bootReady || bootFailureShown) return;
+    bootFailureShown = true;
+    window.clearTimeout(bootFailureTimer);
+
+    if (isHomeRoute) {
+      if (window.__minimalistRevealStaticHome) window.__minimalistRevealStaticHome();
+      return;
+    }
+
+    var shell = document.getElementById('app-boot-shell');
+    var prerenderedRoute = document.querySelector('[data-prerender-route]');
+    if (prerenderedRoute) {
+      if (shell) shell.remove();
+      var notice = document.createElement('aside');
+      notice.className = 'boot-fallback-notice';
+      notice.setAttribute('role', 'alert');
+      var noticeText = document.createElement('span');
+      noticeText.textContent = 'The interactive app did not finish loading. This static page is still available.';
+      notice.appendChild(noticeText);
+      notice.appendChild(createReloadButton());
+      prerenderedRoute.parentNode.insertBefore(notice, prerenderedRoute);
+      return;
+    }
+
+    if (!shell) return;
+    while (shell.firstChild) shell.removeChild(shell.firstChild);
+    shell.classList.add('instant-shell-failed');
+    shell.setAttribute('role', 'alert');
+    shell.setAttribute('aria-live', 'assertive');
+    shell.setAttribute('aria-label', 'Minimalist could not finish loading');
+
+    var panel = document.createElement('section');
+    panel.className = 'boot-failure-panel';
+    var heading = document.createElement('h1');
+    heading.textContent = 'Minimalist could not finish loading.';
+    var copy = document.createElement('p');
+    copy.textContent = 'Reload to retry. If this keeps happening, update your browser or check the connection.';
+    panel.appendChild(heading);
+    panel.appendChild(copy);
+    panel.appendChild(createReloadButton());
+    shell.appendChild(panel);
+  }
+
+  window.__minimalistMarkBootReady = function markBootReady() {
+    bootReady = true;
+    window.clearTimeout(bootFailureTimer);
+  };
+  window.__minimalistReportBootFailure = showBootFailure;
+  window.addEventListener('error', function revealAfterEntryFailure(event) {
+    var target = event.target;
+    if (target && target.tagName === 'SCRIPT' && target.type === 'module') showBootFailure();
+  }, true);
+  bootFailureTimer = window.setTimeout(showBootFailure, 15000);
+  if (!supportsModules) {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', showBootFailure, { once: true });
+    } else {
+      showBootFailure();
+    }
+  }
   try {
     savedTheme = String(localStorage.getItem('theme') || 'light').toLowerCase();
   } catch {
@@ -37,7 +111,21 @@
   }
   document.documentElement.classList.add(isAppRoute ? 'route-app' : 'route-marketing');
   document.documentElement.classList.add('route-' + routeName);
-  if (isHomeRoute) document.documentElement.classList.add('route-home');
+  if (isHomeRoute) {
+    document.documentElement.classList.add('route-home');
+    if (supportsModules) {
+      window.__minimalistRevealStaticHome = function revealStaticHome() {
+        document.documentElement.classList.remove('home-react-pending');
+      };
+      if (!document.querySelector('link[data-phosphor-bold-subset]')) {
+        var homeIconStyles = document.createElement('link');
+        homeIconStyles.rel = 'stylesheet';
+        homeIconStyles.href = '/phosphor-bold-subset.css?v=4';
+        homeIconStyles.setAttribute('data-phosphor-bold-subset', 'true');
+        document.head.appendChild(homeIconStyles);
+      }
+    }
+  }
 
   function getHref(link) {
     return link.href || link.getAttribute('data-href') || '';
@@ -52,12 +140,16 @@
   }
 
   function isResponsiveStylesheet(link) {
-    return /\/(?:desktop|mobile)\.css(?:[?#]|$)/.test(getHref(link));
+    return /\/(?:desktop|mobile|mobile-app-dock)\.css(?:[?#]|$)/.test(getHref(link));
+  }
+
+  function isMobileResponsiveStylesheet(link) {
+    return /\/(?:mobile|mobile-app-dock)\.css(?:[?#]|$)/.test(getHref(link));
   }
 
   function responsiveMedia(link) {
     var href = getHref(link);
-    if (/\/mobile\.css(?:[?#]|$)/.test(href)) return '(max-width: 768px)';
+    if (/\/(?:mobile|mobile-app-dock)\.css(?:[?#]|$)/.test(href)) return '(max-width: 768px)';
     if (/\/desktop\.css(?:[?#]|$)/.test(href)) return '(min-width: 769px)';
     return link.media || 'all';
   }
@@ -74,7 +166,7 @@
     if (isResponsiveStylesheet(link)) {
       if (!isAppRoute) return false;
       return mobileStylesViewport
-        ? /\/mobile\.css(?:[?#]|$)/.test(getHref(link))
+        ? isMobileResponsiveStylesheet(link)
         : /\/desktop\.css(?:[?#]|$)/.test(getHref(link));
     }
     if (isSavedThemeStylesheet(link)) return isAppRoute;
@@ -114,13 +206,13 @@
   function loadResponsiveStylesheet(event) {
     if (!isAppRoute) return;
     var wantsMobile = event ? event.matches : mobileStylesViewport;
-    var target = cssLinks.find(function matchingResponsiveLink(link) {
+    var targets = cssLinks.filter(function matchingResponsiveLink(link) {
       if (!isResponsiveStylesheet(link)) return false;
       return wantsMobile
-        ? /\/mobile\.css(?:[?#]|$)/.test(getHref(link))
+        ? isMobileResponsiveStylesheet(link)
         : /\/desktop\.css(?:[?#]|$)/.test(getHref(link));
     });
-    if (target) convertPreload(target);
+    targets.forEach(convertPreload);
   }
 
   if (mobileStylesQuery) {
@@ -128,26 +220,22 @@
     else if (mobileStylesQuery.addListener) mobileStylesQuery.addListener(loadResponsiveStylesheet);
   }
 
-  var immediateLinks = cssLinks.filter(shouldLoadNow);
+  // Device and selected-theme styles should begin promptly, but they must not
+  // delay the application handoff. base.css is the only render-blocking sheet.
+  var startupDeferredLinks = cssLinks.filter(shouldLoadNow);
   var deferredLinks = cssLinks.filter(function deferred(link) {
-    return immediateLinks.indexOf(link) === -1;
+    return startupDeferredLinks.indexOf(link) === -1;
   });
-  var featureLinks = isAuthenticatedChatRoute
-    ? deferredLinks.filter(isFeatureStylesheet)
-    : [];
-  var routineDeferredLinks = isAppRoute
-    ? deferredLinks.filter(function notFeature(link) {
+  var featureLinks = deferredLinks.filter(isFeatureStylesheet);
+  var routineDeferredLinks = schedulesAppStartupStyles
+    ? startupDeferredLinks.concat(deferredLinks.filter(function notFeature(link) {
       return !isFeatureStylesheet(link)
         && !isResponsiveStylesheet(link)
         && getLazyType(link) !== 'theme';
-    })
+    }))
     : [];
-  var ready = Promise.all(immediateLinks.map(convertPreload));
-  var timeout = new Promise(function timeout(resolve) {
-    window.setTimeout(resolve, 1800);
-  });
 
-  window.__minimalistCssReady = Promise.race([ready, timeout]);
+  window.__minimalistCssReady = Promise.resolve();
   window.__minimalistDeferredCssReady = new Promise(function deferredReady(resolve) {
     deferredCssReadyResolve = resolve;
   });
@@ -183,11 +271,24 @@
     document.head.appendChild(stylesheet);
   }
 
+  function scheduleBrandFonts() {
+    if (brandFontsScheduled) return;
+    brandFontsScheduled = true;
+    var queueAfterLoad = function queueAfterLoad() {
+      var idle = window.requestIdleCallback || function fontIdleFallback(callback) {
+        return window.setTimeout(callback, 1200);
+      };
+      idle(loadBrandFonts, { timeout: 2400 });
+    };
+    if (document.readyState === 'complete') queueAfterLoad();
+    else window.addEventListener('load', queueAfterLoad, { once: true });
+  }
+
   function loadDeferredStyles() {
     Promise.all(routineDeferredLinks.map(convertPreload)).then(function doneDeferred() {
       if (deferredCssReadyResolve) deferredCssReadyResolve();
     });
-    loadBrandFonts();
+    scheduleBrandFonts();
     routineDeferredLinks = [];
     removeDeferredListeners(loadDeferredStyles);
   }
@@ -222,32 +323,26 @@
   }
 
   window.__minimalistLoadFeatureStyles = loadFeatureStyles;
+  window.addEventListener('minimalist:feature-styles-request', loadFeatureStyles);
 
   if (routineDeferredLinks.length) {
-    if (isAppRoute) {
-      var idle = window.requestIdleCallback || function requestIdleFallback(callback) {
-        return window.setTimeout(callback, 1800);
-      };
-      idle(loadDeferredStyles, { timeout: 2200 });
+    if (schedulesAppStartupStyles) {
+      // Paint the base shell once, then apply the matching device/theme layer
+      // without putting it on the Chat-ready critical path.
+      window.requestAnimationFrame(function deferAppStylesAfterPaint() {
+        window.requestAnimationFrame(loadDeferredStyles);
+      });
+      window.setTimeout(loadDeferredStyles, 350);
     } else {
       window.setTimeout(loadDeferredStyles, isHomeRoute ? 220 : 520);
     }
     addDeferredListeners(loadDeferredStyles);
   } else if (deferredCssReadyResolve) {
     deferredCssReadyResolve();
-    window.setTimeout(loadBrandFonts, isAppRoute ? 1200 : isHomeRoute ? 220 : 520);
+    scheduleBrandFonts();
   }
 
-  if (featureLinks.length) {
-    var featureIdle = window.requestIdleCallback || function featureIdleFallback(callback) {
-      return window.setTimeout(callback, 1800);
-    };
-    if (!mobileOrTablet && !constrainedConnection) {
-      window.setTimeout(function deferFeatureStyles() {
-        featureIdle(loadFeatureStyles, { timeout: 5000 });
-      }, isChatRoute ? 30000 : 18000);
-    }
-  } else {
+  if (!featureLinks.length) {
     resolveFeatureStylesReady();
   }
 })();

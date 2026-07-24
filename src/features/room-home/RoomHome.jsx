@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { limitToLast, onValue, push, query, ref, remove, set, update } from 'firebase/database';
 import { db } from '../../lib/firebase.js';
+import { useLocale } from '../../lib/useLocale.js';
 import { GoogleCalendarLink } from '../calendar/GoogleCalendarLink.jsx';
 import { hasRoomAnalytics, useRoomEntitlement } from '../billing/roomEntitlements.js';
 import { useRoomTabDataActivity } from '../shell/roomTabActivity.js';
+import { formatRoomActivity, getRoomActivityIcon, roomActivityKey } from '../rooms/roomActivity.js';
 import './roomHome.css';
 
 const defaultDescription = 'A dedicated space for communication, sharing resources, and connecting with the group. Everyone is welcome.';
@@ -26,7 +28,7 @@ function safeUrl(url) {
 function Section({ action, children, icon, sectionId, title }) {
   return (
     <section className="rh-section" id={sectionId}>
-      <div className="rh-head"><h3><i className={`ph-bold ${icon}`} /> {title}</h3>{action ? <span>{action}</span> : null}</div>
+      <div className="rh-head"><h3><i className={`ph-bold ${icon}`} aria-hidden="true" /> {title}</h3>{action ? <span>{action}</span> : null}</div>
       {children}
     </section>
   );
@@ -55,7 +57,7 @@ function getUpcomingEvents(events) {
     .sort((a, b) => (a[1].date || '').localeCompare(b[1].date || ''));
 }
 
-function formatPulseTime(timestamp) {
+function formatPulseTime(timestamp, locale) {
   const date = new Date(Number(timestamp || 0));
   if (Number.isNaN(date.getTime())) return '';
 
@@ -63,7 +65,7 @@ function formatPulseTime(timestamp) {
   if (elapsed >= 0 && elapsed < 60000) return 'Just now';
   if (elapsed >= 0 && elapsed < 3600000) return `${Math.max(1, Math.floor(elapsed / 60000))}m ago`;
   if (elapsed >= 0 && elapsed < 86400000) return `${Math.max(1, Math.floor(elapsed / 3600000))}h ago`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 function openRoomView(target) {
@@ -125,7 +127,7 @@ function computeRoomInsights({ contributors, data, isGlobal, memberCount, messag
 
   const timeline = [
     ...(data.createdAt ? [{ ts: Number(data.createdAt), label: 'Room created', icon: 'ph-flag' }] : []),
-    ...logs.map((log) => ({ ts: Number(log.timestamp || 0), label: log.text || 'Room activity', icon: 'ph-activity' })),
+    ...logs.map((log) => ({ ts: Number(log.timestamp || 0), log, icon: getRoomActivityIcon(log) })),
     ...Object.values(data.events || {}).map((event) => ({
       ts: event.date ? Date.parse(`${event.date}T12:00:00`) : 0,
       label: `Event: ${event.title || 'Untitled'}`,
@@ -153,22 +155,23 @@ function RoomIdentityHero({ data, insights, isGlobal }) {
     ? { '--rh-banner-image': `url(${JSON.stringify(data.bannerUrl)})` }
     : undefined;
   return (
-    <section className={`rh-identity ${data.bannerUrl ? 'has-banner' : ''}`} style={bannerStyle}>
+    <section className={`rh-identity ${data.bannerUrl ? 'has-banner' : ''}`} style={bannerStyle} aria-labelledby="room-home-title">
       <div>
         <span className="rh-kicker">Room identity</span>
-        <h2>{data.name || (isGlobal ? 'Global Chat' : 'Room')}</h2>
+        <h2 id="room-home-title">{data.name || (isGlobal ? 'Global Chat' : 'Room')}</h2>
         <p>{insights.topic}</p>
       </div>
       <div className="rh-chip-row">
-        <span><i className="ph-bold ph-shapes" /> {insights.category}</span>
-        <span><i className="ph-bold ph-stack" /> {insights.templateLabel}</span>
-        <span><i className="ph-bold ph-sparkle" /> Prestige {insights.prestigeLevel}</span>
+        <span><i className="ph-bold ph-shapes" aria-hidden="true" /> {insights.category}</span>
+        <span><i className="ph-bold ph-stack" aria-hidden="true" /> {insights.templateLabel}</span>
+        <span><i className="ph-bold ph-sparkle" aria-hidden="true" /> Prestige {insights.prestigeLevel}</span>
       </div>
     </section>
   );
 }
 
 function RoomPulse({ canEdit, data, isGlobal, messageCount, messagesStatus, memberCount, metaStatus, onPatch }) {
+  const { locale, formatDate } = useLocale();
   const [editingTopic, setEditingTopic] = useState(false);
   const [topicDraft, setTopicDraft] = useState(data.topic || '');
   const [topicError, setTopicError] = useState('');
@@ -223,40 +226,40 @@ function RoomPulse({ canEdit, data, isGlobal, messageCount, messagesStatus, memb
       : isGlobal
         ? `${messageCount} messages are available in Global Chat.`
         : (latestLog?.text || (messageCount === '0' ? 'This room is ready for its first message.' : `${messageCount} messages in this room.`));
-  const latestTime = messagesStatus === 'ready' && !isGlobal && latestLog ? formatPulseTime(latestLog.timestamp) : '';
+  const latestTime = messagesStatus === 'ready' && !isGlobal && latestLog ? formatPulseTime(latestLog.timestamp, locale) : '';
   const nextEventTitle = metaStatus === 'loading' ? 'Loading upcoming events…' : metaStatus === 'error' ? 'Upcoming events are unavailable' : (nextEvent?.title || 'No upcoming events');
   const nextEventDetail = metaStatus === 'loading'
     ? 'Checking this room'
     : metaStatus === 'error'
       ? 'Try again from the notice above'
       : nextEvent?.date
-        ? new Date(`${nextEvent.date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        ? formatDate(new Date(`${nextEvent.date}T12:00:00`), { month: 'short', day: 'numeric', year: 'numeric' })
         : 'Nothing scheduled yet';
 
   return (
     <section className="rh-pulse" aria-labelledby="room-pulse-title">
       <div className="rh-pulse-intro">
-        <span className="rh-pulse-label"><i className="ph-bold ph-pulse" /> Room pulse</span>
+        <span className="rh-pulse-label"><i className="ph-bold ph-pulse" aria-hidden="true" /> Room pulse</span>
         <h3 id="room-pulse-title">Pick up where the room left off.</h3>
         <div className="rh-pulse-actions">
-          <button type="button" className="rh-pulse-primary" onClick={() => openRoomView('chat')}><i className="ph-bold ph-chats" /> Open chat</button>
-          <button type="button" className="rh-pulse-secondary" onClick={() => scrollToRoomHomeSection('room-home-activity')}>Recent activity <i className="ph-bold ph-arrow-right" /></button>
+          <button type="button" className="rh-pulse-primary" onClick={() => openRoomView('chat')}><i className="ph-bold ph-chats" aria-hidden="true" /> Open chat</button>
+          <button type="button" className="rh-pulse-secondary" onClick={() => scrollToRoomHomeSection('room-home-activity')}>Recent activity <i className="ph-bold ph-arrow-right" aria-hidden="true" /></button>
         </div>
       </div>
       <div className="rh-pulse-item">
-        <span className="rh-pulse-item-label"><i className="ph-bold ph-clock-counter-clockwise" /> Latest update</span>
+        <span className="rh-pulse-item-label"><i className="ph-bold ph-clock-counter-clockwise" aria-hidden="true" /> Latest update</span>
         <strong>{latestText}</strong>
         {latestTime ? <small>{latestTime}</small> : <small>{memberCount} {memberCount === '1' ? 'member' : 'members'}</small>}
-        <button type="button" className="rh-text-action" onClick={() => scrollToRoomHomeSection('room-home-activity')}>View recent activity <i className="ph-bold ph-arrow-right" /></button>
+        <button type="button" className="rh-text-action" onClick={() => scrollToRoomHomeSection('room-home-activity')}>View recent activity <i className="ph-bold ph-arrow-right" aria-hidden="true" /></button>
       </div>
       <div className="rh-pulse-item">
-        <span className="rh-pulse-item-label"><i className="ph-bold ph-calendar-blank" /> Next event</span>
+        <span className="rh-pulse-item-label"><i className="ph-bold ph-calendar-blank" aria-hidden="true" /> Next event</span>
         <strong>{nextEventTitle}</strong>
         <small>{nextEventDetail}</small>
-        <button type="button" className="rh-text-action" onClick={() => (openRoomView('events') || scrollToRoomHomeSection('room-home-events'))}>See all events <i className="ph-bold ph-arrow-right" /></button>
+        <button type="button" className="rh-text-action" onClick={() => (openRoomView('events') || scrollToRoomHomeSection('room-home-events'))}>See all events <i className="ph-bold ph-arrow-right" aria-hidden="true" /></button>
       </div>
       <div className="rh-pulse-item rh-pulse-focus">
-        <span className="rh-pulse-item-label"><i className="ph-bold ph-target" /> Room focus</span>
+        <span className="rh-pulse-item-label"><i className="ph-bold ph-target" aria-hidden="true" /> Room focus</span>
         {editingTopic ? (
           <form className="rh-topic-form" onSubmit={saveTopic}>
             <label htmlFor="room-home-topic">Room topic</label>
@@ -270,7 +273,7 @@ function RoomPulse({ canEdit, data, isGlobal, messageCount, messagesStatus, memb
         ) : (
           <>
             <strong>{focus.text}</strong>
-            {focus.action && (canEdit || focus.type !== 'topic') ? <button type="button" className="rh-focus-action" onClick={runFocusAction}><i className={`ph-bold ${focus.icon}`} /> {focus.action}</button> : null}
+            {focus.action && (canEdit || focus.type !== 'topic') ? <button type="button" className="rh-focus-action" onClick={runFocusAction}><i className={`ph-bold ${focus.icon}`} aria-hidden="true" /> {focus.action}</button> : null}
           </>
         )}
       </div>
@@ -285,7 +288,7 @@ function RoomScores({ insights }) {
         <div className="rh-score-card">
           <span>Health score</span>
           <strong>{insights.health}%</strong>
-          <div className="rh-meter"><i style={{ width: `${insights.health}%` }} /></div>
+          <div className="rh-meter" role="progressbar" aria-label="Room health score" aria-valuemin="0" aria-valuemax="100" aria-valuenow={insights.health}><i style={{ width: `${insights.health}%` }} aria-hidden="true" /></div>
           <small className="rh-live-note">Live from messages, members, channels, events, resources, rules, and recent activity.</small>
         </div>
         <div className="rh-score-card">
@@ -307,9 +310,9 @@ function Discovery({ insights }) {
   return (
     <Section icon="ph-compass" title="Discovery">
       <div className="rh-discovery-grid">
-        <div className={insights.discoveryEnabled ? 'on' : ''}><i className="ph-bold ph-binoculars" /><strong>{insights.discoveryEnabled ? 'Discoverable' : 'Private discovery'}</strong><span>Room discovery</span></div>
-        <div className={insights.recommendationsEnabled ? 'on' : ''}><i className="ph-bold ph-sparkle" /><strong>{insights.recommendationsEnabled ? 'Recommendations on' : 'Recommendations off'}</strong><span>Room recommendations</span></div>
-        <div><i className="ph-bold ph-stack" /><strong>{insights.templateLabel}</strong><span>Room template</span></div>
+        <div className={insights.discoveryEnabled ? 'on' : ''}><i className="ph-bold ph-binoculars" aria-hidden="true" /><strong>{insights.discoveryEnabled ? 'Discoverable' : 'Private discovery'}</strong><span>Room discovery</span></div>
+        <div className={insights.recommendationsEnabled ? 'on' : ''}><i className="ph-bold ph-sparkle" aria-hidden="true" /><strong>{insights.recommendationsEnabled ? 'Recommendations on' : 'Recommendations off'}</strong><span>Room recommendations</span></div>
+        <div><i className="ph-bold ph-stack" aria-hidden="true" /><strong>{insights.templateLabel}</strong><span>Room template</span></div>
       </div>
     </Section>
   );
@@ -321,7 +324,7 @@ function Milestones({ insights }) {
       <div className="rh-milestones">
         {insights.milestones.map((item) => (
           <div key={item.label} className={item.done ? 'done' : ''}>
-            <i className={`ph-bold ${item.done ? 'ph-check-circle' : item.icon}`} />
+            <i className={`ph-bold ${item.done ? 'ph-check-circle' : item.icon}`} aria-hidden="true" />
             <span>{item.label}</span>
           </div>
         ))}
@@ -341,14 +344,15 @@ function Snapshots({ insights }) {
 }
 
 function Timeline({ insights }) {
+  const { locale, formatDate } = useLocale();
   return (
     <Section icon="ph-timeline" title="Room Timeline">
       <div className="rh-timeline">
         {insights.timeline.length ? insights.timeline.map((item, index) => (
-          <div key={`${item.ts}-${item.label}-${index}`}>
-            <i className={`ph-bold ${item.icon}`} />
-            <span>{item.label}</span>
-            <small>{new Date(item.ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</small>
+          <div key={item.log ? roomActivityKey(item.log, index) : `${item.ts}-${item.label}-${index}`}>
+            <i className={`ph-bold ${item.icon}`} aria-hidden="true" />
+            <span>{item.log ? formatRoomActivity(item.log, locale) : item.label}</span>
+            <small>{formatDate(item.ts, { month: 'short', day: 'numeric' })}</small>
           </div>
         )) : <div className="rh-muted">No timeline activity yet.</div>}
       </div>
@@ -364,10 +368,10 @@ function Description({ canEdit, data, onPatch }) {
     setEditing(false);
   };
   return (
-    <Section icon="ph-info" title="About This Room" action={canEdit ? <button type="button" className="rh-edit-btn" onClick={() => { setDraft(data.description || ''); setEditing(true); }}><i className="ph-bold ph-pencil-simple" /> Edit</button> : null}>
+    <Section icon="ph-info" title="About This Room" action={canEdit ? <button type="button" className="rh-edit-btn" aria-label="Edit room description" onClick={() => { setDraft(data.description || ''); setEditing(true); }}><i className="ph-bold ph-pencil-simple" aria-hidden="true" /> Edit</button> : null}>
       {editing ? (
         <div>
-          <textarea className="rh-desc-edit" value={draft} onChange={(event) => setDraft(event.target.value)} autoFocus />
+          <textarea className="rh-desc-edit" value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="Room description" autoFocus />
           <div className="rh-inline-actions"><button type="button" className="rh-save-btn" onClick={save}>Save</button><button type="button" className="rh-add-btn" onClick={() => setEditing(false)}>Cancel</button></div>
         </div>
       ) : <p className="rh-desc-text">{data.description || defaultDescription}</p>}
@@ -393,8 +397,8 @@ function Rules({ canEdit, data, roomId, setData }) {
   };
   return (
     <Section icon="ph-list-checks" sectionId="room-home-rules" title="Room Rules">
-      {rules.length ? rules.map(([key, text], index) => <div key={key} className="rh-rule"><span className="rh-num">{String(index + 1).padStart(2, '0')}</span><span className="rh-rule-text">{text}</span>{canEdit ? <button type="button" className="rh-del" title="Delete" onClick={() => deleteRule(key)}>&times;</button> : null}</div>) : <div className="rh-muted">No rules set yet.</div>}
-      {canEdit ? <form className="rh-add-form" onSubmit={addRule}><div className="rh-form-row"><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Add a rule..." /><button type="submit" className="rh-save-btn">Add</button></div></form> : null}
+      {rules.length ? rules.map(([key, text], index) => <div key={key} className="rh-rule"><span className="rh-num">{String(index + 1).padStart(2, '0')}</span><span className="rh-rule-text">{text}</span>{canEdit ? <button type="button" className="rh-del" title={`Delete rule: ${text}`} aria-label={`Delete rule: ${text}`} onClick={() => deleteRule(key)}><i className="ph-bold ph-trash" aria-hidden="true" /></button> : null}</div>) : <div className="rh-muted">No rules set yet.</div>}
+      {canEdit ? <form className="rh-add-form" aria-label="Add room rule" onSubmit={addRule}><div className="rh-form-row"><input value={draft} onChange={(event) => setDraft(event.target.value)} aria-label="New room rule" placeholder="Add a rule..." /><button type="submit" className="rh-save-btn">Add</button></div></form> : null}
     </Section>
   );
 }
@@ -417,13 +421,14 @@ function Resources({ canEdit, data, roomId, setData }) {
   };
   return (
     <Section icon="ph-push-pin" sectionId="room-home-resources" title="Resources">
-      {resources.length ? resources.map(([key, resource]) => <div key={key} className="rh-resource-row"><a className="rh-resource" href={safeUrl(resource.url)} target="_blank" rel="noopener noreferrer"><div className="rh-res-body"><div className="rh-res-title"><i className="ph-bold ph-link" /> {resource.title}</div><div className="rh-res-url">{resource.url}</div></div></a>{canEdit ? <button type="button" className="rh-del rh-resource-del" title="Delete" onClick={() => deleteResource(key)}>&times;</button> : null}</div>) : <div className="rh-muted">No resources pinned yet.</div>}
-      {canEdit ? <form className="rh-add-form" onSubmit={addResource}><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Resource title..." /><div className="rh-form-row"><input value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} placeholder="https://..." /><button type="submit" className="rh-save-btn">Add</button></div></form> : null}
+      {resources.length ? resources.map(([key, resource]) => <div key={key} className="rh-resource-row"><a className="rh-resource" href={safeUrl(resource.url)} target="_blank" rel="noopener noreferrer" aria-label={`Open resource ${resource.title} in a new tab`}><div className="rh-res-body"><div className="rh-res-title"><i className="ph-bold ph-link" aria-hidden="true" /> {resource.title}</div><div className="rh-res-url">{resource.url}</div></div></a>{canEdit ? <button type="button" className="rh-del rh-resource-del" title={`Delete resource: ${resource.title}`} aria-label={`Delete resource: ${resource.title}`} onClick={() => deleteResource(key)}><i className="ph-bold ph-trash" aria-hidden="true" /></button> : null}</div>) : <div className="rh-muted">No resources pinned yet.</div>}
+      {canEdit ? <form className="rh-add-form" aria-label="Add room resource" onSubmit={addResource}><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} aria-label="Resource title" placeholder="Resource title..." /><div className="rh-form-row"><input type="url" value={draft.url} onChange={(event) => setDraft((current) => ({ ...current, url: event.target.value }))} aria-label="Resource URL" autoComplete="url" placeholder="https://..." /><button type="submit" className="rh-save-btn">Add</button></div></form> : null}
     </Section>
   );
 }
 
 function EventsPreview({ canEdit, data, roomId, setData }) {
+  const { formatDate } = useLocale();
   const [draft, setDraft] = useState({ title: '', date: '', desc: '' });
   const events = useMemo(() => getUpcomingEvents(data.events), [data.events]);
   const addEvent = async (event) => {
@@ -443,21 +448,22 @@ function EventsPreview({ canEdit, data, roomId, setData }) {
     <Section icon="ph-calendar-dots" sectionId="room-home-events" title="Upcoming Events">
       {events.length ? events.map(([key, event]) => {
         const date = event.date ? new Date(`${event.date}T00:00:00`) : null;
-        return <div key={key} className="rh-event"><div className="rh-event-date"><span className="rh-d">{date ? date.getDate() : '?'}</span><span className="rh-m">{date ? date.toLocaleDateString('en-US', { month: 'short' }) : ''}</span></div><div className="rh-event-body"><div className="rh-event-title">{event.title}</div>{event.desc ? <div className="rh-event-desc">{event.desc}</div> : null}</div><div className="rh-event-actions"><GoogleCalendarLink event={event} />{canEdit ? <button type="button" className="rh-del" title="Delete" onClick={() => deleteEvent(key)}>&times;</button> : null}</div></div>;
+        return <div key={key} className="rh-event"><div className="rh-event-date"><span className="rh-d">{date ? date.getDate() : '?'}</span><span className="rh-m">{date ? formatDate(date, { month: 'short' }) : ''}</span></div><div className="rh-event-body"><div className="rh-event-title">{event.title}</div>{event.desc ? <div className="rh-event-desc">{event.desc}</div> : null}</div><div className="rh-event-actions"><GoogleCalendarLink event={event} />{canEdit ? <button type="button" className="rh-del" title={`Delete event: ${event.title}`} aria-label={`Delete event: ${event.title}`} onClick={() => deleteEvent(key)}><i className="ph-bold ph-trash" aria-hidden="true" /></button> : null}</div></div>;
       }) : <div className="rh-muted">No upcoming events.</div>}
-      {canEdit ? <form className="rh-add-form" onSubmit={addEvent}><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} placeholder="Event title..." /><div className="rh-form-row"><input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} /><input value={draft.desc} onChange={(event) => setDraft((current) => ({ ...current, desc: event.target.value }))} placeholder="Details (optional)" /></div><button type="submit" className="rh-save-btn">Add Event</button></form> : null}
+      {canEdit ? <form className="rh-add-form" aria-label="Add room event" onSubmit={addEvent}><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} aria-label="Event title" placeholder="Event title..." /><div className="rh-form-row"><input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} aria-label="Event date" /><input value={draft.desc} onChange={(event) => setDraft((current) => ({ ...current, desc: event.target.value }))} aria-label="Event details (optional)" placeholder="Details (optional)" /></div><button type="submit" className="rh-save-btn">Add Event</button></form> : null}
     </Section>
   );
 }
 
 function Activity({ data, isGlobal }) {
+  const { locale, formatTime } = useLocale();
   const logs = Object.values(data.logs || {}).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0)).slice(0, 6);
   return (
     <Section icon="ph-activity" sectionId="room-home-activity" title="Recent Activity">
       <ul className="rh-activity">
         {isGlobal ? <li className="rh-muted">Global activity log is hidden.</li> : null}
         {!isGlobal && !logs.length ? <li className="rh-muted">No recent activity.</li> : null}
-        {!isGlobal ? logs.map((log) => <li key={`${log.timestamp}-${log.text}`}><i className={`ph-bold ${log.text?.includes('joined') ? 'ph-sign-in' : (log.text?.includes('left') || log.text?.includes('kicked') ? 'ph-sign-out' : 'ph-check-circle')}`} /><div><div className="rh-act-text">{log.text}</div><div className="rh-act-time">{new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div></div></li>) : null}
+        {!isGlobal ? logs.map((log, index) => <li key={roomActivityKey(log, index)}><i className={`ph-bold ${getRoomActivityIcon(log)}`} aria-hidden="true" /><div><div className="rh-act-text">{formatRoomActivity(log, locale)}</div><div className="rh-act-time">{formatTime(log.timestamp)}</div></div></li>) : null}
       </ul>
     </Section>
   );
@@ -498,6 +504,7 @@ function Analytics({ data, hasAnalytics, isGlobal, memberCount, messageCount }) 
 }
 
 export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
+  const { formatDate } = useLocale();
   const isRoomTabActive = useRoomTabDataActivity('home');
   const isGlobal = roomId === 'global';
   const roomEntitlement = useRoomEntitlement(roomId, isRoomTabActive);
@@ -513,7 +520,7 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   const setDisplayData = isGlobal ? setGlobalData : setRoomData;
   const canEdit = isGlobal ? Boolean(user.uid === adminUid) : roomCanEdit;
   const memberCount = metaStatus === 'loading' ? '—' : (isGlobal ? '∞' : (Object.keys(data.members || {}).length || 1));
-  const createdDate = isGlobal ? 'Day 1' : (data.createdAt ? new Date(data.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
+  const createdDate = isGlobal ? 'Day 1' : (data.createdAt ? formatDate(data.createdAt, { month: 'short', day: 'numeric', year: 'numeric' }) : '—');
   const insights = useMemo(() => computeRoomInsights({ contributors, data, isGlobal, memberCount, messageCount }), [contributors, data, isGlobal, memberCount, messageCount]);
   const roomHasAnalytics = hasRoomAnalytics(window.userTier || 'free', roomEntitlement, user.uid);
   const hasLoadError = metaStatus === 'error' || messagesStatus === 'error';
@@ -591,8 +598,8 @@ export function RoomHome({ adminUid, getAvatarUrl, roomId, user }) {
   return (
     <div className="rh-scroll room-home-v2" aria-busy={metaStatus === 'loading' || messagesStatus === 'loading'}>
       <RoomIdentityHero data={data} insights={insights} isGlobal={isGlobal} />
-      <div className="rh-stats"><div className="rh-stat"><i className="ph-bold ph-chats" /> <span>{messageCount}</span> Messages</div><div className="rh-stat"><i className="ph-bold ph-users" /> <span>{memberCount}</span> Members</div><div className="rh-spacer" /><div className="rh-created">Created <span>{createdDate}</span></div></div>
-      {hasLoadError ? <div className="rh-load-notice" role="status"><div><i className="ph-bold ph-warning-circle" /><span><strong>Some room details are unavailable.</strong> The page is showing what it could load.</span></div><button type="button" onClick={retryRoomData}>Retry</button></div> : null}
+      <div className="rh-stats"><div className="rh-stat"><i className="ph-bold ph-chats" aria-hidden="true" /> <span>{messageCount}</span> Messages</div><div className="rh-stat"><i className="ph-bold ph-users" aria-hidden="true" /> <span>{memberCount}</span> Members</div><div className="rh-spacer" /><div className="rh-created">Created <span>{createdDate}</span></div></div>
+      {hasLoadError ? <div className="rh-load-notice" role="status"><div><i className="ph-bold ph-warning-circle" aria-hidden="true" /><span><strong>Some room details are unavailable.</strong> The page is showing what it could load.</span></div><button type="button" onClick={retryRoomData}>Retry</button></div> : null}
       <RoomPulse canEdit={canEdit} data={data} isGlobal={isGlobal} messageCount={messageCount} messagesStatus={messagesStatus} memberCount={memberCount} metaStatus={metaStatus} onPatch={patchRoom} />
       <div className="rh-grid">
         <div className="rh-col"><Description canEdit={canEdit} data={data} onPatch={patchRoom} /><RoomScores insights={insights} /><Milestones insights={insights} /><Rules canEdit={canEdit} data={data} roomId={roomId} setData={setDisplayData} /><Analytics data={data} hasAnalytics={roomHasAnalytics} isGlobal={isGlobal} memberCount={memberCount} messageCount={messageCount} /><Activity data={data} isGlobal={isGlobal} /></div>

@@ -5,15 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#ffd700" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="description" content="Minimalist.chat is a calmer rooms platform for friends, teams, students, creators, clubs, and communities — organized chat without the noise." />
-    <meta property="og:title" content="Minimalist.chat | Calm rooms for real communities" />
-    <meta property="og:description" content="Create private or public rooms with clean chat, profiles, files, events, moderation, AI summaries, and community memory — without the noisy feed." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Minimalist" />
+    <meta name="description" content="One calm room for conversation, decisions, tasks, files, events, and the context you missed." />
+    <meta property="og:title" content="Minimalist.chat | Calm, organized rooms" />
+    <meta property="og:description" content="One calm room for conversation, decisions, tasks, files, events, and the context you missed." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Minimalist.chat" />
     <meta property="og:url" content="https://minimalist.chat/" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Minimalist.chat | Calm rooms for real communities" />
-    <meta name="twitter:description" content="A calmer, more organized rooms platform for communities that want conversation, memory, and tools without chaos." />
+    <meta name="twitter:title" content="Minimalist.chat | Calm, organized rooms" />
+    <meta name="twitter:description" content="One calm room for conversation, decisions, tasks, files, events, and the context you missed." />
     <link rel="canonical" href="https://minimalist.chat/" />
     <script type="application/ld+json">
       {
@@ -39,25 +42,26 @@
       }
     </script>
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link
-      id="dynamic-favicon"
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='10' y='10' width='80' height='60' rx='25' fill='%23FFD700' stroke='%23000' stroke-width='8'/><path d='M 25 70 L 25 90 L 45 70 Z' fill='%23FFD700' stroke='%23000' stroke-width='8' stroke-linejoin='round'/><circle cx='35' cy='40' r='8' fill='%23000'/><circle cx='65' cy='40' r='8' fill='%23000'/></svg>"
-    />
-    <link rel="preload" as="style" href="/base.css?v=split40" data-load-css data-css-priority="critical" />
-    <link data-load-css data-href="/desktop.css?v=split2" data-css-scope="app" />
-    <link data-load-css data-href="/mobile.css?v=split13" data-css-scope="app" />
-    <link data-load-css data-href="/features.css?v=48" data-css-scope="app" data-css-lazy="feature" />
-    <link data-load-css data-href="/themes/light.css?v=1" data-css-lazy="theme" />
-    <link data-load-css data-href="/themes/dark.css?v=1" data-css-lazy="theme" />
-    <link data-load-css data-href="/themes/gray.css?v=1" data-css-lazy="theme" />
-    <link data-load-css data-href="/themes/modern.css?v=5" data-css-lazy="theme" />
-    <link data-load-css data-href="/themes/codex.css?v=2" data-css-lazy="theme" />
+    <link id="dynamic-favicon" rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/base.css?v=split40" data-minimalist-base-css="true" />
+    <template data-load-css data-href="/desktop.css?v=split2" data-css-scope="app"></template>
+    <template data-load-css data-href="/mobile.css?v=split15" data-css-scope="app"></template>
+    <template data-load-css data-href="/mobile-app-dock.css?v=1" data-css-scope="app"></template>
+    <template data-load-css data-href="/features.css?v=48" data-css-scope="app" data-css-lazy="feature"></template>
+    <template data-load-css data-href="/themes/light.css?v=1" data-css-lazy="theme"></template>
+    <template data-load-css data-href="/themes/dark.css?v=1" data-css-lazy="theme"></template>
+    <template data-load-css data-href="/themes/gray.css?v=1" data-css-lazy="theme"></template>
+    <template data-load-css data-href="/themes/modern.css?v=5" data-css-lazy="theme"></template>
+    <template data-load-css data-href="/themes/codex.css?v=2" data-css-lazy="theme"></template>
+    <script defer src="/load-css.js?v=8"></script>
+    <script defer src="/config.js?v=localai7" data-minimalist-config="true"></script>
+    <script type="module" src="/src/entry-loader.js"></script>
     <noscript>
       <link rel="stylesheet" href="/base.css?v=split40" />
       <link rel="stylesheet" href="/desktop.css?v=split2" />
-      <link rel="stylesheet" href="/mobile.css?v=split13" />
+      <link rel="stylesheet" href="/mobile.css?v=split15" />
+      <link rel="stylesheet" href="/mobile-app-dock.css?v=1" />
       <link rel="stylesheet" href="/features.css?v=48" />
       <link rel="stylesheet" href="/themes/light.css?v=1" />
       <link rel="stylesheet" href="/themes/dark.css?v=1" />
@@ -106,6 +110,68 @@
 
       .instant-shell.instant-shell-hide {
         opacity: 0;
+      }
+
+      .instant-shell.instant-shell-failed {
+        align-content: center;
+        justify-items: center;
+        pointer-events: auto;
+      }
+
+      .instant-shell-failed > :not(.boot-failure-panel) {
+        display: none !important;
+      }
+
+      .boot-failure-panel,
+      .boot-fallback-notice {
+        width: min(36rem, calc(100% - 2rem));
+        padding: 1.25rem;
+        border: 1px solid #d5d5d0;
+        border-radius: 1rem;
+        color: #111217;
+        background: #fff;
+        box-shadow: 0 1rem 3rem rgba(17, 18, 23, 0.12);
+      }
+
+      .boot-failure-panel h1 {
+        margin: 0 0 0.5rem;
+        font-size: clamp(1.35rem, 4vw, 2rem);
+      }
+
+      .boot-failure-panel p,
+      .boot-fallback-notice span {
+        color: #62646b;
+        line-height: 1.55;
+      }
+
+      .boot-failure-panel button,
+      .boot-fallback-notice button {
+        min-height: 2.75rem;
+        margin-top: 1rem;
+        padding: 0.65rem 1rem;
+        border: 1px solid #111217;
+        border-radius: 0.7rem;
+        color: #111217;
+        background: #ffda1a;
+        font: inherit;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .boot-fallback-notice {
+        position: sticky;
+        top: 0.75rem;
+        z-index: 2147482999;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: 0.75rem auto;
+      }
+
+      .boot-fallback-notice button {
+        flex: none;
+        margin-top: 0;
       }
 
       html.route-home .instant-shell {
@@ -642,6 +708,7 @@
         position: fixed;
         inset: 0;
         z-index: 2147483000;
+        min-height: 100vh;
         min-height: 100svh;
         min-height: 100dvh;
         overflow-y: auto;
@@ -651,6 +718,10 @@
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         opacity: 1;
         transition: opacity 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      html.route-home body {
+        background: #fff;
       }
 
       .static-home-shell,
@@ -894,6 +965,31 @@
         stroke-width: 1.75;
         stroke-linecap: round;
         stroke-linejoin: round;
+      }
+
+      .static-app-icon-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+
+      .static-app-icon-label .static-app-icon,
+      .static-app-inline-icon {
+        width: 0.72rem;
+        height: 0.72rem;
+        vertical-align: -0.08em;
+      }
+
+      .static-app-visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
       }
 
       .static-app-browser-right { gap: 1rem; }
@@ -1219,7 +1315,8 @@
       .static-app-userline { gap: 0.45rem; margin-bottom: 0.3rem; font-size: 0.63rem; }
       .static-app-userline strong { font-weight: 900; }
       .static-app-userline time { color: #7b7b7b; font-size: 0.53rem; }
-      .static-app-ai-tag { padding: 0.18rem 0.36rem; border-radius: 0.25rem; color: var(--static-yellow); background: #171717; font-size: 0.48rem; font-weight: 900; }
+      .static-app-ai-tag { display: inline-flex; align-items: center; gap: 0.18rem; padding: 0.18rem 0.36rem; border-radius: 0.25rem; color: var(--static-yellow); background: #171717; font-size: 0.48rem; font-weight: 900; }
+      .static-app-ai-tag .static-app-icon { width: 0.55rem; height: 0.55rem; }
       .static-app-message p { margin: 0; font-size: 0.71rem; line-height: 1.45; }
       .static-app-message.self p { font-weight: 620; }
 
@@ -1675,12 +1772,12 @@
         .static-home-menu-icon i:last-child { top: 0.5625rem; }
       }
     </style>
-    <script src="/load-css.js?v=6"></script>
-    <script defer src="/config.js?v=localai7" data-minimalist-config="true"></script>
-    <title>Minimalist.chat | Calm rooms for real communities</title>
+    <noscript><style>#static-home-shell{display:block!important}#app-boot-shell{display:none!important}</style></noscript>
+    <title>Minimalist.chat | Calm, organized rooms</title>
   </head>
   <body>
-    <main id="static-home-shell" class="static-home-shell" aria-label="Minimalist homepage preview">
+    <div id="root">
+      <main id="static-home-shell" class="static-home-shell" data-marketing-home aria-label="Minimalist homepage preview">
       <div class="static-home-nav" role="navigation" aria-label="Primary navigation">
         <div class="static-home-nav-shell">
           <a class="static-home-brand" href="/" aria-label="Minimalist home">
@@ -1707,14 +1804,14 @@
       </div>
       <section class="static-home-hero" aria-labelledby="static-home-heading">
         <div class="static-home-copy">
-          <h1 id="static-home-heading">Catch up in minutes. Stay focused for hours.</h1>
-          <p>Calm rooms turn conversation into catch-ups, decisions, and next steps.</p>
+          <h1 id="static-home-heading">Catch up without catching the chaos.</h1>
+          <p>One calm room for conversation, decisions, tasks, files, events, and the context you missed.</p>
           <div class="static-home-actions">
             <a class="static-home-cta" href="/chat">
               Open the app
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
             </a>
-            <a class="static-home-open" href="/features">Explore features</a>
+            <a class="static-home-open" href="/features">See how rooms work</a>
           </div>
         </div>
         <div class="static-home-focus-grid" aria-hidden="true"></div>
@@ -1738,8 +1835,13 @@
               <symbol id="static-icon-calendar" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M7 3v4M17 3v4M3 10h18" /></symbol>
               <symbol id="static-icon-phone" viewBox="0 0 24 24"><path d="M7 3H4a1 1 0 0 0-1 1c0 9.4 7.6 17 17 17a1 1 0 0 0 1-1v-3l-4-2-2 3c-4-1.5-7.5-5-9-9l3-2Z" /></symbol>
               <symbol id="static-icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+              <symbol id="static-icon-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></symbol>
               <symbol id="static-icon-paperclip" viewBox="0 0 24 24"><path d="m21 11-8.5 8.5a6 6 0 0 1-8.5-8.5l9-9a4 4 0 0 1 5.7 5.7l-9 9a2 2 0 0 1-2.9-2.9L15 5.6" /></symbol>
               <symbol id="static-icon-send" viewBox="0 0 24 24"><path d="m3 11 18-8-8 18-2-8Z" /><path d="m11 13 4-4" /></symbol>
+              <symbol id="static-icon-code" viewBox="0 0 24 24"><path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" /></symbol>
+              <symbol id="static-icon-brackets" viewBox="0 0 24 24"><path d="M9 4H6v16h3M15 4h3v16h-3" /></symbol>
+              <symbol id="static-icon-chart" viewBox="0 0 24 24"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7M3 20h18" /></symbol>
+              <symbol id="static-icon-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></symbol>
             </defs>
           </svg>
           <div class="static-app-browserbar" aria-hidden="true">
@@ -1782,10 +1884,10 @@
                 </div>
                 <div class="static-app-room selected">
                   <span class="static-app-room-mark">◆</span>
-                  <span class="static-app-room-copy"><strong>HOME <span style="color:#e9c400">★</span></strong><small>Nguyen: QA functional test</small></span>
+                  <span class="static-app-room-copy"><strong>HOME <svg class="static-app-icon static-app-inline-icon" style="color:#e9c400" aria-hidden="true"><use href="#static-icon-stars" /></svg></strong><small>Nguyen: QA functional test</small></span>
                 </div>
               </div>
-              <div class="static-app-room-actions"><span class="static-app-room-action primary">+ New room</span><span class="static-app-room-action">Join</span></div>
+              <div class="static-app-room-actions"><span class="static-app-room-action primary"><span class="static-app-icon-label"><svg class="static-app-icon" aria-hidden="true"><use href="#static-icon-plus" /></svg>New room</span></span><span class="static-app-room-action">Join</span></div>
             </aside>
             <section class="static-app-main">
               <header class="static-app-header">
@@ -1809,16 +1911,16 @@
                 <span class="static-app-channel active"># general</span>
                 <span class="static-app-channel"># banana</span>
                 <span class="static-app-channel"># oops</span>
-                <span class="static-app-channel">+ Channel</span>
+                <span class="static-app-channel"><span class="static-app-icon-label"><svg class="static-app-icon" aria-hidden="true"><use href="#static-icon-plus" /></svg>Channel</span></span>
               </div>
               <div class="static-app-messages">
                 <article class="static-app-message">
-                  <div class="static-app-userline"><span class="static-app-avatar-small">AA</span><strong>AI Agent</strong><span class="static-app-ai-tag">✦ AI</span><time>12:18 AM</time></div>
+                  <div class="static-app-userline"><span class="static-app-avatar-small">AA</span><strong>AI Agent</strong><span class="static-app-ai-tag"><svg class="static-app-icon" aria-hidden="true"><use href="#static-icon-stars" /></svg>AI</span><time datetime="00:18">12:18 AM</time></div>
                   <p>Welcome to HOME, Nguyen! I’m the room AI agent — I can help summarize the chat, brainstorm ideas, explain code, and turn the conversation into next steps.</p>
                 </article>
                 <article class="static-app-message self">
-                  <div class="static-app-userline"><span class="static-app-avatar-small">WA</span><strong>wane</strong><time>10:01 AM</time></div>
-                  <p>QA functional test ✅ 10:01:09 AM</p>
+                  <div class="static-app-userline"><span class="static-app-avatar-small">WA</span><strong>wane</strong><time datetime="10:01">10:01 AM</time></div>
+                  <p>QA functional test <svg class="static-app-icon static-app-inline-icon" aria-hidden="true"><use href="#static-icon-check" /></svg><span class="static-app-visually-hidden">Passed</span> 10:01:09 AM</p>
                 </article>
               </div>
               <div class="static-app-catchup">
@@ -1836,7 +1938,7 @@
               <div class="static-app-composer">
                 <div class="static-app-input"><span>Message HOME...</span><span class="static-app-send"><svg class="static-app-icon"><use href="#static-icon-send" /></svg></span></div>
                 <div class="static-app-composer-tools">
-                  <span class="static-app-tools-left"><svg class="static-app-icon"><use href="#static-icon-paperclip" /></svg><span>&lt;/&gt;</span><span>{ }</span><span>▥</span><span>◷</span></span>
+                  <span class="static-app-tools-left"><svg class="static-app-icon"><use href="#static-icon-paperclip" /></svg><svg class="static-app-icon"><use href="#static-icon-code" /></svg><svg class="static-app-icon"><use href="#static-icon-brackets" /></svg><svg class="static-app-icon"><use href="#static-icon-chart" /></svg><svg class="static-app-icon"><use href="#static-icon-clock" /></svg></span>
                   <span class="static-app-enter">Enter sends&nbsp;&nbsp; <span style="color:#777;font-weight:500">Shift+Enter for new line</span></span>
                 </div>
               </div>
@@ -1844,8 +1946,8 @@
           </div>
         </figure>
       </section>
-    </main>
-    <div id="root"></div>
+      </main>
+    </div>
     <div id="app-boot-shell" class="instant-shell" role="status" aria-live="polite" aria-label="Minimalist route is loading">
       <div class="instant-brand">
         <span class="instant-logo" aria-hidden="true"></span>
@@ -1853,8 +1955,8 @@
       </div>
       <div class="route-shell-panel route-shell-features">
         <span class="route-shell-kicker">Features</span>
-        <div class="route-shell-title">Everything your room needs. Nothing in the way.</div>
-        <p class="route-shell-copy">The quiet core and advanced room tools are loading now.</p>
+        <div class="route-shell-title">A calmer room, with real depth.</div>
+        <p class="route-shell-copy">Start with conversation. Bring in catch-ups, tasks, docs, events, calls, search, moderation, and AI only when the room needs them.</p>
         <div class="route-feature-grid" aria-hidden="true">
           <div class="route-feature-card">Rooms</div>
           <div class="route-feature-card">Files</div>
@@ -1908,6 +2010,5 @@
         <div class="instant-rail"></div>
       </div>
     </div>
-    <script type="module" src="/src/entry-loader.js"></script>
   </body>
 </html>

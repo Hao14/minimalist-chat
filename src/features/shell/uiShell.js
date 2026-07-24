@@ -21,7 +21,10 @@ window.showToast = function showToast(message, isError = true) {
 
   if (toast && toastMsg) {
     toastMsg.textContent = message;
-    if (toastIcon) toastIcon.textContent = isError ? '!' : '✓';
+    if (toastIcon) {
+      toastIcon.textContent = '';
+      toastIcon.className = `ph-bold ${isError ? 'ph-warning' : 'ph-check-circle'}`;
+    }
     toast.hidden = false;
     toast.setAttribute('aria-hidden', 'false');
     toast.setAttribute('role', isError ? 'alert' : 'status');

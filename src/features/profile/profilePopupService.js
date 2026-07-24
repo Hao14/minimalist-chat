@@ -2,6 +2,7 @@ import { get, ref, remove } from 'firebase/database';
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from '../../lib/firebase.js';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
 import {
   ActivityFeed,
   ActivityHeatmap,
@@ -28,6 +29,37 @@ const MAX_MUTUAL_ROOMS_CACHE_ENTRIES = 64;
 const MAX_PROFILE_LOADS_IN_FLIGHT = 24;
 let profileRequestVersion = 0;
 let profileLastFocus = null;
+
+async function copyTextWithFallback(value) {
+  const text = String(value || '');
+  if (!text) return false;
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      // Older WebViews and permission-restricted contexts can reject here.
+    }
+  }
+
+  const input = document.createElement('textarea');
+  input.value = text;
+  input.setAttribute('readonly', '');
+  input.style.position = 'fixed';
+  input.style.opacity = '0';
+  input.style.pointerEvents = 'none';
+  document.body.appendChild(input);
+  input.select();
+  input.setSelectionRange(0, input.value.length);
+  try {
+    return document.execCommand?.('copy') === true;
+  } catch {
+    return false;
+  } finally {
+    input.remove();
+  }
+}
 
 function pruneTimedCache(cache, ttl, now = Date.now()) {
   cache.forEach((entry, key) => {
@@ -171,12 +203,13 @@ function setProfilePresence(presence) {
 function renderProfileBase(targetUid, user, { isMe = false, loading = false } = {}) {
   const safeUser = user || {};
   const displayName = safeUser.displayName || safeUser.username || (loading ? 'Loading profile…' : 'User');
-  const avatar = safeUser.photoUrl || safeUser.photoURL || window.getAvatarUrl?.(displayName, '') || '';
+  const avatar = window.getAvatarUrl?.(displayName, safeUser.photoUrl || safeUser.photoURL) || '';
   const avatarEl = document.getElementById('up-avatar');
   if (avatarEl) {
-    avatarEl.src = avatar;
+    if (avatarEl.getAttribute('src') !== avatar) avatarEl.src = avatar;
     avatarEl.alt = `${displayName} avatar`;
     avatarEl.onerror = () => {
+      avatarEl.onerror = null;
       avatarEl.src = window.getAvatarUrl?.(displayName, '') || '';
     };
   }
@@ -275,10 +308,9 @@ function configureProfileActions(targetUid, user, { currentUid, isMe, returnToCo
   if (shareBtn) {
     shareBtn.onclick = async () => {
       const link = window.profileShareLink(targetUid);
-      try {
-        await navigator.clipboard.writeText(link);
+      if (await copyTextWithFallback(link)) {
         window.showToast?.('Profile link copied!', false);
-      } catch {
+      } else {
         window.showToast?.(`Link: ${link}`);
       }
     };
@@ -293,7 +325,12 @@ function configureProfileActions(targetUid, user, { currentUid, isMe, returnToCo
       const result = await window.giveKudos?.(targetUid);
       if (result?.ok) {
         const count = document.getElementById('up-kudos-count');
-        if (count) count.textContent = result.count;
+        if (count) {
+          const nextCount = result.count !== null && result.count !== undefined && Number.isFinite(Number(result.count))
+            ? Number(result.count)
+            : Number(count.textContent || 0) + 1;
+          count.textContent = String(nextCount);
+        }
         window.showToast?.('Kudos sent! 👏', false);
       } else {
         kudosBtn.disabled = result?.reason === 'already';
@@ -313,7 +350,7 @@ function configureProfileActions(targetUid, user, { currentUid, isMe, returnToCo
         else contactsPanel.classList.remove('open');
       }
       window.openPrivateChat?.(targetUid, safeUser.displayName || safeUser.username || 'User', {
-        photoUrl: safeUser.photoUrl || safeUser.photoURL || '',
+        photoUrl: normalizeStoredAvatarUrl(safeUser.photoUrl || safeUser.photoURL),
         returnTo: shouldReturnToContacts ? 'contacts' : undefined,
       });
     };
@@ -341,7 +378,7 @@ window.closeUserProfilePopup = function closeUserProfilePopup(options = {}) {
   }
 };
 
-window.viewUserProfile = async function viewUserProfile(targetUid) {
+window.viewUserProfile = async function viewUserProfile(targetUid, seedUser = null) {
   if (!targetUid) return;
 
   window.cancelProfileSpotlightRequest?.();
@@ -363,11 +400,20 @@ window.viewUserProfile = async function viewUserProfile(targetUid) {
 
   const contactCached = window.getCachedContactPublicProfile?.(targetUid) || null;
   const serviceCached = getFreshPublicProfile(targetUid);
+  const safeSeedUser = seedUser && typeof seedUser === 'object'
+    ? {
+      displayName: String(seedUser.displayName || '').trim(),
+      photoUrl: normalizeStoredAvatarUrl(seedUser.photoUrl || seedUser.photoURL),
+    }
+    : null;
   const contactCacheIsNewer = Number(contactCached?.updatedAt || 0) >= Number(serviceCached?.updatedAt || 0);
-  const cachedUser = contactCached || serviceCached
+  const cachedProfile = contactCached || serviceCached
     ? contactCacheIsNewer
       ? { ...(serviceCached || {}), ...(contactCached || {}) }
       : { ...(contactCached || {}), ...(serviceCached || {}) }
+    : null;
+  const cachedUser = safeSeedUser || cachedProfile
+    ? { ...(safeSeedUser || {}), ...(cachedProfile || {}) }
     : null;
   renderProfileBase(targetUid, cachedUser || {}, { isMe, loading: !cachedUser });
   const initialFollowBtn = document.getElementById('up-follow-btn');
@@ -502,10 +548,13 @@ window.showContextMenu = async function showContextMenu(x, y, uid, name) {
 
 document.addEventListener('click', () => contextMenu?.classList.add('hidden'));
 
-document.getElementById('ctx-copy-btn')?.addEventListener('click', () => {
+document.getElementById('ctx-copy-btn')?.addEventListener('click', async () => {
   if (!window.contextTargetUid) return;
-  navigator.clipboard.writeText(window.contextTargetUid);
-  window.showToast('User ID copied!', false);
+  if (await copyTextWithFallback(window.contextTargetUid)) {
+    window.showToast('User ID copied!', false);
+  } else {
+    window.showToast('Could not copy the User ID on this device.', true);
+  }
 });
 
 document.getElementById('ctx-friend-btn')?.addEventListener('click', async () => {

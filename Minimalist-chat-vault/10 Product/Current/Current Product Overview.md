@@ -14,6 +14,9 @@ tags:
 > [!info] Additive import
 > Source: `index.html` · SHA-256: `e560a58947ce…`
 
+> [!summary] Plain-language purpose
+> Minimalist Chat is a calm group-chat app that helps people catch up quickly, turn conversation into clear decisions and next steps, and stay focused during long sessions.
+
 [MINIMALIST](/)
 
 [Features](/features)

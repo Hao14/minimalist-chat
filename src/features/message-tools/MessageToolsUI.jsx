@@ -25,6 +25,64 @@ function handleMessageMenuKeyDown(event, onClose) {
   items[nextIndex]?.focus();
 }
 
+const dialogFocusableSelector = [
+  'a[href]',
+  'button:not(:disabled)',
+  'input:not(:disabled):not([type="hidden"])',
+  'select:not(:disabled)',
+  'textarea:not(:disabled)',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function handleModalKeyDown(event, onClose) {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    onClose();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+
+  const focusable = Array.from(event.currentTarget.querySelectorAll(dialogFocusableSelector))
+    .filter((element) => element.getClientRects().length > 0);
+  if (!focusable.length) {
+    event.preventDefault();
+    event.currentTarget.focus();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable.at(-1);
+  if (event.shiftKey && (document.activeElement === first || !event.currentTarget.contains(document.activeElement))) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+const bookmarkOpenButtonStyle = {
+  appearance: 'none',
+  background: 'transparent',
+  border: 0,
+  boxShadow: 'none',
+  color: 'inherit',
+  cursor: 'pointer',
+  display: 'flex',
+  flex: '1 1 auto',
+  alignItems: 'center',
+  gap: '0.6rem',
+  font: 'inherit',
+  margin: 0,
+  minWidth: 0,
+  padding: 0,
+  textAlign: 'left',
+  textTransform: 'none',
+  width: 'auto',
+};
+
+const bookmarkTextStyle = { display: 'block' };
+
 export function MessageMenu({ menu, onAction, onClose }) {
   if (!menu?.open) return null;
 
@@ -72,15 +130,31 @@ export function ForwardModal({ forward, onClose, onForward }) {
 
   return (
     <div id="forward-modal" className="mt-modal" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="mt-box">
+      <div
+        className="mt-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="forward-dialog-title"
+        tabIndex={-1}
+        onKeyDown={(event) => handleModalKeyDown(event, onClose)}
+      >
         <div className="mt-head">
-          <span>Forward to…</span>
-          <button id="forward-close" type="button" onClick={onClose}>✖</button>
+          <span id="forward-dialog-title">Forward to…</span>
+          <button
+            id="forward-close"
+            type="button"
+            onClick={onClose}
+            aria-label="Close forward message dialog"
+            autoFocus={forward.loading || !forward.rooms.length}
+          >
+            <i className="ph-bold ph-x" aria-hidden="true" />
+          </button>
         </div>
         <div id="forward-list">
-          {forward.rooms.map((room) => (
-            <button className="mt-row" key={room.id} type="button" onClick={() => onForward(room.id)}>
-              <i className="ph-bold ph-chats" /> {room.name}
+          {forward.loading ? <div className="mt-row" role="status">Loading rooms…</div> : null}
+          {forward.rooms.map((room, index) => (
+            <button className="mt-row" key={room.id} type="button" onClick={() => onForward(room.id)} autoFocus={!forward.loading && index === 0}>
+              <i className="ph-bold ph-chats" aria-hidden="true" /> {room.name}
             </button>
           ))}
         </div>
@@ -96,6 +170,12 @@ export function BookmarkCollectionDialog({ bookmarkPrompt, onClose, onSubmit }) 
     <div className="mt-modal" onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <form
         className="mt-box mt-bookmark-box"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="bookmark-dialog-title"
+        aria-describedby="bookmark-dialog-description"
+        tabIndex={-1}
+        onKeyDown={(event) => handleModalKeyDown(event, onClose)}
         onSubmit={(event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
@@ -103,8 +183,10 @@ export function BookmarkCollectionDialog({ bookmarkPrompt, onClose, onSubmit }) 
         }}
       >
         <div className="mt-head">
-          <span>Save message</span>
-          <button type="button" onClick={onClose}>✖</button>
+          <span id="bookmark-dialog-title">Save message</span>
+          <button type="button" onClick={onClose} aria-label="Close save message dialog">
+            <i className="ph-bold ph-x" aria-hidden="true" />
+          </button>
         </div>
         <div className="mt-bookmark-form">
           <label htmlFor="bookmark-collection-input">Collection</label>
@@ -116,7 +198,7 @@ export function BookmarkCollectionDialog({ bookmarkPrompt, onClose, onSubmit }) 
             maxLength={48}
             placeholder="Saved"
           />
-          <p>Group saved messages by topic, project, or anything you like.</p>
+          <p id="bookmark-dialog-description">Group saved messages by topic, project, or anything you like.</p>
         </div>
         <div className="mt-bookmark-actions">
           <button type="button" className="mt-row" onClick={onClose}>Cancel</button>
@@ -143,37 +225,33 @@ function BookmarkGroup({ group, onOpen, onRemove }) {
         <div
           className="mt-bookmark mt-bookmark-card"
           key={bookmark.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpen(bookmark)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              onOpen(bookmark);
-            }
-          }}
         >
-          <div className="mt-bookmark-mark">
-            {(bookmark.roomName || bookmark.name || 'S').charAt(0).toUpperCase()}
-          </div>
-          <div className="mt-bookmark-body">
-            <div className="mt-bookmark-text">{bookmark.text || 'Saved message'}</div>
-            <div className="mt-bookmark-sub">
-              <span>{bookmark.name || 'Someone'}</span>
-              <span>in {bookmark.roomName || 'room'}</span>
-              <span>{formatSavedTime(bookmark.ts)}</span>
-            </div>
-          </div>
+          <button
+            type="button"
+            style={bookmarkOpenButtonStyle}
+            onClick={() => onOpen(bookmark)}
+            aria-label={`Open saved message from ${bookmark.name || 'Someone'} in ${bookmark.roomName || 'room'}`}
+          >
+            <span className="mt-bookmark-mark" aria-hidden="true">
+              {(bookmark.roomName || bookmark.name || 'S').charAt(0).toUpperCase()}
+            </span>
+            <span className="mt-bookmark-body">
+              <span className="mt-bookmark-text" style={bookmarkTextStyle}>{bookmark.text || 'Saved message'}</span>
+              <span className="mt-bookmark-sub">
+                <span>{bookmark.name || 'Someone'}</span>
+                <span>in {bookmark.roomName || 'room'}</span>
+                <span>{formatSavedTime(bookmark.ts)}</span>
+              </span>
+            </span>
+          </button>
           <button
             className="mt-bookmark-del"
             type="button"
-            title="Remove"
-            onClick={(event) => {
-              event.stopPropagation();
-              onRemove(bookmark.id);
-            }}
+            title="Remove saved message"
+            aria-label={`Remove saved message from ${bookmark.name || 'Someone'} in ${bookmark.roomName || 'room'}`}
+            onClick={() => onRemove(bookmark.id)}
           >
-            ×
+            <i className="ph-bold ph-trash" aria-hidden="true" />
           </button>
         </div>
       ))}
@@ -197,10 +275,10 @@ export function BookmarksPanel({ bookmarks, open, onClose, onOpenBookmark, onRem
   const groupEntries = Object.entries(groups).map(([name, items]) => ({ name, items }));
 
   return (
-    <div id="bookmarks-panel" className="mt-side-panel mt-saved-panel">
+    <div id="bookmarks-panel" className="mt-side-panel mt-saved-panel" role="dialog" aria-labelledby="bookmarks-panel-title">
       <div className="mt-side-head">
         <div className="mt-side-title">
-          <span><i className="ph-bold ph-bookmark-simple" aria-hidden="true" /> Saved</span>
+          <span id="bookmarks-panel-title"><i className="ph-bold ph-bookmark-simple" aria-hidden="true" /> Saved</span>
           <small>{entries.length ? `${entries.length} captured message${entries.length === 1 ? '' : 's'}` : 'Your private message shelf'}</small>
         </div>
         <button id="bookmarks-close" type="button" onClick={onClose} aria-label="Close saved messages">

@@ -81,3 +81,7 @@ serviceAccount*.json
 
 # dataconnect generated files
 .dataconnect
+
+# Storybook build and diagnostic output
+storybook-static/
+*storybook.log

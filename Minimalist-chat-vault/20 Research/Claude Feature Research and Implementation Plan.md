@@ -15,6 +15,9 @@ tags:
 > [!info] Additive import
 > Source: `reports/claude-opus-4-6-feature-research-implementation-prompt.md` · SHA-256: `3db0c7d87c8d…`
 
+> [!summary] Curated decision summary
+> Highest-value next steps are quiet-hours controls, multiple reactions, clearer Bananas usage, finished poll results, unread navigation, safe link previews, honest slash commands, and voice messages. Large stage calls, heavy automod, duplicate document canvases, false E2EE claims, and security theater were deliberately postponed or rejected.
+
 # Claude Research Result: Minimalist Chat Feature Implementation Prompt
 
 ## Model And Research Notes

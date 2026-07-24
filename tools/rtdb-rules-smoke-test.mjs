@@ -80,6 +80,17 @@ try {
     await seedUser(admin, 'outsider-user');
     await seedUser(admin, 'banned-user', { isBanned: true });
     await seedUser(admin, 'muted-user', { isMuted: true });
+    await ref(admin, 'friends').update({
+      'member-user/owner-user': 'accepted',
+      'owner-user/member-user': 'accepted',
+      'member-user/outsider-user': 'accepted',
+      'outsider-user/member-user': 'accepted',
+      // A stale, one-sided projection must never authorize a call.
+      'member-user/banned-user': 'accepted',
+      // A real pending pair exercises that acceptance is server-only.
+      'member-user/muted-user': 'pending_received',
+      'muted-user/member-user': 'pending_sent',
+    });
     await ref(admin, 'notifications/member-user/existing-note').set({
       type: 'mention',
       text: 'Existing server-created notification',
@@ -109,6 +120,12 @@ try {
     });
     await seedRoom(admin, 'private-room', 'owner-user');
     await seedRoom(admin, 'public-room', 'owner-user', { public: true });
+    await seedRoom(admin, 'validation-room', 'owner-user', {
+      members: {
+        'owner-user': true,
+        'member-user': true,
+      },
+    });
     await seedRoom(admin, 'discovery-room', 'owner-user', {
       discovery: {
         enabled: true,
@@ -199,6 +216,19 @@ try {
   const siteAdmin = dbFor('WsREhwYvPxaCSAjz0aqvwAU1leg2');
   const anonymous = testEnv.unauthenticatedContext().database(DATABASE_URL);
   const queueJobId = 'a'.repeat(64);
+
+  await pass('direct client friend request projection write is denied', assertFails(
+    ref(member, 'friends/member-user/direct-send-user').set('pending_sent'),
+  ));
+  await pass('direct client friendship acceptance projection write is denied', assertFails(
+    ref(member, 'friends/member-user/muted-user').set('accepted'),
+  ));
+  await pass('direct client friendship removal projection write is denied', assertFails(
+    ref(member, 'friends/member-user/owner-user').remove(),
+  ));
+  await pass('direct client reciprocal friend projection write is denied', assertFails(
+    ref(member, 'friends/owner-user/member-user').set('accepted'),
+  ));
 
   await pass('queue owner can read only the sanitized status mirror', assertSucceeds(
     ref(member, `ai_queue_status/member-user/${queueJobId}`).get(),
@@ -309,10 +339,51 @@ try {
   await pass('user cannot self-award founder badge', assertFails(ref(member, 'users/member-user/badges/founder').set(2)));
   await pass('user cannot self-award top contributor badge', assertFails(ref(member, 'users/member-user/badges/top_contributor').set(3)));
 
+  const atomicKudosWrite = (targetUid, timestamp) => ({
+    [`users/member-user/kudosGiven/${targetUid}`]: timestamp,
+    [`users/${targetUid}/kudosFrom/member-user`]: timestamp,
+    [`users/${targetUid}/kudos`]: { '.sv': { increment: 1 } },
+  });
+  await pass('kudos proof, sender index, and count increment atomically', assertSucceeds(
+    member.ref().update(atomicKudosWrite('outsider-user', 10)),
+  ));
+  await pass('duplicate kudos atomic update is denied', assertFails(
+    member.ref().update(atomicKudosWrite('outsider-user', 11)),
+  ));
+  await pass('self kudos atomic update is denied', assertFails(
+    member.ref().update(atomicKudosWrite('member-user', 12)),
+  ));
+  await pass('kudos count cannot change without a new giver proof', assertFails(
+    ref(member, 'users/owner-user/kudos').set(1),
+  ));
+
   await pass('global message write by normal user', assertSucceeds(ref(member, 'messages/global-ok').set({
     text: 'hello global',
     uid: 'member-user',
     timestamp: 1,
+  })));
+  await pass('global message accepts a constrained HTTPS link preview', assertSucceeds(ref(member, 'messages/global-preview-ok').set({
+    text: 'https://example.com/story',
+    uid: 'member-user',
+    timestamp: 2,
+    linkPreview: {
+      url: 'https://example.com/story',
+      domain: 'example.com',
+      title: 'Example story',
+      description: 'A safe compact preview.',
+    },
+  })));
+  await pass('global link preview rejects non-HTTPS destinations', assertFails(ref(member, 'messages/global-preview-http').set({
+    text: 'unsafe preview',
+    uid: 'member-user',
+    timestamp: 3,
+    linkPreview: { url: 'http://127.0.0.1/private', domain: '127.0.0.1', title: 'Unsafe' },
+  })));
+  await pass('global link preview rejects undeclared metadata fields', assertFails(ref(member, 'messages/global-preview-extra').set({
+    text: 'extra preview data',
+    uid: 'member-user',
+    timestamp: 4,
+    linkPreview: { url: 'https://example.com', domain: 'example.com', title: 'Example', image: 'https://example.com/tracker.png' },
   })));
   await pass('global poll message write by normal user', assertSucceeds(ref(member, 'messages/global-poll-ok').set({
     text: 'Vote on this',
@@ -347,6 +418,22 @@ try {
     bot: true,
     automation: true,
     requestedBy: 'outsider-user',
+  })));
+  await pass('global room activity separator accepts a constrained event', assertSucceeds(ref(member, 'messages/global-activity-ok').set({
+    text: '',
+    uid: 'member-user',
+    timestamp: 14,
+    automation: true,
+    requestedBy: 'member-user',
+    activityEvent: { type: 'poll_closed', label: 'Poll closed', detail: 'Launch date' },
+  })));
+  await pass('global room activity separator rejects unknown event types', assertFails(ref(member, 'messages/global-activity-bad').set({
+    text: '',
+    uid: 'member-user',
+    timestamp: 15,
+    automation: true,
+    requestedBy: 'member-user',
+    activityEvent: { type: 'permission_changed', label: 'Permissions changed' },
   })));
   await pass('global message owner can edit own message', assertSucceeds(ref(member, 'messages/global-ok').update({
     text: 'hello global edited',
@@ -395,6 +482,12 @@ try {
     uid: 'member-user',
     timestamp: 5,
   })));
+  await pass('private room message accepts a constrained link preview', assertSucceeds(ref(member, 'rooms_data/private-room/messages/member-preview-ok').set({
+    text: 'https://example.com/room',
+    uid: 'member-user',
+    timestamp: 5,
+    linkPreview: { url: 'https://example.com/room', domain: 'example.com', title: 'Room link' },
+  })));
   await pass('private room poll message allowed for member', assertSucceeds(ref(member, 'rooms_data/private-room/messages/room-poll-ok').set({
     text: 'Room poll',
     uid: 'member-user',
@@ -411,6 +504,20 @@ try {
     text: 'hello channel',
     uid: 'member-user',
     timestamp: 7,
+  })));
+  await pass('room channel message accepts a constrained link preview', assertSucceeds(ref(member, 'rooms_data/private-room/channels/general/messages/channel-preview-ok').set({
+    text: 'https://example.com/channel',
+    uid: 'member-user',
+    timestamp: 7,
+    linkPreview: { url: 'https://example.com/channel', domain: 'example.com', title: 'Channel link' },
+  })));
+  await pass('room channel accepts a constrained activity separator', assertSucceeds(ref(member, 'rooms_data/private-room/channels/general/messages/channel-activity-ok').set({
+    text: '',
+    uid: 'member-user',
+    timestamp: 8,
+    automation: true,
+    requestedBy: 'member-user',
+    activityEvent: { type: 'poll_closed', label: 'Poll closed', detail: 'Channel poll' },
   })));
   await pass('room channel poll message allowed for member', assertSucceeds(ref(member, 'rooms_data/private-room/channels/general/messages/channel-poll-ok').set({
     text: 'Channel poll',
@@ -438,6 +545,22 @@ try {
     automation: true,
     requestedBy: 'owner-user',
   })));
+  await pass('room activity separator accepts a task-created event', assertSucceeds(ref(member, 'rooms_data/private-room/messages/task-activity-ok').set({
+    text: '',
+    uid: 'member-user',
+    timestamp: 15,
+    automation: true,
+    requestedBy: 'member-user',
+    activityEvent: { type: 'task_created', label: 'Task created', detail: 'Write launch notes' },
+  })));
+  await pass('room activity separator rejects undeclared fields', assertFails(ref(member, 'rooms_data/private-room/messages/task-activity-extra').set({
+    text: '',
+    uid: 'member-user',
+    timestamp: 16,
+    automation: true,
+    requestedBy: 'member-user',
+    activityEvent: { type: 'task_created', label: 'Task created', url: 'https://example.com' },
+  })));
   await pass('room message owner can edit own message', assertSucceeds(ref(member, 'rooms_data/private-room/messages/member-ok').update({
     text: 'hello room edited',
     edited: true,
@@ -463,6 +586,75 @@ try {
   await pass('room channel poll vote denied after close', assertFails(ref(member, 'rooms_data/private-room/channels/general/messages/channel-poll-ok/poll/votes/member-user').set('later')));
   await pass('room owner can moderate-delete channel message', assertSucceeds(ref(owner, 'rooms_data/private-room/channels/general/messages/channel-member-ok').remove()));
   await pass('room owner can moderate-delete member message', assertSucceeds(ref(owner, 'rooms_data/private-room/messages/member-ok').remove()));
+  await pass('room member cannot change server moderation policy', assertFails(
+    ref(member, 'rooms_meta/private-room/moderation/enforceServer').set(true),
+  ));
+  await pass('room owner cannot save undeclared moderation settings', assertFails(
+    ref(owner, 'rooms_meta/private-room/moderation').set({
+      enabled: true,
+      enforceServer: true,
+      secretAction: 'delete-everything',
+    }),
+  ));
+  await pass('room owner can configure bounded server moderation', assertSucceeds(
+    ref(owner, 'rooms_meta/private-room/moderation').set({
+      enabled: true,
+      enforceServer: true,
+      blockedTerms: 'spam, scam',
+      blockLinks: true,
+      blockCaps: true,
+      blockFlood: true,
+      maxMentions: 8,
+      slowModeSeconds: 2,
+      rateLimitCount: 10,
+      rateLimitWindowSeconds: 10,
+      repeatLimit: 2,
+      repeatWindowSeconds: 60,
+      updatedAt: 200,
+      updatedBy: 'owner-user',
+    }),
+  ));
+  await pass('room owner can assign an explicit moderator', assertSucceeds(
+    ref(owner, 'rooms_meta/private-room/moderators/member-user').set(true),
+  ));
+  await pass('room owner can grant the scoped moderation permission', assertSucceeds(
+    ref(owner, 'rooms_meta/private-room/memberPermissions/member-user/moderate').set(true),
+  ));
+  await pass('server-enforced room rejects direct client message creation', assertFails(
+    ref(member, 'rooms_data/private-room/messages/direct-bypass').set({
+      text: 'bypass attempt',
+      uid: 'member-user',
+      timestamp: 102,
+    }),
+  ));
+  await pass('server-enforced room rejects direct channel message creation', assertFails(
+    ref(member, 'rooms_data/private-room/channels/general/messages/direct-channel-bypass').set({
+      text: 'channel bypass attempt',
+      uid: 'member-user',
+      timestamp: 103,
+    }),
+  ));
+  await pass('server-enforced room rejects direct edits that could bypass policy', assertFails(
+    ref(member, 'rooms_data/private-room/messages/member-preview-ok').update({
+      text: 'edited after server enforcement',
+      edited: true,
+    }),
+  ));
+  await pass('server enforcement preserves scoped reaction writes', assertSucceeds(
+    ref(member, 'rooms_data/private-room/messages/member-preview-ok/reactions/member-user/shield').set(true),
+  ));
+  await pass('room moderation report queue is not directly readable by members', assertFails(
+    ref(member, 'room_moderation/private-room/reports').get(),
+  ));
+  await pass('room moderation report queue is not directly readable by owners', assertFails(
+    ref(owner, 'room_moderation/private-room/reports').get(),
+  ));
+  await pass('room moderation report queue rejects direct client writes', assertFails(
+    ref(member, 'room_moderation/private-room/reports/forged-report').set({
+      reporterUid: 'member-user',
+      state: { status: 'resolved' },
+    }),
+  ));
 
   await pass('member can create valid room task', assertSucceeds(ref(member, 'room_tasks/private-room/task-ok').set({
     text: 'Review mobile chat layout',
@@ -812,6 +1004,40 @@ try {
   const directCallPath = 'pm_calls/member-user_outsider-user';
   const directCallCreatedAt = Date.now();
   const farFutureCallAt = Date.now() + 120_000;
+  const oneSidedFriendCallAt = Date.now();
+  const oneSidedFriendCall = {
+    status: 'ringing',
+    type: 'voice',
+    roomId: 'banned-user_member-user',
+    hostUid: 'member-user',
+    callerUid: 'member-user',
+    callerName: 'Member',
+    callerPhotoUrl: '',
+    calleeUid: 'banned-user',
+    calleeName: 'Banned',
+    calleePhotoUrl: '',
+    createdAt: oneSidedFriendCallAt,
+    expiresAt: oneSidedFriendCallAt + 35_000,
+    participants: {
+      'member-user': {
+        uid: 'member-user',
+        name: 'Member',
+        photoUrl: '',
+        joinedAt: oneSidedFriendCallAt,
+        lastSeen: oneSidedFriendCallAt,
+        micOn: true,
+      },
+    },
+  };
+  await pass('PM call creation requires reciprocal accepted friendship', assertFails(
+    ref(member, 'pm_calls/banned-user_member-user').set(oneSidedFriendCall),
+  ));
+  await pass('PM call friendship cannot be bypassed with atomic child writes', assertFails(member.ref().update(
+    Object.fromEntries(Object.entries(oneSidedFriendCall).map(([field, value]) => [
+      `pm_calls/banned-user_member-user/${field}`,
+      value,
+    ])),
+  )));
   await pass('PM call creation rejects far-future ringing timestamps', assertFails(ref(member, 'pm_calls/member-user_owner-user').set({
     status: 'ringing',
     type: 'voice',
@@ -864,6 +1090,45 @@ try {
   await new Promise((resolve) => setTimeout(resolve, 2_150));
   await pass('callee cannot accept an expired PM call', assertFails(ref(owner, 'pm_calls/member-user_owner-user/status').set('active')));
   await pass('either participant can clean up an expired ringing call', assertSucceeds(ref(owner, 'pm_calls/member-user_owner-user').remove()));
+  const removedFriendCallAt = Date.now();
+  await pass('reciprocal friends can create a ringing call before friendship removal', assertSucceeds(ref(member, 'pm_calls/member-user_owner-user').set({
+    status: 'ringing',
+    type: 'voice',
+    roomId: 'member-user_owner-user',
+    hostUid: 'member-user',
+    callerUid: 'member-user',
+    callerName: 'Member',
+    callerPhotoUrl: '',
+    calleeUid: 'owner-user',
+    calleeName: 'Owner',
+    calleePhotoUrl: '',
+    createdAt: removedFriendCallAt,
+    expiresAt: removedFriendCallAt + 35_000,
+    participants: {
+      'member-user': {
+        uid: 'member-user',
+        name: 'Member',
+        photoUrl: '',
+        joinedAt: removedFriendCallAt,
+        lastSeen: removedFriendCallAt,
+        micOn: true,
+      },
+    },
+  })));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const admin = context.database(DATABASE_URL);
+    await ref(admin, 'friends/member-user/owner-user').remove();
+    await ref(admin, 'friends/owner-user/member-user').remove();
+  });
+  await pass('callee cannot accept a ringing PM call after reciprocal friendship is removed', assertFails(
+    ref(owner, 'pm_calls/member-user_owner-user/status').set('active'),
+  ));
+  await pass('caller can terminate a ringing PM call after friendship is removed', assertSucceeds(
+    ref(member, 'pm_calls/member-user_owner-user').update({ status: 'cancelled', endedAt: Date.now() }),
+  ));
+  await pass('either participant can clean up terminal PM call state after unfriend', assertSucceeds(
+    ref(owner, 'pm_calls/member-user_owner-user').remove(),
+  ));
   await pass('PM caller can create a constrained ringing call', assertSucceeds(ref(member, directCallPath).set({
     status: 'ringing',
     type: 'voice',
@@ -1047,6 +1312,240 @@ try {
     inviterUid: 'owner-user',
     createdAt: 12,
   })));
+
+  await pass('room member can write a legacy-compatible activity log', assertSucceeds(
+    ref(member, 'rooms_meta/validation-room/logs/legacy-log').set({
+      text: 'Member joined the room.',
+      timestamp: 100,
+    }),
+  ));
+  await pass('room member can write a structured activity log', assertSucceeds(
+    ref(member, 'rooms_meta/validation-room/logs/structured-log').set({
+      eventCode: 'member_joined',
+      eventVersion: 1,
+      eventArgs: { actor: 'Member' },
+      text: 'Member joined the room.',
+      timestamp: 101,
+    }),
+  ));
+  await pass('room activity rejects unknown event codes', assertFails(
+    ref(member, 'rooms_meta/validation-room/logs/unknown-event').set({
+      eventCode: 'made_up',
+      eventVersion: 1,
+      eventArgs: { actor: 'Member' },
+      text: 'Made up event.',
+      timestamp: 102,
+    }),
+  ));
+  await pass('room activity rejects undeclared fields', assertFails(
+    ref(member, 'rooms_meta/validation-room/logs/extra-field').set({
+      text: 'Unexpected field.',
+      timestamp: 103,
+      secret: 'not allowed',
+    }),
+  ));
+
+  await pass('user can write bounded presence state', assertSucceeds(
+    ref(member, 'presence/member-user').set({ state: 'online', lastChanged: 200 }),
+  ));
+  await pass('presence rejects unsupported state', assertFails(
+    ref(member, 'presence/member-user').set({ state: 'busy', lastChanged: 201 }),
+  ));
+  await pass('presence rejects undeclared fields', assertFails(
+    ref(member, 'presence/member-user').set({ state: 'offline', lastChanged: 202, device: 'hidden' }),
+  ));
+
+  await pass('user can save a bounded room preference', assertSucceeds(
+    ref(member, 'user_room_preferences/member-user/validation-room').set({ favorite: true, favoriteAt: 300, updatedAt: 300 }),
+  ));
+  await pass('room preference rejects undeclared fields', assertFails(
+    ref(member, 'user_room_preferences/member-user/validation-room').update({ label: 'overshared' }),
+  ));
+
+  await pass('member can persist a bounded per-channel read cursor', assertSucceeds(
+    ref(member, 'user_room_state/member-user/validation-room/channels/general').set({
+      lastReadMessageId: 'message-100',
+      lastReadAt: 400,
+      markedUnreadMessageId: 'message-090',
+      markedUnreadAt: 350,
+    }),
+  ));
+  await pass('read cursor rejects undeclared client fields', assertFails(
+    ref(member, 'user_room_state/member-user/validation-room/channels/general').update({
+      hiddenMessageIds: { secret: true },
+    }),
+  ));
+  await pass('outsider cannot write a cursor for a private room', assertFails(
+    ref(outsider, 'user_room_state/outsider-user/validation-room/channels/general').set({
+      lastReadAt: 401,
+    }),
+  ));
+  await pass('user cannot read another account read cursor', assertFails(
+    ref(owner, 'user_room_state/member-user/validation-room').get(),
+  ));
+
+  await pass('member can follow and mark a private-room thread read', assertSucceeds(
+    ref(member, 'thread_follows/member-user/validation-room/general/message-100').set({
+      followed: true,
+      followedAt: 410,
+    }),
+  ));
+  await pass('member can save the private-room thread read time', assertSucceeds(
+    ref(member, 'thread_reads/member-user/validation-room/general/message-100').set(411),
+  ));
+  await pass('thread follow rejects undeclared fields', assertFails(
+    ref(member, 'thread_follows/member-user/validation-room/general/message-101').set({
+      followed: true,
+      followedAt: 412,
+      notifyEveryone: true,
+    }),
+  ));
+  await pass('outsider cannot follow a private-room thread', assertFails(
+    ref(outsider, 'thread_follows/outsider-user/validation-room/general/message-100').set({
+      followed: true,
+      followedAt: 413,
+    }),
+  ));
+
+  await pass('owner can create an announcement channel with a moderator posting role', assertSucceeds(
+    ref(owner, 'rooms_meta/validation-room/channels/announcements').set({
+      name: 'announcements',
+      by: 'owner-user',
+      createdAt: 420,
+      mode: 'announcements',
+      postRole: 'moderator',
+    }),
+  ));
+  await pass('channel rejects unsupported modes', assertFails(
+    ref(owner, 'rooms_meta/validation-room/channels/unsafe-mode').set({
+      name: 'unsafe-mode',
+      by: 'owner-user',
+      createdAt: 421,
+      mode: 'broadcast-everything',
+    }),
+  ));
+  await pass('regular member cannot bypass announcement posting role via RTDB', assertFails(
+    ref(member, 'rooms_data/validation-room/channels/announcements/messages/member-announcement').set({
+      text: 'Bypass attempt',
+      uid: 'member-user',
+      timestamp: 422,
+    }),
+  ));
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const admin = context.database(DATABASE_URL);
+    await ref(admin, 'rooms_meta/validation-room/moderators/member-user').set(true);
+  });
+  await pass('room moderator can post in an announcement channel', assertSucceeds(
+    ref(member, 'rooms_data/validation-room/channels/announcements/messages/moderator-announcement').set({
+      text: 'Moderator update',
+      uid: 'member-user',
+      timestamp: 423,
+    }),
+  ));
+
+  await pass('owner can create an event for member RSVP coverage', assertSucceeds(
+    ref(owner, 'rooms_meta/validation-room/events/event-1').set({
+      title: 'Launch review',
+      date: '2026-07-24',
+      time: '10:00',
+      timezone: 'America/Los_Angeles',
+      createdAt: 430,
+      createdBy: 'owner-user',
+    }),
+  ));
+  await pass('member can RSVP to a room event', assertSucceeds(
+    ref(member, 'rooms_meta/validation-room/events/event-1/rsvps/member-user').set({
+      name: 'Member',
+      status: 'going',
+      updatedAt: 431,
+    }),
+  ));
+  await pass('event RSVP rejects unsupported status', assertFails(
+    ref(member, 'rooms_meta/validation-room/events/event-1/rsvps/member-user').update({
+      status: 'invited-everyone',
+      updatedAt: 432,
+    }),
+  ));
+  await pass('outsider cannot RSVP to a private room event', assertFails(
+    ref(outsider, 'rooms_meta/validation-room/events/event-1/rsvps/outsider-user').set({
+      name: 'Outsider',
+      status: 'going',
+      updatedAt: 433,
+    }),
+  ));
+
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const admin = context.database(DATABASE_URL);
+    await ref(admin, 'user_scheduled_messages/member-user/scheduled-1').set({
+      text: 'Server projection',
+      roomId: 'validation-room',
+      channelId: 'general',
+      deliverAt: 500,
+      status: 'pending',
+    });
+    await ref(admin, 'scheduled_room_messages/validation-room/scheduled-1').set({
+      ownerUid: 'member-user',
+      text: 'Server-only body',
+    });
+    await ref(admin, 'rooms_data/validation-room/messages/expired-poll').set({
+      text: 'Expired poll',
+      uid: 'member-user',
+      timestamp: 434,
+      poll: {
+        question: 'Too late?',
+        options: [{ id: 'yes', text: 'Yes' }, { id: 'no', text: 'No' }],
+        closesAt: Date.now() - 1,
+      },
+    });
+  });
+  await pass('user can read the server-owned scheduled message projection', assertSucceeds(
+    ref(member, 'user_scheduled_messages/member-user').get(),
+  ));
+  await pass('client cannot forge a scheduled message projection', assertFails(
+    ref(member, 'user_scheduled_messages/member-user/forged').set({
+      text: 'Forged',
+      status: 'pending',
+      deliverAt: 501,
+    }),
+  ));
+  await pass('other users cannot read a scheduled message projection', assertFails(
+    ref(owner, 'user_scheduled_messages/member-user').get(),
+  ));
+  await pass('clients cannot read server scheduled message bodies', assertFails(
+    ref(member, 'scheduled_room_messages/validation-room/scheduled-1').get(),
+  ));
+  await pass('poll vote is denied after its scheduled close time', assertFails(
+    ref(member, 'rooms_data/validation-room/messages/expired-poll/poll/votes/member-user').set('yes'),
+  ));
+
+  await pass('user can save a bounded reminder', assertSucceeds(
+    ref(member, 'user_reminders/member-user/reminder-1').set({
+      text: 'Review the launch plan',
+      dueAt: 500,
+      roomId: 'validation-room',
+      createdAt: 400,
+      source: 'chat',
+    }),
+  ));
+  await pass('reminder rejects oversized text', assertFails(
+    ref(member, 'user_reminders/member-user/reminder-2').set({
+      text: 'x'.repeat(181),
+      dueAt: 500,
+      roomId: 'validation-room',
+      createdAt: 400,
+      source: 'chat',
+    }),
+  ));
+
+  await pass('user can reserve bounded upload usage', assertSucceeds(
+    ref(member, 'upload_usage/member-user/2026-07-22').set(1024),
+  ));
+  await pass('upload usage rejects negative bytes', assertFails(
+    ref(member, 'upload_usage/member-user/2026-07-22').set(-1),
+  ));
+  await pass('upload usage rejects values above the safety ceiling', assertFails(
+    ref(member, 'upload_usage/member-user/2026-07-22').set(21474836481),
+  ));
 
   console.log('\nRTDB rules smoke tests passed.');
 } finally {

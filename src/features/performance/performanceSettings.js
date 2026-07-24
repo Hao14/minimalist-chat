@@ -289,16 +289,18 @@ function setElementRuntimeAttributes(element, computed) {
 
 function updateRuntimeReadouts(computed = latestComputed) {
   if (!computed) return;
+  const root = document.getElementById('performance-settings-root');
+  if (!root) return;
 
-  document.querySelectorAll('[data-performance-runtime-fps]').forEach((node) => {
+  root.querySelectorAll('[data-performance-runtime-fps]').forEach((node) => {
     node.textContent = computed.fps ? `${computed.fps} fps` : 'Sampling…';
   });
 
-  document.querySelectorAll('[data-performance-runtime-effective]').forEach((node) => {
+  root.querySelectorAll('[data-performance-runtime-effective]').forEach((node) => {
     node.textContent = MODE_LABELS[computed.effectiveLowPerformanceMode ? MODES.LOW : computed.effectiveMode];
   });
 
-  document.querySelectorAll('[data-performance-runtime-tier]').forEach((node) => {
+  root.querySelectorAll('[data-performance-runtime-tier]').forEach((node) => {
     node.textContent = computed.capability.tier;
   });
 }
@@ -638,15 +640,25 @@ function initPerformanceSettings() {
       stopFpsMonitor();
     }
   });
-  window.matchMedia?.('(prefers-reduced-motion: reduce)')?.addEventListener?.('change', () => {
+  const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const handleReducedMotionChange = () => {
     applyRootClasses(currentSettings);
     renderPerformanceSettings();
-  });
+  };
+  if (reducedMotionQuery?.addEventListener) reducedMotionQuery.addEventListener('change', handleReducedMotionChange);
+  else reducedMotionQuery?.addListener?.(handleReducedMotionChange);
 
-  window.addEventListener('beforeunload', () => {
+  window.addEventListener('pagehide', () => {
     if (resizeFrame) window.cancelAnimationFrame(resizeFrame);
+    resizeFrame = 0;
     stopFpsMonitor();
     stopLongTaskObserver();
+  });
+  window.addEventListener('pageshow', (event) => {
+    if (!event.persisted) return;
+    applyRootClasses(currentSettings);
+    startFpsMonitor();
+    startLongTaskObserver();
   });
 
   window.getPerformanceSettings = getPerformanceSettings;

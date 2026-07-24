@@ -6,6 +6,7 @@ $ErrorActionPreference = 'Stop'
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $firebase = Join-Path $PSScriptRoot 'firebase-node22.ps1'
+$hostingPublishGuard = Join-Path $PSScriptRoot 'prepare-hosting-publish.mjs'
 $webhookUrl = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stripeWebhook'
 $stripeEvents = @(
   'checkout.session.completed',
@@ -14,6 +15,41 @@ $stripeEvents = @(
   'customer.subscription.updated',
   'customer.subscription.deleted'
 )
+
+function Get-Node22Executable {
+  $roots = @(
+    (Join-Path $repoRoot '.deploy-tools'),
+    (Join-Path $repoRoot '.tools')
+  )
+  $candidates = @()
+
+  foreach ($root in $roots) {
+    if (!(Test-Path -LiteralPath $root)) {
+      continue
+    }
+    Get-ChildItem -LiteralPath $root -Directory -Filter 'node-v22.*-win-x64' -ErrorAction SilentlyContinue |
+      ForEach-Object {
+        $nodeExe = Join-Path $_.FullName 'node.exe'
+        if (Test-Path -LiteralPath $nodeExe) {
+          $versionText = $_.Name -replace '^node-v', '' -replace '-win-x64$', ''
+          try {
+            $version = [version] $versionText
+          } catch {
+            $version = [version] '22.0.0'
+          }
+          $candidates += [pscustomobject]@{
+            Node = $nodeExe
+            Version = $version
+          }
+        }
+      }
+  }
+
+  if ($candidates.Count -eq 0) {
+    throw 'Node 22 helper is missing under .deploy-tools or .tools.'
+  }
+  return ($candidates | Sort-Object Version -Descending | Select-Object -First 1).Node
+}
 
 function ConvertFrom-SecretString {
   param([Parameter(Mandatory = $true)] [Security.SecureString] $SecureValue)
@@ -70,6 +106,12 @@ function New-StripeWebhookEndpoint {
   return $response.secret
 }
 
+$originalHostingPublishOwner = $env:MINIMALIST_HOSTING_PUBLISH_OWNER
+$originalRequireRumGate = $env:REQUIRE_RUM_PERFORMANCE_GATE
+$nodeExe = Get-Node22Executable
+$env:MINIMALIST_HOSTING_PUBLISH_OWNER = [guid]::NewGuid().ToString('N')
+$env:REQUIRE_RUM_PERFORMANCE_GATE = 'true'
+
 Push-Location $repoRoot
 try {
   Write-Host ''
@@ -99,13 +141,8 @@ try {
     Write-Host 'Skipping Stripe secret setup. Use -ConfigureStripe only when rotating Stripe secrets.' -ForegroundColor Gray
   }
 
-  Write-Host 'Building app...' -ForegroundColor Cyan
-  npm run build
-  if ($LASTEXITCODE -ne 0) {
-    throw 'Build failed.'
-  }
-
   Write-Host 'Deploying Firebase functions and hosting...' -ForegroundColor Cyan
+  Write-Host 'Hosting predeploy will run the RUM gate, allocate a fresh build number, and build.' -ForegroundColor Gray
   & $firebase deploy --force --only 'functions,hosting'
   if ($LASTEXITCODE -ne 0) {
     throw 'Firebase deploy failed.'
@@ -114,5 +151,15 @@ try {
   Write-Host ''
   Write-Host 'Deploy complete.' -ForegroundColor Green
 } finally {
+  try {
+    & $nodeExe $hostingPublishGuard --cleanup
+    if ($LASTEXITCODE -ne 0) {
+      Write-Warning "Hosting publish lock cleanup exited with code $LASTEXITCODE."
+    }
+  } catch {
+    Write-Warning "Hosting publish lock cleanup failed: $($_.Exception.Message)"
+  }
+  $env:MINIMALIST_HOSTING_PUBLISH_OWNER = $originalHostingPublishOwner
+  $env:REQUIRE_RUM_PERFORMANCE_GATE = $originalRequireRumGate
   Pop-Location
 }

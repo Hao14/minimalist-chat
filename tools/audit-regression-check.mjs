@@ -14,6 +14,10 @@ import {
   resolvePersonalAgentSurface,
   savePersonalAgentEnabled,
 } from '../src/features/ai/personalAgentPreference.js';
+import {
+  QUICK_REPLY_MESSAGE_LIMIT,
+  buildQuickReplyModel,
+} from '../src/features/chat-core/quickReplyModel.js';
 
 const checks = [];
 
@@ -45,6 +49,8 @@ const firebaseSource = read('src/lib/firebase.js');
 const authTokenSource = read('src/lib/authToken.js');
 const searchSource = read('src/features/search/Search.jsx');
 const searchCssSource = read('src/features/search/search.css');
+const workspaceSearchServiceSource = read('src/features/search/workspaceSearchService.js');
+const workspaceSearchModelSource = read('src/features/search/workspaceSearchModel.js');
 const tasksSource = read('src/features/tasks/Tasks.jsx');
 const tasksCssSource = read('src/features/tasks/tasks.css');
 const aiClientSource = read('src/features/ai/localAiClient.js');
@@ -57,22 +63,35 @@ const aiGatewayPayloadSource = read('src/features/ai/gatewayPayload.js');
 const socialSource = read('src/features/community/social.js');
 const timedSingleFlightCacheSource = read('src/features/community/timedSingleFlightCache.js');
 const roomHomeSource = read('src/features/room-home/RoomHome.jsx');
+const roomHomeCssSource = read('src/features/room-home/roomHome.css');
 const roomFeatureLoadersSource = read('src/features/shell/roomFeatureLoaders.js');
 const featureMountCoordinatorSource = read('src/features/shell/featureMountCoordinator.js');
 const featureMountCoordinatorTestSource = read('tools/feature-mount-coordinator.test.mjs');
 const hostAwareRootSource = read('src/features/shell/hostAwareRoot.js');
 const roomTabActivitySource = read('src/features/shell/roomTabActivity.js');
-const chatPageSource = read('src/pages/ChatPage.jsx');
+const chatPageShellSource = read('src/pages/ChatPage.jsx');
+const chatDeferredSurfacesSource = read('src/features/shell/ChatDeferredSurfaces.jsx');
+const chatPageSource = `${chatPageShellSource}\n${chatDeferredSurfacesSource}`;
 const authStateReadySource = read('src/lib/authStateReady.js');
 const authGateSource = read('src/features/shell/authGate.js');
 const promiseTimeoutSource = read('src/lib/promiseTimeout.js');
 const calendarSource = read('src/features/calendar/Calendar.jsx');
 const eventsSource = read('src/features/events/Events.jsx');
+const eventModelSource = read('src/features/events/eventModel.js');
 const eventsCssSource = read('src/features/events/events.css');
 const googleCalendarLinkSource = read('src/features/calendar/GoogleCalendarLink.jsx');
 const allDayGoogleCalendarUrl = new URL(buildGoogleCalendarUrl({ title: 'Launch & review', date: '2026-07-13', desc: 'Plan #1' }));
 const timedGoogleCalendarUrl = new URL(buildGoogleCalendarUrl({ title: 'Standup', date: '2026-07-13', time: '23:30', duration: 90, location: 'Room A' }));
 const chatCoreSource = read('src/features/chat-core/ChatCore.jsx');
+const messageDeliveryRuntimeSource = read('src/features/chat-core/messageDeliveryRuntime.js');
+const quickRepliesSource = read('src/features/chat-core/QuickReplies.jsx');
+const quickReplyModelSource = read('src/features/chat-core/quickReplyModel.js');
+const quickRepliesPreferenceSource = read('src/features/chat-core/quickRepliesPreference.js');
+const quickRepliesCssSource = read('src/features/chat-core/quickReplies.css');
+const roomCatchUpModelSource = read('src/features/chat-core/roomCatchUpModel.js');
+const roomCatchUpPreferenceSource = read('src/features/chat-core/catchUpPreference.js');
+const roomCatchUpCssSource = read('src/features/chat-core/roomCatchUp.css');
+const mountChatCoreSource = read('src/features/chat-core/mountChatCore.js');
 const chatCorePerformanceCssSource = read('src/features/chat-core/chatCore.performance.css');
 const botCatalogSource = read('src/features/bots/botCatalog.js');
 const botRuntimeSource = read('src/features/bots/botRuntime.js');
@@ -88,19 +107,27 @@ const roomSettingsCssSource = read('src/features/rooms/roomSettings.css');
 const roomCreateCssSource = read('src/features/rooms/roomCreate.css');
 const baseCssSource = read('public/base.css');
 const mobileCssSource = read('public/mobile.css');
+const mobileAppDockCssSource = read('public/mobile-app-dock.css');
 const featuresCssSource = read('public/features.css');
 const loadCssSource = read('public/load-css.js');
 const indexSource = read('index.html');
+const manifestJson = JSON.parse(read('public/manifest.json'));
 const mainSource = read('src/main.jsx');
 const entryLoaderSource = read('src/entry-loader.js');
 const appSource = read('src/App.jsx');
 const authPresenceHintSource = read('src/lib/authPresenceHint.js');
 const chatBootSource = read('src/features/shell/chatBoot.js');
+const chatBootReadinessSource = read('src/features/shell/chatBootReadiness.js');
 const chatShellSource = read('src/features/shell/chatShellControls.js');
 const chatAppSource = read('src/features/shell/chatApp.js');
 const settingsSource = read('src/features/settings/settingsService.js');
+const settingsShellCssSource = read('src/features/settings/settingsShell.css');
+const languageHelpSettingsSource = read('src/features/settings/LanguageHelpSettings.jsx');
+const languageHelpCssSource = read('src/features/settings/languageHelp.css');
+const buildInfoSource = read('src/lib/buildInfo.js');
 const personalAgentPreferenceSource = read('src/features/ai/personalAgentPreference.js');
 const performanceSettingsSource = read('src/features/performance/performanceSettings.js');
+const nativePlatformSource = read('src/features/shell/nativePlatform.js');
 const modernThemeMotionSource = read('src/features/shell/modernThemeMotion.js');
 const themeRuntimeSource = read('src/features/settings/themeRuntime.js');
 const prerenderSource = read('tools/prerender-marketing.mjs');
@@ -111,6 +138,17 @@ const serverSource = read('server.js');
 const seoBuildSmokeSource = read('tools/seo-build-smoke.test.mjs');
 const seoHostingSmokeSource = read('tools/seo-hosting-smoke.mjs');
 const swSource = read('public/sw.js');
+const viteConfigSource = read('vite.config.js');
+const rumPerformanceSource = read('src/features/performance/realUserPerformance.js');
+const publishBuildNumberSource = read('tools/publish-build-number.mjs');
+const sourceReleaseSource = read('tools/source-release-id.mjs');
+const prepareHostingPublishSource = read('tools/prepare-hosting-publish.mjs');
+const verifyHostingPublishSource = read('tools/verify-hosting-publish.mjs');
+const guardedDeploySource = read('tools/deploy-firebase-hourly.ps1');
+const stripeDeploySource = read('tools/deploy-stripe-billing.ps1');
+const staticCssMinifierSource = read('tools/minify-static-css.mjs');
+const phosphorCssSource = read('public/phosphor-bold-subset.css');
+const phosphorGeneratorSource = read('tools/generate-phosphor-subset.mjs');
 const backgroundServicesSource = read('src/features/shell/backgroundServices.js');
 const authProfileSource = read('src/lib/authProfile.js');
 const pmInboxSource = read('src/features/private-messages/pmInboxService.js');
@@ -127,6 +165,8 @@ const accountProfilesSource = read('src/lib/accountProfiles.js');
 const loginPageSource = read('src/pages/LoginPage.jsx');
 const googleIdentityAuthSource = read('src/lib/googleIdentityAuth.js');
 const marketingPagesSource = read('src/pages/MarketingPages.jsx');
+const marketingLegalContentSource = read('src/pages/MarketingLegalContent.jsx');
+const marketingPricingContentSource = read('src/pages/MarketingPricingContent.jsx');
 const marketingNavSource = read('src/features/shell/MarketingNav.jsx');
 const bridgeSource = read('tools/ollama-bridge/ollama-bridge.cjs');
 const bridgeLauncherSource = read('tools/ollama-bridge/start-ollama-bridge.ps1');
@@ -156,9 +196,10 @@ check('universal search keeps typing responsive and cancels stale discovery requ
   && searchSource.includes('controller.abort()'));
 check('universal search cancels deferred focus when it closes', () => searchSource.includes('let focusFrame = 0')
   && searchSource.includes('window.cancelAnimationFrame(focusFrame)'));
-check('universal search reuses bounded local indexes and deep-links message results', () => searchSource.includes('SEARCH_INDEX_TTL')
-  && searchSource.includes('MESSAGE_INDEX_TTL')
-  && searchSource.includes("source: 'search'")
+check('universal search reuses bounded local indexes and deep-links message results', () => workspaceSearchServiceSource.includes('MANIFEST_TTL_MS')
+  && workspaceSearchServiceSource.includes('MESSAGE_INDEX_TTL_MS')
+  && workspaceSearchServiceSource.includes('limitToLast')
+  && workspaceSearchModelSource.includes("source: 'workspace-search'")
   && searchSource.includes("minimalist:message-jump"));
 check('universal search uses one scoped responsive command palette stylesheet', () => searchSource.includes("import './search.css'")
   && searchCssSource.includes('@media (max-height: 480px)')
@@ -174,7 +215,8 @@ check('tasks switch between board and list without losing task detail controls',
 check('tasks use a keyed room lifecycle and scoped responsive stylesheet', () => tasksSource.includes('<TasksRoom key={props.roomId}')
   && tasksSource.includes("import './tasks.css'")
   && tasksCssSource.includes('@media (max-width: 620px)'));
-check('events classify live and past time states and use a keyed room lifecycle', () => eventsSource.includes("return 'live'")
+check('events classify live and past time states and use a keyed room lifecycle', () => eventModelSource.includes("return 'live'")
+  && eventModelSource.includes("return 'past'")
   && eventsSource.includes('<EventsRoom key={props.roomId}')
   && eventsSource.includes('window.setInterval(refresh, 60_000)'));
 check('events use a scoped responsive agenda and composer stylesheet', () => eventsSource.includes("import './events.css'")
@@ -234,8 +276,10 @@ check('Analysis website routing metadata mirrors hosted server model defaults', 
   && analysisAppLogicSource.includes('WebsiteGroqModel = "openai/gpt-oss-20b"'));
 check('AI gateway rejects unknown profiles before server model resolution', () => aiModelProfilesSource.includes('function requireAiModelProfile')
   && aiModelProfilesSource.includes("error.code = 'INVALID_AI_MODEL_PROFILE'")
-  && functionsSource.includes('const modelProfile = requireAiModelProfile(req.body?.modelProfile)'));
-check('browser sends only a model profile and never a raw model tag to the gateway', () => aiGatewayPayloadSource.includes('modelProfile: normalizeAiModelProfile(modelProfile)')
+  && functionsSource.includes('const statusModelSelection = resolveWinstonModelProfile(requestedModelProfile, [])')
+  && functionsSource.includes('const modelProfile = requireAiModelProfile(statusModelSelection.modelProfile)'));
+check('browser sends only a model profile and never a raw model tag to the gateway', () => aiGatewayPayloadSource.includes('modelProfile: normalizeGatewayModelProfile(modelProfile)')
+  && aiGatewayPayloadSource.includes("=== 'auto'")
   && !aiGatewayPayloadSource.includes('model:'));
 check('protected bridge default allowlist contains only approved text and vision models', () => bridgeLauncherSource.includes('qwen3:4b-instruct,qwen3:14b,qwen2.5vl:7b')
   && !bridgeLauncherSource.includes('llama3.1:latest')
@@ -308,8 +352,11 @@ check('AI queue status is owner-readable and private queue state remains server-
 check('AI queue client prefers realtime completion with authenticated polling recovery', () => aiClientSource.includes('ai_queue_status/${uid}/${initial.jobId}')
   && aiClientSource.includes('buildAiGatewayQueueStatusPayload(initial.jobId)')
   && aiClientSource.includes('unsubscribe?.()'));
-check('client probes AI gateway status with the selected profile', () => aiClientSource.includes('buildAiGatewayStatusPayload(config.modelProfile)')
-  && aiGatewayPayloadSource.includes("action: 'status'"));
+check('client probes AI gateway status with the selected profile and routing policy', () => (
+  aiClientSource.includes('buildAiGatewayStatusPayload(config.requestedModelProfile || config.modelProfile,')
+  && aiClientSource.includes('routingPolicy: config.routingPolicy')
+  && aiGatewayPayloadSource.includes("action: 'status'")
+));
 check('Room AI keeps an idle gateway neutral until an explicit wake', () => aiSource.includes("if (state === 'standby') return 'Ready on demand'")
   && roomAiSource.includes("state: 'standby'")
   && roomAiSource.includes("!['ready', 'standby', 'checking', 'warming'].includes")
@@ -323,6 +370,64 @@ check('hidden Room AI work is aborted and room changes rescope mounted AI', () =
 check('Personal AI is available from mobile navigation and reuses the lazy drawer path', () => chatPageSource.includes('open-personal-agent-btn-mobile')
   && chatShellSource.includes("target.closest('#open-personal-agent-btn-mobile')")
   && roomFeatureLoadersSource.includes("import('../ai/mountPersonalAgent.js')"));
+check('mobile app dock keeps five primary destinations and organizes utilities under More', () => {
+  const dockStart = chatPageSource.indexOf('id: "mobile-nav-links"');
+  const moreMenuStart = chatPageSource.indexOf('id: "mobile-dock-more-menu"', dockStart);
+  const dockSource = chatPageSource.slice(dockStart, moreMenuStart);
+  const moreSource = chatPageSource.slice(moreMenuStart, chatPageSource.indexOf('id: "loading-screen"', moreMenuStart));
+  const primaryIds = [
+    'open-rooms-btn-mobile',
+    'open-contacts-btn-mobile',
+    'open-personal-agent-btn-mobile',
+    'open-updates-btn-mobile',
+    'open-more-btn-mobile',
+  ];
+  return dockStart >= 0
+    && moreMenuStart > dockStart
+    && primaryIds.every((id) => dockSource.includes(`id: "${id}"`))
+    && !dockSource.includes('id: "open-vault-btn-mobile"')
+    && !dockSource.includes('id: "open-settings-btn-mobile"')
+    && ['open-search-btn-mobile', 'open-vault-btn-mobile', 'open-settings-btn-mobile']
+      .every((id) => moreSource.includes(`id: "${id}"`));
+});
+check('mobile app dock sheet closes accessibly and synchronizes destination state', () => chatShellSource.includes('function setMobileDockMoreOpen')
+  && chatShellSource.includes("setAttributeIfChanged(menu, 'aria-hidden'")
+  && chatShellSource.includes("setAttributeIfChanged(trigger, 'aria-expanded'")
+  && chatShellSource.includes("'[role=\"menuitem\"]:not(:disabled)'")
+  && chatShellSource.includes("['ArrowUp', 'ArrowDown', 'Home', 'End']")
+  && chatShellSource.includes("setMobileDockMoreOpen(false, { restoreFocus: true })")
+  && chatShellSource.includes("keep !== 'mobile-dock-more-menu'"));
+check('mobile More opens in place without dismissing the active surface or room tab', () => {
+  const branchStart = chatShellSource.indexOf('if (isMore) {');
+  const branchEnd = chatShellSource.indexOf('if (isMobileSearch) {', branchStart);
+  const branch = branchStart >= 0 && branchEnd > branchStart
+    ? chatShellSource.slice(branchStart, branchEnd)
+    : '';
+  return branch.includes('setMobileDockMoreOpen(true, { focusFirst: true })')
+    && !branch.includes('closeFloatingUI(')
+    && !branch.includes('activateRoomView(')
+    && !branch.includes('.room-tab[data-target="chat"]')
+    && mobileAppDockCssSource.includes('body.mobile-dock-more-open')
+    && mobileAppDockCssSource.includes('z-index: 9600 !important')
+    && mobileAppDockCssSource.includes('z-index: 9500 !important');
+});
+check('mobile app dock remains thumb sized and reserves its safe floating offset', () => mobileAppDockCssSource.includes('grid-auto-columns: minmax(44px, 1fr)')
+  && mobileAppDockCssSource.includes('--mobile-dock-height: 67px')
+  && mobileAppDockCssSource.includes('--mobile-nav-clearance: calc(var(--mobile-dock-height) + var(--mobile-dock-edge))')
+  && mobileAppDockCssSource.includes('var(--app-safe-bottom')
+  && mobileAppDockCssSource.includes('max-width: 580px')
+  && mobileAppDockCssSource.includes('@media (max-width: 340px)'));
+check('mobile More search reuses the lazy search mount and dual-trigger focus lifecycle', () => roomFeatureLoadersSource.includes("#open-search-btn, #open-search-btn-mobile")
+  && searchSource.includes("document.getElementById('open-search-btn-mobile')")
+  && searchSource.includes("document.getElementById('open-more-btn-mobile')")
+  && searchSource.includes("openButtons.forEach((button) => button.setAttribute('aria-expanded'"));
+check('Vault drawer exposes synchronized hidden and expanded state', () => chatPageSource.includes('id: "vault-panel"')
+  && chatPageSource.includes('"aria-hidden": "true"')
+  && roomFeatureLoadersSource.includes("window.setVaultPanelOpenState?.(true)")
+  && chatShellSource.includes('function closeVaultPanel')
+  && chatShellSource.includes("setAttributeIfChanged(panel, 'aria-hidden', String(!open))")
+  && chatShellSource.includes('const returnFocus = vaultLastFocus')
+  && chatShellSource.includes('returnFocus.focus({ preventScroll: true })'));
 check('Personal AI split preference migrates the shared value and persists each surface independently', () => {
   const makeStorage = (entries = []) => {
     const values = new Map(entries);
@@ -378,6 +483,87 @@ check('Personal AI split opt-out is applied eagerly, exposed in settings, and ga
   && baseCssSource.includes('body.personal-ai-mobile-disabled #open-personal-agent-btn-mobile')
   && roomFeatureLoadersSource.includes("panelMountCoordinator.clear('personal-agent')")
   && read('src/features/ai/mountPersonalAgent.js').includes('export function unmountPersonalAgent()'));
+check('Chat and Settings survive blocked browser storage', () => (
+  chatAppSource.includes("window.localStorage.getItem('minimalistMarketingMode')")
+  && chatAppSource.includes("window.sessionStorage.getItem('showWelcomeTour')")
+  && settingsSource.includes('window.localStorage.getItem(FEATURE_MODE_KEY)')
+  && settingsSource.includes('window.localStorage.setItem(FEATURE_MODE_KEY, normalized)')
+  && chatAppSource.includes("catch {\n    return 'simple';")
+  && settingsSource.includes("catch {\n    return 'simple';")
+));
+check('mobile AI opt-out stays hidden despite the shared dock button display rule', () => {
+  const sharedButtonRule = mobileAppDockCssSource.indexOf('#mobile-nav-links.mobile-app-dock > .mobile-link-btn {');
+  const hiddenButtonRule = mobileAppDockCssSource.indexOf('#mobile-nav-links.mobile-app-dock > .mobile-link-btn:is([hidden], .personal-ai-nav-hidden)');
+  const hiddenButtonRuleEnd = mobileAppDockCssSource.indexOf('}', hiddenButtonRule);
+  return personalAgentPreferenceSource.includes("trigger.toggleAttribute('hidden', !enabled)")
+    && sharedButtonRule >= 0
+    && hiddenButtonRule > sharedButtonRule
+    && hiddenButtonRuleEnd > hiddenButtonRule
+    && mobileAppDockCssSource.slice(hiddenButtonRule, hiddenButtonRuleEnd).includes('display: none !important');
+});
+check('Appearance settings keep accessible hooks and compact responsive controls', () => (
+  chatPageSource.includes('settings-appearance-pane')
+  && chatPageSource.includes('appearance-theme-grid')
+  && chatPageSource.includes('htmlFor: "custom-accent-color"')
+  && chatPageSource.includes('role: "radiogroup"')
+  && chatPageSource.includes('role: "radio"')
+  && chatPageSource.includes('id: "room-catchup-enabled-toggle"')
+  && chatPageSource.includes('id: "personal-ai-desktop-enabled-toggle"')
+  && chatPageSource.includes('id: "personal-ai-mobile-enabled-toggle"')
+  && settingsSource.includes("btn.setAttribute('aria-checked'")
+  && settingsShellCssSource.includes('#pane-app .appearance-theme-grid')
+  && settingsShellCssSource.includes('#pane-app .appearance-toggle-row .settings-personal-ai-track')
+  && settingsShellCssSource.includes('width: 38px')
+  && settingsShellCssSource.includes('@media (min-width: 821px) and (max-width: 900px)')
+  && settingsShellCssSource.includes('@media (max-width: 820px)')
+  && settingsShellCssSource.includes('@media (max-width: 520px)')
+  && settingsShellCssSource.includes('@media (prefers-reduced-motion: reduce)')
+  && themeRuntimeSource.includes("setProperty('--accent-contrast-color'")
+  && themeRuntimeSource.includes("button.setAttribute('tabindex', isActive ? '0' : '-1')")
+  && settingsSource.includes("target?.closest('#pane-app [role=\"radio\"]')")
+));
+check('Settings exposes stable build metadata without runtime work or timestamp churn', () => (
+  viteConfigSource.includes("import { defineConfig, loadEnv } from 'vite'")
+  && viteConfigSource.includes("loadEnv(mode, process.cwd(), '')")
+  && viteConfigSource.includes('environment.MINIMALIST_BUILD_NUMBER')
+  && viteConfigSource.includes('environment.GITHUB_RUN_NUMBER')
+  && viteConfigSource.includes('resolveSourceBuildNumber')
+  && viteConfigSource.includes("source-release-id.mjs")
+  && sourceReleaseSource.includes("['rev-parse', '--short=8', 'HEAD']")
+  && sourceReleaseSource.includes("'status', '--porcelain=v1', '-z'")
+  && sourceReleaseSource.includes("`${revision}-dirty-${fingerprint.digest('hex').slice(0, 12)}`")
+  && viteConfigSource.includes("'import.meta.env.VITE_APP_BUILD_NUMBER'")
+  && !sourceReleaseSource.includes('Date.now(')
+  && buildInfoSource.includes('export const APP_BUILD_NUMBER')
+  && buildInfoSource.includes('export const APP_BUILD_LABEL')
+  && languageHelpSettingsSource.includes('data-build-number={APP_BUILD_NUMBER}')
+  && languageHelpSettingsSource.includes("t('settings.help.buildLabel')")
+  && languageHelpCssSource.includes('.language-help-footer')
+  && languageHelpCssSource.includes('.language-help-build code')
+));
+check('every Hosting publish receives one verified unique build ID while RUM keeps the stable source release', () => (
+  publishBuildNumberSource.includes("randomBytes(4).toString('hex')")
+  && publishBuildNumberSource.includes('const uniquePrefix = `p${timestamp}-${uniqueNonce}`')
+  && prepareHostingPublishSource.includes('createPublishBuildNumber({')
+  && prepareHostingPublishSource.includes('acquireHostingPublishLock({ lockDir, state })')
+  && prepareHostingPublishSource.includes("REQUIRE_RUM_PERFORMANCE_GATE: 'true'")
+  && prepareHostingPublishSource.includes('verifyCompiledBuildIdentity')
+  && !prepareHostingPublishSource.includes('MINIMALIST_HOSTING_BUILD_READY')
+  && verifyHostingPublishSource.includes("new URL('/build-info.json', origin)")
+  && verifyHostingPublishSource.includes('requestTimeoutMs = 5000')
+  && verifyHostingPublishSource.includes('readHostingPublishState')
+  && firebaseJson.hosting.predeploy?.includes('node tools/prepare-hosting-publish.mjs')
+  && firebaseJson.hosting.postdeploy?.includes('node tools/verify-hosting-publish.mjs')
+  && guardedDeploySource.includes('MINIMALIST_HOSTING_PUBLISH_OWNER')
+  && guardedDeploySource.includes("StartsWith('hosting:')")
+  && guardedDeploySource.includes('-SkipBuild cannot be used when Hosting is being published.')
+  && stripeDeploySource.includes('MINIMALIST_HOSTING_PUBLISH_OWNER')
+  && viteConfigSource.includes('emit-hosting-build-info')
+  && sourceReleaseSource.includes('resolveRumReleaseId')
+  && viteConfigSource.includes("'import.meta.env.VITE_APP_RUM_RELEASE_ID'")
+  && rumPerformanceSource.includes('import.meta.env?.VITE_APP_RUM_RELEASE_ID')
+  && packageJson.scripts.test.includes('npm run audit:release')
+));
 check('client calendar off-day filter handles variants', () => aiClientSource.includes('label.startsWith(`${phrase} `)'));
 check('server calendar off-day filter handles variants', () => functionsSource.includes('label.startsWith(`${phrase} `)'));
 check('calendar photo import stays within base banana quota', () => calendarSource.includes('photoMaxBase64Chars = 2_160_000'));
@@ -419,6 +605,28 @@ check('data-heavy room tabs keep subscriptions warm across quick revisits', () =
   && eventsSource.includes("useRoomTabDataActivity('events')")
   && calendarSource.includes("useRoomTabDataActivity('calendar')")
 ));
+check('Room Home signal motion is finite, tab-scoped, compositor-only, and reduced-motion safe', () => {
+  const signalStart = roomHomeCssSource.indexOf('@keyframes rh-room-signal');
+  const beatStart = roomHomeCssSource.indexOf('@keyframes rh-room-beat');
+  const motionStart = roomHomeCssSource.indexOf('@media (prefers-reduced-motion: no-preference)', beatStart);
+  const motionEnd = roomHomeCssSource.indexOf('.room-home-v2 .rh-pulse-intro,', motionStart);
+  const keyframeSource = signalStart >= 0 && beatStart > signalStart && motionStart > beatStart
+    ? roomHomeCssSource.slice(signalStart, motionStart)
+    : '';
+  const motionSource = motionStart >= 0 && motionEnd > motionStart
+    ? roomHomeCssSource.slice(motionStart, motionEnd)
+    : '';
+  return motionSource.includes('#room-view-home.active:not(.hidden) .room-home-v2 .rh-pulse::before')
+    && motionSource.includes('animation: rh-room-signal 720ms')
+    && motionSource.includes('animation: rh-room-beat 460ms')
+    && !motionSource.includes('infinite')
+    && keyframeSource.includes('opacity:')
+    && keyframeSource.includes('transform:')
+    && !/(?:width|height|inset|top|right|bottom|left|margin|padding|filter|box-shadow)\s*:/.test(keyframeSource)
+    && roomHomeCssSource.includes('@media (prefers-reduced-motion: reduce)')
+    && roomHomeCssSource.includes('html.performance-low #room-view-home .room-home-v2 .rh-pulse::before')
+    && roomHomeCssSource.includes('animation: none !important;');
+});
 check('Room AI context reads are bounded, cached, and single-flight', () => (
   aiSource.includes('ROOM_CONTEXT_CACHE_TTL_MS = 15_000')
   && aiSource.includes('ROOM_CONTEXT_CACHE_LIMIT = 12')
@@ -439,8 +647,8 @@ check('Google Calendar timed export keeps duration and location', () => {
     && Number.isFinite(start)
     && end - start === 90 * 60_000;
 });
-check('Google Calendar export is available across room event surfaces', () => calendarSource.includes('<GoogleCalendarLink event={event} />')
-  && /<GoogleCalendarLink\s+event=\{event\}/.test(eventsSource)
+check('Google Calendar export is available across room event surfaces', () => calendarSource.includes('<GoogleCalendarLink event={eventForGoogleCalendar(event)} />')
+  && /<GoogleCalendarLink\s+event=\{eventForGoogleCalendar\(event\)\}/.test(eventsSource)
   && roomHomeSource.includes('<GoogleCalendarLink event={event} />')
   && googleCalendarLinkSource.includes('target="_blank"')
   && googleCalendarLinkSource.includes('rel="noopener noreferrer"')
@@ -552,10 +760,14 @@ check('PM session and retained inbox state stay bounded without evicting live wo
   && pmInboxSource.includes('window.getProtectedPmSessionUids?.()')
   && pmInboxSource.includes('data?.read === false || protectedUids.has(targetUid)')
 ));
-check('reopening the same PM target is idempotent and follows the current DOM host', () => (
+check('reopening the same PM target preserves its session and resurfaces the thread', () => (
   privateMessagesSource.includes('pmRootHost !== host')
   && privateMessagesSource.includes('const sameVisibleTarget = pmDockVisible')
-  && privateMessagesSource.includes('if (sameVisibleTarget) return;')
+  && privateMessagesSource.includes('timestamp: sameVisibleTarget ? previous?.timestamp || Date.now() : Date.now()')
+  && privateMessagesSource.includes('setMobileInboxOpen(!event.detail?.targetUid)')
+  && privateMessagesSource.includes('const sameSession = targetUid === activeTargetUid')
+  && privateMessagesSource.includes('if (!sameSession)')
+  && privateMessagesSource.includes('showPmDock(targetUid, { opener: options.opener });')
   && !privateMessagesSource.slice(
     privateMessagesSource.indexOf('function showPmDock'),
     privateMessagesSource.indexOf('function finishPmDockClose'),
@@ -589,7 +801,7 @@ check('room settings honors independent per-member channel, app, and connection 
   && roomsSource.includes("userPermissionEnabled(data, 'manageChannels')")
   && roomsSource.includes("userPermissionEnabled(data, 'manageBots')")
   && roomsSource.includes("userPermissionEnabled(data, 'manageConnections')"));
-check('room settings uses an isolated responsive style authority', () => chatPageSource.includes("import '../features/rooms/roomSettings.css'")
+check('room settings uses an isolated responsive style authority', () => chatDeferredSurfacesSource.includes("import '../rooms/roomSettings.css'")
   && chatPageSource.includes('room-settings-v2')
   && roomSettingsCssSource.includes('@media (max-width: 900px)')
   && roomSettingsCssSource.includes('@media (max-width: 600px)')
@@ -694,7 +906,18 @@ check('onboarding writes welcome badge separately from profile creation', () => 
   && !profileActionsSource.includes('badges: {\n        welcome')
   && !loginPageSource.includes('badges: {\n          welcome'));
 check('app boot does not block on deferred CSS', () => !mainSource.includes('isAppLaunchRoute ? window.__minimalistDeferredCssReady'));
-check('chat boot uses short bounded first and repeat floors', () => chatBootSource.includes('WARM_BOOT_MIN_MS = 120') && chatBootSource.includes('FIRST_BOOT_MIN_MS = 450') && chatBootSource.includes('BOOT_FADE_MS = 220'));
+check('chat boot waits for a painted chat core with bounded cold and repeat floors', () => chatBootReadinessSource.includes('FIRST_CHAT_BOOT_MIN_MS = 900')
+  && chatBootReadinessSource.includes('WARM_CHAT_BOOT_MIN_MS = 120')
+  && chatBootReadinessSource.includes('CHAT_BOOT_READY_TIMEOUT_MS = 2500')
+  && chatBootSource.includes('waitForChatBootReadiness({')
+  && chatBootSource.includes("chatWrapper.classList.add('chat-boot-staging')")
+  && chatBootSource.includes("window.chatInitialized = chatCoreReady !== false")
+  && chatBootSource.includes("if (isChatBootReadyStatus(runtimeStatus)) sessionStorage.setItem('blipLoaded', 'true')")
+  && chatBootSource.includes("new Event('minimalist:chat-interactive')")
+  && !chatAppSource.includes('prefetchContactsAfterFirstPaint')
+  && mountChatCoreSource.includes('waitForChatCorePaint().then(() => resolveReady(true))')
+  && roomsSource.includes('return chatCoreReady;')
+  && chatBootSource.includes('BOOT_FADE_MS = 220'));
 check('chat auth readiness is bounded and exposes recovery actions', () => authStateReadySource.includes('AUTH_STATE_READY_TIMEOUT_MS = 12_000')
   && chatPageSource.includes('waitForInitialAuthState(auth, onAuthStateChanged)')
   && chatPageSource.includes("className: 'boot-recovery-actions'")
@@ -715,14 +938,47 @@ check('mobile Google sign-in uses a same-tab redirect instead of a callback popu
   && loginPageSource.includes('GOOGLE_REDIRECT_RESULT_TIMEOUT_MS = 12_000')
   && loginPageSource.includes('ensureAuthProfileWithDeadline(kit, user, { welcome })')
 ));
-check('service worker uses network-first navigations', () => swSource.includes("event.respondWith(networkFirst(request, '/index.html', {")
-  && swSource.includes('preloadResponse: event.preloadResponse')
-  && swSource.includes('timeoutMs: 3000'));
-check('service worker caches hashed assets first and refreshes named static assets', () => swSource.includes('function cacheFirst(request, event)')
+check('service worker serves current online navigations with a complete cached fallback', () => (
+  swSource.includes('async function prepareNavigation(event)')
+  && swSource.includes('const cache = await caches.open(CACHE_NAME)')
+  && swSource.includes("const NAVIGATION_DOCUMENT_PATH = '/'")
+  && swSource.includes("const NAVIGATION_CACHE_KEY = '/index.html'")
+  && swSource.includes('await fetch(NAVIGATION_DOCUMENT_PATH, {')
+  && swSource.includes("redirect: 'error'")
+  && swSource.includes('isSafeNavigationDocument(preloaded)')
+  && swSource.includes('!response.redirected')
+  && swSource.includes("response.type !== 'opaqueredirect'")
+  && !swSource.includes("fetch('/index.html'")
+  && swSource.includes('await commitNavigationShell(network.clone(), networkManifest)')
+  && swSource.includes('cached || offlineNavigationResponse()')
+  && !swSource.includes('timeoutMs: 3000')
+));
+check('service worker preserves the canonical offline shell across route visits', () => swSource.includes("const CACHE_SCHEMA = 'v34'")
+  && swSource.includes("searchParams.get('build')")
+  && swSource.includes('await cache.put(NAVIGATION_CACHE_KEY, indexResponse)')
+  && swSource.includes('await cacheBootstrapAssets(cache, html, manifest.assets)'));
+check('service worker updates cannot strand pages from the previous asset generation', () => (
+  swSource.includes('cacheAppShell().then(() => self.skipWaiting())')
+  && !swSource.includes('pruneObsoleteBootstrapAssets')
+  && swSource.includes('const CURRENT_BUILD_CLIENTS = new Set()')
+  && swSource.includes('async function prunePreviousCachesWhenClientsMatchBuild')
+  && swSource.includes("event.data?.type !== 'minimalist:service-worker-build-ready'")
+  && swSource.includes('windowClients.some((client) => !CURRENT_BUILD_CLIENTS.has(client.id))')
+  && swSource.includes('await deletePreviousGenerationCaches()')
+  && swSource.includes('cachedBootstrap === networkBootstrap')
+  && swSource.includes('navigationPreload?.enable?.()')
+));
+check('service worker caches hashed assets while revalidating named marketing media', () => swSource.includes('function cacheFirst(request, event)')
+  && swSource.indexOf("if (url.pathname.startsWith('/assets/marketing/'))") < swSource.lastIndexOf("if (url.pathname.startsWith('/assets/'))")
+  && swSource.includes("if (url.pathname.startsWith('/assets/marketing/')) {\n    event.respondWith(staleWhileRevalidate(request, event));")
   && swSource.includes("if (url.pathname.startsWith('/assets/'))")
   && swSource.includes('event.respondWith(cacheFirst(request, event));')
   && swSource.includes('event.respondWith(staleWhileRevalidate(request, event));')
-  && swSource.includes("CACHE_NAME = 'minimalist-offline-v27'"));
+  && swSource.includes("const CACHE_SCHEMA = 'v34'")
+  && firebaseJson.hosting.headers.some((entry) => entry.source === '/assets/marketing/**'
+    && entry.headers?.some((header) => header.key === 'Cache-Control'
+      && header.value.includes('must-revalidate')
+      && !header.value.includes('immutable'))));
 check('service worker cache writes cannot discard valid network responses', () => swSource.includes('const cacheUpdate = Promise.all([cache, network])')
   && swSource.includes('event.waitUntil(cacheUpdate)')
   && swSource.includes(".catch(() => undefined));\n  return work.then(({ response }) => response);"));
@@ -737,8 +993,8 @@ check('RTDB rules smoke covers message and PM immutability', () => rulesSmokeSou
 check('RTDB rules smoke covers notification injection denial', () => rulesSmokeSource.includes('cross-user notification write denied to sender client') && rulesSmokeSource.includes('own notification client create denied'));
 check('RTDB rules smoke covers docs and tasks schema hardening', () => rulesSmokeSource.includes('room task unknown field denied') && rulesSmokeSource.includes('room doc oversized content denied'));
 check('deployed authenticated smoke test is wired', () => packageJson.scripts?.['audit:deployed'] === 'node tools/deployed-smoke-test.mjs');
-check('deployed smoke covers chat, rooms, typing, both AI profiles, notifications, and issue queue', () => deployedSmokeSource.includes('write global chat message') && deployedSmokeSource.includes('write global channel typing') && deployedSmokeSource.includes('write private room channel typing') && deployedSmokeSource.includes('create private room') && deployedSmokeSource.includes("for (const modelProfile of ['fast', 'smart'])") && deployedSmokeSource.includes('trusted notification endpoint') && deployedSmokeSource.includes('submit issue draft'));
-check('deployed smoke cleans exact test data', () => deployedSmokeSource.includes('delete global smoke message') && deployedSmokeSource.includes('delete room smoke metadata') && deployedSmokeSource.includes('support_issue_queue') && deployedSmokeSource.includes('/notifications/${state.friendUid}/friend_${state.uid}') && deployedSmokeSource.includes('accounts:delete'));
+check('deployed smoke covers chat, rooms, typing, live AI completion, friendship readback, notifications, and issue queue', () => deployedSmokeSource.includes('write global chat message') && deployedSmokeSource.includes('write global channel typing') && deployedSmokeSource.includes('write private room channel typing') && deployedSmokeSource.includes('create private room') && deployedSmokeSource.includes("for (const modelProfile of ['fast', 'smart'])") && deployedSmokeSource.includes('ai gateway minimal completion') && deployedSmokeSource.includes('friendship acceptance caller projection') && deployedSmokeSource.includes('friendship acceptance recipient projection') && deployedSmokeSource.includes('trusted notification endpoint') && deployedSmokeSource.includes('submit issue draft'));
+check('deployed smoke cleans exact test data without deleting active AI work', () => deployedSmokeSource.includes('delete global smoke message') && deployedSmokeSource.includes('delete room smoke metadata') && deployedSmokeSource.includes('support_issue_queue') && deployedSmokeSource.includes('/notifications/${state.friendUid}/friend_${state.uid}') && deployedSmokeSource.includes("action: 'cancel-job'") && deployedSmokeSource.includes('left intact so its worker can settle capacity safely') && deployedSmokeSource.includes('accounts:delete'));
 check('deployed smoke can send App Check tokens when enforcement is enabled', () => deployedSmokeSource.includes('FIREBASE_APP_CHECK_TOKEN') && deployedSmokeSource.includes('X-Firebase-AppCheck'));
 check('default deploy command uses guarded deploy path', () => packageJson.scripts?.deploy?.includes('deploy-firebase-hourly.ps1') && !packageJson.scripts.deploy.includes('-Force') && packageJson.scripts?.['deploy:force']?.includes('-Force'));
 check('landing v3 demo mirrors the authenticated chat workspace', () => marketingPagesSource.includes('function LandingDesktopDemo()')
@@ -761,26 +1017,139 @@ check('landing v3 uses low-cost motion and phone-specific layout rules', () => b
   && /\.desktop-demo-catchup\s*\{[^}]*transition:\s*transform[^;]*,\s*opacity/s.test(baseCssSource)
   && baseCssSource.includes('@media (max-width: 390px)')
   && baseCssSource.includes('@media (prefers-reduced-motion: reduce)'));
-check('landing startup hands off once without replaying the first viewport', () => !entryLoaderSource.includes("document.addEventListener('DOMContentLoaded'")
-  && mainSource.includes("document.querySelector('#root .landing-v3')")
-  && mainSource.includes('window.__minimalistCssReady')
-  && !mainSource.includes("staticShell.classList.add('static-home-hide')")
+check('landing startup keeps the static Home visible until the final React home commits', () => !entryLoaderSource.includes("document.addEventListener('DOMContentLoaded'")
+  && indexSource.includes('<div id="root">\n      <main id="static-home-shell"')
+  && indexSource.includes('<noscript><style>#static-home-shell{display:block!important}#app-boot-shell{display:none!important}</style></noscript>')
+  && !loadCssSource.includes("document.documentElement.classList.add('home-react-pending')")
+  && !/html\.route-home\.home-react-pending \.static-home-shell\s*\{\s*display:\s*none;/s.test(indexSource)
+  && loadCssSource.includes("homeIconStyles.href = '/phosphor-bold-subset.css?v=4'")
+  && entryLoaderSource.includes('const marketingModulePromise = loadMarketingPagesModule()')
+  && entryLoaderSource.includes('const criticalStylesPromise = window.__minimalistCssReady || Promise.resolve()')
+  && entryLoaderSource.includes('const [mainModule] = await Promise.all([')
+  && entryLoaderSource.includes("const loadMainModule = () => import('./main.jsx')")
+  && entryLoaderSource.includes('mainModule.mountApp()')
+  && appSource.includes('function HomeRoute()')
+  && appSource.includes("readMarketingPagesModule()?.HomePage || LazyHomePage")
+  && mainSource.includes('export function mountApp()')
+  && mainSource.includes('document.fonts.load(\'1em "Phosphor-Bold-Subset"\')')
+  && marketingPagesSource.includes('const [suppressInitialHomeReveal] = useState')
+  && !mainSource.includes('hideStaticHomeShell')
+  && !mainSource.includes("addEventListener('minimalist:marketing-mounted'")
+  && prerenderSource.includes('/<div id="root">\\s*<\\/div>/')
+  && prerenderSource.includes('/(<main id="static-home-shell"[\\s\\S]*?)\\s*<\\/main>/')
   && marketingPagesSource.includes('const animatedMarketingPaths = new Set()')
   && marketingPagesSource.includes("return marketingMotionPathKeys.has(pathname) ? pathname : '/404'")
   && marketingPagesSource.includes("'.landing-workflow'")
   && !marketingPagesSource.includes("'.landing-v3-section'")
   && !marketingPagesSource.includes("'.desktop-demo'")
-  && baseCssSource.includes('body.marketing nav.marketing-nav-enter'));
-check('landing navigation uses the compact floating desktop and mobile contract', () => marketingPagesSource.includes('className="marketing-nav-shell"')
+  && baseCssSource.includes('body.marketing nav.marketing-nav-enter')
+  && uiSmokeSource.includes('landing startup keeps a meaningful surface until final React home')
+  && uiSmokeSource.includes('sawStaticHome')
+  && uiSmokeSource.includes('!sawBlankFrame'));
+check('startup links base CSS directly and defers the loader before the large inline shell CSS', () => (
+  indexSource.includes('<link rel="stylesheet" href="/base.css?v=split40" data-minimalist-base-css="true" />')
+  && indexSource.includes('<script defer src="/load-css.js?v=8"></script>')
+  && indexSource.indexOf('/load-css.js?v=8') < indexSource.indexOf('<style id="critical-app-shell">')
+  && indexSource.indexOf('/src/entry-loader.js') < indexSource.indexOf('<style id="critical-app-shell">')
+));
+check('entry failures have an actionable non-home fallback instead of an indefinite shell', () => loadCssSource.includes('window.__minimalistReportBootFailure = showBootFailure')
+  && loadCssSource.includes('bootFailureTimer = window.setTimeout(showBootFailure, 15000)')
+  && loadCssSource.includes("document.querySelector('[data-prerender-route]')")
+  && entryLoaderSource.includes('window.__minimalistReportBootFailure?.(error)')
+  && mainSource.includes('window.__minimalistMarkBootReady?.()'));
+check('production minifies copied CSS against the declared browser floor', () => packageJson.scripts?.build?.includes('tools/minify-static-css.mjs')
+  && Array.isArray(packageJson.browserslist?.production)
+  && packageJson.browserslist.production.includes('Safari >= 16.4')
+  && viteConfigSource.includes("target: ['chrome111', 'edge111', 'firefox121', 'safari16.4']")
+  && staticCssMinifierSource.includes("loader: 'css'")
+  && staticCssMinifierSource.includes('minify: true'));
+check('icon subset is regenerated in WOFF2 and WOFF with WOFF2 preferred', () => phosphorGeneratorSource.includes("[outputWoff2, 'woff2']")
+  && phosphorGeneratorSource.includes("[outputWoff, 'woff']")
+  && phosphorCssSource.indexOf('phosphor-bold-subset.woff2?v=4') < phosphorCssSource.indexOf('phosphor-bold-subset.woff?v=4'));
+check('install metadata provides dedicated any, maskable, and Apple touch icons', () => (
+  manifestJson.icons.some((icon) => icon.src === 'icon-192.png' && icon.sizes === '192x192' && icon.purpose === 'any')
+  && manifestJson.icons.some((icon) => icon.src === 'icon-512.png' && icon.sizes === '512x512' && icon.purpose === 'any')
+  && manifestJson.icons.some((icon) => icon.src === 'icon-maskable-512.png' && icon.sizes === '512x512' && icon.purpose === 'maskable')
+  && readFileSync(new URL('../public/icon-192.png', import.meta.url)).byteLength > 0
+  && readFileSync(new URL('../public/icon-512.png', import.meta.url)).byteLength > 0
+  && readFileSync(new URL('../public/icon-maskable-512.png', import.meta.url)).byteLength > 0
+  && readFileSync(new URL('../public/apple-touch-icon.png', import.meta.url)).byteLength > 0
+  && indexSource.includes('rel="apple-touch-icon"')
+  && indexSource.includes('name="apple-mobile-web-app-capable"')
+));
+check('install shortcuts use existing icons without requesting unsupported window controls', () => (
+  !manifestJson.display_override?.includes('window-controls-overlay')
+  && manifestJson.shortcuts?.length >= 3
+  && manifestJson.shortcuts.every((shortcut) => shortcut.icons?.some((icon) => (
+    icon.src === 'icon-192.png'
+    && icon.sizes === '192x192'
+    && icon.type === 'image/png'
+  )))
+));
+check('performance sampling remains bfcache eligible and avoids hidden readout scans', () => performanceSettingsSource.includes("addEventListener('pagehide'")
+  && performanceSettingsSource.includes("addEventListener('pageshow'")
+  && !performanceSettingsSource.includes("addEventListener('beforeunload'")
+  && performanceSettingsSource.includes("document.getElementById('performance-settings-root')"));
+check('chat boot keeps critical work concurrent and defers secondary messaging services until handoff', () => (
+  chatBootSource.includes('const chatCoreReadyPromise = window.initializeRooms')
+  && chatBootSource.includes('const presenceReady = Promise.resolve()')
+  && chatBootSource.includes('const [chatCoreReady] = await Promise.all([')
+  && chatBootSource.includes("window.dispatchEvent(new Event('minimalist:chat-visible'))")
+  && chatBootSource.includes("'minimalist:chat-visible',\n  scheduleNotificationRuntimeAfterHandoff")
+  && chatBootSource.includes('window.ensureNotificationRuntime?.()')
+  && !chatBootSource.includes('window.ensurePrivateMessagesRuntime?.()')
+  && !chatAppSource.includes("import '../private-messages/PrivateMessages.jsx';")
+  && chatAppSource.includes("import('../private-messages/PrivateMessages.jsx')")
+  && chatAppSource.includes('withDeferredChatSurfaces')
+));
+check('Chat defers hidden settings and management surfaces behind intent-aware portals', () => (
+  chatPageShellSource.includes("import('../features/shell/ChatDeferredSurfaces.jsx')")
+  && chatPageShellSource.includes('window.ensureChatDeferredSurfaces = ensureDeferredSurfaces')
+  && !chatPageShellSource.includes('id: "settings-modal"')
+  && !chatPageShellSource.includes('h(UpdatesCenterShell)')
+  && chatDeferredSurfacesSource.includes('createPortal(')
+  && chatDeferredSurfacesSource.includes('id: "settings-modal"')
+  && chatDeferredSurfacesSource.includes('h(UpdatesCenterShell)')
+  && !chatAppSource.includes("import '../rooms/roomControls.js'")
+  && !chatAppSource.includes("import '../profile/profileActions.js'")
+  && !chatAppSource.includes("import '../billing/billingActions.js'")
+  && chatAppSource.includes("import('../rooms/roomControls.js')")
+  && chatAppSource.includes("import('../profile/profileActions.js')")
+  && chatAppSource.includes("import('../billing/billingActions.js')")
+  && chatAppSource.includes("selector: '#open-settings-btn, #open-settings-btn-mobile'")
+));
+check('vault intent prewarming uses one delegated listener per event type', () => roomFeatureLoadersSource.includes("const vaultPrewarmSelector = '#open-vault-btn, #open-vault-btn-mobile'")
+  && !roomFeatureLoadersSource.includes("['#open-vault-btn', '#open-vault-btn-mobile'].forEach"));
+check('Android safe areas rely on real WebView CSS insets instead of fixed user-agent guesses', () => nativePlatformSource.includes("classList.add('android-device')")
+  && !nativePlatformSource.includes("setProperty('--android-safe-top'")
+  && !nativePlatformSource.includes("setProperty('--android-safe-bottom'"));
+check('static Home first paint matches the v5 marketing contract', () => (
+  indexSource.includes('<title>Minimalist.chat | Calm, organized rooms</title>')
+  && indexSource.includes('<main id="static-home-shell" class="static-home-shell" data-marketing-home')
+  && indexSource.includes('Catch up without catching the chaos.')
+  && indexSource.includes('One calm room for conversation, decisions, tasks, files, events, and the context you missed.')
+  && indexSource.includes('>See how rooms work</a>')
+));
+check('marketing navigation uses the organized floating desktop and mobile contract', () => marketingPagesSource.includes('className="marketing-nav-shell"')
   && marketingPagesSource.includes('className="marketing-nav-links"')
+  && marketingPagesSource.includes("['/', 'Home', 'ph-house']")
+  && marketingPagesSource.includes("['/pricing', 'Pricing', 'ph-currency-circle-dollar']")
+  && marketingPagesSource.includes("['/faq', 'FAQ', 'ph-info']")
+  && marketingPagesSource.includes('className="mobile-nav-groups"')
+  && marketingPagesSource.includes('className={`mobile-nav-action-zone${showLogin ? \' has-login\' : \'\'}`}')
   && marketingPagesSource.includes("location.pathname.replace(/\\/+$/, '')")
   && marketingPagesSource.includes("menuOpen ? 'is-open' : ''")
+  && marketingPagesSource.includes("window.matchMedia('(min-width: 901px)')")
   && marketingPagesSource.includes("aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}")
-  && baseCssSource.includes('Landing navigation v4')
+  && baseCssSource.includes('Marketing navigation v5')
   && baseCssSource.includes('body.marketing nav[aria-label="Primary"]:has(.marketing-nav-shell)')
   && baseCssSource.includes('grid-template-columns: minmax(0, 1fr) auto')
-  && baseCssSource.includes('width: min(20rem, calc(100vw - 1.3rem))')
-  && baseCssSource.includes('calc(0.5rem + var(--app-safe-top')
+  && baseCssSource.includes('width: min(23rem, 100%)')
+  && baseCssSource.includes('grid-template-rows: auto minmax(0, 1fr) auto')
+  && baseCssSource.includes('max-height: calc(100dvh - 5rem')
+  && baseCssSource.includes('.mobile-nav-scroll-region')
+  && baseCssSource.includes('.mobile-nav-action-zone')
+  && baseCssSource.includes('calc(0.35rem + var(--app-safe-top')
   && baseCssSource.includes('backdrop-filter: none !important')
   && indexSource.includes('class="static-home-nav-shell"')
   && indexSource.includes('class="static-home-menu"'));
@@ -823,14 +1192,18 @@ check('sitemap lists only canonical public marketing routes', () => (
   && !sitemapSource.includes('<loc>https://minimalist.chat/chat</loc>')
   && !sitemapSource.includes('<loc>https://minimalist.chat/login</loc>')
 ));
-check('pricing and FAQ use one verified shared marketing data source', () => (
+check('pricing, FAQ, and Terms use verified shared marketing data', () => (
   appSource.includes("['/pricing', PricingPage]")
-  && marketingPagesSource.includes("from '../content/marketingContent.js'")
+  && marketingPricingContentSource.includes("from '../content/marketingContent.js'")
   && prerenderSource.includes("from '../src/content/marketingContent.js'")
   && marketingContentSource.includes("displayPrice: '$1.99/month'")
   && marketingContentSource.includes("displayPrice: '$7.99/month'")
   && marketingContentSource.includes("displayPrice: '$11.99/month'")
   && marketingContentSource.includes("displayPrice: '$19.99/month'")
+  && marketingContentSource.includes("lastUpdated: 'July 18, 2026'")
+  && marketingLegalContentSource.includes('termsPageMeta')
+  && marketingLegalContentSource.includes('termsSections')
+  && prerenderSource.includes('termsSections.map')
   && !marketingContentSource.includes('Scheduled messages')
 ));
 check('structured data stays conservative and matches visible FAQ content', () => (
@@ -843,9 +1216,10 @@ check('structured data stays conservative and matches visible FAQ content', () =
 ));
 check('unknown routes are hard 404s while approved dynamic entries remain rewrites', () => {
   const rewrites = firebaseJson.hosting.rewrites || [];
-  return rewrites.length === 2
+  return rewrites.length === 3
     && rewrites.some((entry) => entry.source === '/join/*' && entry.destination === '/index.html')
     && rewrites.some((entry) => entry.source === '/vault/share/*' && entry.destination === '/index.html')
+    && rewrites.some((entry) => entry.source === '/api/performance/vitals' && entry.function?.functionId === 'performanceRum')
     && !rewrites.some((entry) => entry.source === '**')
     && serverSource.includes("response.status(404).sendFile(notFoundFile")
     && prerenderSource.includes("path.join(distDir, '404.html')")
@@ -864,23 +1238,33 @@ check('UI smoke test covers desktop/mobile public routes and landing demo intera
   && uiSmokeSource.includes('Chrome DevTools Protocol')
   && uiSmokeSource.includes("const routes = ['/', '/features', '/pricing', '/download', '/story', '/faq', '/privacy', '/terms', '/login', '/chat', '/seo-smoke-missing'];")
   && uiSmokeSource.includes('horizontal overflow')
+  && uiSmokeSource.includes('landing startup keeps a meaningful surface until final React home')
   && uiSmokeSource.includes('landing demo exists on desktop without overflow')
   && uiSmokeSource.includes('landing demo room switch changes active room')
   && uiSmokeSource.includes('landing demo Chat and Tasks tabs change state')
   && uiSmokeSource.includes('landing demo local send clears input and adds message')
   && uiSmokeSource.includes('landing demo reset restores initial state')
   && uiSmokeSource.includes('homepage Compare plans reaches truthful pricing')
-  && uiSmokeSource.includes('FAQ exposes six interactive visible answers')
+  && uiSmokeSource.includes('landing workflow stays contained at tablet width')
+  && uiSmokeSource.includes('FAQ search and accordion expose shared interactive answers')
+  && uiSmokeSource.includes('Terms contents rail reaches a complete current section')
   && uiSmokeSource.includes('branded not-found page returns home')
   && uiSmokeSource.includes('landing demo fits mobile without overflow')
   && uiSmokeSource.includes('desktop nav Features click')
   && uiSmokeSource.includes('modern navigation persists across marketing pages')
-  && uiSmokeSource.includes('mobile navigation opens as a compact popover')
-  && uiSmokeSource.includes('mobile navigation stays modern on Features')
+  && uiSmokeSource.includes('mobile navigation groups destinations and actions')
+  && uiSmokeSource.includes('mobile navigation closes with Escape and restores focus')
+  && uiSmokeSource.includes('mobile navigation marks the active route without overflow')
+  && uiSmokeSource.includes('mobile navigation stays contained on short and narrow screens')
+  && uiSmokeSource.includes('mobile navigation clears its open state at the desktop breakpoint')
   && uiSmokeSource.includes('mobile Open app click reaches login'));
 check('chat composer auto-resizes draft textarea', () => chatCoreSource.includes('resizeComposerTextarea') && chatCoreSource.includes('textarea.scrollHeight'));
 check('chat composer ignores Enter submit during IME composition', () => chatCoreSource.includes('event.nativeEvent?.isComposing') && chatCoreSource.includes('event.keyCode === 229') && chatCoreSource.includes('!isComposing'));
-check('chat composer preserves draft until authoritative send succeeds', () => chatCoreSource.indexOf("await setWithAuthRetry(newMessageRef, payload);") < chatCoreSource.indexOf('clearComposerDraftStorage(activeId, submitChannelId);'));
+check('chat composer preserves draft until authoritative send succeeds', () => (
+  chatCoreSource.includes('await deliveryRuntime.deliverMessageAttempt(attempt, {')
+  && chatCoreSource.indexOf('await deliveryRuntime.deliverMessageAttempt(attempt, {')
+    < chatCoreSource.indexOf('clearComposerDraftStorageIfMatches(activeId, submitChannelId, text);')
+));
 check('chat drafts and typing indicators are scoped per channel', () => {
   const typingRule = rules.typing.$roomId.$channelId.$uid?.['.write'] || '';
   return chatCoreSource.includes('function composerDraftKey(roomId, channelId')
@@ -974,7 +1358,8 @@ check('first private-room send waits for bounded bot configuration readiness', (
   chatCoreSource.includes('BOT_CONFIG_READY_TIMEOUT_MS')
   && chatCoreSource.includes('const botConfigLoadRef = useRef')
   && chatCoreSource.includes('waitForRoomBotConfig(activeId, requesterUid)')
-  && chatCoreSource.includes('Room app settings are still loading. Your draft was kept')
+  && messageDeliveryRuntimeSource.includes('Room app settings are still loading. Your draft was kept')
+  && messageDeliveryRuntimeSource.includes('preflightMessageDelivery')
 ));
 check('stock automations stay bound to their originating channel and account', () => (
   chatCoreSource.includes('const requestContext = {')
@@ -997,18 +1382,161 @@ check('automation attribution rules bind requester identity to message ownership
     rule.includes("child('requestedBy').val() === newData.child('uid').val()")
   ));
 });
-check('catch-up task creation reports write failures', () => chatCoreSource.includes('Task creation failed') && chatCoreSource.includes('Task failed:'));
-check('catch-up remains available in read-only composer states', () => chatCoreSource.includes('const roomCatchUp = useMemo(() => (draft.trim() ? null : buildRoomCatchUp(messages))') && !chatCoreSource.includes('draft.trim() || composerDisabled ? null : buildRoomCatchUp(messages)'));
+check('quick replies use a pure bounded model with stale suppression and explicit reply targets', () => {
+  const viewer = { viewerId: 'viewer', viewerName: 'Hao', viewerShortId: 'HAO7' };
+  const outsideWindow = buildQuickReplyModel([
+    { id: 'old', uid: 'other', name: 'Maya', text: 'Can you review this?' },
+    ...Array.from({ length: QUICK_REPLY_MESSAGE_LIMIT }, (_, index) => ({
+      id: `system-${index}`,
+      system: true,
+      text: 'System activity',
+    })),
+  ], viewer);
+  const stale = buildQuickReplyModel([
+    { id: 'inbound', uid: 'other', name: 'Maya', text: 'Can you review this?' },
+    { id: 'mine', uid: viewer.viewerId, name: viewer.viewerName, text: 'I am reviewing it.' },
+  ], viewer);
+  const targeted = buildQuickReplyModel([
+    { id: 'latest', uid: viewer.viewerId, name: viewer.viewerName, text: 'Following up.' },
+  ], {
+    ...viewer,
+    replyTarget: { id: 'target', uid: 'other', name: 'Maya', text: 'What time works?' },
+  });
+
+  return !/\bwindow\b/.test(quickReplyModelSource)
+    && outsideWindow === null
+    && stale === null
+    && targeted?.source.id === 'target'
+    && targeted?.source.mode === 'reply';
+});
+check('quick reply picks create a persistent focused draft without sending it', () => {
+  const start = chatCoreSource.indexOf('const pickQuickReply =');
+  const end = chatCoreSource.indexOf('const typingText', start);
+  const pickSource = start >= 0 && end > start ? chatCoreSource.slice(start, end) : '';
+  return pickSource.includes('setDraft(text)')
+    && pickSource.includes('writeComposerDraft(')
+    && pickSource.includes('textareaRef.current?.focus()')
+    && pickSource.includes('review before sending')
+    && !/(?:setWithAuthRetry|handleSubmit|roomMessagesRef|\bpush\s*\()/.test(pickSource);
+});
+check('quick replies hide during draft, read-only, and send states without depending on catch-up', () => {
+  const start = chatCoreSource.indexOf('const showQuickReplies =');
+  const end = chatCoreSource.indexOf('const composerStatusText', start);
+  const bindingSource = start >= 0 && end > start ? chatCoreSource.slice(start, end) : '';
+  return bindingSource.includes('draft.trim()')
+    && bindingSource.includes('composerDisabled')
+    && bindingSource.includes('isSending')
+    && !bindingSource.includes('roomCatchUpEnabled')
+    && chatCoreSource.indexOf('<RoomCatchUpStrip') < chatCoreSource.indexOf('{showQuickReplies ? (');
+});
+check('quick replies render a contextual rail without the retired smart-reply markup', () => (
+  chatCoreSource.includes("lazy(() => import('./QuickReplies.jsx')")
+  && quickRepliesSource.includes("import './quickReplies.css'")
+  && quickRepliesSource.includes('className={`quick-replies-v2 ${collapsed ?')
+  && quickRepliesSource.includes('replying to ${model.source.name}')
+  && quickRepliesSource.includes('for ${model.source.name}')
+  && quickRepliesSource.includes('aria-label="Suggested draft replies"')
+  && quickRepliesSource.includes('aria-expanded={!collapsed}')
+  && quickRepliesSource.includes("collapsed ? 'Expand reply ideas' : 'Collapse reply ideas'")
+  && !quickRepliesSource.includes('Dismiss reply ideas')
+  && !chatCoreSource.includes('function SmartReplies')
+  && !chatCoreSource.includes('className="smart-replies"')
+));
+check('quick replies keep an account-scoped retraction state without remounting on new messages', () => (
+  quickRepliesPreferenceSource.includes("QUICK_REPLIES_COLLAPSE_STORAGE_PREFIX = 'minimalist.chat.quick-replies-collapsed.v1'")
+  && quickRepliesPreferenceSource.includes('encodeURIComponent(normalizeAccountScope(uid))')
+  && quickRepliesPreferenceSource.includes("storageTarget?.setItem?.(storageKey, '1')")
+  && quickRepliesPreferenceSource.includes('storageTarget?.removeItem?.(storageKey)')
+  && quickRepliesSource.includes('loadQuickRepliesCollapsed(viewerId)')
+  && quickRepliesSource.includes('saveQuickRepliesCollapsed(viewerId, next)')
+  && quickRepliesSource.includes("key={`${scopeKey}:${viewerId || 'signed-out'}`}")
+  && !quickRepliesSource.includes('key={`${scopeKey}:${model.source.mode}:${model.source.id}`}')
+  && quickRepliesSource.includes('hidden={collapsed}')
+  && quickRepliesCssSource.includes('.quick-replies-v2__suggestions[hidden]')
+  && quickRepliesCssSource.includes('.quick-replies-v2.is-collapsed')
+  && !quickRepliesSource.includes('roomCatchUp')
+));
+check('chat assist rails use compact desktop density while retaining explicit collapsed states', () => {
+  const quickRoot = quickRepliesCssSource.match(/#room-view-chat \.quick-replies-v2 \{([^}]*)\}/)?.[1] || '';
+  const quickCollapsed = quickRepliesCssSource.match(/\.quick-replies-v2\.is-collapsed \{([^}]*)\}/)?.[1] || '';
+  const catchUpRoot = roomCatchUpCssSource.match(/#room-view-chat \.room-catchup-v2 \{([^}]*)\}/)?.[1] || '';
+  const catchUpCollapsed = roomCatchUpCssSource.match(/\.room-catchup-v2\.is-collapsed \{([^}]*)\}/)?.[1] || '';
+  return quickRoot.includes('min-height: 42px')
+    && quickCollapsed.includes('min-height: 36px')
+    && catchUpRoot.includes('min-height: 44px')
+    && catchUpRoot.includes('grid-template-columns: minmax(340px, 0.82fr) minmax(360px, 1.18fr)')
+    && catchUpCollapsed.includes('min-height: 38px')
+    && quickRepliesCssSource.includes('min-height: 48px')
+    && roomCatchUpCssSource.includes('@media (max-width: 1120px)');
+});
+check('quick reply rail keeps coarse targets, focus visibility, stable hover, and short-landscape access', () => {
+  const coarseStart = quickRepliesCssSource.indexOf('@media (pointer: coarse)');
+  const coarseEnd = quickRepliesCssSource.indexOf('@media (max-width: 560px)', coarseStart);
+  const coarseSource = coarseStart >= 0 && coarseEnd > coarseStart
+    ? quickRepliesCssSource.slice(coarseStart, coarseEnd)
+    : '';
+  const hoverBodies = [...quickRepliesCssSource.matchAll(/:hover[^{}]*\{([^{}]*)\}/g)]
+    .map((match) => match[1]);
+
+  return coarseSource.includes('min-width: 44px')
+    && coarseSource.includes('min-height: 44px')
+    && quickRepliesCssSource.includes('.quick-replies-v2__suggestion:focus-visible')
+    && quickRepliesCssSource.includes('outline: 2px solid var(--qr-ink) !important')
+    && quickRepliesCssSource.includes('transform: none !important')
+    && hoverBodies.every((body) => !/transform\s*:\s*translate/i.test(body))
+    && quickRepliesCssSource.includes('@media (max-width: 560px), (max-height: 420px)')
+    && !/#room-view-chat\s+\.quick-replies-v2\s*\{[^}]*display\s*:\s*none/is.test(quickRepliesCssSource);
+});
+check('catch-up and quick replies keep brand yellow as a quiet accent instead of a raised slab', () => {
+  const quickPrimary = quickRepliesCssSource.match(/\.quick-replies-v2__suggestion\.is-primary\s*\{([^}]*)\}/)?.[1] || '';
+  const catchUpReview = roomCatchUpCssSource.match(/\.room-catchup-v2__review,\s*\n[^{}]*\.room-catchup-v2__done\s*\{([^}]*)\}/)?.[1] || '';
+  return quickPrimary.includes('var(--qr-accent) 6%')
+    && !quickPrimary.includes('box-shadow')
+    && catchUpReview.includes('background: transparent !important')
+    && catchUpReview.includes('box-shadow: none !important')
+    && !/background\s*:\s*var\(--(?:qr-accent|cu-a)\)/.test(`${quickPrimary}\n${catchUpReview}`);
+});
+check('catch-up task creation is editable and reports write failures', () => (
+  chatCoreSource.includes("title: 'Save as a task'")
+  && chatCoreSource.includes('defaultValue: String(text || \'\').slice(0, 240)')
+  && chatCoreSource.includes('Task creation failed')
+  && chatCoreSource.includes('Task failed:')
+));
+check('catch-up remains available in read-only composer states', () => (
+  chatCoreSource.includes('hidden={!roomCatchUpEnabled || Boolean(draft.trim())}')
+  && !chatCoreSource.includes('!roomCatchUpEnabled || composerDisabled')
+));
+check('catch-up review state is isolated by account and message scope', () => (
+  roomCatchUpPreferenceSource.includes('ROOM_CATCHUP_REVIEW_STORAGE_PREFIX')
+  && roomCatchUpPreferenceSource.includes('encodeURIComponent(normalizedScope)')
+  && chatCoreSource.includes('messageScopeKey(activeRoom.id, activeChannelId)')
+  && chatCoreSource.includes('saveRoomCatchUpReviewedId(userId, scopeKey, latestId)')
+));
+check('catch-up review navigation reuses the scoped message jump pipeline', () => (
+  chatCoreSource.includes("source: 'room-catchup'")
+  && chatCoreSource.includes('className="room-catchup-v2__review"')
+  && chatCoreSource.includes('Review\n')
+  && chatCoreSource.includes('Mark reviewed')
+  && chatCoreSource.includes('Previous update')
+  && chatCoreSource.includes('Next update')
+  && chatCoreSource.includes('[activeChannelId, activeRoom.id, jumpContext, messages]')
+));
+check('catch-up model uses truthful bounded activity and human-first highlights', () => (
+  roomCatchUpModelSource.includes("'Recent activity'")
+  && roomCatchUpModelSource.includes('RECENT_MESSAGE_LIMIT = 18')
+  && roomCatchUpModelSource.includes('humanBoost')
+  && roomCatchUpModelSource.includes('message.uid !== viewer.uid || isAutomation(message)')
+));
 check('message reactions serialize and report write failures', () => chatCoreSource.includes('pendingReactionOpsRef') && chatCoreSource.includes('Reaction failed:'));
 check('message action menu is viewport-clamped', () => messageToolsSource.includes('getBoundingClientRect') && messageToolsSource.includes('window.innerWidth - menuWidth') && featuresCssSource.includes('.msg-menu { position: fixed;'));
 check('message menus clamp against app safe areas', () => messageToolsSource.includes('--app-safe-bottom') && chatCoreSource.includes('--app-safe-bottom') && chatCoreSource.includes('maxBottom'));
 check('message action toolbar uses a seamless no-reflow PC gutter and compact touch fallback', () => featuresCssSource.includes('Modern message action toolbar') && featuresCssSource.includes('left: calc(100% - 6px)') && featuresCssSource.includes('width: 30px !important') && featuresCssSource.includes('width: 40px !important') && featuresCssSource.includes('border: 0 !important') && featuresCssSource.includes('position: static !important') && !featuresCssSource.includes('bottom: calc(100% + 8px)'));
-check('mobile catch-up and composer use the dense footer contract', () => featuresCssSource.includes('Dense phone footer') && featuresCssSource.includes('--composer-min-height: 32px') && chatCoreSource.includes("getPropertyValue('--composer-min-height')") && chatCoreSource.includes('textarea.style.height = `${minHeight}px`') && chatCoreSource.includes('const scrollHeight = textarea.scrollHeight'));
+check('mobile catch-up and composer use the dense footer contract', () => roomCatchUpCssSource.includes('@media (max-width: 680px), (max-height: 420px)') && roomCatchUpCssSource.includes('min-height: 44px') && featuresCssSource.includes('--composer-min-height: 32px') && chatCoreSource.includes("getPropertyValue('--composer-min-height')") && chatCoreSource.includes('textarea.style.height = `${minHeight}px`') && chatCoreSource.includes('const scrollHeight = textarea.scrollHeight'));
 check('message action toolbar supports grouped roving keyboard focus', () => chatCoreSource.includes('role="toolbar"') && chatCoreSource.includes('handleMessageToolbarKeyDown') && chatCoreSource.includes('msg-actions-divider'));
 check('edit and delete actions use the permission-guarded overflow menu', () => messageToolsUiSource.includes("onAction('edit')") && messageToolsUiSource.includes("onAction('delete')") && messageToolsSource.includes("action === 'edit' || action === 'delete'") && messageToolsSource.includes('menu.roomId !== window.activeRoomId'));
 check('emoji reaction dialog uses lazy keyboard-focusable buttons', () => emojiPickerSource.includes('ensureEmojiPickerOptions') && emojiPickerSource.includes("document.createElement('button')") && emojiPickerSource.includes("event.key === 'Escape'") && chatCoreSource.includes("aria-haspopup=\"dialog\""));
 check('existing reaction pills expose toggle state to assistive technology', () => chatCoreSource.includes('aria-pressed={info.mine}') && chatCoreSource.includes('remove your reaction'));
-check('mobile catch-up keeps clamped action context', () => mobileCssSource.includes('-webkit-line-clamp: 1') && featuresCssSource.includes('-webkit-line-clamp: 1'));
+check('mobile catch-up keeps one readable no-overflow review row', () => roomCatchUpCssSource.includes('grid-template-columns: 18px minmax(0, 1fr) auto') && roomCatchUpCssSource.includes('text-overflow: ellipsis') && roomCatchUpCssSource.includes('.room-catchup-v2__details') && roomCatchUpCssSource.includes('display: none;'));
 check('mobile chat action targets are thumb sized', () => mobileCssSource.includes('min-height: 40px !important') && baseCssSource.includes('max-height: 128px'));
 check('mobile utility panels avoid double safe-area top padding', () => featuresCssSource.includes('padding-top: 0 !important') && featuresCssSource.includes('padding: 0.78rem 0.88rem 0.72rem !important'));
 check('contacts action buttons are thumb sized', () => featuresCssSource.includes('min-width: 44px !important') && featuresCssSource.includes('min-height: 44px !important'));
@@ -1016,6 +1544,12 @@ check('contacts lifecycle suppresses hidden and overlapping renders', () => cont
   && contactsSource.includes('let contactsRenderPromise = null')
   && contactsSource.includes('contactsRenderQueued = true')
   && contactsSource.includes('cancelMutualRoomRefreshes()'));
+check('friendship state changes use the authenticated server transition endpoint', () => contactsSource.includes('cloudfunctions.net/manageFriendship')
+  && contactsSource.includes("manageFriendship('send', targetUid)")
+  && contactsSource.includes("manageFriendship('accept', targetUid)")
+  && contactsSource.includes("manageFriendship('remove', targetUid)")
+  && contactsSource.includes('getAuthedJsonHeaders')
+  && !/\b(?:set|remove)\(ref\(db, `friends\//.test(contactsSource));
 check('utility close paths synchronize Search state and stop hidden Quest listeners', () => (
   chatShellSource.includes("window.dispatchEvent(new CustomEvent('minimalist:close-search'))")
   && chatShellSource.includes('window.stopQuestLiveSync?.()')
@@ -1051,17 +1585,18 @@ check('Quest board color maps stay tied to skill and progress semantics', () => 
 ));
 check('Quest lazy load paints immediately and offers an in-panel retry', () => (
   updatesCenterShellSource.includes('Preparing quests')
-  && chatAppSource.includes('renderQuestImportError')
+  && chatAppSource.includes('renderDeferredListError')
   && chatAppSource.includes("lazyWindowFunction('community-services', communityServicesImporter, 'renderQuests'")
 ));
-check('Contacts warms early and paints before listener/profile work', () => {
+check('Contacts warms on intent and paints before listener/profile work', () => {
   const openStart = contactsSource.indexOf('function openContactsPanel()');
   const openEnd = contactsSource.indexOf('function closeContactsPanel()', openStart);
   const openContactsSource = openStart >= 0 && openEnd > openStart
     ? contactsSource.slice(openStart, openEnd)
     : '';
-  return chatAppSource.includes('prefetchContactsAfterFirstPaint')
+  return !chatAppSource.includes('prefetchContactsAfterFirstPaint')
     && chatAppSource.includes("document.addEventListener('pointerdown', warmContactsOnIntent")
+    && chatAppSource.includes("target?.closest?.('#open-contacts-btn, #open-contacts-btn-mobile')")
     && chatShellSource.includes("contactsPanel?.classList.add('open')")
     && chatShellSource.includes('if (window.openContactsPanel) window.openContactsPanel()')
     && openContactsSource.includes('window.requestAnimationFrame(() => window.requestAnimationFrame(startContactsWork))')
@@ -1076,7 +1611,18 @@ check('contacts profile prewarm is single-shot and safely cancellable', () => (
 check('contacts profile reads are bounded, cached, and single-flight', () => contactsSource.includes('const contactUserLoads = new Map()')
   && contactsSource.includes('const CONTACT_USER_CACHE_LIMIT = 400')
   && contactsSource.includes('if (contactUserLoads.has(uid)) return contactUserLoads.get(uid)')
-  && contactsListSource.includes('loading="lazy"'));
+  && contactsListSource.includes("loading={prioritizeAvatar ? 'eager' : 'lazy'}")
+  && contactsListSource.includes('const PRIORITY_AVATAR_LIMIT = 6'));
+check('contacts prime the selected avatar and hand cached identity to the public profile', () => (
+  contactsListSource.includes('onPointerEnter={() => onPrepareProfile?.(contact)}')
+  && contactsListSource.includes('onPointerDown={() => onPrepareProfile?.(contact)}')
+  && contactsSource.includes('function preloadContactAvatar(photoUrl)')
+  && contactsSource.includes('window.prefetchProfilePopupService?.()')
+  && contactsSource.includes('window.viewUserProfile(contact?.uid, {')
+  && profilePopupSource.includes('window.viewUserProfile = async function viewUserProfile(targetUid, seedUser = null)')
+  && profilePopupSource.indexOf('const safeSeedUser = seedUser') < profilePopupSource.indexOf('const publicProfilePromise = loadPublicProfile(targetUid)')
+  && chatPageSource.includes('fetchPriority: "high"')
+));
 check('contacts reuses the boot inbox stream instead of adding a duplicate Firebase listener', () => contactsSource.includes("window.addEventListener('minimalist:pm-inbox'")
   && !contactsSource.includes('onValue(ref(db, `inbox/${uid}`)'));
 check('contacts closes through lifecycle cleanup before other utility surfaces', () => roomFeatureLoadersSource.includes('closeContactsPanelIfOpen();')
@@ -1109,19 +1655,63 @@ check('Contacts PM handoff restores Contacts only on user close', () => contacts
   && privateMessagesSource.includes('restoreOrigin: false')
   && chatShellSource.includes('closePrivateChatDock({ restoreOrigin: false })'));
 check('coarse pointer chat controls are thumb sized', () => featuresCssSource.includes('width: 44px !important') && featuresCssSource.includes('min-height: 44px !important') && mobileCssSource.includes('min-width: 44px'));
-check('Android bottom safe-area fallback is wired', () => baseCssSource.includes('--android-safe-bottom') && baseCssSource.includes('max(env(safe-area-inset-bottom') && read('src/features/shell/nativePlatform.js').includes('--android-safe-bottom'));
+check('room favorite and hide controls use a quiet theme-aware border', () => {
+  const selector = 'body:not(.marketing):not(.auth-screen) #desktop-room-sidebar .room-actions > :is(.room-fav-btn, .room-hide-btn) {';
+  const ruleStart = featuresCssSource.lastIndexOf(selector);
+  const ruleEnd = featuresCssSource.indexOf('}', ruleStart);
+  const rule = ruleStart >= 0 && ruleEnd > ruleStart
+    ? featuresCssSource.slice(ruleStart, ruleEnd)
+    : '';
+  return rule.includes('border-width: 1px !important')
+    && rule.includes('var(--text-color, #111) 16%')
+    && rule.includes('box-shadow: none !important');
+});
+check('room favorite and hide controls keep device-appropriate sizing', () => {
+  const mobileRule = /\.room-action-icon\s*\{\s*width:\s*44px\s*!important;\s*height:\s*44px\s*!important;\s*min-width:\s*44px\s*!important;\s*min-height:\s*44px\s*!important;/s;
+  const coarseStart = featuresCssSource.indexOf('@media (min-width: 1181px) and (any-pointer: coarse)');
+  const coarseEnd = featuresCssSource.indexOf('\n}\n', coarseStart);
+  const coarseRule = coarseStart >= 0 && coarseEnd > coarseStart
+    ? featuresCssSource.slice(coarseStart, coarseEnd + 2)
+    : '';
+  return mobileRule.test(mobileCssSource)
+    && coarseRule.includes('#desktop-room-sidebar .room-action-icon')
+    && coarseRule.includes('min-width: 44px !important')
+    && coarseRule.includes('min-height: 44px !important')
+    && chatPageSource.includes('id: "room-drop-favorite"')
+    && chatPageSource.includes('id: "room-drop-hide"');
+});
+check('native safe areas use browser-provided insets without hard-coded Android guesses', () => (
+  baseCssSource.includes('--app-safe-top: max(env(safe-area-inset-top')
+  && baseCssSource.includes('--app-safe-bottom: max(env(safe-area-inset-bottom')
+  && !nativePlatformSource.includes("setProperty('--android-safe-top'")
+  && !nativePlatformSource.includes("setProperty('--android-safe-bottom'")
+));
 check('welcome tour modal is viewport bounded on mobile', () => featuresCssSource.includes('max-height: calc(100dvh - 3rem)') && featuresCssSource.includes('.wt-modal-actions { position: sticky') && featuresCssSource.includes('align-items: flex-start'));
 check('marketing skips app-only responsive route styles', () => (
   loadCssSource.includes('function isResponsiveStylesheet')
   && loadCssSource.includes('if (!isAppRoute) return false;')
-  && loadCssSource.includes("var routineDeferredLinks = isAppRoute")
+  && loadCssSource.includes('var schedulesAppStartupStyles = isAppRoute || isVaultShareRoute;')
+  && loadCssSource.includes('var routineDeferredLinks = schedulesAppStartupStyles')
 ));
-check('app CSS loader matches and live-switches the mobile stylesheet breakpoint', () => loadCssSource.includes("window.matchMedia('(max-width: 768px)')") && loadCssSource.includes('return mobileStylesViewport') && loadCssSource.includes('!isResponsiveStylesheet(link)') && loadCssSource.includes("mobileStylesQuery.addEventListener('change'") && loadCssSource.includes("return '(min-width: 769px)'"));
+check('app CSS loader links both mobile layers without an import waterfall and live-switches them', () => (
+  !mobileCssSource.includes('@import')
+  && indexSource.includes('data-href="/mobile.css?v=split15"')
+  && indexSource.includes('data-href="/mobile-app-dock.css?v=1"')
+  && indexSource.includes('<link rel="stylesheet" href="/mobile-app-dock.css?v=1" />')
+  && loadCssSource.includes("window.matchMedia('(max-width: 768px)')")
+  && loadCssSource.includes('function isMobileResponsiveStylesheet')
+  && loadCssSource.includes('targets.forEach(convertPreload)')
+  && loadCssSource.includes('return mobileStylesViewport')
+  && loadCssSource.includes('!isResponsiveStylesheet(link)')
+  && loadCssSource.includes("mobileStylesQuery.addEventListener('change'")
+  && loadCssSource.includes("return '(min-width: 769px)'")
+));
 check('modal overlays stay above the desktop rail and parent settings dialogs', () => baseCssSource.includes('z-index: 10990 !important') && baseCssSource.includes('#delete-account-modal') && baseCssSource.includes('z-index: 11050 !important') && baseCssSource.includes('z-index: 11060'));
 check('chat message scrolling avoids forced smooth behavior', () => featuresCssSource.includes('#messages {') && featuresCssSource.includes('scroll-behavior: auto'));
 check('RTDB smoke covers full directory and per-user room index contracts', () => rulesSmokeSource.includes('pronouns:') && rulesSmokeSource.includes('bio:') && rulesSmokeSource.includes('status:') && rulesSmokeSource.includes('flair:') && rulesSmokeSource.includes('user can write own room index row') && rulesSmokeSource.includes('user cannot write another user room index row'));
 check('phone app panels reserve bottom nav clearance', () => featuresCssSource.includes('bottom: var(--mobile-nav-clearance') && featuresCssSource.includes('height: auto !important'));
 check('mobile toast and auth inputs respect safe mobile sizing', () => baseCssSource.includes('bottom: calc(var(--mobile-nav-clearance') && /body\.auth-screen \.auth-form input\s*\{[^}]*font-size:\s*1rem;/s.test(baseCssSource));
+check('mobile phone notification control keeps a full coarse-pointer target', () => /\.phone-notify-btn\s*\{[^}]*min-width:\s*44px\s*!important;[^}]*min-height:\s*44px\s*!important;/s.test(mobileCssSource));
 check('PM mobile header and composer respect app safe areas', () => mobileCssSource.includes('calc(0.7rem + var(--app-safe-top') && mobileCssSource.includes('var(--app-safe-bottom, env(safe-area-inset-bottom'));
 check('mobile marketing and auth tap targets are thumb sized', () => baseCssSource.includes('#marketing-mobile-nav-links .mobile-link') && baseCssSource.includes('min-height: 44px !important') && baseCssSource.includes('.feat-nav-chip { width: auto; min-height: 44px') && baseCssSource.includes('.auth-home-link') && baseCssSource.includes('body.auth-screen .pw-toggle') && baseCssSource.includes('min-width: 54px'));
 check('room webhooks pin public targets, reject redirects, and bound requests', () => functionsSource.includes('function isPrivateWebhookAddress') && functionsSource.includes('async function resolveRoomWebhookTarget') && functionsSource.includes('dns.lookup(hostname') && functionsSource.includes('fetchWebhookWithTimeout') && functionsSource.includes('lookup: (_hostname, lookupOptions, callback)') && functionsSource.includes("Connection: 'close'") && functionsSource.includes('Room webhook redirect blocked') && functionsSource.includes('ROOM_WEBHOOK_TIMEOUT_MS = 5000'));
@@ -1135,10 +1725,16 @@ const cspDirectiveSources = (directive) => {
   return new Set(match?.[1].trim().split(/\s+/) || []);
 };
 const cspScriptSources = cspDirectiveSources('script-src');
+const cspImageSources = cspDirectiveSources('img-src');
 const cspConnectSources = cspDirectiveSources('connect-src');
 const cspFrameSources = cspDirectiveSources('frame-src');
 check('hosting CSP allows Google sign-in assets', () => cspHeader.includes('https://accounts.google.com') && cspHeader.includes('https://apis.google.com') && cspHeader.includes('style-src') && cspHeader.includes('https://accounts.google.com'));
 check('hosting CSP allows App Check reCAPTCHA assets', () => cspHeader.includes('https://www.google.com/recaptcha/') && cspHeader.includes('https://www.gstatic.com/recaptcha/') && cspHeader.includes('https://recaptcha.google.com/recaptcha/'));
+check('hosting CSP allows the Cloudflare Web Analytics beacon from its exact host', () => (
+  cspScriptSources.has('https://static.cloudflareinsights.com')
+  && cspConnectSources.has("'self'")
+));
+check('hosting CSP omits the retired remote avatar fallback', () => !cspImageSources.has('https://ui-avatars.com'));
 check('hosting CSP limits RTDB long-poll scripts and frames to Firebase .lp endpoints', () => (
   cspScriptSources.has('https://*.firebaseio.com/.lp')
   && cspFrameSources.has('https://*.firebaseio.com/.lp')
