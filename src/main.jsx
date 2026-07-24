@@ -1,7 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
+import { initializeLocale } from './lib/localeCore.js';
 import './react-shell.css';
+
+initializeLocale();
 
 const VITE_PRELOAD_RECOVERY_KEY = 'minimalist:vite-preload-recovery';
 const VITE_PRELOAD_RECOVERY_WINDOW_MS = 60_000;
@@ -42,6 +45,7 @@ window.setTimeout(() => {
 const isLocalDevelopmentHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname);
 const launchPath = window.location.pathname || '/';
 const isAppLaunchRoute = /^\/(?:chat|join|login)(?:\/|$)/.test(launchPath);
+const isMarketingLaunchRoute = !/^\/(?:chat|join|login|vault\/share)(?:\/|$)/.test(launchPath);
 let hasAuthPresenceHint = false;
 try {
   hasAuthPresenceHint = window.localStorage?.getItem('minimalist.auth.present.v1') === '1';
@@ -49,9 +53,11 @@ try {
   hasAuthPresenceHint = false;
 }
 const isChatLaunchRoute = hasAuthPresenceHint && /^\/(?:chat|join)(?:\/|$)/.test(launchPath);
-const iconStylesHref = '/phosphor-bold-subset.css?v=2';
+const iconStylesHref = '/phosphor-bold-subset.css?v=4';
 const launchStartedAt = Date.now();
 let iconStylesPromise;
+let appRoot = null;
+let launchReadinessStarted = false;
 
 const wait = (ms) => new Promise((resolve) => {
   window.setTimeout(resolve, ms);
@@ -68,7 +74,12 @@ const afterPaintFrames = () => new Promise((resolve) => {
   });
 });
 
-const loadIconStyles = () => {
+const waitForIconFont = () => {
+  if (!document.fonts?.load) return Promise.resolve();
+  return withTimeout(document.fonts.load('1em "Phosphor-Bold-Subset"'), 2500);
+};
+
+export const loadIconStyles = () => {
   if (iconStylesPromise) return iconStylesPromise;
 
   iconStylesPromise = new Promise((resolve) => {
@@ -90,7 +101,7 @@ const loadIconStyles = () => {
     stylesheet.addEventListener('load', resolve, { once: true });
     stylesheet.addEventListener('error', resolve, { once: true });
     document.head.appendChild(stylesheet);
-  });
+  }).then(waitForIconFont);
 
   return iconStylesPromise;
 };
@@ -160,11 +171,18 @@ window.addEventListener('appinstalled', () => {
 });
 
 if (!import.meta.env.DEV && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Registration is best effort; the app remains usable without offline mode.
-    });
-  }, { once: true });
+  const startServiceWorker = () => import('./serviceWorkerRuntime.js')
+    .then(({ startServiceWorkerRuntime }) => startServiceWorkerRuntime({
+      buildNumber: import.meta.env.VITE_APP_BUILD_NUMBER,
+      entrypoint: new URL(import.meta.url).pathname,
+    }))
+    .catch(() => undefined);
+
+  if (document.readyState === 'complete') {
+    startServiceWorker();
+  } else {
+    window.addEventListener('load', startServiceWorker, { once: true });
+  }
 }
 
 if (shouldLoadIconsImmediately && 'requestIdleCallback' in window) {
@@ -177,37 +195,32 @@ if (shouldLoadIconsImmediately && 'requestIdleCallback' in window) {
   window.setTimeout(loadIconStyles, 6500);
 }
 
-createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>,
-);
+export function mountApp() {
+  if (appRoot) return appRoot;
 
-let staticHomeHideStarted = false;
-const hideStaticHomeShell = () => {
-  if (window.location.pathname && window.location.pathname !== '/') {
-    document.getElementById('static-home-shell')?.remove();
-    return;
+  const rootElement = document.getElementById('root');
+  if (!rootElement) throw new Error('Minimalist root element was not found.');
+
+  if (isMarketingLaunchRoute) {
+    document.body.className = 'marketing marketing-scroll';
+    document.body.removeAttribute('style');
   }
-  if (staticHomeHideStarted) return;
-  const staticShell = document.getElementById('static-home-shell');
-  if (!staticShell) return;
-  if (!document.querySelector('#root .landing-v3')) return;
 
-  staticHomeHideStarted = true;
-  Promise.race([
-    window.__minimalistCssReady || Promise.resolve(),
-    new Promise((resolve) => window.setTimeout(resolve, 900)),
-  ]).then(afterPaintFrames).then(() => {
-    // Keep the first-paint shell fully opaque until the styled React landing
-    // page has painted, then swap once. A crossfade exposes both page trees and
-    // reads as a second load even though React only mounted once.
-    staticShell.remove();
-  });
-};
+  appRoot = createRoot(rootElement);
+  appRoot.render(
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>,
+  );
+  window.__minimalistMarkBootReady?.();
 
-window.addEventListener('minimalist:marketing-mounted', hideStaticHomeShell, { once: true });
-window.setTimeout(hideStaticHomeShell, 2200);
+  if (!launchReadinessStarted) {
+    launchReadinessStarted = true;
+    waitForLaunchReadiness().then(hideBootShell);
+  }
+
+  return appRoot;
+}
 
 const hideBootShell = () => {
   window.requestAnimationFrame(() => {
@@ -248,5 +261,3 @@ async function waitForLaunchReadiness() {
 
   await withTimeout(readiness, maxVisibleMs);
 }
-
-waitForLaunchReadiness().then(hideBootShell);

@@ -26,6 +26,7 @@ html {
 }
 
 body {
+  min-height: 100vh;
   min-height: 100dvh;
   overflow-x: clip;
   overscroll-behavior-y: none;
@@ -59,6 +60,7 @@ select {
 
 .route-loading {
   display: grid;
+  min-height: 100vh;
   min-height: 100dvh;
   place-items: center;
   padding: 2rem;
@@ -68,6 +70,7 @@ select {
 }
 
 .app-error-boundary {
+  min-height: 100vh;
   min-height: 100dvh;
   display: grid;
   place-items: center;

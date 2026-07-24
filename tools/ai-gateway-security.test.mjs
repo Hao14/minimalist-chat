@@ -67,6 +67,35 @@ test('router readiness, durable admission, and bounded capacity precede a Banana
   assert.match(serverSource, /status: 'refundPending'/);
 });
 
+test('gateway status falls back to a healthy multi-provider router on bridge transport failures', () => {
+  const probe = sourceBetween('async function probeOllamaBridge', 'async function chargeBananas');
+  const statusAction = sourceBetween("if (action === 'status')", 'const requestedMode');
+
+  assert.match(probe, /catch \(error\) \{\s*return bridgeProbeFailure\(base, error\);/);
+  assert.match(probe, /AI_PRELOAD_UNAVAILABLE/);
+  assert.match(statusAction, /routerCanServeWithoutLocalBridge/);
+  assert.match(statusAction, /routingPolicy === 'balanced'/);
+  assert.match(statusAction, /provider: 'multi-provider-router'/);
+  assert.match(statusAction, /degradedProviders/);
+});
+
+test('gateway status never advertises cloud fallback for local-only routing', () => {
+  const probe = sourceBetween('async function probeOllamaBridge', 'async function chargeBananas');
+  const statusAction = sourceBetween("if (action === 'status')", 'const requestedMode');
+
+  assert.match(probe, /const transientPreloadFailure = preloadResponse\.status === 429\s*\|\| preloadResponse\.status >= 500/);
+  assert.match(probe, /fallbackAllowed: transientPreloadFailure/);
+  assert.match(
+    statusAction,
+    /const canStatusFallback = routingPolicy === 'balanced'\s*&& canUseGroqFallback\(\)\s*&& probe\.fallbackAllowed/,
+  );
+  assert.match(
+    statusAction,
+    /const provider = routingPolicy === 'balanced' && canUseGroqFallback\(\)/,
+  );
+  assert.doesNotMatch(statusAction, /probe\.fallbackAllowed \|\| !canUseOllamaBridge\(\)/);
+});
+
 test('durable charge receipts fence rollover and refund recovery', () => {
   const charge = sourceBetween('async function chargeBananas', 'function assertFreshAiCharge');
   const release = sourceBetween('async function releaseBananaCharge', 'async function aiChargeReceipt');

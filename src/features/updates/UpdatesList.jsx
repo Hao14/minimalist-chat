@@ -1,3 +1,5 @@
+import { createInitialsAvatarDataUrl } from '../../lib/avatar.js';
+
 function formatCommitDate(value) {
   const date = value ? new Date(value) : new Date();
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -28,9 +30,14 @@ function UpdateOverview({ cached = false, commits = [], onRetry, status = 'ready
         <strong>{commits.length ? `${commits.length} recent changes` : 'Product updates'}</strong>
         <p>{statusCopy}</p>
       </div>
-      <button type="button" onClick={onRetry} aria-label="Refresh product updates">
+      <button
+        type="button"
+        className="updates-overview-refresh"
+        onClick={onRetry}
+        aria-label="Refresh product updates"
+        title="Refresh product updates"
+      >
         <i className={`ph-bold ${status === 'loading' ? 'ph-circle-notch' : 'ph-arrows-clockwise'}`} aria-hidden="true" />
-        <span>Refresh</span>
       </button>
     </li>
   );
@@ -101,7 +108,7 @@ export default function UpdatesList({ cached = false, commits = [], error = '', 
         const messageLines = message.split('\n').map((line) => line.trim()).filter(Boolean);
         const description = messageLines.slice(1).join(' ');
         const authorName = commitObj.commit?.author?.name || 'Minimalist team';
-        const avatar = commitObj.author?.avatar_url || 'https://ui-avatars.com/api/?name=Minimalist&background=111&color=FFD400';
+        const avatar = commitObj.author?.avatar_url || createInitialsAvatarDataUrl('Minimalist');
         const date = commitObj.commit?.author?.date;
 
         return (

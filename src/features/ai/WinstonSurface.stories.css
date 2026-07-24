@@ -1,0 +1,50 @@
+.pa-story-winston .pa-agent-avatar {
+  display: grid;
+  place-items: center;
+  background: var(--pa-winston-yellow);
+  color: #111;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.pa-story-winston .pa-story-sources {
+  margin-top: 12px;
+  border-top: 1px solid var(--pa-line);
+  color: var(--pa-muted);
+}
+
+.pa-story-winston .pa-story-sources > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  color: var(--pa-ink);
+  cursor: pointer;
+  font-size: 0.72rem;
+  font-weight: 760;
+}
+
+.pa-story-winston .pa-story-sources > summary::-webkit-details-marker {
+  display: none;
+}
+
+.pa-story-winston .pa-story-sources > summary > i:last-child {
+  margin-left: auto;
+  transition: rotate 160ms ease;
+}
+
+.pa-story-winston .pa-story-sources[open] > summary > i:last-child {
+  rotate: 180deg;
+}
+
+.pa-story-winston .pa-story-sources > p {
+  margin: 0;
+  padding: 0 0 12px 24px;
+  color: var(--pa-muted);
+  font-size: 0.68rem;
+}
+
+html.prefers-reduced-motion .pa-story-winston .pa-story-sources > summary > i:last-child {
+  transition: none;
+}

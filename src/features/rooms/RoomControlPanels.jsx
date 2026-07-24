@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
 
 export function RoomPicturePreview({ url, initials }) {
   if (url) return <img src={url} alt="" width="76" height="76" decoding="async" />;
@@ -53,8 +54,8 @@ export function RoomInvitePanel({
               onClick={() => onForward(target)}
             >
               <span className="room-invite-avatar">
-                {target.photoUrl ? (
-                  <img src={target.photoUrl} alt="" width="42" height="42" loading="lazy" decoding="async" />
+                {normalizeStoredAvatarUrl(target.photoUrl) ? (
+                  <img src={normalizeStoredAvatarUrl(target.photoUrl)} alt="" width="42" height="42" loading="lazy" decoding="async" />
                 ) : target.initials}
               </span>
               <span className="room-invite-target-copy">

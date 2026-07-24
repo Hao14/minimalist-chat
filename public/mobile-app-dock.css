@@ -1,0 +1,369 @@
+/* Signed-in mobile navigation v2.
+   This route-scoped layer intentionally wins over the older global dock rules. */
+@media (max-width: 768px) {
+  body:not(.marketing):not(.auth-screen) {
+    --mobile-dock-edge: max(8px, var(--app-safe-bottom, env(safe-area-inset-bottom, 0px)));
+    --mobile-dock-height: 67px;
+    --mobile-nav-clearance: calc(var(--mobile-dock-height) + var(--mobile-dock-edge)) !important;
+    --mobile-dock-surface: color-mix(in srgb, var(--bg-color, #fff) 94%, transparent);
+    --mobile-dock-line: color-mix(in srgb, var(--text-color, #111) 18%, transparent);
+    --mobile-dock-muted: color-mix(in srgb, var(--text-color, #111) 62%, transparent);
+    --mobile-dock-active: color-mix(in srgb, var(--accent-color, #ffd700) 22%, var(--bg-color, #fff));
+    --mobile-dock-shadow: 0 18px 54px -30px rgba(0, 0, 0, 0.62);
+  }
+
+  body.dark-mode:not(.marketing):not(.auth-screen),
+  body.gray-mode:not(.marketing):not(.auth-screen) {
+    --mobile-dock-surface: color-mix(in srgb, var(--bg-color, #111) 91%, transparent);
+    --mobile-dock-line: color-mix(in srgb, var(--text-color, #f6f6f6) 24%, transparent);
+    --mobile-dock-muted: color-mix(in srgb, var(--text-color, #f6f6f6) 68%, transparent);
+    --mobile-dock-active: color-mix(in srgb, var(--accent-color, #ffd700) 18%, var(--bg-color, #111));
+    --mobile-dock-shadow: 0 20px 58px -28px rgba(0, 0, 0, 0.92);
+  }
+
+  body.codex-mode:not(.marketing):not(.auth-screen) {
+    --mobile-dock-surface: color-mix(in srgb, var(--codex-bg, #111318) 90%, transparent);
+    --mobile-dock-line: var(--codex-border-strong, rgba(255, 255, 255, 0.16));
+    --mobile-dock-muted: var(--codex-muted, #a6a8ad);
+    --mobile-dock-active: var(--codex-accent-soft, rgba(255, 215, 0, 0.14));
+  }
+
+  html body.mobile-dock-more-open:not(.marketing):not(.auth-screen) nav.app-shell-nav {
+    z-index: 9600 !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) div#mobile-nav-links.mobile-only.mobile-app-dock,
+  body.codex-mode:not(.marketing):not(.auth-screen) div#mobile-nav-links.mobile-only.mobile-app-dock {
+    position: fixed !important;
+    z-index: 9000 !important;
+    left: max(8px, var(--app-safe-left, env(safe-area-inset-left, 0px))) !important;
+    right: max(8px, var(--app-safe-right, env(safe-area-inset-right, 0px))) !important;
+    bottom: var(--mobile-dock-edge) !important;
+    display: grid !important;
+    width: auto !important;
+    max-width: 580px !important;
+    min-height: var(--mobile-dock-height) !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(44px, 1fr) !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+    gap: 2px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    margin-inline: auto !important;
+    padding: 5px !important;
+    border: 1px solid var(--mobile-dock-line) !important;
+    border-radius: 20px !important;
+    background: var(--mobile-dock-surface) !important;
+    box-shadow: var(--mobile-dock-shadow) !important;
+    backdrop-filter: blur(18px) saturate(1.14) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(1.14) !important;
+    isolation: isolate;
+    touch-action: manipulation;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn {
+    position: relative !important;
+    display: flex !important;
+    width: 100% !important;
+    min-width: 44px !important;
+    min-height: 52px !important;
+    flex: none !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0.32rem 0.12rem 0.3rem !important;
+    border: 1px solid transparent !important;
+    border-radius: 15px !important;
+    background: transparent !important;
+    color: var(--mobile-dock-muted) !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    transform: none !important;
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn:is([hidden], .personal-ai-nav-hidden) {
+    display: none !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn > i,
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn > .vault-rail-glyph {
+    display: grid !important;
+    width: 24px !important;
+    min-width: 24px !important;
+    height: 24px !important;
+    min-height: 24px !important;
+    flex: 0 0 24px !important;
+    place-items: center !important;
+    margin: 0 !important;
+    font-size: 1.35rem !important;
+    line-height: 1 !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn > span:last-child {
+    display: block !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    color: inherit !important;
+    font-size: 0.62rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.01em !important;
+    line-height: 1 !important;
+    text-overflow: ellipsis !important;
+    text-transform: none !important;
+    white-space: nowrap !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn--assistant > i {
+    width: 30px !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    flex-basis: 30px !important;
+    border: 1px solid color-mix(in srgb, var(--accent-color, #ffd700) 78%, #111) !important;
+    border-radius: 11px !important;
+    background: var(--accent-color, #ffd700) !important;
+    color: #151515 !important;
+    box-shadow: 0 6px 16px -10px rgba(0, 0, 0, 0.72) !important;
+    font-size: 1.08rem !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn:is(:hover, :focus-visible, :active, .active) {
+    border-color: color-mix(in srgb, var(--accent-color, #ffd700) 52%, var(--mobile-dock-line)) !important;
+    background: var(--mobile-dock-active) !important;
+    color: var(--text-color, #111) !important;
+  }
+
+  body.dark-mode:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn:is(:hover, :focus-visible, :active, .active),
+  body.gray-mode:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn:is(:hover, :focus-visible, :active, .active),
+  body.codex-mode:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn:is(:hover, :focus-visible, :active, .active) {
+    color: var(--text-color, #f7f7f7) !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: 3px !important;
+    left: 50% !important;
+    width: 18px !important;
+    height: 3px !important;
+    border-radius: 999px !important;
+    background: var(--accent-color, #ffd700) !important;
+    transform: translateX(-50%) scaleX(0) !important;
+    transform-origin: center !important;
+    transition: transform 150ms ease !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn.active::after {
+    transform: translateX(-50%) scaleX(1) !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn.has-unread::before {
+    top: 3px !important;
+    right: calc(50% - 27px) !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) .mobile-dock-more-menu {
+    position: fixed !important;
+    z-index: 9500 !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: calc(var(--mobile-nav-clearance) + 6px) !important;
+    display: grid !important;
+    width: min(420px, calc(100vw - 24px - var(--app-safe-left, env(safe-area-inset-left, 0px)) - var(--app-safe-right, env(safe-area-inset-right, 0px)))) !important;
+    max-height: calc(100vh - var(--mobile-nav-clearance) - max(16px, var(--app-safe-top, env(safe-area-inset-top, 0px))) - 12px) !important;
+    max-height: calc(100dvh - var(--mobile-nav-clearance) - max(16px, var(--app-safe-top, env(safe-area-inset-top, 0px))) - 12px) !important;
+    grid-template-rows: auto minmax(0, 1fr) !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--mobile-dock-line) !important;
+    border-radius: 22px !important;
+    background: color-mix(in srgb, var(--bg-color, #fff) 97%, transparent) !important;
+    color: var(--text-color, #111) !important;
+    box-shadow: 0 26px 70px -28px rgba(0, 0, 0, 0.72) !important;
+    transform: translateX(-50%) !important;
+    animation: mobile-dock-sheet-in 170ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  body.dark-mode:not(.marketing):not(.auth-screen) .mobile-dock-more-menu,
+  body.gray-mode:not(.marketing):not(.auth-screen) .mobile-dock-more-menu,
+  body.codex-mode:not(.marketing):not(.auth-screen) .mobile-dock-more-menu {
+    background: color-mix(in srgb, var(--bg-color, #111) 97%, transparent) !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) .mobile-dock-more-menu.hidden {
+    display: none !important;
+  }
+
+  .mobile-dock-more-heading {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-left: 6px;
+  }
+
+  .mobile-dock-more-title {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .mobile-dock-more-title small {
+    color: var(--mobile-dock-muted);
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .mobile-dock-more-title strong {
+    font-size: 1.04rem;
+    font-weight: 850;
+    line-height: 1.1;
+  }
+
+  .mobile-dock-more-close {
+    display: grid !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    place-items: center !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid var(--mobile-dock-line) !important;
+    border-radius: 14px !important;
+    background: transparent !important;
+    color: inherit !important;
+    box-shadow: none !important;
+    font-size: 1.15rem !important;
+  }
+
+  .mobile-dock-more-actions {
+    display: grid;
+    min-height: 0;
+    gap: 6px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  .mobile-dock-more-action {
+    display: grid !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 58px !important;
+    grid-template-columns: 42px minmax(0, 1fr) 20px !important;
+    align-items: center !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 7px 10px !important;
+    border: 1px solid transparent !important;
+    border-radius: 15px !important;
+    background: color-mix(in srgb, var(--text-color, #111) 4%, transparent) !important;
+    color: inherit !important;
+    box-shadow: none !important;
+    text-align: left !important;
+    transform: none !important;
+  }
+
+  .mobile-dock-more-action:is(:hover, :focus-visible, :active, .active) {
+    border-color: color-mix(in srgb, var(--accent-color, #ffd700) 56%, var(--mobile-dock-line)) !important;
+    background: var(--mobile-dock-active) !important;
+  }
+
+  .mobile-dock-more-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid var(--mobile-dock-line);
+    border-radius: 13px;
+    background: color-mix(in srgb, var(--bg-color, #fff) 88%, var(--accent-color, #ffd700));
+    font-size: 1.18rem;
+  }
+
+  .mobile-dock-more-icon .vault-rail-glyph {
+    font-size: 1.2rem;
+  }
+
+  .mobile-dock-more-copy {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .mobile-dock-more-copy strong,
+  .mobile-dock-more-copy small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-dock-more-copy strong {
+    font-size: 0.82rem;
+    font-weight: 850;
+  }
+
+  .mobile-dock-more-copy small {
+    color: var(--mobile-dock-muted);
+    font-size: 0.67rem;
+    font-weight: 650;
+  }
+
+  .mobile-dock-more-arrow {
+    color: var(--mobile-dock-muted);
+    font-size: 0.9rem;
+  }
+
+  @keyframes mobile-dock-sheet-in {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px) scale(0.98); }
+    to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  }
+}
+
+@media (max-width: 340px) {
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn > span:last-child {
+    font-size: 0.58rem !important;
+    letter-spacing: 0 !important;
+  }
+
+  .mobile-dock-more-copy small {
+    font-size: 0.63rem;
+  }
+}
+
+@media (max-width: 768px) and (prefers-reduced-motion: reduce) {
+  body:not(.marketing):not(.auth-screen) .mobile-dock-more-menu {
+    animation: none !important;
+  }
+
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn,
+  body:not(.marketing):not(.auth-screen) #mobile-nav-links.mobile-app-dock > .mobile-link-btn::after {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 768px) and (forced-colors: active) {
+  body:not(.marketing):not(.auth-screen) div#mobile-nav-links.mobile-only.mobile-app-dock,
+  body:not(.marketing):not(.auth-screen) .mobile-dock-more-menu,
+  body:not(.marketing):not(.auth-screen) .mobile-dock-more-action,
+  body:not(.marketing):not(.auth-screen) .mobile-dock-more-close {
+    border-color: CanvasText !important;
+    background: Canvas !important;
+    color: CanvasText !important;
+    forced-color-adjust: auto;
+  }
+}

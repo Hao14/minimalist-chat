@@ -22,6 +22,156 @@ const UPDATE_TAB_ALIASES = {
 };
 
 let updatesLastFocus = null;
+let mobileDockObserver = null;
+let vaultLastFocus = null;
+
+function setAttributeIfChanged(element, name, value) {
+  if (!element || element.getAttribute(name) === value) return;
+  element.setAttribute(name, value);
+}
+
+function mobileDockSurfaceIsOpen(id, { className = 'open' } = {}) {
+  const element = document.getElementById(id);
+  if (!element) return false;
+  if (className) return element.classList.contains(className);
+  return isVisibleElement(element);
+}
+
+function syncMobileDockState() {
+  const dock = document.getElementById('mobile-nav-links');
+  if (!dock) return;
+
+  const roomsSidebar = document.getElementById('desktop-room-sidebar');
+  const contactsOpen = mobileDockSurfaceIsOpen('contacts-panel') || mobileDockSurfaceIsOpen('pm-popup', { className: '' });
+  const personalAgentOpen = mobileDockSurfaceIsOpen('personal-ai-agent-panel');
+  const updatesOpen = mobileDockSurfaceIsOpen('updates-panel');
+  const searchOpen = mobileDockSurfaceIsOpen('search-modal', { className: '' });
+  const vaultOpen = mobileDockSurfaceIsOpen('vault-panel');
+  const settingsOpen = mobileDockSurfaceIsOpen('settings-modal', { className: '' });
+  const moreMenu = document.getElementById('mobile-dock-more-menu');
+  const moreMenuOpen = Boolean(moreMenu && !moreMenu.classList.contains('hidden'));
+
+  let activeAction = 'rooms';
+  if (moreMenuOpen) activeAction = 'more';
+  else if (contactsOpen) activeAction = 'contacts';
+  else if (personalAgentOpen) activeAction = 'personal-agent';
+  else if (updatesOpen) activeAction = 'updates';
+  else if (searchOpen || vaultOpen || settingsOpen) activeAction = 'more';
+
+  dock.querySelectorAll('[data-mobile-dock-action]').forEach((button) => {
+    const active = button.dataset.mobileDockAction === activeAction;
+    button.classList.toggle('active', active);
+    if (active) setAttributeIfChanged(button, 'aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  });
+
+  const expansionState = {
+    'open-rooms-btn-mobile': Boolean(roomsSidebar?.classList.contains('open')),
+    'open-contacts-btn-mobile': contactsOpen,
+    'open-personal-agent-btn-mobile': personalAgentOpen,
+    'open-updates-btn-mobile': updatesOpen,
+    'open-more-btn-mobile': moreMenuOpen,
+    'open-search-btn-mobile': searchOpen,
+    'open-vault-btn-mobile': vaultOpen,
+    'open-settings-btn-mobile': settingsOpen,
+  };
+  Object.entries(expansionState).forEach(([id, expanded]) => {
+    setAttributeIfChanged(document.getElementById(id), 'aria-expanded', String(expanded));
+  });
+
+  document.getElementById('open-search-btn')?.setAttribute('aria-expanded', String(searchOpen));
+  document.getElementById('open-vault-btn')?.setAttribute('aria-expanded', String(vaultOpen));
+  document.getElementById('open-settings-btn')?.setAttribute('aria-expanded', String(settingsOpen));
+
+  document.getElementById('open-search-btn-mobile')?.classList.toggle('active', searchOpen);
+  document.getElementById('open-vault-btn-mobile')?.classList.toggle('active', vaultOpen);
+  document.getElementById('open-settings-btn-mobile')?.classList.toggle('active', settingsOpen);
+
+  if (window.matchMedia?.('(max-width: 768px)').matches) {
+    setAttributeIfChanged(roomsSidebar, 'aria-hidden', String(!roomsSidebar?.classList.contains('open')));
+  } else {
+    roomsSidebar?.removeAttribute('aria-hidden');
+  }
+}
+
+function setMobileDockMoreOpen(open, { focusFirst = false, restoreFocus = false } = {}) {
+  const menu = document.getElementById('mobile-dock-more-menu');
+  const trigger = document.getElementById('open-more-btn-mobile');
+  if (!menu || !trigger) return false;
+
+  const nextOpen = Boolean(open) && window.matchMedia?.('(max-width: 768px)').matches !== false;
+  menu.classList.toggle('hidden', !nextOpen);
+  setAttributeIfChanged(menu, 'aria-hidden', String(!nextOpen));
+  setAttributeIfChanged(trigger, 'aria-expanded', String(nextOpen));
+  document.body.classList.toggle('mobile-dock-more-open', nextOpen);
+  syncMobileDockState();
+
+  if (nextOpen && focusFirst) {
+    window.requestAnimationFrame(() => menu.querySelector('[role="menuitem"]:not(:disabled)')?.focus());
+  } else if (!nextOpen && restoreFocus) {
+    window.requestAnimationFrame(() => trigger.focus());
+  }
+  return true;
+}
+
+window.closeMobileDockMoreMenu = ({ restoreFocus = false } = {}) => {
+  setMobileDockMoreOpen(false, { restoreFocus });
+};
+
+function setVaultPanelOpenState(open) {
+  const panel = document.getElementById('vault-panel');
+  setAttributeIfChanged(panel, 'aria-hidden', String(!open));
+  ['open-vault-btn', 'open-vault-btn-mobile'].forEach((id) => {
+    setAttributeIfChanged(document.getElementById(id), 'aria-expanded', String(open));
+  });
+  syncMobileDockState();
+}
+
+function closeVaultPanel({ restoreFocus = false } = {}) {
+  const panel = document.getElementById('vault-panel');
+  const wasOpen = panel?.classList.contains('open');
+  const returnFocus = vaultLastFocus;
+  panel?.classList.remove('open');
+  setVaultPanelOpenState(false);
+  if (wasOpen && restoreFocus && returnFocus?.isConnected) {
+    window.requestAnimationFrame(() => returnFocus.focus({ preventScroll: true }));
+  }
+  vaultLastFocus = null;
+}
+
+window.setVaultPanelOpenState = setVaultPanelOpenState;
+window.closeVaultPanel = closeVaultPanel;
+
+function setupMobileDockState() {
+  const dock = document.getElementById('mobile-nav-links');
+  if (!dock || dock.dataset.mobileDockBound === 'true') return;
+  dock.dataset.mobileDockBound = 'true';
+
+  const observedIds = [
+    'desktop-room-sidebar',
+    'contacts-panel',
+    'pm-popup',
+    'personal-ai-agent-panel',
+    'updates-panel',
+    'vault-panel',
+    'settings-modal',
+    'search-modal',
+    'mobile-dock-more-menu',
+  ];
+  mobileDockObserver?.disconnect();
+  mobileDockObserver = new MutationObserver(syncMobileDockState);
+  observedIds.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) mobileDockObserver.observe(element, { attributes: true, attributeFilter: ['class', 'aria-hidden'] });
+  });
+
+  const desktopQuery = window.matchMedia?.('(min-width: 769px)');
+  desktopQuery?.addEventListener?.('change', (event) => {
+    if (event.matches) setMobileDockMoreOpen(false);
+    syncMobileDockState();
+  });
+  syncMobileDockState();
+}
 
 function syncUpdatesOpenState(isOpen) {
   const panel = document.getElementById('updates-panel');
@@ -115,7 +265,11 @@ function closeFloatingUI({ keep = '', restoreFocus = false } = {}) {
       return;
     }
     if (id === 'personal-ai-agent-panel' && typeof window.closePersonalAgent === 'function') {
-      window.closePersonalAgent();
+      window.closePersonalAgent({ restoreFocus });
+      return;
+    }
+    if (id === 'vault-panel') {
+      closeVaultPanel({ restoreFocus });
       return;
     }
     if (id === 'bookmarks-panel' && typeof window.closeBookmarksPanel === 'function') {
@@ -165,6 +319,7 @@ function closeFloatingUI({ keep = '', restoreFocus = false } = {}) {
   else if (keep !== 'emoji-picker') document.getElementById('emoji-picker')?.classList.add('hidden');
   document.getElementById('custom-context-menu')?.classList.add('hidden');
   document.getElementById('profile-more-dropdown')?.classList.add('hidden');
+  if (keep !== 'mobile-dock-more-menu') setMobileDockMoreOpen(false);
   if (typeof window.closeUserProfilePopup === 'function') {
     window.closeUserProfilePopup({ restoreFocus: false });
   } else {
@@ -205,9 +360,15 @@ function setupRoomDropdownAccessibility() {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupRoomDropdownAccessibility, { once: true });
+  document.addEventListener('DOMContentLoaded', () => {
+    setupRoomDropdownAccessibility();
+    setupMobileDockState();
+  }, { once: true });
 } else {
-  window.requestAnimationFrame(setupRoomDropdownAccessibility);
+  window.requestAnimationFrame(() => {
+    setupRoomDropdownAccessibility();
+    setupMobileDockState();
+  });
 }
 
 function isVisibleElement(element) {
@@ -499,6 +660,40 @@ document.addEventListener('click', (event) => {
   const isUpdates = target.closest('#open-updates-btn-desktop') || target.closest('#open-updates-btn-mobile');
   const isBookmarks = target.closest('#open-bookmarks-btn');
   const isSettings = target.closest('#open-settings-btn') || target.closest('#open-settings-btn-mobile');
+  const isMore = target.closest('#open-more-btn-mobile');
+  const isMoreClose = target.closest('#close-mobile-dock-more');
+  const isMobileSearch = target.closest('#open-search-btn-mobile');
+
+  if (isMoreClose) {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    setMobileDockMoreOpen(false, { restoreFocus: true });
+    return;
+  }
+
+  if (isMore) {
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    const menu = document.getElementById('mobile-dock-more-menu');
+    const wasOpen = Boolean(menu && !menu.classList.contains('hidden'));
+    if (wasOpen) setMobileDockMoreOpen(false, { restoreFocus: true });
+    else {
+      // More is an overlay, not a destination change. Keep the current room
+      // view or app surface in place until the user chooses a utility.
+      setMobileDockMoreOpen(true, { focusFirst: true });
+    }
+    return;
+  }
+
+  if (isMobileSearch) {
+    closeFloatingUI({ keep: 'search-modal' });
+    return;
+  }
+
+  const moreMenu = document.getElementById('mobile-dock-more-menu');
+  if (moreMenu && !moreMenu.classList.contains('hidden') && !target.closest('#mobile-dock-more-menu')) {
+    setMobileDockMoreOpen(false);
+  }
 
   if (!(isRooms || isContacts || isPersonalAgent || isVault || isUpdates || isBookmarks || isSettings)) return;
 
@@ -520,6 +715,8 @@ document.addEventListener('click', (event) => {
   const wasUpdatesOpen = updatesPanel?.classList.contains('open');
   const wasBookmarksOpen = bookmarksPanel && !bookmarksPanel.classList.contains('hidden');
   const wasSettingsOpen = settingsModal && !settingsModal.classList.contains('hidden');
+
+  setMobileDockMoreOpen(false);
 
   if (isBookmarks) {
     closeFloatingUI({ keep: 'vault-panel' });
@@ -549,7 +746,15 @@ document.addEventListener('click', (event) => {
   }
 
   if (isVault && !wasVaultOpen) {
-    if (window.openVault) window.openVault();
+    vaultLastFocus = isVault.id === 'open-vault-btn-mobile'
+      ? document.getElementById('open-more-btn-mobile')
+      : isVault;
+    if (window.openVault) {
+      window.openVault();
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+        document.getElementById('close-vault-btn')?.focus({ preventScroll: true });
+      }));
+    }
   }
 
   if (isUpdates && !wasUpdatesOpen && updatesPanel) {
@@ -561,6 +766,9 @@ document.addEventListener('click', (event) => {
   }
 
   if (isSettings && !wasSettingsOpen) {
+    if (isSettings.id === 'open-settings-btn-mobile') {
+      document.getElementById('open-more-btn-mobile')?.focus({ preventScroll: true });
+    }
     if (window.openSettings) window.openSettings();
   }
 }, true);
@@ -575,7 +783,7 @@ document.addEventListener('click', (event) => {
   }
 
   if (target.closest('#close-vault-btn')) {
-    document.getElementById('vault-panel')?.classList.remove('open');
+    closeVaultPanel({ restoreFocus: true });
   }
 
   if (target.closest('#toggle-rooms-collapse-btn')) {
@@ -677,7 +885,29 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
+  const moreMenuItem = event.target?.closest?.('#mobile-dock-more-menu [role="menuitem"]');
+  if (moreMenuItem && ['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
+    const items = [...document.querySelectorAll('#mobile-dock-more-menu [role="menuitem"]:not(:disabled)')]
+      .filter((item) => item.offsetParent !== null);
+    const currentIndex = Math.max(0, items.indexOf(moreMenuItem));
+    let nextIndex = currentIndex;
+    if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = items.length - 1;
+    else if (event.key === 'ArrowDown') nextIndex = (currentIndex + 1) % items.length;
+    else if (event.key === 'ArrowUp') nextIndex = (currentIndex - 1 + items.length) % items.length;
+    event.preventDefault();
+    items[nextIndex]?.focus();
+    return;
+  }
+
   if (event.key !== 'Escape' || event.defaultPrevented) return;
+
+  const moreMenu = document.getElementById('mobile-dock-more-menu');
+  if (isVisibleElement(moreMenu)) {
+    event.preventDefault();
+    setMobileDockMoreOpen(false, { restoreFocus: true });
+    return;
+  }
 
   const deleteAccountModal = document.getElementById('delete-account-modal');
   if (isVisibleElement(deleteAccountModal)) {

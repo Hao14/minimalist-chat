@@ -137,6 +137,7 @@
 }
 
 .room-home-v2 .rh-pulse {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(18.5rem, 1.7fr) repeat(3, minmax(8rem, 1fr));
   margin: 0 0 2rem;
@@ -146,6 +147,73 @@
   background: var(--rh-surface-warm);
   color: var(--rh-ink);
   box-shadow: 0 0.2rem 0 rgba(17, 17, 17, 0.06);
+}
+
+.room-home-v2 .rh-pulse::before {
+  position: absolute;
+  inset: 0.38rem 1rem auto;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--rh-accent) 12%, var(--rh-accent) 88%, transparent);
+  content: '';
+  opacity: 0;
+  pointer-events: none;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.room-home-v2 .rh-pulse-label i {
+  display: inline-block;
+  transform-origin: center;
+}
+
+@keyframes rh-room-signal {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  12% {
+    opacity: 1;
+  }
+
+  72% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes rh-room-beat {
+  0% {
+    transform: scale(0.88);
+  }
+
+  48% {
+    transform: scale(1.18);
+  }
+
+  68% {
+    transform: scale(0.98);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #room-view-home.active:not(.hidden) .room-home-v2 .rh-pulse::before {
+    animation: rh-room-signal 720ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both;
+  }
+
+  #room-view-home.active:not(.hidden) .room-home-v2 .rh-pulse-label i {
+    animation: rh-room-beat 460ms cubic-bezier(0.16, 1, 0.3, 1) 220ms both;
+  }
 }
 
 .room-home-v2 .rh-pulse-intro,
@@ -682,6 +750,18 @@ body.dark-mode .room-home-v2 .rh-topic-save {
   }
 }
 
+@media (max-width: 760px) and (prefers-reduced-motion: no-preference) {
+  #room-view-home.active:not(.hidden) .room-home-v2 .rh-pulse::before {
+    animation-duration: 560ms;
+    animation-delay: 80ms;
+  }
+
+  #room-view-home.active:not(.hidden) .room-home-v2 .rh-pulse-label i {
+    animation-duration: 400ms;
+    animation-delay: 140ms;
+  }
+}
+
 @media (max-width: 420px) {
   .room-home-v2 .rh-pulse-actions {
     grid-template-columns: minmax(0, 1fr);
@@ -694,6 +774,16 @@ body.dark-mode .room-home-v2 .rh-topic-save {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #room-view-home .room-home-v2 .rh-pulse::before {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  #room-view-home .room-home-v2 .rh-pulse-label i {
+    animation: none !important;
+    transform: none !important;
+  }
+
   .room-home-v2 *,
   .room-home-v2 *::before,
   .room-home-v2 *::after {
@@ -702,4 +792,16 @@ body.dark-mode .room-home-v2 .rh-topic-save {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
   }
+}
+
+html.prefers-reduced-motion #room-view-home .room-home-v2 .rh-pulse::before,
+html.performance-low #room-view-home .room-home-v2 .rh-pulse::before {
+  animation: none !important;
+  opacity: 0 !important;
+}
+
+html.prefers-reduced-motion #room-view-home .room-home-v2 .rh-pulse-label i,
+html.performance-low #room-view-home .room-home-v2 .rh-pulse-label i {
+  animation: none !important;
+  transform: none !important;
 }

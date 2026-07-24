@@ -8,10 +8,39 @@ param(
   [string]$ModelAllowlist = "qwen3:4b-instruct,qwen3:14b,qwen2.5vl:7b",
   [int]$MaxBodyMB = 16,
   [int]$IdleShutdownMinutes = 120,
+  [ValidateRange(1, 32)]
+  [int]$ExecutionUnits = 4,
+  [ValidateRange(1, 10000)]
+  [int]$ExecutionMaxQueue = 100,
+  [ValidateRange(1, 32)]
+  [int]$FastWeight = 1,
+  [ValidateRange(1, 32)]
+  [int]$SmartWeight = 2,
+  [ValidateRange(1, 32)]
+  [int]$VisionWeight = 4,
+  [ValidateRange(1, 32)]
+  [int]$OllamaNumParallel = 4,
+  [ValidateRange(1, 10000)]
+  [int]$OllamaMaxQueue = 100,
+  [switch]$EnableFlashAttention,
+  [switch]$EnableQ8KvCache,
   [switch]$DisableManagedOllama
 )
 
 $ErrorActionPreference = "Stop"
+
+foreach ($profile in @(
+  [pscustomobject]@{ Name = "Fast"; Weight = $FastWeight },
+  [pscustomobject]@{ Name = "Smart"; Weight = $SmartWeight },
+  [pscustomobject]@{ Name = "Vision"; Weight = $VisionWeight }
+)) {
+  if ($profile.Weight -gt $ExecutionUnits) {
+    throw "$($profile.Name) weight cannot exceed the $ExecutionUnits configured execution unit(s)."
+  }
+}
+if ($EnableQ8KvCache -and -not $EnableFlashAttention) {
+  throw "q8_0 KV cache requires -EnableFlashAttention."
+}
 
 if ($UseFirebaseSecret -and -not $Token) {
   $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
@@ -45,6 +74,15 @@ $env:OLLAMA_BRIDGE_MAX_BODY_BYTES = [string]($MaxBodyMB * 1024 * 1024)
 $env:OLLAMA_BRIDGE_MANAGE_UPSTREAM = if ($DisableManagedOllama) { "false" } else { "true" }
 $env:OLLAMA_BRIDGE_IDLE_SHUTDOWN_MS = [string]($IdleShutdownMinutes * 60 * 1000)
 $env:OLLAMA_BRIDGE_KEEP_ALIVE = "${IdleShutdownMinutes}m"
+$env:OLLAMA_BRIDGE_EXECUTION_UNITS = [string]$ExecutionUnits
+$env:OLLAMA_BRIDGE_EXECUTION_MAX_QUEUE = [string]$ExecutionMaxQueue
+$env:OLLAMA_BRIDGE_FAST_WEIGHT = [string]$FastWeight
+$env:OLLAMA_BRIDGE_SMART_WEIGHT = [string]$SmartWeight
+$env:OLLAMA_BRIDGE_VISION_WEIGHT = [string]$VisionWeight
+$env:OLLAMA_BRIDGE_OLLAMA_NUM_PARALLEL = [string]$OllamaNumParallel
+$env:OLLAMA_BRIDGE_OLLAMA_MAX_QUEUE = [string]$OllamaMaxQueue
+$env:OLLAMA_BRIDGE_OLLAMA_FLASH_ATTENTION = if ($EnableFlashAttention) { "true" } else { "false" }
+$env:OLLAMA_BRIDGE_OLLAMA_KV_CACHE_TYPE = if ($EnableQ8KvCache) { "q8_0" } else { "" }
 $env:OLLAMA_BRIDGE_CONTROL_FILE = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..")) ".bridge-control\ai-control.json"
 $env:OLLAMA_BRIDGE_ACTIVITY_FILE = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..\..")) ".bridge-control\ai-activity.json"
 
@@ -95,6 +133,14 @@ Write-Host "Starting bridge on http://127.0.0.1:$Port ..."
 Write-Host "Protected Ollama upstream: $OllamaUpstream"
 Write-Host "Protected model store: $env:OLLAMA_BRIDGE_MODEL_STORE"
 Write-Host "Max bridge body: $MaxBodyMB MB"
+Write-Host "Execution scheduler: $ExecutionUnits unit(s), $ExecutionMaxQueue queued request(s), Fast/Smart/Vision weights $FastWeight/$SmartWeight/$VisionWeight"
+Write-Host "Protected Ollama policy: NUM_PARALLEL=$OllamaNumParallel, MAX_QUEUE=$OllamaMaxQueue"
+if ($EnableFlashAttention) {
+  $kvMode = if ($EnableQ8KvCache) { "q8_0" } else { "default f16" }
+  Write-Host "Flash Attention enabled; KV cache: $kvMode"
+} else {
+  Write-Host "Flash Attention and quantized KV cache remain disabled."
+}
 if ($DisableManagedOllama) {
   Write-Host "On-demand Ollama management disabled."
 } else {

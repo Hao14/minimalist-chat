@@ -1,0 +1,208 @@
+/* Foundational room metadata layout ships with the component so first paint
+   never depends on the deferred feature stylesheet. */
+#main-chat-area {
+  container-name: room-shell;
+  container-type: inline-size;
+}
+
+#active-room-header {
+  gap: 0.72rem;
+}
+
+#room-name-wrapper {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+#active-room-name-display {
+  max-width: min(24vw, 18rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#room-header-meta.room-header-meta {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.72rem;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--text-color) 72%, transparent);
+}
+
+#room-header-meta .room-header-purpose {
+  min-width: 3rem;
+  max-width: min(30vw, 32rem);
+  overflow: hidden;
+  flex: 1 1 auto;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#room-header-meta .room-header-context {
+  min-width: 0;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text-color) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-color) 94%, var(--accent-color) 6%);
+}
+
+#room-header-meta .room-header-chip {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-color);
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+#room-header-meta .room-header-chip + .room-header-chip {
+  border-inline-start: 1px solid color-mix(in srgb, var(--text-color) 14%, transparent);
+}
+
+#room-header-meta .room-header-online-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 2px color-mix(in srgb, #22c55e 18%, transparent);
+}
+
+body:is(.dark-mode, .gray-mode, .modern-mode, .codex-mode) #room-header-meta .room-header-context {
+  background: color-mix(in srgb, var(--bg-color) 82%, #fff 8%);
+}
+
+/* Reflow based on the available chat canvas, including when a right drawer is open. */
+@media (min-width: 769px) {
+  @container room-shell (max-width: 840px) {
+    #active-room-header {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 0.72rem !important;
+      row-gap: 0.28rem !important;
+      align-items: center !important;
+    }
+
+    #room-name-wrapper {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .room-header-actions {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+      margin-left: 0 !important;
+    }
+
+    #room-header-meta.room-header-meta {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      width: 100%;
+    }
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1180px) {
+  @supports not (container-type: inline-size) {
+    #active-room-header {
+      display: grid !important;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-rows: auto auto;
+      column-gap: 0.72rem !important;
+      row-gap: 0.28rem !important;
+      align-items: center !important;
+    }
+
+    #room-name-wrapper {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .room-header-actions {
+      grid-column: 2;
+      grid-row: 1;
+      justify-self: end;
+      margin-left: 0 !important;
+    }
+
+    #room-header-meta.room-header-meta {
+      grid-column: 1 / -1;
+      grid-row: 2;
+      width: 100%;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  #room-header-meta.room-header-meta {
+    width: 100%;
+    gap: 0.42rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  #room-header-meta::-webkit-scrollbar {
+    display: none;
+  }
+
+  #room-header-meta .room-header-purpose {
+    max-width: min(32vw, 10rem);
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+  }
+
+  #room-header-meta .room-header-chip {
+    min-height: 24px;
+    padding-inline: 0.42rem;
+    font-size: 0.62rem;
+  }
+
+  #room-header-meta .room-header-notifications .room-header-chip-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (max-width: 360px) {
+  #room-header-meta .room-header-privacy .room-header-chip-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+@media (prefers-contrast: more), (forced-colors: active) {
+  #room-header-meta .room-header-context,
+  #room-header-meta .room-header-chip + .room-header-chip {
+    border-color: currentColor;
+  }
+}

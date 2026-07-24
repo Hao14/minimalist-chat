@@ -1,71 +1,120 @@
 ---
 title: GBrain Setup
 status: active
-configuration: verified-free
-updated_on: 2026-07-10
+updated_on: 2026-07-22
+scope: local-project-memory
 tags:
   - minimalist-chat
   - gbrain
-  - memory
-  - tooling
+  - operations
+  - local-ai
 ---
 
 # GBrain Setup
 
-## Installed
+## What GBrain does
 
-- GBrain CLI `0.42.58.0` installed with Bun `1.3.14`.
-- Source pinned at install time to commit `a25209bbb2bacf1b88e06fd5282b27f1bf4a3e7a`.
-- CLI location: `C:\Users\jaysa\.bun\bin\gbrain.exe`.
-- Pinned skill-source clone: `C:\Users\jaysa\gbrain`.
-- The current bundle manifest scaffolded 38 skills (68 upstream files) into `skills/`; see [[skills/GBrain Skill Catalog|GBrain Skill Catalog]].
+GBrain is the private, local search memory for Minimalist Chat. It turns curated project notes and an explicit authored-code mirror into searchable embeddings, then returns the most relevant local evidence to Codex. It does not deploy the app, publish the vault, or write product decisions on its own.
 
-## Active free configuration
+The accepted runtime uses:
 
-- Native Windows PGLite is initialized at `C:\Users\jaysa\.gbrain\brain.pglite` with schema version 122.
-- The pinned build was tested end to end on Windows: initialization, import, keyword retrieval, graph traversal, backlinks, and MCP all work.
-- Search mode is `conservative`: 4,000-token budget, result limit 10, cache and intent weighting enabled, expansion disabled.
-- Embeddings are disabled. The database contains 0 embedded chunks and has no configured embedding-provider API key.
-- This mode uses local keyword retrieval and the local knowledge graph, so GBrain makes no paid embedding or model API calls. Normal Codex plan usage still applies when an agent answers a question.
-- WSL2 was not required. Its Ubuntu path was unavailable because firmware virtualization is disabled on this computer.
+- local PGLite data under `C:\Users\jaysa\.gbrain`;
+- tray Ollama only at `http://127.0.0.1:11434/v1`;
+- `mxbai-embed-large` at 1,024 dimensions;
+- a `schema_pack` configuration value of `gbrain-base-v2`; the live database still reports `gbrain-base`, so the manual-only v2 migration remains unapplied;
+- balanced retrieval with query expansion disabled and the experimental reranker disabled;
+- an authority-aware local MCP proxy for source verification, ranking, citations, conflicts, and explicit abstention.
 
-## Imported vault
+Never route GBrain through Winston's protected Ollama runtime on port `11435`. Dream, autopilot, and other background writers remain disabled.
 
-- 89 Markdown pages imported successfully.
-- 324 chunks indexed for keyword retrieval.
-- 52 typed `mentions` links imported with source provenance `obsidian-import`.
-- 33 tags indexed.
-- 0 embeddings and 0 timeline entries. Both are intentional for this vault and mode.
+## Indexed sources
 
-GBrain's pinned Windows Obsidian resolver joins paths with backslashes while imported slugs use forward slashes. `tools/import-gbrain-obsidian-links.py` bridges that mismatch deterministically from validated vault wikilinks. It resolved all 52 project-note links with 0 unresolved targets.
+| Source | Scope | Current owned mirror |
+| --- | --- | ---: |
+| Curated vault notes | Federated default | 36 Markdown notes |
+| Authored repository files | Explicit requests only | 743 files |
 
-## Codex connection
+The owned refresh indexes the curated notes and the explicit authored-code inventory above, while the dashboard reports live page, embedded-chunk, note-link, tag, and timeline counts because they change with authored content. Each mirror manifest records its exact source root, file inventory, and per-file SHA-256. Health verifies every digest against both the mirror and the current source tree, so a same-path content change cannot masquerade as a current refresh. Native results without matching provenance are rejected instead of being assigned to the requested source.
 
-- Global MCP name: `gbrain`.
-- Command: `C:\Users\jaysa\.bun\bin\gbrain.exe serve`.
-- The stdio handshake and tool catalog were verified. New Codex tasks can use this MCP connection after their tool list loads.
+## Authority and citation behavior
 
-## Verification
+`tools/gbrain/gbrain-authority-mcp-proxy.mjs` wraps GBrain's native stdio server. It preserves source scope, verifies every candidate against trusted mirror manifests, removes duplicate source/slug identities, and applies deterministic current-versus-archived authority ranking.
 
-- Keyword searches returned the protected Ollama gateway, product-opportunity, and Lighthouse history notes.
-- `graph-query` from the Knowledge Hub returned its expected outgoing relationships.
-- Backlinks to [[90 Memory/Project Memory|Project Memory]] returned the Knowledge Hub and Memory Protocol.
-- JSONB integrity is clean under PGLite.
-- Doctor warnings about absent embeddings, pgvector, and a missing embedding-provider key are expected in this deliberately free profile.
+The proxy also exposes a citation-aware query tool. It returns local file paths and ranked evidence, reports simple detected conflicts such as incompatible dates, and abstains when evidence is weak or conflicting. Optional Ollama synthesis is best-effort, requires every rendered sentence or bullet claim to contain an in-range citation, and never replaces the deterministic evidence record when validation fails. This is evidence routing, not a guarantee that every statement in a source is factually correct.
 
-## Refresh workflow
+The proxy validates the same config file GBrain uses and forcibly pins the child process to tray Ollama. Unsupported config-path overrides cannot bypass that guard.
 
-After vault notes change, run:
+## Timeline image understanding
+
+`tools/gbrain/Analyze-ProjectTimelineVision.mjs` analyzes the six curated [[Project Timeline|project timeline]] images with local `qwen3.6:latest` vision. It writes six owned `.vision.md` sidecars plus an index under [[Timeline Vision/Index|Timeline Vision]]. Every record binds the image SHA-256, model digest, prompt version, and structured analysis. The notes describe visible evidence conservatively; a concept image or screenshot is not proof of deployment.
+
+Maintenance reuses matching sidecars and invokes vision only for a new or changed image. Stale sidecars are removed only when their ownership metadata is valid. Invalid model capability, endpoint, output, metadata, or ownership fails closed without partial writes.
+
+## Retrieval gate
+
+The production evaluator uses `gbrain-evals/qrels/minimalist-chat-v3.qrels.json`: 100 unique source-aware cases spanning current notes, code, aliases/typos, authority, timeline images, security, operations, and negative/source-scope checks. Results are deduplicated by source and slug before every ranking metric, so nDCG cannot exceed 1 and repeated native hits cannot satisfy negative checks.
+
+The gate requires all retrieval, source-isolation, and negative thresholds to pass. Latency is recorded and reported, but it is not a gate. The machine-readable latest result lives at `C:\Users\jaysa\.gbrain\evals\minimalist-chat-latest.json`; the accepted measurements are summarized in [[../30 Audits/GBrain Upgrade and Retrieval Audit 2026-07-21|the retrieval audit]].
+
+## Relationship graph
+
+Graphify remains the visual relationship layer. The latest 2026-07-22 maintenance snapshot has 1,265 nodes and 2,662 edges, with zero isolated nodes and 39 nodes with degree one or less. The enrichment pass canonicalizes verified vault-relative source paths, rejects dangling/self/duplicate relationships, and refuses any apply that increases isolated or weak nodes.
+
+Scheduled maintenance runs deterministic relationship enrichment and output regeneration. A full semantic Graphify refresh of document content remains a manual Graphify-skill operation because the installed `graphify update` command is code-oriented.
+
+## Pack-v2 trial
+
+The corrected `gbrain-base-v2` trial was performed in a disposable `GBRAIN_HOME` clone and accepted only after both 100-case V3 gates, trusted cloned provenance catalogs, config/database/snapshot integrity, and endpoint isolation passed. Baseline and trial had identical quality metrics with zero per-case rank regressions. Observed p95 was 1.834 seconds for baseline and 1.831 seconds for v2; latency is reported, not gated. The endpoint check proves the isolated configuration and inherited Ollama environment exclude protected port `11435`; it is not a packet-capture claim. The file configuration was already marked v2 when the trial was recorded, so the baseline was reconstructed in the disposable clone; this was a logical isolated comparison, not a literal migration of the live database. A post-maintenance doctor check on 2026-07-22 confirmed that the live database pack identity remains `gbrain-base` and still offers the v2 change as a manual-only migration; do not describe the live database as migrated until that separate apply and validation succeeds.
+
+## Local health dashboard
+
+Run:
 
 ```powershell
-gbrain import 'C:\Users\jaysa\Documents\minimalist-chat\Minimalist-chat-vault' --no-embed --workers 1
-python 'C:\Users\jaysa\Documents\minimalist-chat\tools\import-gbrain-obsidian-links.py' --apply
-gbrain extract timeline --source db
-gbrain doctor --json
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gbrain\Start-GBrainHealthDashboard.ps1
 ```
 
-Use `gbrain search '<exact project terms>'` as the default free lookup. Do not run embedding, dream-cycle, autopilot, remediation, or external integration jobs unless the user explicitly opts in to their resource and privacy implications.
+The dashboard is available only on `http://127.0.0.1:4317`. It reports verified source inventories, evaluation readiness, graph integrity/alignment, maintenance steps, vision ownership, pack status, endpoint pinning, MCP registration, and the live scheduled-task contract. It rejects foreign Host headers, uses same-origin assets, and serves the Graphify viewer's JavaScript locally.
 
-## Optional later upgrade
+## Safe maintenance
 
-Local Ollama embeddings could add semantic and synonym-based recall without a hosted API bill, but no Ollama embedding model is installed or configured. The current keyword-plus-graph profile remains the approved default.
+Preview the owned workflow:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gbrain\Invoke-GBrainMaintenance.ps1 -DryRun
+```
+
+Run the complete workflow:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gbrain\Invoke-GBrainMaintenance.ps1
+```
+
+The coordinator takes an exclusive lock, validates and temporarily removes the exact GBrain MCP registration, verifies a SHA-256 snapshot, proves a disposable restore/query drill, refreshes both owned sources, refreshes cached vision records, runs the 100-case V3 gate, enriches and validates Graphify, and restores the exact MCP registration in `finally` on success or failure. GBrain is briefly unavailable to Codex while its single-writer PGLite database is being refreshed.
+
+## Scheduled maintenance
+
+Install or repair the owned local task:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gbrain\Install-GBrainMaintenanceTask.ps1
+```
+
+Verify it without mutation:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\gbrain\Install-GBrainMaintenanceTask.ps1 -Verify
+```
+
+The accepted contract runs Sundays at 03:00 for the current interactive user with limited privileges, ignores overlapping starts, caps execution at three hours, does not wake the computer, and may run after the next login when a scheduled start was missed. The task runs the same guarded coordinator and can temporarily disconnect GBrain MCP.
+
+## Recovery and limits
+
+- The coordinator retains seven ownership-verified local database snapshots and drills the newest one before refresh.
+- Rollback databases remain separate from the active `brain.pglite` directory.
+- Local snapshots do not protect against device loss; off-device backup is a separate decision.
+- Windows PGLite remains single-writer.
+- Citation conflict detection is intentionally heuristic, and generated vision descriptions remain secondary evidence.
+- No hosted deployment, external publication, dream cycle, or autonomous knowledge writer is part of this setup.
+
+See also [[../30 Audits/GBrain Upgrade and Retrieval Audit 2026-07-21|GBrain Upgrade and Retrieval Audit]], [[Project Memory|Project Memory]], and [[Project Timeline|Project Timeline]].

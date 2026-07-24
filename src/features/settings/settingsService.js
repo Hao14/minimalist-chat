@@ -12,6 +12,12 @@ import {
   savePersonalAgentEnabled,
 } from '../ai/personalAgentPreference.js';
 import {
+  ROOM_CATCHUP_PREFERENCE_EVENT,
+  loadRoomCatchUpEnabled,
+  roomCatchUpStorageKey,
+  saveRoomCatchUpEnabled,
+} from '../chat-core/catchUpPreference.js';
+import {
   DEFAULT_ACCENT_COLOR,
   applySavedTheme,
   applyTheme,
@@ -24,7 +30,7 @@ import {
   updateThemeSelectionUI,
 } from './themeRuntime.js';
 
-const SETTINGS_TABS = ['profile', 'billing', 'app', 'performance', 'notifications'];
+const SETTINGS_TABS = ['profile', 'billing', 'app', 'performance', 'notifications', 'help'];
 const MANAGEABLE_ACCOUNT_SUBSCRIPTION_STATUSES = new Set([
   'active',
   'trialing',
@@ -69,7 +75,11 @@ function normalizeFeatureMode(value) {
 }
 
 function readFeatureMode() {
-  return normalizeFeatureMode(localStorage.getItem(FEATURE_MODE_KEY));
+  try {
+    return normalizeFeatureMode(window.localStorage.getItem(FEATURE_MODE_KEY));
+  } catch {
+    return 'simple';
+  }
 }
 
 function updateFeatureModeUI(mode = readFeatureMode()) {
@@ -77,8 +87,8 @@ function updateFeatureModeUI(mode = readFeatureMode()) {
   document.querySelectorAll('[data-feature-mode-select]').forEach((btn) => {
     const isActive = btn.getAttribute('data-feature-mode-select') === normalized;
     btn.classList.toggle('active', isActive);
-    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
-    btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    btn.setAttribute('aria-checked', isActive ? 'true' : 'false');
+    btn.setAttribute('tabindex', isActive ? '0' : '-1');
   });
 
   const note = document.getElementById('feature-mode-note');
@@ -115,7 +125,11 @@ function activateChatForFeatureMode() {
 
 function applyFeatureMode(mode = readFeatureMode(), { showToast = false } = {}) {
   const normalized = normalizeFeatureMode(mode);
-  localStorage.setItem(FEATURE_MODE_KEY, normalized);
+  try {
+    window.localStorage.setItem(FEATURE_MODE_KEY, normalized);
+  } catch {
+    // Storage can be blocked while the in-memory mode remains fully usable.
+  }
   document.body.classList.remove(...FEATURE_MODE_CLASSES);
   document.body.classList.add(`${normalized}-feature-mode`);
   window.dispatchEvent(new CustomEvent(FEATURE_MODE_EVENT, { detail: { mode: normalized } }));
@@ -218,7 +232,7 @@ function renderSettingsPreviewUser(user = {}) {
   const host = document.getElementById('settings-card-inline-preview');
   if (!host) return false;
 
-  const avatar = user.photoUrl || user.photoURL || window.getAvatarUrl?.(user.displayName, '') || '';
+  const avatar = window.getAvatarUrl?.(user.displayName, user.photoUrl || user.photoURL) || '';
   const bannerStyle = user.bannerUrl
     ? {
         backgroundImage: `url("${encodeURI(user.bannerUrl)}")`,
@@ -385,6 +399,21 @@ if (typeof settingsPreviewMobileQuery.addEventListener === 'function') {
 
 function updatePersonalAgentPreferenceUI() {
   applyPersonalAgentPreferences(loadPersonalAgentPreferences());
+}
+
+function updateRoomCatchUpPreferenceUI(enabled = loadRoomCatchUpEnabled(window.currentUser?.uid)) {
+  const toggle = document.getElementById('room-catchup-enabled-toggle');
+  if (toggle) {
+    toggle.checked = enabled;
+    toggle.setAttribute('aria-checked', enabled ? 'true' : 'false');
+  }
+
+  const status = document.getElementById('room-catchup-preference-status');
+  if (status) {
+    status.textContent = enabled
+      ? 'Shown above the composer'
+      : 'Hidden; Quick Replies stay available';
+  }
 }
 
 function setProfileEditMode(isEditing) {
@@ -557,11 +586,49 @@ document.getElementById('reset-custom-theme-btn')?.addEventListener('click', () 
   });
 });
 
+document.getElementById('room-catchup-enabled-toggle')?.addEventListener('change', (event) => {
+  const enabled = saveRoomCatchUpEnabled(window.currentUser?.uid, event.currentTarget.checked);
+  updateRoomCatchUpPreferenceUI(enabled);
+  window.showToast?.(`Room catch-up turned ${enabled ? 'on' : 'off'} on this device.`, false);
+});
+
+window.addEventListener(ROOM_CATCHUP_PREFERENCE_EVENT, (event) => {
+  const currentUid = String(window.currentUser?.uid || '').trim() || 'signed-out';
+  if (event.detail?.uid && event.detail.uid !== currentUid) return;
+  updateRoomCatchUpPreferenceUI(event.detail?.enabled ?? loadRoomCatchUpEnabled(window.currentUser?.uid));
+});
+
+window.addEventListener('storage', (event) => {
+  if (event.key !== roomCatchUpStorageKey(window.currentUser?.uid)) return;
+  updateRoomCatchUpPreferenceUI(loadRoomCatchUpEnabled(window.currentUser?.uid));
+});
+
 document.addEventListener('click', (event) => {
   const target = event.target instanceof Element ? event.target : event.target?.parentElement;
   const modeBtn = target?.closest('[data-feature-mode-select]');
   if (!modeBtn) return;
   applyFeatureMode(modeBtn.getAttribute('data-feature-mode-select'), { showToast: true });
+});
+
+document.addEventListener('keydown', (event) => {
+  if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return;
+  const target = event.target instanceof Element ? event.target : null;
+  const radio = target?.closest('#pane-app [role="radio"]');
+  const group = radio?.closest('[role="radiogroup"]');
+  if (!radio || !group) return;
+
+  const radios = [...group.querySelectorAll('[role="radio"]')].filter((item) => !item.disabled);
+  const currentIndex = radios.indexOf(radio);
+  if (currentIndex < 0 || radios.length < 2) return;
+
+  const nextIndex = event.key === 'Home'
+    ? 0
+    : event.key === 'End'
+      ? radios.length - 1
+      : (currentIndex + (['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1) + radios.length) % radios.length;
+  event.preventDefault();
+  radios[nextIndex].focus();
+  radios[nextIndex].click();
 });
 
 window.openSettings = function openSettings() {
@@ -618,6 +685,7 @@ window.openSettings = function openSettings() {
   updateThemeSelectionUI();
   updateFeatureModeUI();
   updatePersonalAgentPreferenceUI();
+  updateRoomCatchUpPreferenceUI();
   window.renderPerformanceSettings?.();
   window.renderNotificationSettings?.();
   window.ensurePhoneNotifyButton?.();
@@ -824,6 +892,7 @@ document.getElementById('tab-btn-billing')?.addEventListener('click', () => wind
 document.getElementById('tab-btn-app')?.addEventListener('click', () => window.switchTab('pane-app', 'tab-btn-app'));
 document.getElementById('tab-btn-performance')?.addEventListener('click', () => window.switchTab('pane-performance', 'tab-btn-performance'));
 document.getElementById('tab-btn-notifications')?.addEventListener('click', () => window.switchTab('pane-notifications', 'tab-btn-notifications'));
+document.getElementById('tab-btn-help')?.addEventListener('click', () => window.switchTab('pane-help', 'tab-btn-help'));
 SETTINGS_TABS.forEach((tab) => {
   document.getElementById(`tab-btn-${tab}`)?.addEventListener('keydown', handleSettingsTabKeydown);
 });

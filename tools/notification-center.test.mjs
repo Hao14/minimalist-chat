@@ -56,6 +56,12 @@ test('classifies and filters activity without hiding history for delivery prefer
   assert.deepEqual(filterActivityNotifications(groups, 'all'), groups);
 });
 
+test('routes proactive Winston activity into the updates feed', () => {
+  const winston = { type: 'winston', action: 'open_winston', ids: ['digest-1'] };
+  assert.equal(classifyActivity(winston), 'updates');
+  assert.deepEqual(filterActivityNotifications([winston], 'updates'), [winston]);
+});
+
 test('quiet hours support overnight schedules and exact full-day schedules', () => {
   const overnight = { enabled: true, start: '22:00', end: '07:00' };
   assert.equal(isQuietScheduleActive(overnight, new Date(2026, 0, 1, 23, 30)), true);

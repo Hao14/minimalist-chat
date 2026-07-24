@@ -27,6 +27,33 @@ function storageSet(key, value) {
   }
 }
 
+function relativeLuminance(hexColor) {
+  const value = String(hexColor || '').trim().replace(/^#/, '');
+  const expanded = value.length === 3
+    ? value.split('').map((character) => `${character}${character}`).join('')
+    : value;
+  if (!/^[0-9a-f]{6}$/i.test(expanded)) return null;
+
+  const channels = [0, 2, 4].map((offset) => {
+    const channel = Number.parseInt(expanded.slice(offset, offset + 2), 16) / 255;
+    return channel <= 0.04045
+      ? channel / 12.92
+      : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+}
+
+export function readableAccentForeground(color = DEFAULT_ACCENT_COLOR) {
+  const accentLuminance = relativeLuminance(color);
+  if (accentLuminance === null) return '#111317';
+
+  // Pure black and white guarantee that at least one option meets the WCAG AA
+  // 4.5:1 contrast threshold for every valid sRGB background color.
+  const darkContrast = (accentLuminance + 0.05) / 0.05;
+  const lightContrast = 1.05 / (accentLuminance + 0.05);
+  return darkContrast >= lightContrast ? '#000000' : '#FFFFFF';
+}
+
 export function readCustomAccent() {
   return storageGet('customAccentColor');
 }
@@ -43,7 +70,7 @@ export function ensureThemeStylesheet(themeName = 'light') {
   if (loaded) return Promise.resolve();
   if (themeStylesheetPromises.has(normalized)) return themeStylesheetPromises.get(normalized);
 
-  const placeholder = Array.from(document.querySelectorAll('link[data-css-lazy="theme"]'))
+  const placeholder = Array.from(document.querySelectorAll('[data-css-lazy="theme"]'))
     .find((link) => String(link.getAttribute('data-href') || '').startsWith(path));
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
@@ -69,13 +96,18 @@ export function readStoredTheme() {
 }
 
 export function setCustomAccent(color) {
+  const foreground = readableAccentForeground(color);
   document.documentElement.style.setProperty('--accent-color', color);
+  document.documentElement.style.setProperty('--accent-contrast-color', foreground);
   document.body.style.setProperty('--accent-color', color);
+  document.body.style.setProperty('--accent-contrast-color', foreground);
 }
 
 export function clearCustomAccent() {
   document.documentElement.style.removeProperty('--accent-color');
+  document.documentElement.style.removeProperty('--accent-contrast-color');
   document.body.style.removeProperty('--accent-color');
+  document.body.style.removeProperty('--accent-contrast-color');
 }
 
 export function themeEntry(themeName) {
@@ -100,10 +132,10 @@ export function updateThemeSelectionUI(themeName = readStoredTheme()) {
   document.querySelectorAll('.theme-select-btn').forEach((button) => {
     const isActive = button.getAttribute('data-theme') === activeTheme;
     button.classList.toggle('active', isActive);
-    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
     button.setAttribute('aria-checked', isActive ? 'true' : 'false');
     button.setAttribute('role', 'radio');
     button.setAttribute('type', 'button');
+    button.setAttribute('tabindex', isActive ? '0' : '-1');
   });
 }
 

@@ -25,8 +25,9 @@ window.FIREBASE_AUTH_SAME_ORIGIN_HOSTS = [
   'chat-app-356c1.firebaseapp.com',
 ];
 
-// Firebase App Check — add your Web App Check reCAPTCHA v3 site key here, then
-// set REQUIRE_APP_CHECK=true in the Functions runtime after a successful smoke test.
+// Firebase App Check — add your Web App Check reCAPTCHA v3 site key here. RUM
+// collection is disabled until this is configured, and its endpoint always
+// requires a valid App Check token independently of the optional global flag.
 window.FIREBASE_APP_CHECK_SITE_KEY = '';
 window.FIREBASE_APP_CHECK_DEBUG_TOKEN = '';
 
@@ -50,6 +51,8 @@ window.AI_PROFILE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.
 window.VAULT_SHARE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/createVaultShare';
 window.ISSUE_DRAFT_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/submitIssueDraft';
 window.NOTIFICATION_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/createNotification';
+window.LINK_PREVIEW_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/linkPreview';
+window.PERFORMANCE_RUM_ENDPOINT = '/api/performance/vitals';
 window.MINIMALIST_FLAGS = {
   aiGateway: true,
   aiServerProfile: true,
@@ -60,6 +63,7 @@ window.MINIMALIST_FLAGS = {
   vaultShareBackend: true,
   callsV2: true,
   pwaInstall: true,
+  performanceRum: Boolean(window.FIREBASE_APP_CHECK_SITE_KEY),
 };
 window.CALLS_V2_ENABLED = true;
 

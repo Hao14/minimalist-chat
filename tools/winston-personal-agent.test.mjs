@@ -19,6 +19,12 @@ function sourceBetween(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
+function sourceAround(source, marker, radius = 700) {
+  const index = source.indexOf(marker);
+  assert.notEqual(index, -1, `Missing source marker: ${marker}`);
+  return source.slice(Math.max(0, index - radius), Math.min(source.length, index + marker.length + radius));
+}
+
 test('Winston is the fixed personal-agent identity on the client and server', () => {
   assert.match(aiSource, /const WINSTON_NAME = 'Winston'/);
   assert.match(aiSource, /name: WINSTON_NAME/);
@@ -50,7 +56,7 @@ test('gateway disclosure, setup scrolling, and cross-panel cleanup stay truthful
   assert.match(aiSource, /gateway\s*\? `Protected gateway/);
   assert.match(aiSource, /On-device companion · Local setup/);
   assert.match(personalAgentCss, /\.pa-agent-workspace\.is-settings-open\s*\{[^}]*overflow-y: auto/s);
-  const openVault = sourceBetween(loaderSource, 'window.openVault = async function openVault', "['#open-vault-btn', '#open-vault-btn-mobile']");
+  const openVault = sourceBetween(loaderSource, 'window.openVault = async function openVault', 'const vaultPrewarmSelector');
   assert.match(openVault, /window\.closePersonalAgent\?\.\(\{ restoreFocus: false \}\)/);
 });
 
@@ -60,8 +66,8 @@ test('conversation turns expose speaker identity to assistive technology', () =>
 });
 
 test('navigation keeps the standard AI icon while Winston owns the profile portrait', () => {
-  const desktopTrigger = sourceBetween(chatPageSource, 'id: "open-personal-agent-btn",', 'id: "open-vault-btn",');
-  const mobileTrigger = sourceBetween(chatPageSource, 'id: "open-personal-agent-btn-mobile",', 'id: "open-contacts-btn-mobile",');
+  const desktopTrigger = sourceAround(chatPageSource, 'id: "open-personal-agent-btn",');
+  const mobileTrigger = sourceAround(chatPageSource, 'id: "open-personal-agent-btn-mobile",');
 
   assert.match(desktopTrigger, /className: "ph-bold ph-sparkle"/);
   assert.match(mobileTrigger, /className: "ph-bold ph-sparkle"/);
@@ -71,4 +77,14 @@ test('navigation keeps the standard AI icon while Winston owns the profile portr
   assert.doesNotMatch(mobileCss, /\.winston-nav-avatar/);
   assert.match(aiSource, /function WinstonAvatar/);
   assert.match(aiSource, /src=\{WINSTON_AVATAR_SRC\}/);
+});
+
+test('narrow tablet drawers preserve the full Winston identity', () => {
+  const tabletHeader = sourceBetween(
+    personalAgentCss,
+    '@media (min-width: 769px) and (max-width: 960px)',
+    '@media (min-width: 431px) and (max-width: 768px)',
+  );
+  assert.match(tabletHeader, /grid-template-columns:\s*44px minmax\(72px,\s*1fr\) auto/);
+  assert.match(tabletHeader, /\.pa-icon-btn:nth-child\(3\)\s*\{[^}]*display:\s*none/s);
 });

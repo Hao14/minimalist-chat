@@ -1,5 +1,11 @@
 import { get, ref, set } from 'firebase/database';
+import {
+  createInitialsAvatarDataUrl,
+  normalizeStoredAvatarUrl,
+} from './avatar.js';
 import { db } from './firebase.js';
+
+export { createInitialsAvatarDataUrl };
 
 function randomShortId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
@@ -26,7 +32,7 @@ export function publicDirectoryProfileFromUser(user, profile = {}) {
   const displayName = (profile.displayName || displayNameFromAuthUser(user) || 'New User').trim();
   return {
     displayName,
-    photoUrl: profile.photoUrl || user?.photoURL || '',
+    photoUrl: normalizeStoredAvatarUrl(profile.photoUrl || user?.photoURL),
     shortId: profile.shortId || '',
     username: profile.username || '',
     pronouns: profile.pronouns || '',
@@ -77,6 +83,17 @@ export async function ensureAuthProfile(user, { welcome = false } = {}) {
   const snapshot = await get(profileRef);
   if (snapshot.exists()) {
     const profile = snapshot.val();
+    const storedPhotoUrl = normalizeStoredAvatarUrl(profile.photoUrl || profile.photoURL);
+    if ((profile.photoUrl || '') !== storedPhotoUrl || profile.photoURL) {
+      profile.photoUrl = storedPhotoUrl;
+      delete profile.photoURL;
+      try {
+        await set(ref(db, `users/${user.uid}/photoUrl`), storedPhotoUrl);
+        if (snapshot.val()?.photoURL) await set(ref(db, `users/${user.uid}/photoURL`), null);
+      } catch (error) {
+        console.warn('Legacy avatar migration skipped', error);
+      }
+    }
     if (welcome) {
       try {
         const result = await ensureWelcomeBadge(user.uid, profile);
@@ -97,8 +114,7 @@ export async function ensureAuthProfile(user, { welcome = false } = {}) {
 
   const displayName = displayNameFromAuthUser(user);
   const shortId = randomShortId();
-  const avatar = user.photoURL
-    || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=000&color=FFD700&bold=true`;
+  const avatar = normalizeStoredAvatarUrl(user.photoURL);
 
   const profile = {
     displayName,

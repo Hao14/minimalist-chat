@@ -2,10 +2,13 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import {
+  endBefore,
+  get,
   limitToLast,
   off,
   onDisconnect,
   onValue,
+  orderByKey,
   push,
   query,
   ref,
@@ -17,6 +20,15 @@ import {
 } from 'firebase/database';
 import { createRoot } from 'react-dom/client';
 import { auth, db } from '../../lib/firebase.js';
+import { normalizeStoredAvatarUrl } from '../../lib/avatar.js';
+import { playUiSound } from '../audio/uiSoundService.js';
+import {
+  mergePmMessagePages,
+  PM_HISTORY_PAGE_SIZE,
+  pmHistoryCursor,
+  pmHistoryMayHaveOlder,
+  roomIdFor,
+} from './pmHistoryModel.js';
 import { useDirectAudioCall } from './useDirectAudioCall.js';
 
 const pmKeys = new Map();
@@ -32,15 +44,45 @@ let pmStateOwnerUid = null;
 let livePmCallTargetUid = null;
 let pmReturnSurface = null;
 let pmDockVisible = false;
+let pendingPmVoiceCallIntent = null;
+
+function browserAlertsOwnBackgroundCall() {
+  if (document.visibilityState === 'visible' && document.hasFocus()) return false;
+  try {
+    return localStorage.getItem('minimalist:phone-notifications') === 'enabled'
+      && typeof window.Notification !== 'undefined'
+      && window.Notification.permission === 'granted';
+  } catch {
+    return false;
+  }
+}
 
 const pendingPmCallStreams = new Map();
 const PM_SESSION_LIMIT = 64;
 const PM_CALL_RING_MS = 35_000;
 const PM_CALL_EVENT_PREFIX = '\u{1F4DE} Voice call';
 const PM_CALL_EVENT_TYPE = 'direct_call';
+const SAFE_PM_CALL_UID = /^[A-Za-z0-9_-]{1,128}$/;
+const SAFE_PM_CALL_THREAD_ID = /^[A-Za-z0-9_-]{1,260}$/;
 
-function roomIdFor(a, b) {
-  return a < b ? `${a}_${b}` : `${b}_${a}`;
+function expectedPmThreadId(userUid, targetUid) {
+  if (!SAFE_PM_CALL_UID.test(String(userUid || '')) || !SAFE_PM_CALL_UID.test(String(targetUid || ''))) return '';
+  const threadId = roomIdFor(userUid, targetUid);
+  return SAFE_PM_CALL_THREAD_ID.test(threadId) ? threadId : '';
+}
+
+async function hasAcceptedPmFriendship(userUid, targetUid) {
+  if (!expectedPmThreadId(userUid, targetUid)) return false;
+  const snapshot = await get(ref(db, `friends/${userUid}/${targetUid}`));
+  return snapshot.val() === 'accepted';
+}
+
+function friendCallOnlyMessage() {
+  return 'Voice calls are available only between accepted friends.';
+}
+
+function isPmCallPermissionDenied(error) {
+  return /permission[-_ ]?denied/i.test(`${error?.code || ''} ${error?.message || ''}`);
 }
 
 function emitSessions() {
@@ -95,6 +137,7 @@ function scopePmStateToUser(uid) {
   livePmCallTargetUid = null;
   pmReturnSurface = null;
   pmDockOpener = null;
+  pendingPmVoiceCallIntent = null;
   pmStateOwnerUid = nextUid;
   emitSessions();
 }
@@ -112,7 +155,7 @@ function upsertSession(targetUid, patch = {}, { notify = true } = {}) {
   const nextSession = {
     targetUid,
     targetName: patch.targetName || previous?.targetName || patch.fromName || 'User',
-    photoUrl: patch.photoUrl || previous?.photoUrl || '',
+    photoUrl: normalizeStoredAvatarUrl(patch.photoUrl || previous?.photoUrl),
     open: patch.open ?? previous?.open ?? false,
     unread: patch.unread ?? previous?.unread ?? false,
     lastText: patch.lastText ?? previous?.lastText ?? '',
@@ -169,16 +212,20 @@ function ensurePmDock() {
   }
 }
 
-function showPmDock(targetUid) {
+function showPmDock(targetUid, options = {}) {
   const userUid = auth.currentUser?.uid || window.currentUser?.uid || '';
   scopePmStateToUser(userUid);
+  if (window.latestPmInboxUid === userUid) applyPmInboxSessions(window.latestPmInbox || {});
   if (targetUid && livePmCallTargetUid && targetUid !== livePmCallTargetUid) {
     targetUid = livePmCallTargetUid;
     window.showToast?.('Finish the current call before opening another conversation.');
   }
   const previousActiveUid = activeUid;
   if (targetUid) activeUid = targetUid;
-  pmDockOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  pmDockOpener = options.opener instanceof HTMLElement
+    ? options.opener
+    : document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  window.closeFloatingUI?.({ keep: 'pm-popup', restoreFocus: false });
   pmDockVisible = true;
   ensurePmDock();
   const popup = document.getElementById('pm-popup');
@@ -274,6 +321,9 @@ async function acceptPmCall(call, { openDock = true } = {}) {
   let stream = null;
   let accepted = false;
   try {
+    if (!(await hasAcceptedPmFriendship(user.uid, call.callerUid))) {
+      throw new Error(friendCallOnlyMessage());
+    }
     stream = await requestPmAudio();
     pendingPmCallStreams.set(call.roomId, stream);
     const callPath = `pm_calls/${call.roomId}`;
@@ -454,6 +504,7 @@ function callStateLabel(call, myUid) {
 function IncomingCallManager() {
   const [uid, setUid] = useState(() => auth.currentUser?.uid || window.currentUser?.uid || '');
   const [inbox, setInbox] = useState({});
+  const [friendships, setFriendships] = useState({ uid: '', loaded: false, values: {} });
   const [candidateCalls, setCandidateCalls] = useState({});
   const [now, setNow] = useState(() => Date.now());
 
@@ -462,6 +513,16 @@ function IncomingCallManager() {
     scopePmStateToUser(nextUid);
     setUid(nextUid);
   }), []);
+
+  useEffect(() => {
+    if (!uid) return undefined;
+
+    return onValue(ref(db, `friends/${uid}`), (snapshot) => {
+      setFriendships({ uid, loaded: true, values: snapshot.val() || {} });
+    }, () => {
+      setFriendships({ uid, loaded: true, values: {} });
+    });
+  }, [uid]);
 
   useEffect(() => {
     if (!uid) return undefined;
@@ -483,12 +544,20 @@ function IncomingCallManager() {
     .sort(([, a], [, b]) => Number(b?.timestamp || 0) - Number(a?.timestamp || 0))
     .slice(0, 24)
     .map(([senderUid]) => senderUid), [inbox]);
-  const recentSenderKey = recentSenders.join('|');
+  const callPeerUids = useMemo(() => [...new Set([
+    ...recentSenders,
+    ...Object.entries(friendships.values || {})
+      .filter(([, status]) => status === 'accepted')
+      .map(([friendUid]) => friendUid),
+  ])]
+    .filter((peerUid) => peerUid !== uid && SAFE_PM_CALL_UID.test(peerUid))
+    .slice(0, PM_SESSION_LIMIT), [friendships.values, recentSenders, uid]);
+  const callPeerKey = callPeerUids.join('|');
 
   useEffect(() => {
-    if (!uid || !recentSenders.length) return undefined;
-    const unsubscribers = recentSenders.map((senderUid) => {
-      const roomId = roomIdFor(uid, senderUid);
+    if (!uid || !callPeerUids.length) return undefined;
+    const unsubscribers = callPeerUids.map((peerUid) => {
+      const roomId = roomIdFor(uid, peerUid);
       return onValue(ref(db, `pm_calls/${roomId}`), (snapshot) => {
         const value = snapshot.val();
         setNow(Date.now());
@@ -501,20 +570,37 @@ function IncomingCallManager() {
       });
     });
     return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
-    // The serialized sender key keeps listener churn tied to membership changes.
+    // The serialized peer key keeps listener churn tied to inbox/friendship changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recentSenderKey, uid]);
+  }, [callPeerKey, uid]);
+
+  useEffect(() => {
+    if (!uid || friendships.uid !== uid || !friendships.loaded) return;
+    Object.values(candidateCalls).forEach((call) => {
+      if (
+        call?.status === 'ringing'
+        && call.calleeUid === uid
+        && friendships.values?.[call.callerUid] !== 'accepted'
+      ) {
+        declinePmCall(call).catch(() => {});
+      }
+    });
+  }, [candidateCalls, friendships, uid]);
 
   const incomingCall = useMemo(() => Object.values(candidateCalls)
     .filter((call) => call?.status === 'ringing'
       && call.calleeUid === uid
+      && friendships.uid === uid
+      && friendships.loaded
+      && friendships.values?.[call.callerUid] === 'accepted'
       && Number(call.expiresAt || 0) > now)
-    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0] || null, [candidateCalls, now, uid]);
+    .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))[0] || null, [candidateCalls, friendships, now, uid]);
 
   useEffect(() => {
     if (!incomingCall) return undefined;
     const ring = () => {
-      window.playPing?.();
+      if (browserAlertsOwnBackgroundCall()) return;
+      void playUiSound('call', { allowDuringQuietHours: true });
       navigator.vibrate?.([420, 180, 420]);
     };
     ring();
@@ -592,7 +678,7 @@ function SessionButton({ session, active, onPick, onClose }) {
         aria-label={`${session.targetName}. ${unreadLabel}${summary}`}
       >
         <span className="pm-session-avatar">
-          {session.photoUrl ? <img src={session.photoUrl} alt="" /> : (session.targetName || '?').slice(0, 2).toUpperCase()}
+          {normalizeStoredAvatarUrl(session.photoUrl) ? <img src={normalizeStoredAvatarUrl(session.photoUrl)} alt="" /> : (session.targetName || '?').slice(0, 2).toUpperCase()}
         </span>
         <span className="pm-session-main">
           <span className="pm-session-name-row">
@@ -610,7 +696,7 @@ function SessionButton({ session, active, onPick, onClose }) {
         aria-label={`Close PM with ${session.targetName}`}
         title="Close PM"
       >
-        ×
+        <i className="ph-bold ph-x" aria-hidden="true" />
       </button>
     </div>
   );
@@ -703,7 +789,9 @@ function DirectCallStage({
 
   useEffect(() => {
     if (!outgoing || call?.status !== 'ringing') return undefined;
-    const ringback = () => window.playPing?.();
+    const ringback = () => {
+      void playUiSound('call', { allowDuringQuietHours: true });
+    };
     ringback();
     const timer = window.setInterval(ringback, 2300);
     return () => window.clearInterval(timer);
@@ -774,12 +862,16 @@ function PrivateMessagesDock() {
   const [authenticatedUid, setAuthenticatedUid] = useState(() => auth.currentUser?.uid || window.currentUser?.uid || '');
   const [messages, setMessages] = useState([]);
   const [messageState, setMessageState] = useState('idle');
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
+  const [olderMessagesError, setOlderMessagesError] = useState('');
   const [drafts, setDrafts] = useState({});
   const [sessionSearch, setSessionSearch] = useState('');
   const [search, setSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [call, setCall] = useState(null);
   const [callStarting, setCallStarting] = useState(false);
+  const [callFriendship, setCallFriendship] = useState({ key: '', status: 'idle' });
   const [callStageMinimized, setCallStageMinimized] = useState(false);
   const [speakerOn, setSpeakerOn] = useState(true);
   const [sending, setSending] = useState(false);
@@ -794,6 +886,7 @@ function PrivateMessagesDock() {
   const lastScrolledRoomRef = useRef('');
   const callStartAttemptRef = useRef(0);
   const callStartingRef = useRef(false);
+  const messageRoomRef = useRef('');
 
   const activeSession = useMemo(
     () => openSessions.find((session) => session.targetUid === currentActiveUid) || openSessions[0] || null,
@@ -813,11 +906,31 @@ function PrivateMessagesDock() {
       `${session.targetName || ''} ${session.lastText || ''}`.toLowerCase().includes(needle)
     ));
   }, [openSessions, sessionSearch]);
-  const joinedCall = Boolean(myUid
+  const callFriendshipKey = myUid && activeTargetUid ? `${myUid}:${activeTargetUid}` : '';
+  const friendCallAllowed = Boolean(
+    callFriendship.key === callFriendshipKey
+    && callFriendship.status === 'accepted'
+  );
+  const friendCallChecking = Boolean(
+    callFriendshipKey
+    && (callFriendship.key !== callFriendshipKey || callFriendship.status === 'checking')
+  );
+  const friendCallError = callFriendship.key === callFriendshipKey
+    && ['blocked', 'error'].includes(callFriendship.status)
+    ? friendCallOnlyMessage()
+    : '';
+  const callLive = Boolean(scopedCall && (scopedCall.status === 'ringing' || scopedCall.status === 'active'));
+  const friendCallAriaLabel = callLive
+    ? 'Open voice call'
+    : friendCallChecking
+      ? 'Voice calling unavailable — checking friendship'
+      : friendCallAllowed
+        ? `Call ${activeSession?.targetName || 'this friend'}`
+        : 'Voice calling unavailable — accepted friends only';
+  const joinedCall = Boolean(friendCallAllowed && myUid
     && scopedCall?.participants?.[myUid]
     && (scopedCall.status === 'ringing' || scopedCall.status === 'active'));
   const callParticipants = Object.values(scopedCall?.participants || {});
-  const callLive = Boolean(scopedCall && (scopedCall.status === 'ringing' || scopedCall.status === 'active'));
   const callBusy = callLive || callStarting;
   const callStageVisible = Boolean(scopedCall
     && ['ringing', 'active', 'cancelled', 'declined', 'missed', 'ended'].includes(scopedCall.status)
@@ -838,6 +951,18 @@ function PrivateMessagesDock() {
     participants: callParticipants,
     initialStream: initialCallStream,
   });
+
+  useEffect(() => {
+    if (!callFriendshipKey) return undefined;
+    return onValue(ref(db, `friends/${myUid}/${activeTargetUid}`), (snapshot) => {
+      setCallFriendship({
+        key: callFriendshipKey,
+        status: snapshot.val() === 'accepted' ? 'accepted' : 'blocked',
+      });
+    }, () => {
+      setCallFriendship({ key: callFriendshipKey, status: 'error' });
+    });
+  }, [activeTargetUid, callFriendshipKey, myUid]);
 
   useEffect(() => {
     const listener = () => setSessionState(snapshotSessions());
@@ -868,11 +993,19 @@ function PrivateMessagesDock() {
     if (!dockOpen || !roomId || !myUid) return undefined;
 
     let cancelled = false;
+    const preserveVisibleHistory = messageRoomRef.current === roomId;
+    messageRoomRef.current = roomId;
     const loadingFrame = window.requestAnimationFrame(() => {
-      setMessages([]);
-      setMessageState('loading');
+      setOlderMessagesError('');
+      setLoadingOlderMessages(false);
+      if (!preserveVisibleHistory) setMessages([]);
+      setMessageState(preserveVisibleHistory ? 'ready' : 'loading');
     });
-    const messagesQuery = query(ref(db, `private_messages/${roomId}`), limitToLast(80));
+    const messagesQuery = query(
+      ref(db, `private_messages/${roomId}`),
+      orderByKey(),
+      limitToLast(PM_HISTORY_PAGE_SIZE),
+    );
     const unsubscribe = onValue(messagesQuery, async (snapshot) => {
       window.cancelAnimationFrame(loadingFrame);
       const nextMessages = [];
@@ -887,13 +1020,17 @@ function PrivateMessagesDock() {
 
       if (cancelled) return;
 
-      setMessages(decrypted);
+      setMessages((current) => mergePmMessagePages(preserveVisibleHistory ? current : [], decrypted));
+      setHasOlderMessages(pmHistoryMayHaveOlder(nextMessages.length));
+      setLoadingOlderMessages(false);
+      setOlderMessagesError('');
       setMessageState('ready');
     }, () => {
       if (!cancelled) {
         window.cancelAnimationFrame(loadingFrame);
-        setMessages([]);
-        setMessageState('error');
+        setLoadingOlderMessages(false);
+        if (!preserveVisibleHistory) setMessages([]);
+        setMessageState(preserveVisibleHistory ? 'stale' : 'error');
       }
     });
     return () => {
@@ -902,6 +1039,52 @@ function PrivateMessagesDock() {
       unsubscribe();
     };
   }, [dockOpen, encryptionVersion, myUid, roomId]);
+
+  const loadOlderMessages = useCallback(async () => {
+    const cursor = pmHistoryCursor(messages);
+    if (!cursor || !roomId || !myUid || loadingOlderMessages) return;
+
+    const requestedRoomId = roomId;
+    const list = messagesRef.current;
+    const previousScrollHeight = list?.scrollHeight || 0;
+    const previousScrollTop = list?.scrollTop || 0;
+    stickToBottomRef.current = false;
+    setLoadingOlderMessages(true);
+    setOlderMessagesError('');
+
+    try {
+      const olderQuery = query(
+        ref(db, `private_messages/${requestedRoomId}`),
+        orderByKey(),
+        endBefore(cursor),
+        limitToLast(PM_HISTORY_PAGE_SIZE),
+      );
+      const snapshot = await get(olderQuery);
+      const olderMessages = [];
+      snapshot.forEach((child) => olderMessages.push({ id: child.key, ...child.val() }));
+      const decrypted = await Promise.all(olderMessages.map(async (message) => ({
+        ...message,
+        decryptedText: await cachedDecryptPmText(requestedRoomId, message, encryptionVersion),
+      })));
+
+      if (messageRoomRef.current !== requestedRoomId) return;
+      setMessages((current) => mergePmMessagePages(decrypted, current));
+      setHasOlderMessages(pmHistoryMayHaveOlder(olderMessages.length));
+      setMessageState('ready');
+
+      window.requestAnimationFrame(() => {
+        const currentList = messagesRef.current;
+        if (!currentList || messageRoomRef.current !== requestedRoomId) return;
+        currentList.scrollTop = previousScrollTop + (currentList.scrollHeight - previousScrollHeight);
+      });
+    } catch (error) {
+      if (messageRoomRef.current === requestedRoomId) {
+        setOlderMessagesError(error?.message || 'Older messages could not be loaded.');
+      }
+    } finally {
+      if (messageRoomRef.current === requestedRoomId) setLoadingOlderMessages(false);
+    }
+  }, [encryptionVersion, loadingOlderMessages, messages, myUid, roomId]);
 
   useEffect(() => {
     if (!messages.length || !roomId || !myUid) return;
@@ -1027,6 +1210,13 @@ function PrivateMessagesDock() {
   useEffect(() => {
     const handleDockOpen = (event) => {
       setDockOpen(true);
+      setCallStageMinimized(false);
+      setMobileInboxOpen(!event.detail?.targetUid);
+      setSessionSearch('');
+      setSearch('');
+      setSearchOpen(false);
+      setPassphraseOpen(false);
+      stickToBottomRef.current = true;
       if (event.detail?.changed) {
         setMessages([]);
         setMessageState('loading');
@@ -1110,9 +1300,12 @@ function PrivateMessagesDock() {
       window.showToast?.(callStarting ? 'Wait for call setup to finish before switching conversations.' : 'Finish the current call before switching conversations.');
       return;
     }
-    setMessages([]);
-    setMessageState('loading');
-    activeUid = targetUid;
+    const sameSession = targetUid === activeTargetUid;
+    if (!sameSession) {
+      setMessages([]);
+      setMessageState('loading');
+      activeUid = targetUid;
+    }
     setMobileInboxOpen(false);
     emitSessions();
   }, [activeTargetUid, callBusy, callStarting]);
@@ -1135,11 +1328,13 @@ function PrivateMessagesDock() {
   useEffect(() => {
     window.closePrivateChatDock = closeDock;
     const handleKeydown = (event) => {
-      if (event.key !== 'Escape' || document.getElementById('pm-popup')?.classList.contains('hidden')) return;
+      if (event.defaultPrevented || event.key !== 'Escape' || document.getElementById('pm-popup')?.classList.contains('hidden')) return;
       if (passphraseOpen) {
+        event.preventDefault();
         setPassphraseOpen(false);
         return;
       }
+      event.preventDefault();
       closeDock();
     };
     document.addEventListener('keydown', handleKeydown);
@@ -1209,7 +1404,9 @@ function PrivateMessagesDock() {
       setDrafts((current) => ({ ...current, [activeSession.targetUid]: '' }));
       if (composerRef.current) composerRef.current.style.height = 'auto';
       stickToBottomRef.current = true;
+      void playUiSound('message-sent');
     } catch (error) {
+      void playUiSound('error');
       window.showToast?.(`Message not sent: ${error.message || error}`);
     } finally {
       setSending(false);
@@ -1225,6 +1422,10 @@ function PrivateMessagesDock() {
     let stream = null;
     let reserved = false;
     try {
+      if (!(await hasAcceptedPmFriendship(myUid, activeSession.targetUid))) {
+        throw new Error(friendCallOnlyMessage());
+      }
+      setCallFriendship({ key: `${myUid}:${activeSession.targetUid}`, status: 'accepted' });
       stream = await requestPmAudio();
       if (callStartAttemptRef.current !== attemptId) {
         stopMediaStream(stream);
@@ -1289,7 +1490,8 @@ function PrivateMessagesDock() {
         )).catch(() => {});
       }
       if (error?.code !== 'pm-call/cancelled') {
-        window.showToast?.(`Voice call failed: ${error.message || error}`);
+        const message = isPmCallPermissionDenied(error) ? friendCallOnlyMessage() : error.message || error;
+        window.showToast?.(`Voice call failed: ${message}`);
       }
     } finally {
       if (callStartAttemptRef.current === attemptId) {
@@ -1298,6 +1500,38 @@ function PrivateMessagesDock() {
       }
     }
   }, [activeSession, callPath, myUid, roomId]);
+
+  useEffect(() => {
+    const intent = pendingPmVoiceCallIntent;
+    if (!intent || !dockOpen || intent.targetUid !== activeTargetUid) return undefined;
+    if (Number(intent.callIntentExpiresAt || 0) <= Date.now()) {
+      pendingPmVoiceCallIntent = null;
+      window.showToast?.('The confirmed call expired. Ask Winston to prepare it again.');
+      return undefined;
+    }
+    const expiryTimer = window.setTimeout(() => {
+      if (pendingPmVoiceCallIntent === intent) {
+        pendingPmVoiceCallIntent = null;
+        window.showToast?.('The confirmed call expired. Ask Winston to prepare it again.');
+      }
+    }, Math.max(1, Number(intent.callIntentExpiresAt) - Date.now()));
+    if (callLive) {
+      pendingPmVoiceCallIntent = null;
+      window.clearTimeout(expiryTimer);
+      return undefined;
+    }
+    if (!friendCallChecking && !friendCallAllowed) {
+      pendingPmVoiceCallIntent = null;
+      window.clearTimeout(expiryTimer);
+      window.showToast?.(friendCallOnlyMessage());
+      return undefined;
+    }
+    if (callStarting || !friendCallAllowed) return () => window.clearTimeout(expiryTimer);
+    pendingPmVoiceCallIntent = null;
+    window.clearTimeout(expiryTimer);
+    window.setTimeout(() => void startVoiceCall(), 0);
+    return undefined;
+  }, [activeTargetUid, callLive, callStarting, dockOpen, dockOpenVersion, friendCallAllowed, friendCallChecking, startVoiceCall]);
 
   const answerVoiceCall = useCallback(() => acceptPmCall(scopedCall, { openDock: false }), [scopedCall]);
   const declineVoiceCall = useCallback(() => declinePmCall(scopedCall), [scopedCall]);
@@ -1382,7 +1616,7 @@ function PrivateMessagesDock() {
             <i className="ph-bold ph-arrow-left" aria-hidden="true" />
           </button>
           <button type="button" className="pm-header-avatar" onClick={() => activeSession && window.viewUserProfile?.(activeSession.targetUid)} aria-label={activeSession ? `Open ${activeSession.targetName}'s profile` : 'Private messages'}>
-            {activeSession?.photoUrl ? <img src={activeSession.photoUrl} alt="" /> : String(activeSession?.targetName || 'PM').slice(0, 2).toUpperCase()}
+            {normalizeStoredAvatarUrl(activeSession?.photoUrl) ? <img src={normalizeStoredAvatarUrl(activeSession?.photoUrl)} alt="" /> : String(activeSession?.targetName || 'PM').slice(0, 2).toUpperCase()}
           </button>
           <div className="pm-title-wrap">
             <span id="pm-target-name">{activeSession?.targetName || 'Private messages'}</span>
@@ -1392,8 +1626,8 @@ function PrivateMessagesDock() {
             <button type="button" className={`pm-action-btn ${searchOpen ? 'active' : ''}`} title="Search conversation" aria-label="Search conversation" aria-expanded={searchOpen} onClick={() => setSearchOpen((open) => !open)}>
               <i className="ph-bold ph-magnifying-glass" aria-hidden="true" />
             </button>
-            <button type="button" className={`pm-action-btn pm-call-action ${callLive ? 'active' : ''}`} id="pm-call-btn" title={callLive ? 'Open voice call' : 'Start voice call'} aria-label={callLive ? 'Open voice call' : `Call ${activeSession?.targetName || 'this person'}`} aria-busy={callStarting} disabled={!activeSession || callStarting} onClick={callLive ? () => setCallStageMinimized(false) : startVoiceCall}>
-              <i className="ph-bold ph-phone-call" aria-hidden="true" /><span>{callLive ? 'Return to call' : callStarting ? 'Starting…' : 'Call'}</span>
+            <button type="button" className={`pm-action-btn pm-call-action ${callLive ? 'active' : ''}`} id="pm-call-btn" title={callLive ? 'Open voice call' : friendCallChecking ? 'Checking friendship' : friendCallAllowed ? 'Start voice call' : friendCallOnlyMessage()} aria-label={friendCallAriaLabel} aria-busy={callStarting || friendCallChecking} disabled={!activeSession || callStarting || (!callLive && !friendCallAllowed)} onClick={callLive ? () => setCallStageMinimized(false) : startVoiceCall}>
+              <i className="ph-bold ph-phone-call" aria-hidden="true" /><span>{callLive ? 'Return to call' : callStarting ? 'Starting…' : friendCallChecking ? 'Checking…' : 'Call'}</span>
             </button>
             <button type="button" className="pm-close" id="pm-close-btn" title="Close" aria-label="Close private messages" onClick={closeDock}><i className="ph-bold ph-x" aria-hidden="true" /></button>
           </div>
@@ -1432,7 +1666,7 @@ function PrivateMessagesDock() {
              connectionState={connectionState}
              micOn={micOn}
              speakerOn={speakerOn}
-            error={callEngineError}
+            error={friendCallError || callEngineError}
             remoteStreams={remoteStreams}
             onAnswer={answerVoiceCall}
             onDecline={declineVoiceCall}
@@ -1467,7 +1701,19 @@ function PrivateMessagesDock() {
               {activeSession && messageState === 'error' ? (
                 <li className="pm-thread-state error"><i className="ph-bold ph-warning-circle" aria-hidden="true" /> This conversation could not be loaded.</li>
               ) : null}
-              {activeSession && messageState === 'ready' ? visibleMessages.map((message, index) => {
+              {activeSession && messageState === 'stale' ? (
+                <li className="pm-thread-state stale"><i className="ph-bold ph-cloud-slash" aria-hidden="true" /> Showing saved messages. Reconnect to refresh.</li>
+              ) : null}
+              {activeSession && !search && (messageState === 'ready' || messageState === 'stale') && (hasOlderMessages || loadingOlderMessages || olderMessagesError) ? (
+                <li className={`pm-history-control ${olderMessagesError ? 'error' : ''}`}>
+                  {olderMessagesError ? <span>{olderMessagesError}</span> : null}
+                  <button type="button" disabled={loadingOlderMessages} onClick={loadOlderMessages}>
+                    <i className={`ph-bold ${loadingOlderMessages ? 'ph-circle-notch' : 'ph-clock-counter-clockwise'}`} aria-hidden="true" />
+                    {loadingOlderMessages ? 'Loading history…' : olderMessagesError ? 'Try older messages again' : 'Load older messages'}
+                  </button>
+                </li>
+              ) : null}
+              {activeSession && (messageState === 'ready' || messageState === 'stale') ? visibleMessages.map((message, index) => {
                 const previousMessage = visibleMessages[index - 1];
                 const showDay = !previousMessage || conversationDayKey(previousMessage.timestamp) !== conversationDayKey(message.timestamp);
                 return (
@@ -1488,17 +1734,19 @@ function PrivateMessagesDock() {
                   </Fragment>
                 );
               }) : null}
-              {activeSession && messageState === 'ready' && search && !visibleMessages.length ? <li className="pm-empty-message">No matching messages.</li> : null}
-              {activeSession && messageState === 'ready' && !search && !visibleMessages.length ? (
+              {activeSession && (messageState === 'ready' || messageState === 'stale') && search && !visibleMessages.length ? <li className="pm-empty-message">No matching messages.</li> : null}
+              {activeSession && (messageState === 'ready' || messageState === 'stale') && !search && !visibleMessages.length ? (
                 <li className="pm-conversation-empty">
                   <span className="pm-conversation-empty-avatar">
-                    {activeSession.photoUrl ? <img src={activeSession.photoUrl} alt="" /> : String(activeSession.targetName || '?').slice(0, 2).toUpperCase()}
+                    {normalizeStoredAvatarUrl(activeSession.photoUrl) ? <img src={normalizeStoredAvatarUrl(activeSession.photoUrl)} alt="" /> : String(activeSession.targetName || '?').slice(0, 2).toUpperCase()}
                   </span>
                   <span className="pm-conversation-orbit" aria-hidden="true"><i /><i /><i /></span>
                   <strong>A quiet place for you two</strong>
-                  <p>Send {activeSession.targetName} a focused message or start a private voice call.</p>
+                  <p>{friendCallAllowed
+                    ? `Send ${activeSession.targetName} a focused message or start a private voice call.`
+                    : `Send ${activeSession.targetName} a focused message. Voice calls are available after you become accepted friends.`}</p>
                   <div>
-                    <button type="button" className="primary" aria-busy={callStarting} disabled={callStarting} onClick={startVoiceCall}><i className="ph-bold ph-phone-call" aria-hidden="true" /> {callStarting ? 'Starting…' : 'Start call'}</button>
+                    <button type="button" className="primary" aria-label={friendCallAriaLabel} aria-busy={callStarting || friendCallChecking} disabled={callStarting || !friendCallAllowed} onClick={startVoiceCall}><i className="ph-bold ph-phone-call" aria-hidden="true" /> {callStarting ? 'Starting…' : friendCallChecking ? 'Checking friendship…' : friendCallAllowed ? 'Start call' : 'Friends only'}</button>
                     <button type="button" onClick={() => window.viewUserProfile?.(activeSession.targetUid)}><i className="ph-bold ph-user" aria-hidden="true" /> View profile</button>
                   </div>
                 </li>
@@ -1570,6 +1818,37 @@ function PrivateMessagesDock() {
   );
 }
 
+async function startPrivateCallWithFriend(value = {}) {
+  const userUid = auth.currentUser?.uid || window.currentUser?.uid || '';
+  const targetUid = String(value.targetUid || '').trim();
+  const targetName = String(value.targetName || '').trim().slice(0, 120);
+  const threadId = String(value.threadId || '').trim();
+  const callIntentExpiresAt = Math.floor(Number(value.callIntentExpiresAt) || 0);
+  const expectedThread = expectedPmThreadId(userUid, targetUid);
+  if (
+    !expectedThread
+    || threadId !== expectedThread
+    || !targetName
+    || callIntentExpiresAt <= Date.now()
+    || callIntentExpiresAt > Date.now() + (5 * 60 * 1000)
+  ) {
+    throw new Error('Winston’s call confirmation is invalid or expired.');
+  }
+  if (!(await hasAcceptedPmFriendship(userUid, targetUid))) {
+    throw new Error(friendCallOnlyMessage());
+  }
+  if (livePmCallTargetUid && livePmCallTargetUid !== targetUid) {
+    throw new Error('Finish the current call before starting another one.');
+  }
+  if (livePmCallTargetUid === targetUid) {
+    openPrivateMessagesDock(targetUid, targetName);
+    return true;
+  }
+  pendingPmVoiceCallIntent = { targetUid, threadId, callIntentExpiresAt };
+  openPrivateMessagesDock(targetUid, targetName);
+  return true;
+}
+
 function openPrivateMessagesDock(targetUid, targetName, options = {}) {
   if (!targetUid) return;
   scopePmStateToUser(auth.currentUser?.uid || window.currentUser?.uid || '');
@@ -1587,11 +1866,11 @@ function openPrivateMessagesDock(targetUid, targetName, options = {}) {
     unread: false,
     timestamp: sameVisibleTarget ? previous?.timestamp || Date.now() : Date.now(),
   });
-  if (sameVisibleTarget) return;
-  showPmDock(targetUid);
+  showPmDock(targetUid, { opener: options.opener });
 }
 
 window.openPrivateChat = openPrivateMessagesDock;
+window.startPrivateCallWithFriend = startPrivateCallWithFriend;
 window.closePrivateChatDock = (options) => finishPmDockClose({
   restoreOrigin: options?.restoreOrigin !== false,
 });

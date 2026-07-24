@@ -33,7 +33,9 @@ function AppDialogHost() {
             <span>{dialog.kicker || 'Confirm'}</span>
             <h3 id="app-dialog-title">{dialog.title || 'Are you sure?'}</h3>
           </div>
-          <button type="button" onClick={() => closeDialog(false)} aria-label="Close dialog">✖</button>
+          <button type="button" onClick={() => closeDialog(false)} aria-label="Close dialog" title="Close dialog">
+            <i className="ph-bold ph-x" aria-hidden="true" />
+          </button>
         </div>
         <p>{dialog.message || dialog.description || 'Please confirm this action.'}</p>
         <div className="app-dialog-actions">

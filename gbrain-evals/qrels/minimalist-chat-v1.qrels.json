@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "_description": "Hand-curated Minimalist Chat retrieval judgments. These questions are phrased like a non-expert would ask them. Results are source-aware so the later code source cannot false-pass a vault-note judgment.",
+  "queries": [
+    {
+      "query_id": "product-purpose",
+      "query": "If I had to explain Minimalist Chat to a friend in one sentence, what problem does it solve?",
+      "relevant": [
+        { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "10-product/current/current-product-overview" }
+    },
+    {
+      "query_id": "technical-architecture",
+      "query": "Without jargon, what are the main pieces the app is built from, from the web screen to data, mobile apps, servers, and payments?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "product-priorities",
+      "query": "What should the team build next to make the product feel more complete, and which ideas were deliberately postponed?",
+      "relevant": [
+        { "source_id": "default", "slug": "20-research/claude-feature-research-and-implementation-plan" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "20-research/claude-feature-research-and-implementation-plan" }
+    },
+    {
+      "query_id": "browser-ai-protection",
+      "query": "When someone asks the website's AI a question, what prevents their browser from reaching the raw model on my computer?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+    },
+    {
+      "query_id": "ollama-runtime-separation",
+      "query": "Why are GBrain and Winston connected to different Ollama addresses, and which one uses the normal tray app?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/gbrain-setup" },
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/gbrain-setup" }
+    },
+    {
+      "query_id": "remote-analysis-boundary",
+      "query": "Can I view Minimalist Analysis while away from home without giving a remote webpage control over my Windows computer?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/remote-analysis-access" }
+    },
+    {
+      "query_id": "ai-overflow-queue",
+      "query": "If ninety AI jobs are already running, what happens to the next one, and how is the user's Banana charge kept safe?",
+      "relevant": [
+        { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" },
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "40-operations/protected-ollama-public-gateway" }
+    },
+    {
+      "query_id": "lighthouse-progress",
+      "query": "How did the public site's phone and desktop Lighthouse scores change from the first test to the final live test?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/lighthouse-history" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/lighthouse-history" }
+    },
+    {
+      "query_id": "long-session-performance",
+      "query": "What keeps a long chat session or repeatedly opened hidden tabs from growing memory, listeners, and network work forever?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15" },
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/site-wide-performance-optimization-2026-07-15" }
+    },
+    {
+      "query_id": "security-audit-hardening",
+      "query": "Which audit fixes stopped people from forging notifications, rewriting someone else's messages, or bypassing room permissions?",
+      "relevant": [
+        { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "30-audits/full-stack-audit-follow-up" }
+    },
+    {
+      "query_id": "stripe-scope-isolation",
+      "query": "Why are account subscriptions sent to a separate customer portal from room billing, and how are duplicate or wrong-owner Stripe customers handled?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "mobile-navigation-dock",
+      "query": "What are the five buttons in the signed-in phone dock, and where do Search, Vault, and Settings live now?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "private-message-history",
+      "query": "How can a phone user load older private messages without losing their place, and when does the layout switch to two panes?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "winston-identity",
+      "query": "Who is Winston, where should the gorilla picture appear, and why does the sparkle icon stay in navigation?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    },
+    {
+      "query_id": "calendar-photo-sources",
+      "query": "On the calendar's Scan schedule action, what is the difference between Take photo and Import picture, especially on phones?",
+      "relevant": [
+        { "source_id": "default", "slug": "90-memory/project-memory" }
+      ],
+      "expected_top1": { "source_id": "default", "slug": "90-memory/project-memory" }
+    }
+  ]
+}

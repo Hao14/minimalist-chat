@@ -61,7 +61,7 @@ export function classifyActivity(group = {}) {
   if (['friend', 'invite', 'room'].includes(group.type)) return 'invites';
   if (group.type === 'report') return 'reports';
   if (group.type === 'announcement') return 'announcements';
-  if (['badge', 'kudos', 'quest', 'levelup', 'award', 'follow', 'endorse'].includes(group.type)) return 'updates';
+  if (['badge', 'kudos', 'quest', 'levelup', 'award', 'follow', 'endorse', 'winston'].includes(group.type)) return 'updates';
   return 'all';
 }
 

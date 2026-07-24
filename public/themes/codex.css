@@ -187,7 +187,7 @@ body.codex-mode:not(.marketing):not(.auth-screen) .channel-chip.channel-add {
     color: var(--codex-muted) !important;
 }
 
-body.codex-mode:not(.marketing):not(.auth-screen) :is(.action-btn, .mini-btn, .rh-add-btn, .room-action-btn, .room-action-icon, .vault-primary-action, .vault-secondary-action, .ai-btn, .ai-qa, .pa-btn, .pa-icon-btn, .call-cta, .call-dock-btn, .composer-dialog-actions button, .composer-dialog-close, .smart-reply-chip, #chat-form .composer-icon-btn) {
+body.codex-mode:not(.marketing):not(.auth-screen) :is(.action-btn, .mini-btn, .rh-add-btn, .room-action-btn, .room-action-icon, .vault-primary-action, .vault-secondary-action, .ai-btn, .ai-qa, .pa-btn, .pa-icon-btn, .call-cta, .call-dock-btn, .composer-dialog-actions button, .composer-dialog-close, #chat-form .composer-icon-btn) {
     border-color: var(--codex-border) !important;
     border-radius: var(--codex-radius-md) !important;
     background: var(--codex-panel-2) !important;

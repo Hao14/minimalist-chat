@@ -7,10 +7,27 @@ import {
   normalizeAiModelProfile,
 } from './modelProfiles.js';
 import {
+  buildAiGatewayActionPayload,
+  buildAiGatewayCancelPayload,
   buildAiGatewayChatPayload,
   buildAiGatewayQueueStatusPayload,
   buildAiGatewayStatusPayload,
+  buildPersonalAiMemoryPayload,
 } from './gatewayPayload.js';
+import {
+  normalizeAiActions,
+  normalizeAiClarification,
+  normalizeAiMemories,
+  normalizeAiRoutingPolicy,
+  normalizeAiSources,
+  relevantAiMemories,
+} from './aiAgentUi.js';
+import {
+  formatStockQuoteReply,
+  formatStockQuoteUnavailableReply,
+  formatStockTickerRequiredReply,
+  resolveStockQuoteRequest,
+} from './stockQuoteTool.js';
 
 const DEFAULT_OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
 const DEFAULT_OLLAMA_VISION_MODEL = 'qwen2.5vl:7b';
@@ -23,6 +40,17 @@ const QUEUE_STATUS_FALLBACK_MS = 30000;
 const MAX_CONTEXT_CHARS = 14000;
 const MAX_MESSAGE_CHARS = 4000;
 const PERSONAL_AGENT_NAME = 'Winston';
+const DEFAULT_STOCK_QUOTE_ENDPOINT = 'https://us-central1-chat-app-356c1.cloudfunctions.net/stockQuote';
+const AI_CLARIFICATION_START = '[[MINIMALIST_CLARIFICATION]]';
+const AI_CLARIFICATION_END = '[[/MINIMALIST_CLARIFICATION]]';
+const AI_CLARIFICATION_MAX_MARKER_CHARS = 2_048;
+const AI_CLARIFICATION_RULES = `
+- Ask a clarifying question only when missing information would materially change the answer.
+- Write the question normally in your reply, then append exactly one machine-readable block using this format:
+[[MINIMALIST_CLARIFICATION]]
+{"question":"Which option should I use?","options":[{"label":"First"},{"label":"Second"}],"allowFreeText":true}
+[[/MINIMALIST_CLARIFICATION]]
+- Give 2 to 5 short, distinct options. The block must be valid JSON. Do not use the block when no clarification is needed.`;
 const MONTH_INDEX = new Map([
   ['jan', 0], ['january', 0],
   ['feb', 1], ['february', 1],
@@ -46,7 +74,8 @@ Rules:
 - Be concise. Prefer short sections and bullet points.
 - When summarizing, use these sections when relevant: Summary, Key Decisions, Open Questions, Next Steps.
 - When extracting tasks, format each as: owner - task - due date or priority. Use "Owner not specified" when unknown.
-- Do not claim to take actions in the app. You can draft text, plans, and suggestions only.`;
+- Do not claim to take actions in the app. You can draft text, plans, and suggestions only.
+${AI_CLARIFICATION_RULES}`;
 
 const PERSONAL_AGENT_SYSTEM = `You are a private local AI agent inside Minimalist Chat.
 
@@ -56,7 +85,8 @@ Rules:
 - Use the user's saved agent instructions and memory as preferences, not as factual proof.
 - If the context does not contain an answer, say what is missing and offer a useful next step.
 - Do not claim to take actions in the app. You can draft text, plans, and suggestions only.
-- Be concise, warm, and useful.`;
+- Be concise, warm, and useful.
+${AI_CLARIFICATION_RULES}`;
 
 const SPOTLIGHT_SYSTEM = `Write a warm 1-2 sentence community spotlight based only on the provided member context. Do not invent facts.`;
 
@@ -87,6 +117,52 @@ export class LocalAiError extends Error {
 function truncate(value, limit) {
   const text = String(value || '').trim();
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
+}
+
+function stripPartialClarificationStart(value) {
+  const text = String(value || '');
+  for (let length = Math.min(text.length, AI_CLARIFICATION_START.length - 1); length > 0; length -= 1) {
+    if (text.endsWith(AI_CLARIFICATION_START.slice(0, length))) return text.slice(0, -length);
+  }
+  return text;
+}
+
+export function parseAiClarificationResponse(value, { partial = false } = {}) {
+  const source = String(value || '');
+  const firstStart = source.indexOf(AI_CLARIFICATION_START);
+  if (firstStart < 0) {
+    return { reply: stripPartialClarificationStart(source).trim(), interaction: null };
+  }
+
+  let visibleReply = source.slice(0, firstStart).trim();
+  let interaction = null;
+  const marker = source.slice(firstStart);
+  if (marker.length > AI_CLARIFICATION_MAX_MARKER_CHARS) return { reply: visibleReply, interaction: null };
+  const firstEnd = marker.indexOf(AI_CLARIFICATION_END, AI_CLARIFICATION_START.length);
+  if (firstEnd < 0 || marker.slice(firstEnd + AI_CLARIFICATION_END.length).trim()) {
+    return { reply: visibleReply, interaction: null };
+  }
+  const encoded = marker.slice(AI_CLARIFICATION_START.length, firstEnd).trim();
+  try {
+    const parsed = JSON.parse(encoded);
+    interaction = normalizeAiClarification({
+      ...(parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}),
+      type: 'clarification',
+    });
+  } catch {
+    // The marker and everything after it stay hidden when local JSON is malformed.
+  }
+  if (interaction && !partial) {
+    const comparableReply = visibleReply.toLocaleLowerCase().replace(/[?!.]+$/g, '').trim();
+    const comparableQuestion = interaction.question.toLocaleLowerCase().replace(/[?!.]+$/g, '').trim();
+    if (!comparableReply.includes(comparableQuestion)) {
+      visibleReply = [visibleReply, interaction.question].filter(Boolean).join('\n\n');
+    }
+  }
+  return {
+    reply: visibleReply,
+    interaction,
+  };
 }
 
 function padDatePart(value) {
@@ -121,6 +197,9 @@ export function getLocalAiConfig(overrides = {}) {
   const modelProfile = normalizeAiModelProfile(
     overrides.modelProfile || loadAiModelProfile() || window.AI_MODEL_PROFILE,
   );
+  const requestedModelProfile = ['auto', 'fast', 'smart'].includes(String(overrides.requestedModelProfile || '').toLowerCase())
+    ? String(overrides.requestedModelProfile).toLowerCase()
+    : modelProfile;
   const profile = aiModelProfileDetails(modelProfile);
   const fastModel = overrides.fastModel
     || window.OLLAMA_FAST_MODEL
@@ -133,6 +212,7 @@ export function getLocalAiConfig(overrides = {}) {
   return {
     baseUrl: overrides.baseUrl || window.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL,
     modelProfile,
+    requestedModelProfile,
     model: modelProfile === 'smart' ? smartModel : fastModel,
     modelLabel: profile.label,
     contextWindow: Math.max(2048, Math.min(8192, Number(profile.contextWindow) || 8192)),
@@ -141,6 +221,7 @@ export function getLocalAiConfig(overrides = {}) {
     smartModel,
     visionModel: overrides.visionModel || window.OLLAMA_VISION_MODEL || DEFAULT_OLLAMA_VISION_MODEL,
     provider: overrides.provider || window.AI_PROVIDER || DEFAULT_AI_PROVIDER,
+    routingPolicy: normalizeAiRoutingPolicy(overrides.routingPolicy || window.AI_ROUTING_POLICY || 'balanced'),
     gatewayEndpoint: overrides.gatewayEndpoint || window.AI_GATEWAY_ENDPOINT || window.AI_CHAT_ENDPOINT || '',
     profileEndpoint: overrides.profileEndpoint || window.AI_PROFILE_ENDPOINT || '',
     calendarEndpoint: overrides.calendarEndpoint || window.AI_CALENDAR_ENDPOINT || '',
@@ -232,6 +313,85 @@ async function fetchJson(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
   }
 }
 
+async function streamOllamaChat(url, payload, { signal, onProgress, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const timed = withTimeout(timeoutMs, signal);
+  let response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...payload, stream: true }),
+      signal: timed.signal,
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const message = data?.error || data?.message || `Ollama request failed (${response.status}).`;
+      const state = response.status === 404 || /not found|pull/i.test(message) ? 'missing-model' : 'request-failed';
+      throw new LocalAiError(message, state, { status: response.status });
+    }
+    if (!response.body?.getReader) {
+      throw new LocalAiError('This browser cannot read the local AI stream.', 'request-failed');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let reply = '';
+    let visibleReply = '';
+    let lastChunk = {};
+    const readLine = (line) => {
+      const text = String(line || '').trim();
+      if (!text) return;
+      const chunk = JSON.parse(text);
+      lastChunk = chunk;
+      const delta = String(chunk?.message?.content || '');
+      if (!delta) return;
+      reply += delta;
+      const parsed = parseAiClarificationResponse(reply, { partial: true });
+      if (parsed.reply === visibleReply) return;
+      const visibleDelta = parsed.reply.startsWith(visibleReply)
+        ? parsed.reply.slice(visibleReply.length)
+        : '';
+      visibleReply = parsed.reply;
+      onProgress?.({
+        delta: visibleDelta,
+        text: visibleReply,
+        status: 'running',
+        provider: 'local-ollama',
+        model: chunk?.model || payload.model,
+      });
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      lines.forEach(readLine);
+      if (done) break;
+    }
+    if (buffer.trim()) readLine(buffer);
+    const parsed = parseAiClarificationResponse(reply);
+    if (!parsed.reply && !parsed.interaction) throw new LocalAiError('The local agent returned an empty response.', 'request-failed');
+    return {
+      reply: parsed.reply,
+      interaction: parsed.interaction,
+      model: lastChunk?.model || payload.model,
+      provider: 'local-ollama',
+      stats: lastChunk,
+    };
+  } catch (error) {
+    if (error instanceof LocalAiError) throw error;
+    if (error?.name === 'AbortError') {
+      if (signal?.aborted) throw new LocalAiError('Request stopped.', 'cancelled', { cancelled: true });
+      throw new LocalAiError('The local agent stopped responding. Check Ollama and try again.', 'request-failed');
+    }
+    throw new LocalAiError(error?.message || 'Ollama is not reachable on this device.', 'offline');
+  } finally {
+    timed.cleanup();
+  }
+}
+
 function modelInstalled(models, model) {
   return models.some((entry) => entry?.name === model || entry?.model === model);
 }
@@ -266,8 +426,8 @@ export async function getLocalAiStatus(configOverrides = {}, { wake = false } = 
   if (shouldUseGatewayAi(config)) {
     try {
       const statusPayload = wake
-        ? buildAiGatewayStatusPayload(config.modelProfile, { wake: true })
-        : buildAiGatewayStatusPayload(config.modelProfile);
+        ? buildAiGatewayStatusPayload(config.requestedModelProfile || config.modelProfile, { wake: true, routingPolicy: config.routingPolicy })
+        : buildAiGatewayStatusPayload(config.requestedModelProfile || config.modelProfile, { routingPolicy: config.routingPolicy });
       const data = await fetchAuthedJson(
         config.gatewayEndpoint,
         statusPayload,
@@ -374,6 +534,7 @@ async function chatWithOllama({
   system,
   temperature = 0.3,
   signal,
+  onProgress,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 }) {
   const nextConfig = getLocalAiConfig(config);
@@ -383,24 +544,34 @@ async function chatWithOllama({
     ...sanitizeConversation(messages),
   ].filter(Boolean);
 
+  const payload = {
+    model: nextConfig.model,
+    think: nextConfig.thinking,
+    options: { temperature, num_ctx: nextConfig.contextWindow },
+    messages: payloadMessages,
+  };
+  if (typeof onProgress === 'function') {
+    return streamOllamaChat(endpoint(nextConfig.baseUrl, '/api/chat'), payload, {
+      signal,
+      onProgress,
+      timeoutMs,
+    });
+  }
+
   const data = await fetchJson(endpoint(nextConfig.baseUrl, '/api/chat'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: nextConfig.model,
-      stream: false,
-      think: nextConfig.thinking,
-      options: { temperature, num_ctx: nextConfig.contextWindow },
-      messages: payloadMessages,
-    }),
+    body: JSON.stringify({ ...payload, stream: false }),
     signal,
   }, timeoutMs);
 
-  const reply = String(data?.message?.content || '').trim();
-  if (!reply) throw new LocalAiError('The local agent returned an empty response.', 'request-failed');
+  const parsed = parseAiClarificationResponse(data?.message?.content);
+  if (!parsed.reply && !parsed.interaction) throw new LocalAiError('The local agent returned an empty response.', 'request-failed');
   return {
-    reply,
+    reply: parsed.reply,
+    interaction: parsed.interaction,
     model: data?.model || nextConfig.model,
+    provider: 'local-ollama',
     stats: data,
   };
 }
@@ -438,6 +609,8 @@ async function fetchAuthedJson(url, body, signal, timeoutMs = DEFAULT_TIMEOUT_MS
       throw new LocalAiError(message, state, {
         status: response.status,
         code: data?.code || '',
+        queueStatus: data?.status || '',
+        cancelled: data?.cancelled === true,
         model: data?.model || '',
         modelProfile: data?.modelProfile || '',
         profiles: Array.isArray(data?.profiles) ? data.profiles : [],
@@ -449,6 +622,7 @@ async function fetchAuthedJson(url, body, signal, timeoutMs = DEFAULT_TIMEOUT_MS
   } catch (error) {
     if (error instanceof LocalAiError) throw error;
     if (error?.name === 'AbortError') {
+      if (signal?.aborted) throw new LocalAiError('Request stopped.', 'cancelled', { cancelled: true });
       throw new LocalAiError('The AI gateway stopped responding. Try again in a moment.', 'request-failed');
     }
     throw new LocalAiError(error?.message || 'The AI gateway is not reachable.', 'offline');
@@ -461,7 +635,7 @@ function queuedGatewayError(data) {
   const queueError = data?.error && typeof data.error === 'object' ? data.error : {};
   const message = queueError.message || data?.error || 'The queued AI request failed.';
   const code = queueError.code || data?.code || 'AI_QUEUE_JOB_FAILED';
-  return new LocalAiError(message, 'request-failed', {
+  return new LocalAiError(message, data?.status === 'cancelled' ? 'cancelled' : 'request-failed', {
     status: 422,
     queueStatus: data?.status,
     code,
@@ -622,8 +796,17 @@ async function chatWithGateway({
   channelId = 'general',
   messages = [],
   targetUid = '',
+  requestMode = 'chat',
+  routingPolicy = 'balanced',
+  selectedRoomIds = [],
+  attachment = null,
+  attachments = [],
+  contextSelection = null,
+  verificationMode = 'auto',
+  planMode = false,
   signal,
   onQueueUpdate,
+  onProgress,
 }) {
   const nextConfig = getLocalAiConfig(config);
   let data = await fetchAuthedJson(nextConfig.gatewayEndpoint, buildAiGatewayChatPayload({
@@ -631,8 +814,16 @@ async function chatWithGateway({
     roomId,
     channelId,
     messages: sanitizeConversation(messages),
-    modelProfile: nextConfig.modelProfile,
+    modelProfile: nextConfig.requestedModelProfile || nextConfig.modelProfile,
     targetUid,
+    requestMode,
+    routingPolicy,
+    selectedRoomIds,
+    attachment,
+    attachments,
+    contextSelection,
+    verificationMode,
+    planMode,
     requestId: newRequestId(),
   }), signal);
   if (data?.queued || data?.status === 'queued' || data?.status === 'running') {
@@ -640,20 +831,54 @@ async function chatWithGateway({
       endpoint: nextConfig.gatewayEndpoint,
       initial: data,
       signal,
-      onQueueUpdate,
+      onQueueUpdate: (status) => {
+        onQueueUpdate?.(status);
+        const partial = parseAiClarificationResponse(status?.partialReply || status?.partial, { partial: true }).reply;
+        if (partial) onProgress?.({
+          text: partial,
+          status: status.status || 'running',
+          jobId: status.jobId || '',
+          provider: status.provider || '',
+          model: status.model || '',
+        });
+      },
     });
   } else if (data?.status === 'failed' || data?.status === 'cancelled') {
     throw queuedGatewayError(data);
   }
   onQueueUpdate?.({ ...data, status: 'completed', queued: false });
-  const reply = String(data?.reply || '').trim();
-  if (!reply) throw new LocalAiError('The AI gateway returned an empty response.', 'request-failed');
+  const parsed = parseAiClarificationResponse(data?.reply);
+  const interaction = normalizeAiClarification(data?.interaction) || parsed.interaction;
+  if (!parsed.reply && !interaction) throw new LocalAiError('The AI gateway returned an empty response.', 'request-failed');
   return {
-    reply,
+    reply: parsed.reply,
+    interaction,
     model: data?.model || 'AI gateway',
     modelProfile: normalizeAiModelProfile(data?.modelProfile || nextConfig.modelProfile),
     provider: data?.provider || '',
-    routingMode: data?.routingMode || '',
+    routingMode: data?.routingMode || data?.route || '',
+    routingPolicy: normalizeAiRoutingPolicy(data?.routingPolicy || routingPolicy),
+    routeReceipt: data?.routeReceipt && typeof data.routeReceipt === 'object'
+      ? { ...data.routeReceipt }
+      : null,
+    contextReceipt: data?.contextReceipt && typeof data.contextReceipt === 'object'
+      ? { ...data.contextReceipt }
+      : null,
+    verification: data?.verification && typeof data.verification === 'object'
+      ? { ...data.verification }
+      : null,
+    plan: data?.plan && typeof data.plan === 'object'
+      ? { ...data.plan }
+      : null,
+    sources: normalizeAiSources(data?.sources),
+    actions: normalizeAiActions(data?.actions),
+    memorySuggestion: data?.memorySuggestion && typeof data.memorySuggestion === 'object'
+      ? { ...data.memorySuggestion }
+      : null,
+    memorySuggestions: Array.isArray(data?.memorySuggestions)
+      ? data.memorySuggestions.slice(0, 3).map((suggestion) => ({ ...suggestion }))
+      : [],
+    jobId: data?.jobId || '',
     bananasUsed: data?.bananasUsed,
     bananasRemaining: data?.bananasRemaining,
     bananaLimit: data?.bananaLimit,
@@ -675,6 +900,57 @@ async function chatWithGateway({
   };
 }
 
+export async function cancelQueuedAiRequest({ config, jobId } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  const id = String(jobId || '').trim();
+  if (!shouldUseGatewayAi(nextConfig) || !id) {
+    return { cancelled: false, status: 'not-queued', jobId: id };
+  }
+  const data = await fetchAuthedJson(
+    nextConfig.gatewayEndpoint,
+    buildAiGatewayCancelPayload(id),
+    undefined,
+    15000,
+  );
+  return {
+    ...data,
+    jobId: data?.jobId || id,
+    status: data?.status || (data?.cancelled ? 'cancelled' : 'unknown'),
+    cancelled: data?.cancelled === true || data?.status === 'cancelled',
+  };
+}
+
+export async function confirmAiAction({ config, actionId } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  if (!shouldUseGatewayAi(nextConfig)) throw new LocalAiError('Confirmed actions require the protected gateway.', 'blocked');
+  const data = await fetchAuthedJson(
+    nextConfig.gatewayEndpoint,
+    buildAiGatewayActionPayload('confirm-action', actionId),
+    undefined,
+    20000,
+  );
+  const action = normalizeAiActions([data?.action, ...(Array.isArray(data?.actions) ? data.actions : [])])
+    .find((entry) => entry.id === String(actionId || '').trim() && entry.status === 'confirmed');
+  if (!action) throw new LocalAiError('The server returned an invalid action confirmation.', 'request-failed');
+  return { ...data, action, actions: [action] };
+}
+
+export async function dismissAiAction({ config, actionId } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  if (!shouldUseGatewayAi(nextConfig)) return { dismissed: true, actionId };
+  try {
+    return await fetchAuthedJson(
+      nextConfig.gatewayEndpoint,
+      buildAiGatewayActionPayload('dismiss-action', actionId),
+      undefined,
+      15000,
+    );
+  } catch (error) {
+    if (Number(error?.details?.status || 0) === 404) return { dismissed: true, actionId, localOnly: true };
+    throw error;
+  }
+}
+
 export async function loadPersonalAiProfileFromServer({ config, signal } = {}) {
   const nextConfig = getLocalAiConfig(config);
   if (!shouldUseServerAiProfile(nextConfig)) return null;
@@ -687,6 +963,59 @@ export async function savePersonalAiProfileToServer({ profile, config, signal } 
   if (!shouldUseServerAiProfile(nextConfig)) return null;
   const data = await fetchAuthedJson(nextConfig.profileEndpoint, { action: 'save', profile }, signal, 15000);
   return data?.profile || null;
+}
+
+export async function loadPersonalAiMemoriesFromServer({ config, signal } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  if (!shouldUseServerAiProfile(nextConfig)) return [];
+  const data = await fetchAuthedJson(
+    nextConfig.profileEndpoint,
+    buildPersonalAiMemoryPayload('memory-list'),
+    signal,
+    15000,
+  );
+  return normalizeAiMemories(data?.memories);
+}
+
+export async function createPersonalAiMemoryOnServer({ config, memory, signal } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  if (!shouldUseServerAiProfile(nextConfig)) throw new LocalAiError('Synced memory is unavailable.', 'blocked');
+  const data = await fetchAuthedJson(
+    nextConfig.profileEndpoint,
+    buildPersonalAiMemoryPayload('memory-create', { memory }),
+    signal,
+    15000,
+  );
+  return {
+    memory: normalizeAiMemories(data?.memory ? [data.memory] : [])[0] || null,
+    memories: normalizeAiMemories(data?.memories),
+  };
+}
+
+export async function deletePersonalAiMemoryFromServer({ config, memoryId, signal } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  if (!shouldUseServerAiProfile(nextConfig)) throw new LocalAiError('Synced memory is unavailable.', 'blocked');
+  return fetchAuthedJson(
+    nextConfig.profileEndpoint,
+    buildPersonalAiMemoryPayload('memory-delete', { memoryId }),
+    signal,
+    15000,
+  );
+}
+
+export async function updatePersonalAiMemoryOnServer({ config, memoryId, memory, signal } = {}) {
+  const nextConfig = getLocalAiConfig(config);
+  if (!shouldUseServerAiProfile(nextConfig)) throw new LocalAiError('Synced memory is unavailable.', 'blocked');
+  const data = await fetchAuthedJson(
+    nextConfig.profileEndpoint,
+    buildPersonalAiMemoryPayload('memory-update', { memoryId, memory }),
+    signal,
+    15000,
+  );
+  return {
+    memory: normalizeAiMemories(data?.memory ? [data.memory] : [])[0] || null,
+    memories: normalizeAiMemories(data?.memories),
+  };
 }
 
 export async function extractCalendarEventsFromGateway({ image, mimeType = 'image/jpeg', config, signal } = {}) {
@@ -834,13 +1163,18 @@ function sanitizeCalendarEvents(events) {
   }).filter((event) => event.title && event.date && !isCalendarOffDayLabel(event.title));
 }
 
-export function buildPersonalAgentContext(profile = {}, userName = 'the user') {
+export function buildPersonalAgentContext(profile = {}, userName = 'the user', memories = [], roomId = '') {
+  const memoryLines = relevantAiMemories(memories, roomId)
+    .slice(0, 16)
+    .map((memory) => `- [${memory.scope}] ${truncate(memory.text, 600)}`)
+    .join('\n');
   return [
     `Agent name: ${PERSONAL_AGENT_NAME}`,
     `User: ${truncate(userName, 120)}`,
     profile.instructions ? `User instructions:\n${truncate(profile.instructions, 1600)}` : '',
     profile.tone ? `Preferred tone:\n${truncate(profile.tone, 400)}` : '',
     profile.memory ? `Saved memory/preferences:\n${truncate(profile.memory, 2200)}` : '',
+    memoryLines ? `Explicit structured memories:\n${memoryLines}` : '',
   ].filter(Boolean).join('\n\n');
 }
 
@@ -856,7 +1190,22 @@ export function buildProfileSpotlightContext(user = {}, reputation = 0) {
   ].join('\n');
 }
 
-export async function askRoomAgent({ context, messages, config, roomId = 'global', channelId = 'general', signal, onQueueUpdate }) {
+export async function askRoomAgent({
+  context,
+  messages,
+  config,
+  roomId = 'global',
+  channelId = 'general',
+  routingPolicy = 'balanced',
+  attachment = null,
+  attachments = [],
+  contextSelection = null,
+  verificationMode = 'auto',
+  planMode = false,
+  signal,
+  onQueueUpdate,
+  onProgress,
+}) {
   if (shouldUseGatewayAi(config)) {
     return chatWithGateway({
       config,
@@ -864,10 +1213,18 @@ export async function askRoomAgent({ context, messages, config, roomId = 'global
       roomId,
       channelId,
       messages,
+      routingPolicy,
+      attachment,
+      attachments,
+      contextSelection,
+      verificationMode,
+      planMode,
       signal,
       onQueueUpdate,
+      onProgress,
     });
   }
+  if (attachment) throw new LocalAiError('Image questions use the protected vision gateway.', 'blocked');
   return chatWithOllama({
     config,
     context: contextToString(context),
@@ -875,24 +1232,101 @@ export async function askRoomAgent({ context, messages, config, roomId = 'global
     system: ROOM_AGENT_SYSTEM,
     temperature: 0.3,
     signal,
+    onProgress,
   });
 }
 
-export async function askPersonalAgent({ context, messages, profile, userName, config, roomId = 'global', channelId = 'general', signal, onQueueUpdate }) {
+export async function tryAgentLiveTool({ context, messages, signal } = {}) {
+  const request = resolveStockQuoteRequest({ context, messages });
+  if (!request) return null;
+  if (!request.symbol) {
+    return {
+      reply: formatStockTickerRequiredReply(),
+      provider: 'market-data',
+      model: '',
+      toolOnly: true,
+    };
+  }
+
+  const quoteEndpoint = window.STOCK_QUOTE_ENDPOINT || DEFAULT_STOCK_QUOTE_ENDPOINT;
+  try {
+    const quote = await fetchAuthedJson(quoteEndpoint, { symbol: request.symbol }, signal, 15000);
+    return {
+      reply: formatStockQuoteReply(quote, request),
+      provider: 'market-data',
+      model: String(quote?.provider || 'Latest quote'),
+      toolOnly: true,
+    };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return {
+      reply: formatStockQuoteUnavailableReply(request.symbol),
+      provider: 'market-data',
+      model: '',
+      toolOnly: true,
+    };
+  }
+}
+
+export async function askPersonalAgent({
+  context,
+  messages,
+  profile,
+  memories = [],
+  userName,
+  config,
+  roomId = 'global',
+  channelId = 'general',
+  requestMode = 'chat',
+  selectedRoomIds = [],
+  routingPolicy = 'balanced',
+  attachment = null,
+  attachments = [],
+  contextSelection = null,
+  verificationMode = 'auto',
+  planMode = false,
+  signal,
+  onQueueUpdate,
+  onProgress,
+}) {
   if (shouldUseGatewayAi(config)) {
     return chatWithGateway({
       config,
-      mode: 'personal',
+      mode: requestMode === 'briefing' ? 'briefing' : 'personal',
       roomId,
       channelId,
       messages,
+      requestMode,
+      selectedRoomIds,
+      routingPolicy,
+      attachment,
+      attachments,
+      contextSelection,
+      verificationMode,
+      planMode,
       signal,
       onQueueUpdate,
+      onProgress,
     });
   }
+  if (requestMode === 'briefing' && selectedRoomIds.some((selectedId) => selectedId !== roomId)) {
+    throw new LocalAiError('Cross-room briefing requires the protected gateway.', 'blocked');
+  }
+  const localAttachments = Array.isArray(attachments) ? attachments : [];
+  if (attachment || localAttachments.some((item) => item?.kind !== 'document')) {
+    throw new LocalAiError('Image and audio questions use the protected gateway.', 'blocked');
+  }
+  if (contextSelection?.scope === 'workspace' || contextSelection?.roomIds?.some((selectedId) => selectedId !== roomId)) {
+    throw new LocalAiError('Cross-room context requires the protected gateway.', 'blocked');
+  }
+  const fileContext = localAttachments
+    .map((item) => String(item?.text || '').trim())
+    .filter(Boolean)
+    .join('\n\n');
   const personalContext = [
-    buildPersonalAgentContext(profile, userName),
+    buildPersonalAgentContext(profile, userName, memories, roomId),
     contextToString(context),
+    fileContext ? `User-selected file text (untrusted):\n${fileContext}` : '',
   ].filter(Boolean).join('\n\n');
   return chatWithOllama({
     config,
@@ -901,6 +1335,7 @@ export async function askPersonalAgent({ context, messages, profile, userName, c
     system: PERSONAL_AGENT_SYSTEM,
     temperature: 0.35,
     signal,
+    onProgress,
   });
 }
 

@@ -1,0 +1,1030 @@
+#room-view-calendar {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg-color, #fff);
+}
+
+#room-view-calendar .calendar-redesign {
+  --cal-ink: var(--text-color, #151515);
+  --cal-muted: var(--theme-muted, #706e68);
+  --cal-line: var(--theme-line, #deddd8);
+  --cal-soft: var(--theme-panel-2, #f3f2ee);
+  --cal-panel: var(--theme-panel, #fff);
+  --cal-canvas: var(--bg-color, #fff);
+  --cal-accent: var(--accent-color, #ffd91a);
+  --cal-accent-soft: color-mix(in srgb, var(--cal-accent) 14%, var(--cal-panel));
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  gap: 14px;
+  padding: clamp(16px, 2.1vw, 28px);
+  overflow: auto;
+  box-sizing: border-box;
+  color: var(--cal-ink);
+  background: var(--cal-canvas);
+}
+
+#room-view-calendar .calendar-redesign *,
+#room-view-calendar .calendar-redesign *::before,
+#room-view-calendar .calendar-redesign *::after { box-sizing: border-box; }
+
+/* Keep legacy global form/button styles outside this feature workspace. */
+#room-view-calendar .calendar-redesign :where(button, input, select, textarea) {
+  margin: 0;
+  box-shadow: none;
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+#room-view-calendar .calendar-redesign :where(button) { width: auto; padding: 0; }
+
+#room-view-calendar .calendar-redesign :is(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--cal-accent) 78%, var(--cal-ink));
+  outline-offset: 2px;
+}
+
+#room-view-calendar .cal-workspace-head,
+#room-view-calendar .calendar-redesign > .cal-nav,
+#room-view-calendar .calendar-redesign > .cal-top,
+#room-view-calendar .calendar-redesign > .cal-connect-banner,
+#room-view-calendar .cal-agenda-panel {
+  width: min(100%, 1260px);
+  flex: 0 0 auto;
+  margin-inline: auto;
+}
+
+#room-view-calendar .cal-workspace-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--cal-line);
+}
+
+#room-view-calendar .cal-workspace-title { min-width: 0; }
+
+#room-view-calendar .cal-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  color: #736f62;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+#room-view-calendar .cal-title-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+#room-view-calendar .cal-title-line h2 {
+  margin: 0;
+  color: var(--cal-ink);
+  font-size: clamp(25px, 3vw, 36px);
+  line-height: 1;
+  letter-spacing: -.045em;
+}
+
+#room-view-calendar .cal-title-line > span {
+  color: var(--cal-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#room-view-calendar .cal-workspace-title p {
+  margin: 8px 0 0;
+  color: var(--cal-muted);
+  font-size: 13px;
+}
+
+#room-view-calendar .cal-head-actions {
+  display: flex;
+  position: relative;
+  flex: 0 0 auto;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+#room-view-calendar .calendar-redesign .cal-photo-btn,
+#room-view-calendar .calendar-redesign .cal-primary-action {
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  min-height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  background: var(--cal-panel);
+  color: var(--cal-ink);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+}
+
+#room-view-calendar .calendar-redesign .cal-photo-btn:hover {
+  border-color: color-mix(in srgb, var(--cal-accent) 64%, var(--cal-line));
+  background: var(--cal-accent-soft);
+  color: var(--cal-ink);
+  transform: translateY(-1px);
+}
+
+#room-view-calendar .calendar-redesign .cal-primary-action {
+  border-color: color-mix(in srgb, var(--cal-accent) 70%, var(--cal-ink));
+  background: var(--cal-accent);
+  color: #111;
+}
+
+#room-view-calendar .calendar-redesign .cal-primary-action:hover {
+  background: color-mix(in srgb, var(--cal-accent) 86%, var(--cal-panel));
+  color: #111;
+  transform: translateY(-1px);
+}
+
+#room-view-calendar .calendar-redesign .cal-photo-btn:disabled {
+  opacity: .55;
+  cursor: progress;
+  transform: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-caret {
+  color: var(--cal-muted);
+  font-size: 10px;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-sources {
+  display: grid;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 30;
+  width: min(410px, calc(100vw - 32px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid var(--cal-line);
+  border-radius: 13px;
+  background: var(--cal-panel);
+  box-shadow: 0 18px 46px -24px color-mix(in srgb, var(--cal-ink) 42%, transparent);
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-sources-label,
+#room-view-calendar .calendar-redesign .cal-scan-sources-hint {
+  grid-column: 1 / -1;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-sources-label {
+  padding: 2px 3px 4px;
+  color: var(--cal-ink);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: 68px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid var(--cal-line);
+  border-radius: 10px;
+  background: var(--cal-soft);
+  color: var(--cal-ink);
+  text-align: left;
+  transition: border-color .15s ease, background-color .15s ease, transform .15s ease;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source:hover {
+  border-color: color-mix(in srgb, var(--cal-accent) 68%, var(--cal-line));
+  background: var(--cal-accent-soft);
+  color: var(--cal-ink);
+  transform: translateY(-1px);
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source:disabled {
+  cursor: progress;
+  opacity: .55;
+  transform: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--cal-line);
+  border-radius: 9px;
+  background: var(--cal-panel);
+  color: var(--cal-ink);
+  font-size: 16px;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source-copy strong {
+  font-size: 11px;
+  font-weight: 850;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-source-copy small,
+#room-view-calendar .calendar-redesign .cal-scan-sources-hint {
+  color: var(--cal-muted);
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+#room-view-calendar .calendar-redesign .cal-scan-sources-hint {
+  padding: 2px 3px 0;
+}
+
+/* Week controls */
+#room-view-calendar .calendar-redesign > .cal-nav {
+  display: grid;
+  grid-template-columns: 38px 38px minmax(132px, 1fr) 38px 38px auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0;
+  padding: 7px;
+  border: 1px solid var(--cal-line);
+  border-radius: 12px;
+  background: var(--cal-soft);
+}
+
+#room-view-calendar .calendar-redesign .cal-nav-label {
+  min-width: 0;
+  color: var(--cal-ink);
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: -.01em;
+}
+
+#room-view-calendar .calendar-redesign .cal-nav-btn {
+  display: inline-flex;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--cal-line);
+  border-radius: 9px;
+  background: var(--cal-panel);
+  color: var(--cal-muted);
+  font-size: 13px;
+  font-weight: 850;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease, transform .15s ease;
+}
+
+#room-view-calendar .calendar-redesign .cal-nav-btn:hover {
+  border-color: color-mix(in srgb, var(--cal-accent) 66%, var(--cal-line));
+  background: var(--cal-accent-soft);
+  color: var(--cal-ink);
+  transform: translateY(-1px);
+}
+
+#room-view-calendar .calendar-redesign .cal-today-btn {
+  width: auto;
+  min-width: 68px;
+  padding: 0 13px;
+  color: var(--cal-ink);
+  font-size: 10px;
+  letter-spacing: .02em;
+}
+
+#room-view-calendar .calendar-redesign .cal-nav-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+#room-view-calendar .calendar-redesign .cal-week-google-btn {
+  width: auto;
+  min-width: 188px;
+  gap: 6px;
+  padding: 0 13px;
+  border-color: color-mix(in srgb, var(--cal-accent) 58%, var(--cal-line));
+  color: var(--cal-ink);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+#room-view-calendar .calendar-redesign .cal-week-google-btn:disabled {
+  border-color: var(--cal-line);
+  background: var(--cal-panel);
+  color: var(--cal-muted);
+  cursor: not-allowed;
+  opacity: .56;
+  transform: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-week-google-spinner {
+  animation: calWeekGoogleSpin .8s linear infinite;
+}
+
+#room-view-calendar .calendar-redesign .cal-week-google-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  margin: -1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+@keyframes calWeekGoogleSpin { to { transform: rotate(360deg); } }
+
+/* Calendar's date rail stays distinctive, but now follows the room workspace. */
+#room-view-calendar .calendar-redesign > .cal-top { display: block; }
+
+#room-view-calendar .calendar-redesign .cal-daystrip {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  padding: 0 0 2px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-daystrip::-webkit-scrollbar { display: none; }
+
+#room-view-calendar .calendar-redesign .cal-day {
+  display: flex;
+  width: auto;
+  min-width: 78px;
+  min-height: 78px;
+  flex: 1 0 78px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--cal-line);
+  border-radius: 11px;
+  background: var(--cal-panel);
+  color: var(--cal-muted);
+  scroll-snap-align: start;
+  transition: border-color .15s ease, background-color .15s ease, color .15s ease, transform .15s ease;
+}
+
+#room-view-calendar .calendar-redesign .cal-day:hover {
+  border-color: color-mix(in srgb, var(--cal-accent) 58%, var(--cal-line));
+  background: color-mix(in srgb, var(--cal-soft) 72%, var(--cal-panel));
+  transform: translateY(-1px);
+}
+
+#room-view-calendar .calendar-redesign .cal-day-mon {
+  color: var(--cal-muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+#room-view-calendar .calendar-redesign .cal-day-dow {
+  color: var(--cal-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+}
+
+#room-view-calendar .calendar-redesign .cal-day-num {
+  color: var(--cal-ink);
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+#room-view-calendar .calendar-redesign .cal-day-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--cal-accent) 76%, var(--cal-ink));
+}
+
+#room-view-calendar .calendar-redesign .cal-day.is-today {
+  border-color: color-mix(in srgb, var(--cal-accent) 72%, var(--cal-line));
+}
+
+#room-view-calendar .calendar-redesign .cal-day.is-today .cal-day-num {
+  text-decoration: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-day.active {
+  border-color: color-mix(in srgb, var(--cal-accent) 72%, var(--cal-line));
+  background: var(--cal-accent-soft);
+  color: var(--cal-ink);
+}
+
+#room-view-calendar .calendar-redesign .cal-day.active :is(.cal-day-mon, .cal-day-dow, .cal-day-num) { color: var(--cal-ink); }
+#room-view-calendar .calendar-redesign .cal-day.active .cal-day-dot { background: var(--cal-ink); }
+
+/* Google connection is an integration status row, not a floating alert. */
+#room-view-calendar .calendar-redesign > .cal-connect-banner {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 8px 10px 8px 14px;
+  border: 1px solid var(--cal-line);
+  border-radius: 12px;
+  background: var(--cal-panel);
+}
+
+#room-view-calendar .calendar-redesign .cal-connect-left {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  color: var(--cal-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+#room-view-calendar .calendar-redesign .cal-connect-left i {
+  color: var(--cal-ink);
+  font-size: 16px;
+}
+
+#room-view-calendar .calendar-redesign .cal-connect-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+}
+
+#room-view-calendar .calendar-redesign .cal-connect-link {
+  display: inline-flex;
+  width: auto;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--cal-line);
+  border-radius: 8px;
+  background: var(--cal-panel);
+  color: var(--cal-muted);
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-decoration: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-connect-link:hover {
+  border-color: color-mix(in srgb, var(--cal-accent) 62%, var(--cal-line));
+  background: var(--cal-accent-soft);
+  color: var(--cal-ink);
+  transform: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-connect-primary { color: var(--cal-ink); }
+
+/* Agenda workspace */
+#room-view-calendar .cal-agenda-panel {
+  min-height: clamp(300px, 42vh, 500px);
+  flex: 0 0 auto;
+  border: 1px solid var(--cal-line);
+  border-radius: 15px;
+  background: var(--cal-panel);
+  box-shadow: 0 18px 44px -38px color-mix(in srgb, var(--cal-ink) 34%, transparent);
+  overflow: hidden;
+}
+
+#room-view-calendar .cal-agenda-head {
+  display: flex;
+  min-height: 55px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--cal-line);
+  background: color-mix(in srgb, var(--cal-soft) 92%, transparent);
+}
+
+#room-view-calendar .cal-agenda-head > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#room-view-calendar .cal-agenda-head > div > span {
+  color: var(--cal-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+#room-view-calendar .cal-agenda-head strong {
+  overflow: hidden;
+  color: var(--cal-ink);
+  font-size: 12px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#room-view-calendar .cal-agenda-count {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid var(--cal-line);
+  border-radius: 999px;
+  background: var(--cal-panel);
+  color: var(--cal-muted);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+#room-view-calendar .calendar-redesign .cal-agenda {
+  display: flex;
+  min-height: 244px;
+  flex-direction: column;
+  gap: 7px;
+  padding: 7px;
+}
+
+#room-view-calendar .calendar-redesign .cal-empty {
+  display: flex;
+  min-height: 244px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 6px;
+  padding: 28px;
+  color: var(--cal-muted);
+  text-align: center;
+}
+
+#room-view-calendar .calendar-redesign .cal-empty-icon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  margin-bottom: 3px;
+  place-items: center;
+  border: 1px solid var(--cal-line);
+  border-radius: 12px;
+  background: var(--cal-soft);
+  color: var(--cal-ink);
+  font-size: 18px;
+}
+
+#room-view-calendar .calendar-redesign .cal-empty > strong {
+  color: var(--cal-ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+#room-view-calendar .calendar-redesign .cal-empty > span:last-child {
+  max-width: 320px;
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+#room-view-calendar .calendar-redesign .cal-empty.error .cal-empty-icon {
+  border-color: color-mix(in srgb, #d84c4c 45%, var(--cal-line));
+  background: color-mix(in srgb, #d84c4c 10%, var(--cal-panel));
+  color: #c63e3e;
+}
+
+#room-view-calendar .calendar-redesign .cal-empty:not(.error) .ph-circle-notch { animation: calSpin .8s linear infinite; }
+
+#room-view-calendar .calendar-redesign .cal-ev-card {
+  display: flex;
+  position: relative;
+  min-height: 76px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 12px 12px 17px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  box-shadow: none;
+}
+
+#room-view-calendar .calendar-redesign .cal-ev-card + .cal-ev-card { border-top-color: #eceae5; border-top-left-radius: 0; border-top-right-radius: 0; }
+
+#room-view-calendar .calendar-redesign .cal-ev-card:hover {
+  border-color: color-mix(in srgb, var(--ev-accent) 36%, var(--cal-line));
+  background: color-mix(in srgb, var(--cal-soft) 72%, transparent);
+}
+
+#room-view-calendar .calendar-redesign .cal-ev-card::before {
+  left: 7px;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 3px;
+}
+
+#room-view-calendar .calendar-redesign .cal-ev-title {
+  margin: 0 0 5px;
+  color: var(--cal-ink);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+#room-view-calendar .calendar-redesign .cal-ev-meta {
+  gap: 4px;
+  color: var(--cal-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+#room-view-calendar .calendar-redesign .cal-loc { margin-left: 7px; }
+
+#room-view-calendar .calendar-redesign .cal-ev-del {
+  display: inline-flex;
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cal-muted);
+  font-size: 14px;
+  opacity: 0;
+}
+
+#room-view-calendar .calendar-redesign .cal-ev-card:hover .cal-ev-del,
+#room-view-calendar .calendar-redesign .cal-ev-card:focus-within .cal-ev-del { opacity: 1; }
+
+#room-view-calendar .calendar-redesign .cal-ev-del:hover {
+  border-color: color-mix(in srgb, #d84c4c 28%, var(--cal-line));
+  background: color-mix(in srgb, #d84c4c 9%, var(--cal-panel));
+  color: #c63e3e;
+}
+
+/* In-place composer */
+#room-view-calendar .calendar-redesign .cal-add-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(230px, .8fr);
+  gap: 12px 16px;
+  padding: 16px;
+  border: 0;
+  border-bottom: 1px solid var(--cal-line);
+  border-radius: 0;
+  background: color-mix(in srgb, var(--cal-accent-soft) 42%, var(--cal-panel));
+}
+
+#room-view-calendar .cal-form-heading {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 2px;
+}
+
+#room-view-calendar .cal-form-heading > div { display: flex; flex-direction: column; gap: 2px; }
+#room-view-calendar .cal-form-heading strong { color: var(--cal-ink); font-size: 13px; font-weight: 850; }
+#room-view-calendar .cal-form-heading span { color: var(--cal-muted); font-size: 10px; font-weight: 650; }
+#room-view-calendar .cal-form-heading > i { color: var(--cal-muted); font-size: 20px; }
+
+#room-view-calendar .calendar-redesign .cal-field {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 5px;
+}
+
+#room-view-calendar .calendar-redesign .cal-field > span {
+  color: var(--cal-muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+#room-view-calendar .calendar-redesign .cal-field > input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--cal-line);
+  border-radius: 9px;
+  background: var(--cal-panel);
+  color: var(--cal-ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+#room-view-calendar .calendar-redesign .cal-field > input::placeholder { color: color-mix(in srgb, var(--cal-muted) 72%, transparent); }
+
+#room-view-calendar .calendar-redesign .cal-form-row {
+  display: flex;
+  min-width: 0;
+  gap: 8px;
+}
+
+#room-view-calendar .calendar-redesign .cal-form-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+#room-view-calendar .calendar-redesign .cal-form-save,
+#room-view-calendar .calendar-redesign .cal-form-cancel {
+  display: inline-flex;
+  width: auto;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 13px;
+  border: 1px solid var(--cal-line);
+  border-radius: 9px;
+  background: var(--cal-panel);
+  color: var(--cal-ink);
+  font-size: 10px;
+  font-weight: 850;
+}
+
+#room-view-calendar .calendar-redesign .cal-form-save {
+  border-color: color-mix(in srgb, var(--cal-accent) 70%, var(--cal-ink));
+  background: var(--cal-accent);
+  color: #111;
+}
+
+#room-view-calendar .calendar-redesign .cal-form-save:hover,
+#room-view-calendar .calendar-redesign .cal-form-cancel:hover {
+  background: var(--cal-accent-soft);
+  color: var(--cal-ink);
+  transform: translateY(-1px);
+}
+
+@media (hover: none), (pointer: coarse) {
+  #room-view-calendar .calendar-redesign .cal-ev-del { opacity: 1; }
+}
+
+@media (max-width: 900px) {
+  #room-view-calendar .calendar-redesign {
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+
+  #room-view-calendar .cal-workspace-head {
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 15px;
+  }
+
+  #room-view-calendar .cal-head-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-scan-sources {
+    position: static;
+    width: 100%;
+    flex: 1 0 100%;
+    order: 3;
+    box-shadow: none;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-photo-btn {
+    width: auto !important;
+    min-width: 0 !important;
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 0 14px !important;
+    border-radius: 10px !important;
+  }
+
+  #room-view-calendar .calendar-redesign > .cal-nav {
+    grid-template-columns: 42px 42px minmax(0, 1fr) 42px 42px !important;
+    gap: 6px !important;
+    margin: 0 !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-nav-btn {
+    width: 42px !important;
+    min-width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    border-radius: 10px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-nav-actions {
+    grid-column: 1 / -1 !important;
+    display: grid;
+    grid-template-columns: minmax(72px, .7fr) minmax(0, 2fr);
+    width: 100%;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-today-btn,
+  #room-view-calendar .calendar-redesign .cal-week-google-btn {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-today-btn {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-week-google-btn { min-height: 44px !important; }
+
+  #room-view-calendar .calendar-redesign .cal-day {
+    min-width: 64px !important;
+    min-height: 82px !important;
+    flex: 1 0 64px !important;
+    border-radius: 11px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-add-form { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  #room-view-calendar .calendar-redesign {
+    gap: 11px !important;
+    padding: 14px 13px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  #room-view-calendar .cal-workspace-head {
+    gap: 13px;
+    padding-bottom: 14px;
+  }
+
+  #room-view-calendar .cal-workspace-title p { max-width: 290px; line-height: 1.4; }
+
+  #room-view-calendar .cal-head-actions { justify-content: stretch; }
+
+  #room-view-calendar .calendar-redesign .cal-photo-btn,
+  #room-view-calendar .calendar-redesign .cal-primary-action {
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 44px !important;
+    flex: 1 1 0 !important;
+    border-radius: 10px !important;
+    padding: 0 12px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-scan-sources {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 8px;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-scan-source {
+    min-height: 72px;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-import-progress {
+    right: 13px !important;
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 13px !important;
+    width: auto !important;
+    height: auto !important;
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    justify-content: stretch !important;
+    padding: 11px 12px !important;
+    border-radius: 13px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-import-copy {
+    display: flex !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-import-track {
+    display: block !important;
+  }
+
+  #room-view-calendar .calendar-redesign > .cal-nav {
+    grid-template-columns: 42px 42px minmax(0, 1fr) 42px 42px !important;
+    padding: 6px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-nav-label { font-size: 11px !important; }
+
+  #room-view-calendar .calendar-redesign .cal-nav-actions {
+    grid-template-columns: minmax(70px, .65fr) minmax(0, 2fr);
+  }
+
+  #room-view-calendar .calendar-redesign .cal-week-google-btn {
+    padding-inline: 9px !important;
+    font-size: 9.5px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-day {
+    width: 56px !important;
+    min-width: 56px !important;
+    min-height: 82px !important;
+    flex: 0 0 56px !important;
+    border-radius: 11px !important;
+    padding: 7px 6px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-day-num { font-size: 18px !important; }
+
+  #room-view-calendar .calendar-redesign > .cal-connect-banner {
+    align-items: stretch !important;
+    flex-direction: column;
+    gap: 9px !important;
+    padding: 11px !important;
+    border-radius: 12px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-connect-left {
+    align-items: flex-start !important;
+    font-size: 10px !important;
+    line-height: 1.4 !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-connect-actions { width: 100%; }
+
+  #room-view-calendar .calendar-redesign .cal-connect-link {
+    min-height: 38px !important;
+    flex: 1 1 auto !important;
+  }
+
+  #room-view-calendar .cal-agenda-panel { min-height: 300px; }
+
+  #room-view-calendar .cal-agenda-head { padding-inline: 11px; }
+
+  #room-view-calendar .calendar-redesign .cal-add-form {
+    grid-template-columns: 1fr;
+    gap: 11px;
+    padding: 13px;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-form-row,
+  #room-view-calendar .calendar-redesign .cal-form-actions {
+    flex-direction: column !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-form-actions { align-items: stretch; }
+
+  #room-view-calendar .calendar-redesign .cal-form-save,
+  #room-view-calendar .calendar-redesign .cal-form-cancel {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-agenda { min-height: 220px; }
+
+  #room-view-calendar .calendar-redesign .cal-empty {
+    min-height: 220px;
+    padding: 28px 14px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-ev-card {
+    align-items: flex-start !important;
+    padding: 11px 8px 11px 15px !important;
+    border-radius: 10px !important;
+  }
+
+  #room-view-calendar .calendar-redesign .cal-ev-actions { flex-direction: column; gap: 4px; }
+
+  #room-view-calendar .calendar-redesign .cal-ev-del {
+    width: 44px;
+    min-width: 44px !important;
+    height: 44px;
+    min-height: 44px !important;
+  }
+}
+
+@media (max-width: 380px) {
+  #room-view-calendar .calendar-redesign .cal-scan-sources {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #room-view-calendar .calendar-redesign :is(button, .cal-day) { transition: none; }
+  #room-view-calendar .calendar-redesign .cal-week-google-spinner { animation: none; }
+}

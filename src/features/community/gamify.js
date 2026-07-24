@@ -6,6 +6,7 @@
 import { db } from '../../lib/firebase.js';
 import { ref, get, set, runTransaction, onValue } from 'firebase/database';
 import { createElement } from 'react';
+import { playUiSound } from '../audio/uiSoundService.js';
 import { createHostAwareRoot } from '../shell/hostAwareRoot.js';
 import QuestList from './QuestList.jsx';
 
@@ -38,7 +39,10 @@ window.awardXP = async function (uid, skill, amount) {
         await runTransaction(ref(db, `users/${uid}/xp/${skill}`), (c) => { before = c || 0; after = before + amount; return after; });
         if (levelOf(after) > levelOf(before)) {
             window.createNotification?.(uid, 'levelup', `⬆️ ${SKILLS[skill].label} reached level ${levelOf(after)}!`);
-            if (uid === window.currentUser?.uid && window.showToast) window.showToast(`⬆️ ${SKILLS[skill].label} Lv.${levelOf(after)}!`, false);
+            if (uid === window.currentUser?.uid) {
+                void playUiSound('achievement', { dedupeKey: `level:${uid}:${skill}:${levelOf(after)}` });
+                if (window.showToast) window.showToast(`⬆️ ${SKILLS[skill].label} Lv.${levelOf(after)}!`, false);
+            }
         }
     } catch (e) { console.error('awardXP failed', e); }
 };
@@ -93,6 +97,7 @@ window.trackQuest = async function (event, amount = 1) {
             if (done) {
                 window.awardXP(uid, q.skill, q.xp);
                 window.createNotification?.(uid, 'quest', `🏆 Quest complete: ${q.label} (+${q.xp} ${SKILLS[q.skill].label} XP)`);
+                void playUiSound('achievement', { dedupeKey: `quest:${periodKey(q.type)}:${q.id}` });
                 if (window.showToast) window.showToast(`🏆 Quest complete: ${q.label}`, false);
                 if (q.type === 'daily') window.bumpStreak(uid);
             }
